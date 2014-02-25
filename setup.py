@@ -15,9 +15,9 @@ setup(
     author='idanmo',
     author_email='idan@gigaspaces.com',
     packages=[
-        'common',
-        'nova',
-        'neutron'
+        'openstack_plugin_common',
+        'openstack_nova_plugin',
+        'openstack_neutron_plugin'
     ],
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',

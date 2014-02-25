@@ -24,15 +24,15 @@ import os
 import subprocess
 import sys
 import time
-import common
+import openstack_plugin_common
 
-from common import neutron_client
+from openstack_plugin_common import neutron_client
 from novaclient import exceptions as nova_exceptions
 
 from cloudify.decorators import operation
 from cloudify.manager import set_node_stopped
 
-with_nova_client = common.with_nova_client
+with_nova_client = openstack_plugin_common.with_nova_client
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
@@ -73,7 +73,7 @@ def create(ctx, nova_client, **kwargs):
 
     if ('management_network_name' in ctx.properties) and \
             ctx.properties['management_network_name']:
-        nc = common.NeutronClient().get(
+        nc = openstack_plugin_common.NeutronClient().get(
             config=ctx.properties.get('neutron_config'))
         managemenet_network_id = nc.cosmo_get_named(
             'network', ctx.properties['management_network_name'])['id']

@@ -14,9 +14,8 @@
 #  * limitations under the License.
 
 import re
-
 from cloudify.decorators import operation
-from common import with_neutron_client
+from openstack_plugin_common import with_neutron_client
 
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
 

@@ -14,7 +14,7 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
-from common import with_neutron_client
+from openstack_plugin_common import with_neutron_client
 
 
 @operation

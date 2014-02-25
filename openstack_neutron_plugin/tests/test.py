@@ -15,12 +15,12 @@
 
 import unittest
 
-import common
-import neutron.floatingip as cfy_fip
-import neutron.network as cfy_net
-import neutron.port as cfy_port
-import neutron.router as cfy_rtr
-import neutron.security_group as cfy_sg
+import openstack_plugin_common as common
+import openstack_neutron_plugin.floatingip as cfy_fip
+import openstack_neutron_plugin.network as cfy_net
+import openstack_neutron_plugin.port as cfy_port
+import openstack_neutron_plugin.router as cfy_rtr
+import openstack_neutron_plugin.security_group as cfy_sg
 
 from cloudify.context import ContextCapabilities
 from cloudify.mocks import MockCloudifyContext

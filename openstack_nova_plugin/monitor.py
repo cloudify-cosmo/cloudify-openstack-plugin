@@ -23,7 +23,8 @@ import syslog
 
 from cloudify.manager import set_node_started, set_node_stopped
 from cloudify.manager import get_node_state, update_node_state
-import cosmo_plugin_openstack_common as os_common
+
+import openstack_plugin_common as common
 
 
 class Reporter(object):
@@ -38,7 +39,7 @@ class OpenstackStatusMonitor(object):
     def __init__(self, reporter, args):
         self.reporter = reporter
         self.interval = args.monitor_interval
-        self.nova = os_common.NovaClient().get(region=args.region_name)
+        self.nova = common.NovaClient().get(region=args.region_name)
         self.continue_running = True
 
     def start(self):

@@ -19,12 +19,12 @@ import unittest
 
 from cloudify.mocks import MockCloudifyContext
 
-import common as os_common
+import openstack_plugin_common as common
 
-import nova.server as cfy_srv
-import nova.monitor as cfy_srv_mon
+import openstack_nova_plugin.server as cfy_srv
+import openstack_nova_plugin.monitor as cfy_srv_mon
 
-tests_config = os_common.TestsConfig().get()
+tests_config = common.TestsConfig().get()
 
 DELETE_WAIT_START = 1
 DELETE_WAIT_FACTOR = 2
@@ -55,7 +55,7 @@ cfy_srv.start_monitor = _mock_start_monitor
 # WIP - end
 
 
-class OpenstackNovaTest(os_common.TestCase):
+class OpenstackNovaTest(common.TestCase):
 
     def test_server_create_and_delete(self):
         management_network = self.create_network('mng')

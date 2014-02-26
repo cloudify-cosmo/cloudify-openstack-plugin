@@ -163,6 +163,7 @@ def create(ctx, nova_client, **kwargs):
         .format(','.join(params.keys())))
 
     try:
+        ctx.logger.info('Creating VM with params: {0}'.format(params))
         s = nova_client.servers.create(**params)
     except nova_exceptions.BadRequest as e:
         if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):

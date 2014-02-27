@@ -21,26 +21,21 @@ import copy
 import inspect
 import itertools
 import os
-import subprocess
-import sys
-import time
 import openstack_plugin_common
 
 from openstack_plugin_common import neutron_client
 from novaclient import exceptions as nova_exceptions
-
 from cloudify.decorators import operation
-from cloudify.manager import set_node_stopped
 
 with_nova_client = openstack_plugin_common.with_nova_client
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
 
+NODE_ID_PROPERTY = 'cloudify_id'
 
-@operation
-@with_nova_client
-def create(ctx, nova_client, **kwargs):
+
+def start_new_server(ctx, nova_client):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
@@ -151,13 +146,15 @@ def create(ctx, nova_client, **kwargs):
 
     if not params['meta']:
         params['meta'] = dict({})
-    params['meta']['cloudify_id'] = ctx.node_id
-    params['meta']['cloudify_management_network_id'] = managemenet_network_id
-    params['meta']['cloudify_management_network_name'] = \
-        ctx.properties.get('management_network_name')
+    params['meta'][NODE_ID_PROPERTY] = ctx.node_id
+    if managemenet_network_id is not None:
+        params['meta']['cloudify_management_network_id'] = \
+            managemenet_network_id
+    if 'management_network_name' in ctx.properties:
+        params['meta']['cloudify_management_network_name'] = \
+            ctx.properties.get('management_network_name')
 
-    ctx.logger.info("Asking Nova to create server."
-                    "Parameters: {0}".format(str(params)))
+    ctx.logger.info("Creating VM with parameters: {0}".format(str(params)))
     ctx.logger.debug(
         "Asking Nova to create server. All possible parameters are: {0})"
         .format(','.join(params.keys())))
@@ -179,67 +176,82 @@ def create(ctx, nova_client, **kwargs):
 @operation
 @with_nova_client
 def start(ctx, nova_client, **kwargs):
-    server = nova_client.servers.get(ctx.runtime_properties['external_id'])
-
-    # ACTIVE - already started
-    # BUILD - is building and will start automatically after the build.
-    # HP uses 'BUILD(x)' where x is a substatus therfore the startswith usage.
-
-    if server.status == 'ACTIVE' or server.status.startswith('BUILD'):
-        start_monitor(ctx)
+    server = get_server_by_context(nova_client, ctx)
+    if server is not None:
+        server.start()
         return
 
-    # Rackspace: stop, start, pause, unpause, suspend - not implemented.
-    # Maybe other methods too. Calling reboot() on an instance that is
-    # 'SHUTOFF' will start it.
-
-    # SHUTOFF - powered off
-    if server.status == 'SHUTOFF':
-        server.reboot()
-        start_monitor(ctx)
-        return
-
-    raise ValueError("openstack_host_provisioner: Can not start() "
-                     "server in state {0}".format(server.status))
+    start_new_server(ctx, nova_client)
 
 
 @operation
 @with_nova_client
 def stop(ctx, nova_client, **kwargs):
-    server = nova_client.servers.get(ctx.runtime_properties['external_id'])
+    """
+    Stop server.
+
+    Depends on OpenStack implementation, server.stop() might not be supported.
+    """
+    server = get_server_by_context(nova_client, ctx)
+    if server is None:
+        raise RuntimeError(
+            "Cannot stop server - server doesn't exist for node: {0}"
+            .format(ctx.node_id))
     server.stop()
-    # workaround - start
-    set_node_stopped(ctx.node_id, 'server-' + str(server.id))
-    # ctx.set_stopped()
-    # workaround - stop
-
-
-def start_monitor(ctx):
-    command = [
-        sys.executable,
-        os.path.join(os.path.dirname(__file__), "monitor.py")
-    ]
-    ctx.logger.info('starting openstack monitoring [cmd=%s]', command)
-    subprocess.Popen(command)
 
 
 @operation
 @with_nova_client
 def delete(ctx, nova_client, **kwargs):
-    server = nova_client.servers.find(id=ctx.runtime_properties['external_id'])
-    id = server.id
+    server = get_server_by_context(nova_client, ctx)
+    if server is None:
+        raise RuntimeError(
+            "Cannot delete server - server doesn't exist for node: {0}"
+            .format(ctx.node_id))
+
     server.delete()
-    # Wait here or monitor will report "started" _after_ we report "stopped"
-    while True:
-        servers = list(nova_client.servers.findall(
-            id=ctx.runtime_properties['external_id']))
-        time.sleep(SERVER_DELETE_CHECK_SLEEP)  # final sleep is intentional
-        if len(servers) == 0:
-            break
-    # workaround - start
-    set_node_stopped(ctx.node_id, 'server-' + str(id))
-    # ctx.set_stopped()
-    # workaround - stop
+
+
+def get_server_by_context(nova_client, ctx):
+    """
+    Gets a server for the provided node_id.
+
+    Current implementation retrieves a list of all servers and looks
+    in each server's metadata.
+    """
+    # Getting server by its OpenStack id is faster tho it requires
+    # a REST API call to Cloudify's storage for getting runtime properties.
+    if 'external_id' in ctx:
+        return nova_client.servers.get(ctx['external_id'])
+    # Fallback
+    servers = nova_client.servers.list()
+    for server in servers:
+        if NODE_ID_PROPERTY in server.metadata and \
+                ctx.node_id == server.metadata[NODE_ID_PROPERTY]:
+            return server
+    return None
+
+
+@operation
+@with_nova_client
+def get_state(ctx, nova_client, **kwargs):
+    server = get_server_by_context(nova_client, ctx)
+    if server.status == 'ACTIVE':
+        ips = {}
+        _, default_network_ips = server.networks.items()[0]
+        manager_network_ip = None
+        management_network_name = server.metadata.get(
+            'cloudify_management_network_name')
+        for network, network_ips in server.networks.items():
+            if management_network_name and network == management_network_name:
+                manager_network_ip = ips[0]
+            ips[network] = network_ips
+        if manager_network_ip is None:
+            manager_network_ip = default_network_ips[0]
+        ctx['networks'] = ips
+        ctx['ip'] = manager_network_ip
+        return True
+    return False
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):
@@ -293,3 +305,24 @@ def ud_http(params):
         "server.userdata when using type 'http'")
     return requests.get(params['url']).text
 # *** userdata handling - end ***
+
+
+if __name__ == '__main__':
+    os.environ['KEYSTONE_CONFIG_PATH'] = '/home/idanmo/temp/cloudify-manager/keystone_config.json'
+    from cloudify.mocks import MockCloudifyContext
+    props = {'server': {
+        'name': 'idan_web_server_vm',
+        'image_name': 'Ubuntu Precise 12.04 LTS Server 64-bit 20121026 (b)',
+        'flavor_name': 'standard.xsmall',
+        'key_name': 'cloudify_agents_idan'
+    }
+    }
+    mock_ctx = MockCloudifyContext('my_node_id', properties=props)
+    #start(mock_ctx)
+    import time
+    while not get_state(mock_ctx):
+        time.sleep(1)
+
+    #stop(mock_ctx)
+    delete(mock_ctx)
+

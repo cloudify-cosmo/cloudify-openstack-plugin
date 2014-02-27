@@ -75,9 +75,7 @@ class OpenstackStatusMonitor(object):
                 syslog.syslog('monitor.py - management_network_name')
                 node_state = get_node_state(node_id)
 
-                # TODO: use net_ips[*], not net_ips[0]
                 if 'ips' not in node_state:
-                    syslog.syslog('monitor.py - ips not in node_state')
                     all_ips = []
                     for net_name, net_ips in server.networks.items():
                         if net_name == management_network_name:
@@ -86,6 +84,7 @@ class OpenstackStatusMonitor(object):
                             all_ips.append((net_name, net_ips[0]))
                     node_state['ips'] = all_ips
                     update_node_state(node_state)
+
         else:
             method = 'stop'
         getattr(self.reporter, method)(node_id, 'server-' + str(server.id))

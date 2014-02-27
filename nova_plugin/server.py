@@ -13,14 +13,10 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
-# TODO: in create(), use currently non-existing API to detect
-#       relation types, do not filter by
-#       cosmo_is_network/cosmo_is_port
 
 import copy
 import inspect
 import itertools
-import os
 import openstack_plugin_common
 
 from openstack_plugin_common import neutron_client
@@ -305,24 +301,3 @@ def ud_http(params):
         "server.userdata when using type 'http'")
     return requests.get(params['url']).text
 # *** userdata handling - end ***
-
-
-if __name__ == '__main__':
-    os.environ['KEYSTONE_CONFIG_PATH'] = '/home/idanmo/temp/cloudify-manager/keystone_config.json'
-    from cloudify.mocks import MockCloudifyContext
-    props = {'server': {
-        'name': 'idan_web_server_vm',
-        'image_name': 'Ubuntu Precise 12.04 LTS Server 64-bit 20121026 (b)',
-        'flavor_name': 'standard.xsmall',
-        'key_name': 'cloudify_agents_idan'
-    }
-    }
-    mock_ctx = MockCloudifyContext('my_node_id', properties=props)
-    #start(mock_ctx)
-    import time
-    while not get_state(mock_ctx):
-        time.sleep(1)
-
-    #stop(mock_ctx)
-    delete(mock_ctx)
-

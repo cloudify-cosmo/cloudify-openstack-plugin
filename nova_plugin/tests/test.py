@@ -21,8 +21,8 @@ from cloudify.mocks import MockCloudifyContext
 
 import openstack_plugin_common as common
 
-import openstack_nova_plugin.server as cfy_srv
-import openstack_nova_plugin.monitor as cfy_srv_mon
+import nova_plugin.server as cfy_srv
+import nova_plugin.monitor as cfy_srv_mon
 
 tests_config = common.TestsConfig().get()
 

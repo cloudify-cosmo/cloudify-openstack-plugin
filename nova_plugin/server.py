@@ -29,6 +29,7 @@ MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
 
 NODE_ID_PROPERTY = 'cloudify_id'
+OPENSTACK_SERVER_ID_PROPERTY = 'openstack_server_id'
 
 
 def start_new_server(ctx, nova_client):
@@ -166,7 +167,7 @@ def start_new_server(ctx, nova_client):
                 "can be connected to."
             )
         raise RuntimeError("Nova bad request error: " + str(e))
-    ctx['external_id'] = s.id
+    ctx[OPENSTACK_SERVER_ID_PROPERTY] = s.id
 
 
 @operation
@@ -217,8 +218,8 @@ def get_server_by_context(nova_client, ctx):
     """
     # Getting server by its OpenStack id is faster tho it requires
     # a REST API call to Cloudify's storage for getting runtime properties.
-    if 'external_id' in ctx:
-        return nova_client.servers.get(ctx['external_id'])
+    if OPENSTACK_SERVER_ID_PROPERTY in ctx:
+        return nova_client.servers.get(ctx[OPENSTACK_SERVER_ID_PROPERTY])
     # Fallback
     servers = nova_client.servers.list()
     for server in servers:

@@ -54,7 +54,6 @@ def create(ctx, neutron_client, **kwargs):
     r = neutron_client.create_router({'router': router})['router']
 
     ctx['external_id'] = r['id']
-    ctx.set_started()
 
 
 @operation

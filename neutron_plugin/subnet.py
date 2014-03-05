@@ -28,7 +28,6 @@ def create(ctx, neutron_client, **kwargs):
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
     ctx.runtime_properties['external_id'] = s['id']
-    ctx.set_started()
 
 
 @operation

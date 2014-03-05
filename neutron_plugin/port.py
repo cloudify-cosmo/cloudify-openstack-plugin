@@ -41,14 +41,12 @@ def create(ctx, neutron_client, **kwargs):
     port.update(ctx.properties['port'])
     p = neutron_client.create_port({'port': port})['port']
     ctx['external_id'] = p['id']
-    ctx.set_started()
 
 
 @operation
 @with_neutron_client
 def delete(ctx, neutron_client, **kwargs):
     neutron_client.delete_port(ctx.runtime_properties['external_id'])
-    ctx.set_stopped()
 
 
 @operation

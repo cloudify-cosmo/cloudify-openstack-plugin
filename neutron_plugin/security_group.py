@@ -123,11 +123,9 @@ def create(ctx, neutron_client, **kwargs):
         neutron_client.create_security_group_rule({'security_group_rule': sgr})
 
     ctx['external_id'] = sg['id']
-    ctx.set_started()
 
 
 @operation
 @with_neutron_client
 def delete(ctx, neutron_client, **kwargs):
     neutron_client.delete_security_group(ctx.runtime_properties['external_id'])
-    ctx.set_stopped()

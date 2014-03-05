@@ -29,7 +29,6 @@ def create(ctx, neutron_client, **kwargs):
     net = neutron_client.create_network({'network': network})['network']
     ctx['external_id'] = net['id']
     ctx.update()
-    ctx.set_started()
 
 
 @operation

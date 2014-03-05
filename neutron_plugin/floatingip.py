@@ -25,7 +25,6 @@ def create(ctx, neutron_client, **kwargs):
     if ctx.runtime_properties.get('external_id'):
         ctx.logger.debug("Using already allocated Floating IP {0}".format(
             ctx.runtime_properties['floating_ip_address']))
-        ctx.set_started()
         return
 
     floatingip = {
@@ -46,7 +45,6 @@ def create(ctx, neutron_client, **kwargs):
         ctx.runtime_properties['floating_ip_address'] = \
             fip['floating_ip_address']
         ctx.runtime_properties['enable_deletion'] = False  # Not acquired here
-        ctx.set_started()
         return
 
     # Sugar: floating_network_name -> (resolve) -> floating_network_id
@@ -63,7 +61,6 @@ def create(ctx, neutron_client, **kwargs):
     ctx.runtime_properties['enable_deletion'] = True
     ctx.logger.debug(
         "Allocated floating IP {0}".format(fip['floating_ip_address']))
-    ctx.set_started()
 
 
 @operation
@@ -75,4 +72,3 @@ def delete(ctx, neutron_client, **kwargs):
         op, ctx.runtime_properties['floating_ip_address']))
     if do_delete:
         neutron_client.delete_floatingip(ctx.runtime_properties['external_id'])
-    ctx.set_stopped()

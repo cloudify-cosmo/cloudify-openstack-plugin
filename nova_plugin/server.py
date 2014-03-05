@@ -157,7 +157,6 @@ def start_new_server(ctx, nova_client):
         .format(','.join(params.keys())))
 
     try:
-        ctx.logger.info('Creating VM with params: {0}'.format(params))
         s = nova_client.servers.create(**params)
     except nova_exceptions.BadRequest as e:
         if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
@@ -211,10 +210,10 @@ def delete(ctx, nova_client, **kwargs):
 
 def get_server_by_context(nova_client, ctx):
     """
-    Gets a server for the provided node_id.
-
-    Current implementation retrieves a list of all servers and looks
-    in each server's metadata.
+    Gets a server for the provided context.
+    
+    If openstack server id is present it would be used for getting the server.
+    Otherwise, an iteration on all servers metadata will be made.
     """
     # Getting server by its OpenStack id is faster tho it requires
     # a REST API call to Cloudify's storage for getting runtime properties.

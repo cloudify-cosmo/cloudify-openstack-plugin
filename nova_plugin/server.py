@@ -210,10 +210,10 @@ def delete(ctx, nova_client, **kwargs):
 
 def get_server_by_context(nova_client, ctx):
     """
-    Gets a server for the provided node_id.
-
-    Current implementation retrieves a list of all servers and looks
-    in each server's metadata.
+    Gets a server for the provided context.
+    
+    If openstack server id is present it would be used for getting the server.
+    Otherwise, an iteration on all servers metadata will be made.
     """
     # Getting server by its OpenStack id is faster tho it requires
     # a REST API call to Cloudify's storage for getting runtime properties.

@@ -240,11 +240,12 @@ def get_state(ctx, nova_client, **kwargs):
             'cloudify_management_network_name')
         for network, network_ips in server.networks.items():
             if management_network_name and network == management_network_name:
-                manager_network_ip = ips[0]
+                manager_network_ip = network_ips[0]
             ips[network] = network_ips
         if manager_network_ip is None:
             manager_network_ip = default_network_ips[0]
         ctx['networks'] = ips
+        # The ip of this instance in the management network
         ctx['ip'] = manager_network_ip
         return True
     return False

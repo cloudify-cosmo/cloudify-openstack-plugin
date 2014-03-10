@@ -20,9 +20,16 @@ from openstack_plugin_common import with_neutron_client
 @operation
 @with_neutron_client
 def create(ctx, neutron_client, **kwargs):
+
+    ls = [caps for caps in ctx.capabilities.get_all().values() if
+          caps.get('external_type') == 'network']
+    if len(ls) != 1:
+        raise RuntimeError('Expected exactly one network capability. got'
+                           ' {0}'.format(ls))
+    network_caps = ls[0]
     subnet = {
         'name': ctx.node_id,
-        'network_id': ctx.capabilities['external_id'],
+        'network_id': network_caps['external_id'],
     }
     subnet.update(ctx.properties['subnet'])
 

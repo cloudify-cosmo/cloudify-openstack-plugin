@@ -222,10 +222,10 @@ class NeutronClientWithSugar(neutron_client.Client):
                     len(ls)))
 
     def cosmo_is_network(self, id):
-        return bool(self.cosmo_list('network', id=id))
+        return any(self.cosmo_list('network', id=id))
 
     def cosmo_is_port(self, id):
-        return bool(self.cosmo_list('port', id=id))
+        return any(self.cosmo_list('port', id=id))
 
 
 class TrackingNeutronClientWithSugar(NeutronClientWithSugar):

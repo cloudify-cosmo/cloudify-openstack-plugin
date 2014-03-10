@@ -41,10 +41,9 @@ def create(ctx, neutron_client, **kwargs):
         fip = neutron_client.cosmo_get(
             'floatingip',
             floating_ip_address=floatingip['floating_ip_address'])
-        ctx.runtime_properties['external_id'] = fip['id']
-        ctx.runtime_properties['floating_ip_address'] = \
-            fip['floating_ip_address']
-        ctx.runtime_properties['enable_deletion'] = False  # Not acquired here
+        ctx['external_id'] = fip['id']
+        ctx['floating_ip_address'] = fip['floating_ip_address']
+        ctx['enable_deletion'] = False  # Not acquired here
         return
 
     # Sugar: floating_network_name -> (resolve) -> floating_network_id
@@ -55,10 +54,10 @@ def create(ctx, neutron_client, **kwargs):
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']
-    ctx.runtime_properties['external_id'] = fip['id']
-    ctx.runtime_properties['floating_ip_address'] = fip['floating_ip_address']
+    ctx['external_id'] = fip['id']
+    ctx['floating_ip_address'] = fip['floating_ip_address']
     # Acquired here -> OK to delete
-    ctx.runtime_properties['enable_deletion'] = True
+    ctx['enable_deletion'] = True
     ctx.logger.debug(
         "Allocated floating IP {0}".format(fip['floating_ip_address']))
 

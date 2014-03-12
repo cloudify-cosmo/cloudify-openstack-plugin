@@ -37,7 +37,6 @@ def create(ctx, neutron_client, **kwargs):
     port = {
         'name': ctx.node_id,
         'network_id': _find_network_in_related_nodes(ctx, neutron_client),
-        'security_groups': [],
     }
     port.update(ctx.properties['port'])
     p = neutron_client.create_port({'port': port})['port']

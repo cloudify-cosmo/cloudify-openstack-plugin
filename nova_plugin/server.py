@@ -98,7 +98,7 @@ def start_new_server(ctx, nova_client):
     nics = [
         {'net-id': n['external_id']}
         for n in network_nodes_runtime_properties
-        if neutron_client.cosmo_is_network(n['external_id'])
+        if nc.cosmo_is_network(n['external_id'])
     ]
     if nics:
         server['nics'] = server.get('nics', []) + nics
@@ -114,7 +114,7 @@ def start_new_server(ctx, nova_client):
     nics = [
         {'port-id': n['external_id']}
         for n in port_nodes_runtime_properties
-        if neutron_client.cosmo_is_port(n['external_id'])
+        if nc.cosmo_is_port(n['external_id'])
     ]
     if nics:
         server['nics'] = server.get('nics', []) + nics

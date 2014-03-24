@@ -251,6 +251,22 @@ def get_state(ctx, nova_client, **kwargs):
     return False
 
 
+@operation
+@with_nova_client
+def connect_floatingip(ctx, nova_client, **kwargs):
+    server_id = ctx[OPENSTACK_SERVER_ID_PROPERTY]
+    server = nova_client.servers.get(server_id)
+    server.add_floating_ip(ctx.related['floating_ip_address'])
+
+
+@operation
+@with_nova_client
+def disconnect_floatingip(ctx, nova_client, **kwargs):
+    server_id = ctx[OPENSTACK_SERVER_ID_PROPERTY]
+    server = nova_client.servers.get(server_id)
+    server.remove_floating_ip(ctx.related['floating_ip_address'])
+
+
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):
     for k in required_parameters:
         if k not in obj:

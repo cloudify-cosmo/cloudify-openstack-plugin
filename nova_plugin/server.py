@@ -19,7 +19,6 @@ import inspect
 import itertools
 import openstack_plugin_common
 
-from openstack_plugin_common import neutron_client
 from novaclient import exceptions as nova_exceptions
 from cloudify.decorators import operation
 
@@ -211,7 +210,7 @@ def delete(ctx, nova_client, **kwargs):
 def get_server_by_context(nova_client, ctx):
     """
     Gets a server for the provided context.
-    
+
     If openstack server id is present it would be used for getting the server.
     Otherwise, an iteration on all servers metadata will be made.
     """

@@ -283,7 +283,7 @@ class OverLimitRetryProxy(object):
                                       'seconds before trying again (Attempt'\
                                       ' {2}/{3})'.format(
                                           name, retry_after, i+2, retries)
-                            self.logger.info(message)
+                            self.logger.warn(message)
                         time.sleep(retry_after)
                 raise
             return wrapper

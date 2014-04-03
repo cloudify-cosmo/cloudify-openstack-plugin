@@ -154,10 +154,13 @@ def with_nova_client(f):
     def wrapper(*args, **kw):
         ctx = _find_context_in_kw(kw)
         if ctx:
+            logger = ctx.logger
             config = ctx.properties.get('nova_config')
         else:
             config = None
-        nova_client = OverLimitRetryProxy(NovaClient().get(config=config))
+            logger = None
+        nova_client = OverLimitRetryProxy(NovaClient().get(config=config),
+                                          logger=logger)
         kw['nova_client'] = nova_client
         return f(*args, **kw)
     return wrapper
@@ -254,8 +257,9 @@ class TrackingNeutronClientWithSugar(NeutronClientWithSugar):
 
 class OverLimitRetryProxy(object):
 
-    def __init__(self, delegate):
+    def __init__(self, delegate, logger=None):
         self.delegate = delegate
+        self.logger = logger
 
     def __getattr__(self, name):
         attr = getattr(self.delegate, name)
@@ -267,9 +271,19 @@ class OverLimitRetryProxy(object):
                     try:
                         return attr(*args, **kwargs)
                     except nova_exceptions.OverLimit, e:
+                        if i == retries - 1:
+                            break
                         retry_after = e.retry_after
                         if retry_after == 0:
                             retry_after = default_retry_after
+                        retry_after += random.randint(0, retry_after)
+                        if self.logger is not None:
+                            message = 'OverLimit() exception caught while '\
+                                      'executing {0}. sleeping for {1} '\
+                                      'seconds before trying again (Attempt'\
+                                      ' {2}/{3})'.format(
+                                          name, retry_after, i+2, retries)
+                            self.logger.info(message)
                         time.sleep(retry_after)
                 raise
             return wrapper
@@ -296,7 +310,12 @@ class OverLimitRetryProxyTestCase(unittest.TestCase):
             raise RuntimeError()
 
     def setUp(self):
-        self.client = OverLimitRetryProxy(self.MockClient())
+        random.seed(0)
+        logging.basicConfig()
+        logger = logging.getLogger('test')
+        logger.setLevel(logging.DEBUG)
+        self.client = OverLimitRetryProxy(self.MockClient(),
+                                          logger=logger)
 
     def test(self):
         self.assertRaises(AttributeError,
@@ -318,13 +337,15 @@ class OverLimitRetryProxyTestCase(unittest.TestCase):
         self.assertRaises(nova_exceptions.OverLimit,
                           self.client.raise_over_limit,
                           retry_after=1)
-        self.assertGreater(time.time() - start, 3)
-        self.assertLess(time.time() - start, 4)
+        # timing relies on # random.seed(0)
+        self.assertGreater(time.time() - start, 4)
+        self.assertLess(time.time() - start, 5)
 
+        # timing relies on # random.seed(0)
         start = time.time()
         self.assertRaises(nova_exceptions.OverLimit,
                           self.client.raise_over_limit)
-        self.assertGreater(time.time() - start, 15)
+        self.assertGreater(time.time() - start, 13)
 
 
 class TestCase(unittest.TestCase):

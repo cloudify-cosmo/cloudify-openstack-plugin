@@ -26,6 +26,7 @@ import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v1_1.client as nova_client
+import novaclient.exceptions as nova_exceptions
 
 import cloudify.manager
 import cloudify.decorators
@@ -156,7 +157,7 @@ def with_nova_client(f):
             config = ctx.properties.get('nova_config')
         else:
             config = None
-        nova_client = NovaClient().get(config=config)
+        nova_client = OverLimitRetryProxy(NovaClient().get(config=config))
         kw['nova_client'] = nova_client
         return f(*args, **kw)
     return wrapper
@@ -249,6 +250,81 @@ class TrackingNeutronClientWithSugar(NeutronClientWithSugar):
                 f(*args, **kw)
             except neutron_exceptions.NeutronClientException:
                 pass
+
+
+class OverLimitRetryProxy(object):
+
+    def __init__(self, delegate):
+        self.delegate = delegate
+
+    def __getattr__(self, name):
+        attr = getattr(self.delegate, name)
+        if callable(attr):
+            def wrapper(*args, **kwargs):
+                retries = 3
+                default_retry_after = 5
+                for i in range(retries):
+                    try:
+                        return attr(*args, **kwargs)
+                    except nova_exceptions.OverLimit, e:
+                        retry_after = e.retry_after
+                        if retry_after == 0:
+                            retry_after = default_retry_after
+                        time.sleep(retry_after)
+                raise
+            return wrapper
+        return attr
+
+
+class OverLimitRetryProxyTestCase(unittest.TestCase):
+
+    class MockClient(object):
+        def __init__(self):
+            self.attribute = 'attribute'
+
+        def raise_over_limit(self, retry_after=None):
+            if retry_after is not None:
+                raise nova_exceptions.OverLimit(code=413,
+                                                retry_after=retry_after)
+            else:
+                raise nova_exceptions.OverLimit(code=413)
+
+        def normal_method(self):
+            return 'normal'
+
+        def raise_other(self):
+            raise RuntimeError()
+
+    def setUp(self):
+        self.client = OverLimitRetryProxy(self.MockClient())
+
+    def test(self):
+        self.assertRaises(AttributeError,
+                          lambda: self.client.non_existent_attribute)
+
+        start = time.time()
+        self.assertEqual(self.client.attribute, 'attribute')
+        self.assertLess(time.time() - start, 0.5)
+
+        start = time.time()
+        self.assertEqual(self.client.normal_method(), 'normal')
+        self.assertLess(time.time() - start, 0.5)
+
+        start = time.time()
+        self.assertRaises(RuntimeError, self.client.raise_other)
+        self.assertLess(time.time() - start, 0.5)
+
+        start = time.time()
+        self.assertRaises(nova_exceptions.OverLimit,
+                          self.client.raise_over_limit,
+                          retry_after=1)
+        self.assertGreater(time.time() - start, 3)
+        self.assertLess(time.time() - start, 4)
+
+        start = time.time()
+        self.assertRaises(nova_exceptions.OverLimit,
+                          self.client.raise_over_limit)
+        self.assertGreater(time.time() - start, 15)
 
 
 class TestCase(unittest.TestCase):

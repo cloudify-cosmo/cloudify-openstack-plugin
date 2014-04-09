@@ -130,7 +130,8 @@ class NeutronClient(OpenStackClient):
 def _neutron_exception_handler(exception):
     if not isinstance(exception, neutron_exceptions.NeutronClientException):
         raise
-    if 'TokenRateLimit' not in exception.message:
+    if exception.message is not None and \
+            'TokenRateLimit' not in exception.message:
         raise
     retry_after = 30
     return retry_after
@@ -165,7 +166,7 @@ def with_neutron_client(f):
             logger = None
         neutron_client = ExceptionRetryProxy(
             NeutronClient().get(config=config),
-            exception_handler=_nova_exception_handler,
+            exception_handler=_neutron_exception_handler,
             logger=logger)
         kw['neutron_client'] = neutron_client
         return f(*args, **kw)

@@ -130,7 +130,7 @@ class NeutronClient(OpenStackClient):
 def _neutron_exception_handler(exception):
     if not isinstance(exception, neutron_exceptions.NeutronClientException):
         raise
-    if not 'TokenRateLimit' in exception.message:
+    if 'TokenRateLimit' not in exception.message:
         raise
     retry_after = 30
     return retry_after
@@ -304,8 +304,11 @@ class ExceptionRetryProxy(object):
                             message = '{0} exception caught while ' \
                                       'executing {1}. sleeping for {2} ' \
                                       'seconds before trying again (Attempt' \
-                                      ' {3}/{4})'.format(
-                                type(e), name, retry_after, i+2, retries)
+                                      ' {3}/{4})'.format(type(e),
+                                                         name,
+                                                         retry_after,
+                                                         i+2,
+                                                         retries)
                             self.logger.warn(message)
                         time.sleep(retry_after)
                 raise
@@ -341,7 +344,6 @@ class ExceptionRetryProxyTestCase(unittest.TestCase):
             self.MockClient(),
             exception_handler=_nova_exception_handler,
             logger=logger)
-
 
     def test(self):
         self.assertRaises(AttributeError,

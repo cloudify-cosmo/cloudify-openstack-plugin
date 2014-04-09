@@ -127,7 +127,7 @@ class NeutronClient(OpenStackClient):
         return ret
 
 
-def _neutron_exception_handler(exception):
+def neutron_exception_handler(exception):
     if not isinstance(exception, neutron_exceptions.NeutronClientException):
         raise
     if exception.message is not None and \
@@ -166,7 +166,7 @@ def with_neutron_client(f):
             logger = None
         neutron_client = ExceptionRetryProxy(
             NeutronClient().get(config=config),
-            exception_handler=_neutron_exception_handler,
+            exception_handler=neutron_exception_handler,
             logger=logger)
         kw['neutron_client'] = neutron_client
         return f(*args, **kw)

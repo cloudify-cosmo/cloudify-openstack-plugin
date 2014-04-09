@@ -20,6 +20,8 @@ import itertools
 import openstack_plugin_common
 
 from novaclient import exceptions as nova_exceptions
+from openstack_plugin_common import neutron_exception_handler
+from openstack_plugin_common import ExceptionRetryProxy
 from cloudify.decorators import operation
 
 with_nova_client = openstack_plugin_common.with_nova_client
@@ -66,6 +68,9 @@ def start_new_server(ctx, nova_client):
             ctx.properties['management_network_name']:
         nc = openstack_plugin_common.NeutronClient().get(
             config=ctx.properties.get('neutron_config'))
+        nc = ExceptionRetryProxy(delegate=nc,
+                                 exception_handler=neutron_exception_handler,
+                                 logger=ctx.logger)
         managemenet_network_id = nc.cosmo_get_named(
             'network', ctx.properties['management_network_name'])['id']
         server['nics'] = [{'net-id': managemenet_network_id}]

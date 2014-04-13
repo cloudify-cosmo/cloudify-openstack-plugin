@@ -58,7 +58,7 @@ def create(ctx, neutron_client, **kwargs):
     ctx['floating_ip_address'] = fip['floating_ip_address']
     # Acquired here -> OK to delete
     ctx['enable_deletion'] = True
-    ctx.logger.debug(
+    ctx.logger.info(
         "Allocated floating IP {0}".format(fip['floating_ip_address']))
 
 

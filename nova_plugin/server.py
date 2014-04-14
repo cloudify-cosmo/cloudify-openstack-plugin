@@ -197,7 +197,7 @@ def stop(ctx, nova_client, **kwargs):
         raise RuntimeError(
             "Cannot stop server - server doesn't exist for node: {0}"
             .format(ctx.node_id))
-    server.stop()
+    nova_client.servers.stop(server)
 
 
 @operation
@@ -209,7 +209,7 @@ def delete(ctx, nova_client, **kwargs):
             "Cannot delete server - server doesn't exist for node: {0}"
             .format(ctx.node_id))
 
-    server.delete()
+    nova_client.servers.delete(server)
 
 
 def get_server_by_context(nova_client, ctx):

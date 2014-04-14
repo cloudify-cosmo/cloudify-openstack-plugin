@@ -185,20 +185,17 @@ def with_nova_client(f):
             logger = None
 
         nova_client = NovaClient().get(config=config)
-        server_manager = nova_client.servers
-        image_manager = nova_client.images
-        flavor_manager = nova_client.flavors
 
-        nova_client.servers = ExceptionRetryProxy(
-            server_manager,
+        nova_client.servers_proxy = ExceptionRetryProxy(
+            nova_client.servers,
             exception_handler=_nova_exception_handler,
             logger=logger)
-        nova_client.images = ExceptionRetryProxy(
-            image_manager,
+        nova_client.images_proxy = ExceptionRetryProxy(
+            nova_client.images,
             exception_handler=_nova_exception_handler,
             logger=logger)
-        nova_client.flavors = ExceptionRetryProxy(
-            flavor_manager,
+        nova_client.flavors_proxy = ExceptionRetryProxy(
+            nova_client.flavors,
             exception_handler=_nova_exception_handler,
             logger=logger)
 

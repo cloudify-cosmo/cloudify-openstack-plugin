@@ -183,10 +183,25 @@ def with_nova_client(f):
         else:
             config = None
             logger = None
-        nova_client = ExceptionRetryProxy(
-            NovaClient().get(config=config),
+
+        nova_client = NovaClient().get(config=config)
+        server_manager = nova_client.servers
+        image_manager = nova_client.images
+        flavor_manager = nova_client.flavors
+
+        nova_client.servers = ExceptionRetryProxy(
+            server_manager,
             exception_handler=_nova_exception_handler,
             logger=logger)
+        nova_client.images = ExceptionRetryProxy(
+            image_manager,
+            exception_handler=_nova_exception_handler,
+            logger=logger)
+        nova_client.flavors = ExceptionRetryProxy(
+            flavor_manager,
+            exception_handler=_nova_exception_handler,
+            logger=logger)
+
         kw['nova_client'] = nova_client
         return f(*args, **kw)
     return wrapper

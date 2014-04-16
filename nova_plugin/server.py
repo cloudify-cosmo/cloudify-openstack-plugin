@@ -80,10 +80,11 @@ def start_new_server(ctx, nova_client):
 
     # Sugar
     if 'image_name' in server:
-        server['image'] = nova_client.images.find(name=server['image_name']).id
+        server['image'] = nova_client.images_proxy.find(
+            name=server['image_name']).id
         del server['image_name']
     if 'flavor_name' in server:
-        server['flavor'] = nova_client.flavors.find(
+        server['flavor'] = nova_client.flavors_proxy.find(
             name=server['flavor_name']).id
         del server['flavor_name']
 
@@ -161,7 +162,7 @@ def start_new_server(ctx, nova_client):
         .format(','.join(params.keys())))
 
     try:
-        s = nova_client.servers.create(**params)
+        s = nova_client.servers_proxy.create(**params)
     except nova_exceptions.BadRequest as e:
         if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
             raise RuntimeError(
@@ -197,7 +198,7 @@ def stop(ctx, nova_client, **kwargs):
         raise RuntimeError(
             "Cannot stop server - server doesn't exist for node: {0}"
             .format(ctx.node_id))
-    server.stop()
+    nova_client.servers_proxy.stop(server)
 
 
 @operation
@@ -209,7 +210,7 @@ def delete(ctx, nova_client, **kwargs):
             "Cannot delete server - server doesn't exist for node: {0}"
             .format(ctx.node_id))
 
-    server.delete()
+    nova_client.servers_proxy.delete(server)
 
 
 def get_server_by_context(nova_client, ctx):
@@ -222,9 +223,9 @@ def get_server_by_context(nova_client, ctx):
     # Getting server by its OpenStack id is faster tho it requires
     # a REST API call to Cloudify's storage for getting runtime properties.
     if OPENSTACK_SERVER_ID_PROPERTY in ctx:
-        return nova_client.servers.get(ctx[OPENSTACK_SERVER_ID_PROPERTY])
+        return nova_client.servers_proxy.get(ctx[OPENSTACK_SERVER_ID_PROPERTY])
     # Fallback
-    servers = nova_client.servers.list()
+    servers = nova_client.servers_proxy.list()
     for server in servers:
         if NODE_ID_PROPERTY in server.metadata and \
                 ctx.node_id == server.metadata[NODE_ID_PROPERTY]:
@@ -259,7 +260,7 @@ def get_state(ctx, nova_client, **kwargs):
 @with_nova_client
 def connect_floatingip(ctx, nova_client, **kwargs):
     server_id = ctx[OPENSTACK_SERVER_ID_PROPERTY]
-    server = nova_client.servers.get(server_id)
+    server = nova_client.servers_proxy.get(server_id)
     server.add_floating_ip(ctx.related['floating_ip_address'])
 
 
@@ -267,7 +268,7 @@ def connect_floatingip(ctx, nova_client, **kwargs):
 @with_nova_client
 def disconnect_floatingip(ctx, nova_client, **kwargs):
     server_id = ctx[OPENSTACK_SERVER_ID_PROPERTY]
-    server = nova_client.servers.get(server_id)
+    server = nova_client.servers_proxy.get(server_id)
     server.remove_floating_ip(ctx.related['floating_ip_address'])
 
 

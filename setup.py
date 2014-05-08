@@ -17,8 +17,10 @@ __author__ = 'idanmo'
 
 from setuptools import setup
 
-PLUGINS_COMMON_VERSION = "3.0"
-PLUGINS_COMMON_BRANCH = "develop"
+VERSION = '1.0b1'
+
+PLUGINS_COMMON_VERSION = "3.0b1"
+PLUGINS_COMMON_BRANCH = "master"
 PLUGINS_COMMON = "https://github.com/cloudify-cosmo/" \
                  "cloudify-plugins-common/tarball/{0}".format(
                      PLUGINS_COMMON_BRANCH)
@@ -27,7 +29,7 @@ PLUGINS_COMMON = "https://github.com/cloudify-cosmo/" \
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='1.0',
+    version=VERSION,
     author='idanmo',
     author_email='idan@gigaspaces.com',
     packages=[

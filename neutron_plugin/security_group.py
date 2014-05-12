@@ -80,8 +80,20 @@ def create(ctx, neutron_client, **kwargs):
     else:
         do_disable_egress = False
 
-    sg = neutron_client.create_security_group(
-        {'security_group': security_group})['security_group']
+    sg = None
+    if ctx.properties.get('use_existing_if_found'):
+        ls = list(neutron_client.cosmo_list('security_group',
+                                            name=security_group['name']))
+        if len(ls) > 1:
+            raise RuntimeError("Can not use security group '{0}' because more"
+                               "than one such group exists".format(
+                                   security_group['name']))
+        if len(ls) == 1:
+            sg = ls[0]
+
+    if not sg:
+        sg = neutron_client.create_security_group(
+            {'security_group': security_group})['security_group']
 
     if egress_rules_to_apply or do_disable_egress:
         for er in _egress_rules(_rules_for_sg_id(neutron_client, sg['id'])):

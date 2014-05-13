@@ -92,16 +92,17 @@ def create(ctx, neutron_client, **kwargs):
         sg = ls[0]
         ctx.logger.info("Using existing security group '{0}'".format(
                         security_group['name']))
+        ctx['external_id'] = sg['id']
+        return
 
-    if not sg:
-        if not ctx.properties.get('create_if_missing', True):
-            raise RuntimeError("Security group '{0}' does not exist "
-                               "and create_if_missing is false".format(
-                                   security_group['name']))
-        ctx.logger.info("Creating security group '{0}'".format(
-                        security_group['name']))
-        sg = neutron_client.create_security_group(
-            {'security_group': security_group})['security_group']
+    if not ctx.properties.get('create_if_missing', True):
+        raise RuntimeError("Security group '{0}' does not exist "
+                           "and create_if_missing is false".format(
+                               security_group['name']))
+    ctx.logger.info("Creating security group '{0}'".format(
+                    security_group['name']))
+    sg = neutron_client.create_security_group(
+        {'security_group': security_group})['security_group']
 
     if egress_rules_to_apply or do_disable_egress:
         for er in _egress_rules(_rules_for_sg_id(neutron_client, sg['id'])):

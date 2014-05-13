@@ -81,17 +81,25 @@ def create(ctx, neutron_client, **kwargs):
         do_disable_egress = False
 
     sg = None
-    if ctx.properties.get('use_existing_if_found'):
-        ls = list(neutron_client.cosmo_list('security_group',
-                                            name=security_group['name']))
-        if len(ls) > 1:
-            raise RuntimeError("Can not use security group '{0}' because more"
-                               "than one such group exists".format(
-                                   security_group['name']))
+    ls = list(neutron_client.cosmo_list('security_group',
+                                        name=security_group['name']))
+    if len(ls) > 1:
+        raise RuntimeError("Can not use security group '{0}' because more"
+                           "than one such group exists".format(
+                               security_group['name']))
+
         if len(ls) == 1:
             sg = ls[0]
+            ctx.logger.debug("Using existing security group '{0}'".format(
+                             security_group['name']))
 
     if not sg:
+        if not ctx.properties.get('create_if_missing', True):
+            raise RuntimeError("Security group '{0}' does not exist "
+                               "and create_if_missing is false".format(
+                                   security_group['name']))
+        ctx.logger.debug("Creating security group '{0}'".format(
+                         security_group['name']))
         sg = neutron_client.create_security_group(
             {'security_group': security_group})['security_group']
 

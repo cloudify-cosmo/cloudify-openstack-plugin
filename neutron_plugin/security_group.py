@@ -88,10 +88,10 @@ def create(ctx, neutron_client, **kwargs):
                            "than one such group exists".format(
                                security_group['name']))
 
-        if len(ls) == 1:
-            sg = ls[0]
-            ctx.logger.debug("Using existing security group '{0}'".format(
-                             security_group['name']))
+    if len(ls) == 1:
+        sg = ls[0]
+        ctx.logger.debug("Using existing security group '{0}'".format(
+                         security_group['name']))
 
     if not sg:
         if not ctx.properties.get('create_if_missing', True):

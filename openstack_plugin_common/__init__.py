@@ -36,6 +36,58 @@ CLEANUP_RETRIES = 10
 CLEANUP_RETRY_SLEEP = 2
 
 
+class ProviderContext(object):
+
+    def __init__(self, provider_context):
+        self._provider_context = provider_context or {}
+        self._resources = self._provider_context.get('resources', {})
+
+    @property
+    def agents_keypair(self):
+        return self._provider_context.get('agents_keypair')
+
+    @property
+    def agents_security_group(self):
+        return self._provider_context.get('agents_security_group')
+
+    @property
+    def ext_network(self):
+        return self._provider_context.get('ext_network')
+
+    @property
+    def floating_ip(self):
+        return self._provider_context.get('floating_ip')
+
+    @property
+    def int_network(self):
+        return self._provider_context.get('int_network')
+
+    @property
+    def management_keypair(self):
+        return self._provider_context.get('management_keypair')
+
+    @property
+    def management_security_group(self):
+        return self._provider_context.get('management_security_group')
+
+    @property
+    def management_server(self):
+        return self._provider_context.get('management_server')
+
+    @property
+    def router(self):
+        return self._provider_context.get('router')
+
+    @property
+    def subnet(self):
+        return self._provider_context.get('subnet')
+
+
+def provider(ctx):
+    provider_context = ctx.get_provider_context('cloudify_openstack')
+    return ProviderContext(provider_context)
+
+
 class Config(object):
     def get(self):
         which = self.__class__.which

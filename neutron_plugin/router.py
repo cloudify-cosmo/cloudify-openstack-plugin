@@ -14,7 +14,7 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
-from openstack_plugin_common import with_neutron_client
+from openstack_plugin_common import with_neutron_client, provider
 
 
 @operation
@@ -26,11 +26,13 @@ def create(ctx, neutron_client, **kwargs):
     which is translated to `router.external_gateway_info.network_id`.
     """
 
+    network_id_set = False
+
     ctx.logger.debug('router.create(): kwargs={0}'.format(kwargs))
     router = {
         'name': ctx.node_id,
     }
-    router.update(ctx.properties['router'])
+    router.update(ctx.properties('router', {}))
 
     # Probably will not be used. External network
     # is usually provisioned externally.
@@ -41,19 +43,34 @@ def create(ctx, neutron_client, **kwargs):
             }
         router['external_gateway_info'][
             'network_id'] = ctx.capabilities['external_id']
+        network_id_set = True
 
     # Sugar: external_gateway_info.network_name ->
     # external_gateway_info.network_id
+
     if 'external_gateway_info' in router:
         egi = router['external_gateway_info']
         if 'network_name' in egi:
             egi['network_id'] = neutron_client.cosmo_get_named(
                 'network', egi['network_name'])['id']
             del egi['network_name']
+            network_id_set = True
+
+    if not network_id_set:
+        provider_context = provider(ctx)
+        router['external_gateway_info'] = router.get('external_gateway_info',
+                                                     {})
+        ext_network = provider_context.ext_network
+        if ext_network:
+            router['external_gateway_info']['network_id'] = ext_network['id']
+            network_id_set = True
+
+    if not network_id_set:
+        raise RuntimeError('Missing network name or network')
 
     r = neutron_client.create_router({'router': router})['router']
 
-    ctx['external_id'] = r['id']
+    ctx.runtime_properties['external_id'] = r['id']
 
 
 @operation

@@ -34,7 +34,7 @@ def create(ctx, neutron_client, **kwargs):
     subnet.update(ctx.properties['subnet'])
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
-    ctx['external_id'] = s['id']
+    ctx.runtime_properties['external_id'] = s['id']
 
 
 @operation

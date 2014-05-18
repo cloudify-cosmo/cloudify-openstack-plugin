@@ -122,7 +122,7 @@ def create(ctx, neutron_client, **kwargs):
                 sgr))
         neutron_client.create_security_group_rule({'security_group_rule': sgr})
 
-    ctx['external_id'] = sg['id']
+    ctx.runtime_properties['external_id'] = sg['id']
 
 
 @operation

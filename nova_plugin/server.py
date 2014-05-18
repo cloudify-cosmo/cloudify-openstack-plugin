@@ -20,7 +20,7 @@ import itertools
 import openstack_plugin_common
 
 from novaclient import exceptions as nova_exceptions
-from openstack_plugin_common import neutron_exception_handler
+from openstack_plugin_common import neutron_exception_handler, provider
 from openstack_plugin_common import ExceptionRetryProxy
 from cloudify.decorators import operation
 
@@ -64,19 +64,25 @@ def start_new_server(ctx, nova_client):
 
     _maybe_transform_userdata(server)
 
+    management_network_id = None
+    management_network_name = None
+    nc = None
+
     if ('management_network_name' in ctx.properties) and \
             ctx.properties['management_network_name']:
-        nc = openstack_plugin_common.NeutronClient().get(
-            config=ctx.properties.get('neutron_config'))
-        nc = ExceptionRetryProxy(delegate=nc,
-                                 exception_handler=neutron_exception_handler,
-                                 logger=ctx.logger)
-        managemenet_network_id = nc.cosmo_get_named(
-            'network', ctx.properties['management_network_name'])['id']
-        server['nics'] = [{'net-id': managemenet_network_id}]
+        management_network_name = ctx.properties['management_network_name']
+        nc = _neutron_client(ctx)
+        management_network_id = nc.cosmo_get_named(
+            'network', management_network_name)['id']
     else:
-        managemenet_network_id = None
-    # print(server['nics'])
+        provider_context = provider(ctx)
+        int_network = provider_context.int_network
+        if int_network:
+            management_network_id = int_network['id']
+            management_network_name = int_network['name']
+    if management_network_id is not None:
+        nc = _neutron_client(ctx)
+        server['nics'] = [{'net-id': management_network_id}]
 
     # Sugar
     if 'image_name' in server:
@@ -96,10 +102,11 @@ def start_new_server(ctx, nova_client):
     # Multi-NIC by networks - start
     network_nodes_runtime_properties = ctx.capabilities.get_all().values()
     if network_nodes_runtime_properties and \
-            'management_network_name' not in ctx.properties:
+            management_network_id is None:
         # Known limitation
         raise RuntimeError("Nova server with multi-NIC requires "
-                           "'management_network_name' which was not supplied")
+                           "'management_network_name' in properties  or id "
+                           "from provider context, which was not supplied")
     nics = [
         {'net-id': n['external_id']}
         for n in network_nodes_runtime_properties
@@ -112,10 +119,11 @@ def start_new_server(ctx, nova_client):
     # Multi-NIC by ports - start
     port_nodes_runtime_properties = ctx.capabilities.get_all().values()
     if port_nodes_runtime_properties and \
-            'management_network_name' not in ctx.properties:
+            management_network_id is None:
         # Known limitation
         raise RuntimeError("Nova server with multi-NIC requires "
-                           "'management_network_name' which was not supplied")
+                           "'management_network_name' in properties  or id "
+                           "from provider context, which was not supplied")
     nics = [
         {'port-id': n['external_id']}
         for n in port_nodes_runtime_properties
@@ -149,12 +157,12 @@ def start_new_server(ctx, nova_client):
     if not params['meta']:
         params['meta'] = dict({})
     params['meta'][NODE_ID_PROPERTY] = ctx.node_id
-    if managemenet_network_id is not None:
+    if management_network_id is not None:
         params['meta']['cloudify_management_network_id'] = \
-            managemenet_network_id
-    if 'management_network_name' in ctx.properties:
+            management_network_id
+    if management_network_name is not None:
         params['meta']['cloudify_management_network_name'] = \
-            ctx.properties.get('management_network_name')
+            management_network_name
 
     ctx.logger.info("Creating VM with parameters: {0}".format(str(params)))
     ctx.logger.debug(
@@ -166,12 +174,20 @@ def start_new_server(ctx, nova_client):
     except nova_exceptions.BadRequest as e:
         if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
             raise RuntimeError(
-                "Can not provision server: management_network_name is not "
-                "specified but there are several networks that the server "
-                "can be connected to."
+                "Can not provision server: management_network_name or id"
+                " is not specified but there are several networks that the "
+                "server can be connected to."
             )
         raise RuntimeError("Nova bad request error: " + str(e))
-    ctx[OPENSTACK_SERVER_ID_PROPERTY] = s.id
+    ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY] = s.id
+
+
+def _neutron_client(ctx):
+    nc = openstack_plugin_common.NeutronClient().get(
+        config=ctx.properties.get('neutron_config'))
+    return ExceptionRetryProxy(delegate=nc,
+                               exception_handler=neutron_exception_handler,
+                               logger=ctx.logger)
 
 
 @operation
@@ -222,8 +238,9 @@ def get_server_by_context(nova_client, ctx):
     """
     # Getting server by its OpenStack id is faster tho it requires
     # a REST API call to Cloudify's storage for getting runtime properties.
-    if OPENSTACK_SERVER_ID_PROPERTY in ctx:
-        return nova_client.servers_proxy.get(ctx[OPENSTACK_SERVER_ID_PROPERTY])
+    if OPENSTACK_SERVER_ID_PROPERTY in ctx.runtime_properties:
+        return nova_client.servers_proxy.get(
+            ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY])
     # Fallback
     servers = nova_client.servers_proxy.list()
     for server in servers:
@@ -249,9 +266,9 @@ def get_state(ctx, nova_client, **kwargs):
             ips[network] = network_ips
         if manager_network_ip is None:
             manager_network_ip = default_network_ips[0]
-        ctx['networks'] = ips
+        ctx.runtime_properties['networks'] = ips
         # The ip of this instance in the management network
-        ctx['ip'] = manager_network_ip
+        ctx.runtime_properties['ip'] = manager_network_ip
         return True
     return False
 
@@ -259,17 +276,19 @@ def get_state(ctx, nova_client, **kwargs):
 @operation
 @with_nova_client
 def connect_floatingip(ctx, nova_client, **kwargs):
-    server_id = ctx[OPENSTACK_SERVER_ID_PROPERTY]
+    server_id = ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY]
     server = nova_client.servers_proxy.get(server_id)
-    server.add_floating_ip(ctx.related['floating_ip_address'])
+    server.add_floating_ip(ctx.related.runtime_properties[
+        'floating_ip_address'])
 
 
 @operation
 @with_nova_client
 def disconnect_floatingip(ctx, nova_client, **kwargs):
-    server_id = ctx[OPENSTACK_SERVER_ID_PROPERTY]
+    server_id = ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY]
     server = nova_client.servers_proxy.get(server_id)
-    server.remove_floating_ip(ctx.related['floating_ip_address'])
+    server.remove_floating_ip(ctx.related.runtime_properties[
+        'floating_ip_address'])
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

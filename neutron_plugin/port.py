@@ -41,7 +41,7 @@ def create(ctx, neutron_client, **kwargs):
     }
     port.update(ctx.properties['port'])
     p = neutron_client.create_port({'port': port})['port']
-    ctx['external_id'] = p['id']
+    ctx.runtime_properties['external_id'] = p['id']
 
 
 @operation

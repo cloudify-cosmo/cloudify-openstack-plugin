@@ -68,6 +68,8 @@ def start_new_server(ctx, nova_client):
     management_network_name = None
     nc = None
 
+    provider_context = provider(ctx)
+
     if ('management_network_name' in ctx.properties) and \
             ctx.properties['management_network_name']:
         management_network_name = ctx.properties['management_network_name']
@@ -75,7 +77,7 @@ def start_new_server(ctx, nova_client):
         management_network_id = nc.cosmo_get_named(
             'network', management_network_name)['id']
     else:
-        provider_context = provider(ctx)
+
         int_network = provider_context.int_network
         if int_network:
             management_network_id = int_network['id']
@@ -93,6 +95,11 @@ def start_new_server(ctx, nova_client):
         server['flavor'] = nova_client.flavors_proxy.find(
             name=server['flavor_name']).id
         del server['flavor_name']
+
+    if provider_context.agents_security_group:
+        security_groups = server.get('security_groups', [])
+        security_groups.append(provider_context.agents_security_group['name'])
+        server['security_groups'] = security_groups
 
     _fail_on_missing_required_parameters(
         server,

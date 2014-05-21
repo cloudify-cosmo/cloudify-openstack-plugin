@@ -30,7 +30,7 @@ def create(ctx, neutron_client, **kwargs):
     floatingip = {
         # No defaults
     }
-    floatingip.update(ctx.properties.get('floatingip', {}))
+    floatingip.update(ctx.properties['floatingip'])
 
     # Sugar: ip -> (copy as is) -> floating_ip_address
     if 'ip' in floatingip:

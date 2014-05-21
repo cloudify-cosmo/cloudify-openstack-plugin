@@ -32,7 +32,7 @@ def create(ctx, neutron_client, **kwargs):
     router = {
         'name': ctx.node_id,
     }
-    router.update(ctx.properties('router', {}))
+    router.update(ctx.properties['router'])
 
     # Probably will not be used. External network
     # is usually provisioned externally.

@@ -44,43 +44,43 @@ class ProviderContext(object):
 
     @property
     def agents_keypair(self):
-        return self._provider_context.get('agents_keypair')
+        return self._resources.get('agents_keypair')
 
     @property
     def agents_security_group(self):
-        return self._provider_context.get('agents_security_group')
+        return self._resources.get('agents_security_group')
 
     @property
     def ext_network(self):
-        return self._provider_context.get('ext_network')
+        return self._resources.get('ext_network')
 
     @property
     def floating_ip(self):
-        return self._provider_context.get('floating_ip')
+        return self._resources.get('floating_ip')
 
     @property
     def int_network(self):
-        return self._provider_context.get('int_network')
+        return self._resources.get('int_network')
 
     @property
     def management_keypair(self):
-        return self._provider_context.get('management_keypair')
+        return self._resources.get('management_keypair')
 
     @property
     def management_security_group(self):
-        return self._provider_context.get('management_security_group')
+        return self._resources.get('management_security_group')
 
     @property
     def management_server(self):
-        return self._provider_context.get('management_server')
+        return self._resources.get('management_server')
 
     @property
     def router(self):
-        return self._provider_context.get('router')
+        return self._resources.get('router')
 
     @property
     def subnet(self):
-        return self._provider_context.get('subnet')
+        return self._resources.get('subnet')
 
 
 def provider(ctx):

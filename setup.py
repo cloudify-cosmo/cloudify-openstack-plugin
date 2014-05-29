@@ -16,12 +16,10 @@
 __author__ = 'idanmo'
 
 from setuptools import setup
+from pip.req import parse_requirements
 
-PLUGINS_COMMON_VERSION = "3.0"
-PLUGINS_COMMON_BRANCH = "develop"
-PLUGINS_COMMON = "https://github.com/cloudify-cosmo/" \
-                 "cloudify-plugins-common/tarball/{0}".format(
-                     PLUGINS_COMMON_BRANCH)
+install_requires = [
+    str(ir.req) for ir in parse_requirements('requirements.txt')]
 
 
 setup(
@@ -37,12 +35,5 @@ setup(
     ],
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
-    install_requires=[
-        "cloudify-plugins-common",
-        "python-novaclient==2.17.0",
-        "python-keystoneclient==0.7.1",
-        "python-neutronclient==2.3.4",
-    ],
-    dependency_links=["{0}#egg=cloudify-plugins-common-{1}"
-                      .format(PLUGINS_COMMON, PLUGINS_COMMON_VERSION)]
+    install_requires=install_requires
 )

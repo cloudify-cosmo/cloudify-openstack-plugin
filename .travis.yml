@@ -10,5 +10,7 @@ install:
     - pip install flake8
 
 script:
-    - flake8 .
+    - flake8 . --exclude docs
     - nosetests openstack_plugin_common:ExceptionRetryProxyTestCase --nologcapture --nocapture
+notifications:
+    flowdock: 1f4ec6febcf1ac9b35ae6c1f0049471f

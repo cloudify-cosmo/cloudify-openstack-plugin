@@ -16,11 +16,6 @@
 __author__ = 'idanmo'
 
 from setuptools import setup
-from pip.req import parse_requirements
-
-install_requires = [
-    str(ir.req) for ir in parse_requirements('requirements.txt')]
-
 
 setup(
     zip_safe=True,
@@ -35,5 +30,10 @@ setup(
     ],
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
-    install_requires=install_requires
+    install_requires=[
+        'cloudify-plugins-common==3.0',
+        'python-novaclient==2.17.0',
+        'python-keystoneclient==0.7.1',
+        'python-neutronclient==2.3.4',
+    ]
 )

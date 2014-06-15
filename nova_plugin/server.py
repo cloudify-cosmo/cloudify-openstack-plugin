@@ -14,6 +14,7 @@
 #  * limitations under the License.
 
 
+import time
 import copy
 import inspect
 import itertools
@@ -237,6 +238,25 @@ def delete(ctx, nova_client, **kwargs):
             .format(ctx.node_id))
 
     nova_client.servers_proxy.delete(server)
+    _wait_for_server_to_be_deleted(ctx, nova_client, server)
+
+
+def _wait_for_server_to_be_deleted(ctx,
+                                   nova_client,
+                                   server,
+                                   timeout=120,
+                                   sleep_interval=5):
+    timeout = time.time() + timeout
+    while time.time() < timeout:
+        try:
+            server = nova_client.servers.get(server)
+            ctx.logger.debug('Waiting for server "{}" to be deleted. current'
+                             ' status: {}'.format(server.id, server.status))
+            time.sleep(sleep_interval)
+        except nova_exceptions.NotFound:
+            return
+    raise RuntimeError('Server {} has not been deleted. waited for {} seconds'
+                       .format(server.id, timeout))
 
 
 def get_server_by_context(nova_client, ctx):

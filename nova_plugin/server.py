@@ -249,7 +249,7 @@ def _wait_for_server_to_be_deleted(ctx,
     timeout = time.time() + timeout
     while time.time() < timeout:
         try:
-            server = nova_client.servers.get(server)
+            server = nova_client.servers_proxy.get(server)
             ctx.logger.debug('Waiting for server "{}" to be deleted. current'
                              ' status: {}'.format(server.id, server.status))
             time.sleep(sleep_interval)

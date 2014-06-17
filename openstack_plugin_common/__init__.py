@@ -95,7 +95,7 @@ def provider(ctx):
 def transform_resource_name(res, ctx, provider_context=None):
 
     if not provider_context:
-        provider_context = ctx.get_provider_context('cloudify_openstack')
+        provider_context = provider(ctx)
 
     pfx = provider_context.prefix_for_all_resources
 

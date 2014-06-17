@@ -102,15 +102,24 @@ def transform_resource_name(res, ctx, provider_context=None):
     if not pfx:
         return
 
-    name = res['name']
+    if isinstance(res, basestring):
+        res = {'name': res}
 
+    if not isinstance(res, dict):
+        raise ValueError("transform_resource_name() expects either string or "
+                         "dict as the first parameter")
+
+    name = res['name']
     res['name'] = pfx + name
+
     if name.startswith(pfx):
         ctx.logger.warn("Prefixing resource '{0}' with '{1}' but it "
                         "already has this prefix".format(name, pfx))
     else:
         ctx.logger.info("Transformed resource name '{0}' to '{1}'".format(
                         name, res['name']))
+
+    return res['name']
 
 
 class Config(object):

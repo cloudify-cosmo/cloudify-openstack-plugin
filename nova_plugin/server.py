@@ -53,6 +53,9 @@ def start_new_server(ctx, nova_client):
 
     provider_context = provider(ctx)
 
+    def rename(name):
+        return transform_resource_name(name, ctx, provider_context)
+
     # For possible changes by _maybe_transform_userdata()
 
     server = {
@@ -78,6 +81,7 @@ def start_new_server(ctx, nova_client):
     if ('management_network_name' in ctx.properties) and \
             ctx.properties['management_network_name']:
         management_network_name = ctx.properties['management_network_name']
+        management_network_name = rename(management_network_name)
         nc = _neutron_client(ctx)
         management_network_id = nc.cosmo_get_named(
             'network', management_network_name)['id']
@@ -86,7 +90,7 @@ def start_new_server(ctx, nova_client):
         int_network = provider_context.int_network
         if int_network:
             management_network_id = int_network['id']
-            management_network_name = int_network['name']
+            management_network_name = int_network['name']  # Already transform.
     if management_network_id is not None:
         nc = _neutron_client(ctx)
         server['nics'] = [{'net-id': management_network_id}]
@@ -102,7 +106,7 @@ def start_new_server(ctx, nova_client):
         del server['flavor_name']
 
     if provider_context.agents_security_group:
-        security_groups = server.get('security_groups', [])
+        security_groups = map(rename, server.get('security_groups', []))
         security_groups.append(provider_context.agents_security_group['name'])
         server['security_groups'] = security_groups
 

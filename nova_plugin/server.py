@@ -51,13 +51,16 @@ def start_new_server(ctx, nova_client):
         2. A hash with 'type: http' and 'url: ...'
     """
 
+    provider_context = provider(ctx)
+
     # For possible changes by _maybe_transform_userdata()
 
     server = {
         'name': ctx.node_id
     }
     server.update(copy.deepcopy(ctx.properties['server']))
-    server['name'] = transform_resource_name(ctx, server['name'])
+    server['name'] = transform_resource_name(ctx, provider_context,
+                                             server['name'])
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
@@ -72,8 +75,6 @@ def start_new_server(ctx, nova_client):
     management_network_id = None
     management_network_name = None
     nc = None
-
-    provider_context = provider(ctx)
 
     if ('management_network_name' in ctx.properties) and \
             ctx.properties['management_network_name']:

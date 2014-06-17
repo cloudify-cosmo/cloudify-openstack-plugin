@@ -14,7 +14,11 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
-from openstack_plugin_common import with_neutron_client, provider
+from openstack_plugin_common import (
+    provider,
+    transform_resource_name,
+    with_neutron_client,
+)
 
 
 @operation
@@ -28,11 +32,14 @@ def create(ctx, neutron_client, **kwargs):
 
     network_id_set = False
 
+    provider_context = provider(ctx)
+
     ctx.logger.debug('router.create(): kwargs={0}'.format(kwargs))
     router = {
         'name': ctx.node_id,
     }
     router.update(ctx.properties['router'])
+    transform_resource_name(router, ctx, provider_context)
 
     # Probably will not be used. External network
     # is usually provisioned externally.
@@ -57,7 +64,6 @@ def create(ctx, neutron_client, **kwargs):
             network_id_set = True
 
     if not network_id_set:
-        provider_context = provider(ctx)
         router['external_gateway_info'] = router.get('external_gateway_info',
                                                      {})
         ext_network = provider_context.ext_network

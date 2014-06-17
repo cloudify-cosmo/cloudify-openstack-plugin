@@ -15,7 +15,10 @@
 
 import re
 from cloudify.decorators import operation
-from openstack_plugin_common import with_neutron_client
+from openstack_plugin_common import (
+    transform_resource_name,
+    with_neutron_client,
+)
 
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
 
@@ -66,6 +69,7 @@ def create(ctx, neutron_client, **kwargs):
     }
 
     security_group.update(ctx.properties['security_group'])
+    transform_resource_name(security_group, ctx)
 
     rules_to_apply = ctx.properties['rules']
     egress_rules_to_apply = _egress_rules(rules_to_apply)

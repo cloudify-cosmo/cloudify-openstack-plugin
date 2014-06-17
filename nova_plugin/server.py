@@ -59,8 +59,7 @@ def start_new_server(ctx, nova_client):
         'name': ctx.node_id
     }
     server.update(copy.deepcopy(ctx.properties['server']))
-    server['name'] = transform_resource_name(ctx, provider_context,
-                                             server['name'])
+    transform_resource_name(server, ctx, provider_context)
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))

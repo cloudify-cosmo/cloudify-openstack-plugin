@@ -14,7 +14,10 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
-from openstack_plugin_common import with_neutron_client
+from openstack_plugin_common import (
+    transform_resource_name,
+    with_neutron_client,
+)
 
 
 def _find_network_in_related_nodes(ctx, neutron_client):
@@ -39,6 +42,7 @@ def create(ctx, neutron_client, **kwargs):
         'network_id': _find_network_in_related_nodes(ctx, neutron_client),
         'security_groups': [],
     }
+    transform_resource_name(port, ctx)
     port.update(ctx.properties['port'])
     p = neutron_client.create_port({'port': port})['port']
     ctx.runtime_properties['external_id'] = p['id']

@@ -92,21 +92,25 @@ def provider(ctx):
     return ProviderContext(provider_context)
 
 
-def transform_resource_name(ctx, provider_context, name):
+def transform_resource_name(res, ctx, provider_context=None):
+
+    if not provider_context:
+        provider_context = ctx.get_provider_context('cloudify_openstack')
 
     pfx = provider_context.prefix_for_all_resources
 
     if not pfx:
-        return name
+        return
 
-    ret = pfx + name
+    name = res['name']
+
+    res['name'] = pfx + name
     if name.startswith(pfx):
         ctx.logger.warn("Prefixing resource '{0}' with '{1}' but it "
                         "already has this prefix".format(name, pfx))
     else:
         ctx.logger.info("Transformed resource name '{0}' to '{1}'".format(
-                        name, ret))
-    return ret
+                        name, res['name']))
 
 
 class Config(object):

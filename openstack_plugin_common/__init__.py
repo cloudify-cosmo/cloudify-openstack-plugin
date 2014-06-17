@@ -75,6 +75,10 @@ class ProviderContext(object):
         return self._resources.get('management_server')
 
     @property
+    def prefix_for_all_resources(self):
+        return self._provider_context.get('prefix_for_all_resources', '')
+
+    @property
     def router(self):
         return self._resources.get('router')
 
@@ -86,6 +90,23 @@ class ProviderContext(object):
 def provider(ctx):
     provider_context = ctx.get_provider_context('cloudify_openstack')
     return ProviderContext(provider_context)
+
+
+def transform_resource_name(ctx, provider_context, name):
+
+    pfx = provider_context.prefix_for_all_resources
+
+    if not pfx:
+        return name
+
+    ret = pfx + name
+    if name.startswith(pfx):
+        ctx.logger.warn("Prefixing resource '{0}' with '{1}' but it "
+                        "already has this prefix".format(name, pfx))
+    else:
+        ctx.logger.info("Transformed resource name '{0}' to '{1}'".format(
+                        name, ret))
+    return ret
 
 
 class Config(object):

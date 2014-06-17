@@ -18,14 +18,17 @@ import time
 import copy
 import inspect
 import itertools
-import openstack_plugin_common
 
 from novaclient import exceptions as nova_exceptions
-from openstack_plugin_common import neutron_exception_handler, provider
-from openstack_plugin_common import ExceptionRetryProxy
+from openstack_plugin_common import (
+    ExceptionRetryProxy,
+    NeutronClient,
+    neutron_exception_handler,
+    provider,
+    transform_resource_name,
+    with_nova_client,
+)
 from cloudify.decorators import operation
-
-with_nova_client = openstack_plugin_common.with_nova_client
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
@@ -54,6 +57,7 @@ def start_new_server(ctx, nova_client):
         'name': ctx.node_id
     }
     server.update(copy.deepcopy(ctx.properties['server']))
+    server['name'] = transform_resource_name(ctx, server['name'])
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
@@ -194,8 +198,7 @@ def start_new_server(ctx, nova_client):
 
 
 def _neutron_client(ctx):
-    nc = openstack_plugin_common.NeutronClient().get(
-        config=ctx.properties.get('neutron_config'))
+    nc = NeutronClient().get(config=ctx.properties.get('neutron_config'))
     return ExceptionRetryProxy(delegate=nc,
                                exception_handler=neutron_exception_handler,
                                logger=ctx.logger)

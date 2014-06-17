@@ -76,7 +76,8 @@ class ProviderContext(object):
 
     @property
     def prefix_for_all_resources(self):
-        return self._provider_context.get('prefix_for_all_resources', '')
+        cfy = self._provider_context.get('cloudify', {})
+        return cfy.get('prefix_for_all_resources', '')
 
     @property
     def router(self):
@@ -94,20 +95,20 @@ def provider(ctx):
 
 def transform_resource_name(res, ctx, provider_context=None):
 
-    if not provider_context:
-        provider_context = provider(ctx)
-
-    pfx = provider_context.prefix_for_all_resources
-
-    if not pfx:
-        return
-
     if isinstance(res, basestring):
         res = {'name': res}
 
     if not isinstance(res, dict):
         raise ValueError("transform_resource_name() expects either string or "
                          "dict as the first parameter")
+
+    if not provider_context:
+        provider_context = provider(ctx)
+
+    pfx = provider_context.prefix_for_all_resources
+
+    if not pfx:
+        return res['name']
 
     name = res['name']
     res['name'] = pfx + name

@@ -14,11 +14,8 @@
 #  * limitations under the License.
 
 from functools import wraps
-import logging
 import random
-import string
 import time
-import unittest
 import json
 import os
 
@@ -28,12 +25,10 @@ import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v1_1.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
-import cloudify.manager
-import cloudify.decorators
+import cloudify
 
-PREFIX_RANDOM_CHARS = 3
-CLEANUP_RETRIES = 10
-CLEANUP_RETRY_SLEEP = 2
+OVERLIMIT_DEFAULT_RETRY_AFTER = 5
+API_CALL_ATTEMPTS = 5
 
 
 class ProviderContext(object):
@@ -196,10 +191,7 @@ class NovaClient(OpenStackClient):
 def _nova_exception_handler(exception):
     if not isinstance(exception, nova_exceptions.OverLimit):
         raise
-    retry_after = exception.retry_after
-    if retry_after == 0:
-        retry_after = 5
-    return retry_after
+    return exception.retry_after or OVERLIMIT_DEFAULT_RETRY_AFTER
 
 
 class NeutronClient(OpenStackClient):
@@ -265,8 +257,8 @@ def with_nova_client(f):
     def wrapper(*args, **kw):
         ctx = _find_context_in_kw(kw)
         if ctx:
-            logger = ctx.logger
             config = ctx.properties.get('nova_config')
+            logger = ctx.logger
         else:
             config = None
             logger = None
@@ -357,29 +349,6 @@ class NeutronClientWithSugar(neutron_client.Client):
         return any(self.cosmo_list('port', id=id))
 
 
-class TrackingNeutronClientWithSugar(NeutronClientWithSugar):
-
-    _cosmo_undo = []  # Tuples of (func, args, kwargs) to run for cleanup
-
-    def __init__(self, *args, **kw):
-        return super(TrackingNeutronClientWithSugar, self).__init__(
-            *args, **kw)
-
-    def create_floatingip(self, *args, **kw):
-        ret = super(TrackingNeutronClientWithSugar, self).create_floatingip(
-            *args, **kw)
-        self.__class__._cosmo_undo.append(
-            (self.delete_floatingip, (ret['floatingip']['id'],), {}))
-        return ret
-
-    def cosmo_delete_tracked(self):
-        for f, args, kw in self.__class__._cosmo_undo:
-            try:
-                f(*args, **kw)
-            except neutron_exceptions.NeutronClientException:
-                pass
-
-
 class ExceptionRetryProxy(object):
 
     def __init__(self, delegate, exception_handler, logger=None):
@@ -389,218 +358,27 @@ class ExceptionRetryProxy(object):
 
     def __getattr__(self, name):
         attr = getattr(self.delegate, name)
-        if callable(attr):
-            def wrapper(*args, **kwargs):
-                retries = 5
-                for i in range(retries):
-                    try:
-                        return attr(*args, **kwargs)
-                    except Exception, e:
-                        if i == retries - 1:
-                            break
-                        retry_after = self.exception_handler(e)
-                        retry_after += random.randint(0, retry_after)
-                        if self.logger is not None:
-                            message = '{0} exception caught while ' \
-                                      'executing {1}. sleeping for {2} ' \
-                                      'seconds before trying again (Attempt' \
-                                      ' {3}/{4})'.format(type(e),
-                                                         name,
-                                                         retry_after,
-                                                         i+2,
-                                                         retries)
-                            self.logger.warn(message)
-                        time.sleep(retry_after)
-                raise
-            return wrapper
-        return attr
-
-
-class ExceptionRetryProxyTestCase(unittest.TestCase):
-
-    class MockClient(object):
-        def __init__(self):
-            self.attribute = 'attribute'
-
-        def raise_over_limit(self, retry_after=None):
-            if retry_after is not None:
-                raise nova_exceptions.OverLimit(code=413,
-                                                retry_after=retry_after)
-            else:
-                raise nova_exceptions.OverLimit(code=413)
-
-        def normal_method(self):
-            return 'normal'
-
-        def raise_other(self):
-            raise RuntimeError()
-
-    def setUp(self):
-        random.seed(0)
-        logging.basicConfig()
-        logger = logging.getLogger('test')
-        logger.setLevel(logging.DEBUG)
-        self.client = ExceptionRetryProxy(
-            self.MockClient(),
-            exception_handler=_nova_exception_handler,
-            logger=logger)
-
-    def test(self):
-        self.assertRaises(AttributeError,
-                          lambda: self.client.non_existent_attribute)
-
-        start = time.time()
-        self.assertEqual(self.client.attribute, 'attribute')
-        self.assertLess(time.time() - start, 0.5)
-
-        start = time.time()
-        self.assertEqual(self.client.normal_method(), 'normal')
-        self.assertLess(time.time() - start, 0.5)
-
-        start = time.time()
-        self.assertRaises(RuntimeError, self.client.raise_other)
-        self.assertLess(time.time() - start, 0.5)
-
-        start = time.time()
-        self.assertRaises(nova_exceptions.OverLimit,
-                          self.client.raise_over_limit,
-                          retry_after=1)
-        # timing relies on # random.seed(0)
-        self.assertGreater(time.time() - start, 6)
-        self.assertLess(time.time() - start, 7)
-
-        # timing relies on # random.seed(0)
-        start = time.time()
-        self.assertRaises(nova_exceptions.OverLimit,
-                          self.client.raise_over_limit)
-        self.assertGreater(time.time() - start, 13)
-
-
-class TestCase(unittest.TestCase):
-
-    def get_nova_client(self):
-        r = NovaClient().get()
-        self.get_nova_client = lambda: r
-        return self.get_nova_client()
-
-    def get_neutron_client(self):
-        r = NeutronClient().get()
-        self.get_neutron_client = lambda: r
-        return self.get_neutron_client()
-
-    def _mock_send_event(self, *args, **kw):
-        self.logger.debug("_mock_send_event(args={0}, kw={1})".format(
-            args, kw))
-
-    def _mock_get_node_state(self, __cloudify_id, *args, **kw):
-        self.logger.debug(
-            "_mock_get_node_state(__cloudify_id={0} args={1}, kw={2})".format(
-                __cloudify_id, args, kw))
-        return self.nodes_data[__cloudify_id]
-
-    def setUp(self):
-        # Careful!
-        globals()['NeutronClientWithSugar'] = TrackingNeutronClientWithSugar
-        logger = logging.getLogger(__name__)
-        logging.basicConfig(
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        self.logger = logger
-        self.logger.level = logging.DEBUG
-        self.logger.debug("Cosmo test setUp() called")
-        chars = string.ascii_uppercase + string.digits
-        self.name_prefix = 'cosmo_test_{0}_'\
-            .format(''.join(
-                random.choice(chars) for x in range(PREFIX_RANDOM_CHARS)))
-        self.timeout = 120
-
-        self.logger.debug("Cosmo test setUp() done")
-
-    def tearDown(self):
-        self.logger.debug("Cosmo test tearDown() called")
-        servers_list = self.get_nova_client().servers.list()
-        for server in servers_list:
-            if server.name.startswith(self.name_prefix):
-                self.logger.info("Deleting server with name " + server.name)
+        if not callable(attr):
+            return attr
+        def wrapper(*args, **kwargs):
+            for i in range(API_CALL_ATTEMPTS):
                 try:
-                    server.delete()
-                except BaseException:
-                    self.logger.warning("Failed to delete server with name "
-                                        + server.name)
-            else:
-                self.logger.info("NOT deleting server with name "
-                                 + server.name)
-        for i in range(1, CLEANUP_RETRIES+1):
-            try:
-                self.logger.debug(
-                    "Neutron resources cleanup attempt {0}/{1}"
-                    .format(i, CLEANUP_RETRIES)
-                )
-                NeutronClient().get().cosmo_delete_prefixed(self.name_prefix)
-                NeutronClient().get().cosmo_delete_tracked()
-                break
-            except neutron_exceptions.NetworkInUseClient:
-                pass
-            time.sleep(CLEANUP_RETRY_SLEEP)
-        self.logger.debug("Cosmo test tearDown() done")
-
-    @with_neutron_client
-    def create_network(self, name_suffix, neutron_client):
-        return neutron_client.create_network({'network': {
-            'name': self.name_prefix + name_suffix, 'admin_state_up': True
-        }})['network']
-
-    @with_neutron_client
-    def create_subnet(self, name_suffix, cidr, neutron_client, network=None):
-        if not network:
-            network = self.create_network(name_suffix)
-        return neutron_client.create_subnet({
-            'subnet': {
-                'name': self.name_prefix + name_suffix,
-                'ip_version': 4,
-                'cidr': cidr,
-                'network_id': network['id']
-            }
-        })['subnet']
-
-    @with_neutron_client
-    def create_port(self, name_suffix, network, neutron_client):
-        return neutron_client.create_port({
-            'port': {
-                'name': self.name_prefix + name_suffix,
-                'network_id': network['id']
-            }
-        })['port']
-
-    @with_neutron_client
-    def create_sg(self, name_suffix, neutron_client):
-        return neutron_client.create_security_group({
-            'security_group': {
-                'name': self.name_prefix + name_suffix,
-            }
-        })['security_group']
-
-    @with_neutron_client
-    def assertThereIsOneAndGet(self, obj_type_single, neutron_client, **kw):
-        objs = list(neutron_client.cosmo_list(obj_type_single, **kw))
-        self.assertEquals(1, len(objs))
-        return objs[0]
-
-    assertThereIsOne = assertThereIsOneAndGet
-
-    @with_neutron_client
-    def assertThereIsNo(self, obj_type_single, neutron_client, **kw):
-        objs = list(neutron_client.cosmo_list(obj_type_single, **kw))
-        self.assertEquals(0, len(objs))
-
-    @with_nova_client
-    def assertThereIsOneServerAndGet(self, nova_client, **kw):
-        servers = nova_client.servers.findall(**kw)
-        self.assertEquals(1, len(servers))
-        return servers[0]
-
-    assertThereIsOneServer = assertThereIsOneServerAndGet
-
-    @with_nova_client
-    def assertThereIsNoServer(self, nova_client, **kw):
-        servers = nova_client.servers.findall(**kw)
-        self.assertEquals(0, len(servers))
+                    return attr(*args, **kwargs)
+                except Exception, e:
+                    if i == API_CALL_ATTEMPTS - 1:
+                        break
+                    retry_after = self.exception_handler(e)
+                    retry_after += random.randint(0, retry_after)
+                    if self.logger is not None:
+                        message = '{0} exception caught while ' \
+                                  'executing {1}. sleeping for {2} ' \
+                                  'seconds before trying again (Attempt' \
+                                  ' {3}/{4})'.format(type(e),
+                                                     name,
+                                                     retry_after,
+                                                     i+2,
+                                                     API_CALL_ATTEMPTS)
+                        self.logger.warn(message)
+                    time.sleep(retry_after)
+            raise
+        return wrapper

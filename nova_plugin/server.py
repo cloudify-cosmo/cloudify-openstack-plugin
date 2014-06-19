@@ -110,10 +110,12 @@ def start_new_server(ctx, nova_client):
         security_groups.append(provider_context.agents_security_group['name'])
         server['security_groups'] = security_groups
 
-    if provider_context.agents_keypair and 'key_name' not in server:
-        server['key_name'] = provider_context.agents_keypair['name']
-    else:
+    if 'key_name' in server:
         server['key_name'] = rename(server['key_name'])
+    else:
+        # 'key_name' not in server
+        if provider_context.agents_keypair:
+            server['key_name'] = provider_context.agents_keypair['name']
 
     _fail_on_missing_required_parameters(
         server,

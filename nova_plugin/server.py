@@ -105,10 +105,12 @@ def start_new_server(ctx, nova_client):
             name=server['flavor_name']).id
         del server['flavor_name']
 
+    security_groups = map(rename, server.get('security_groups', []))
     if provider_context.agents_security_group:
-        security_groups = map(rename, server.get('security_groups', []))
-        security_groups.append(provider_context.agents_security_group['name'])
-        server['security_groups'] = security_groups
+        asg = provider_context.agents_security_group['name']
+        if asg not in security_groups:
+            security_groups.append(asg)
+    server['security_groups'] = security_groups
 
     if 'key_name' in server:
         server['key_name'] = rename(server['key_name'])

@@ -67,10 +67,10 @@ def start_new_server(ctx, nova_client):
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
 
-    if server.get('nics'):
+    if 'nics' in server:
         raise ValueError("Parameter with name 'nics' must not be passed to"
                          " openstack provisioner (under host's "
-                         "properties.nova.instance)")
+                         "properties.server)")
 
     _maybe_transform_userdata(server)
 

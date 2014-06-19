@@ -112,6 +112,8 @@ def start_new_server(ctx, nova_client):
 
     if provider_context.agents_keypair and 'key_name' not in server:
         server['key_name'] = provider_context.agents_keypair['name']
+    else:
+        server['key_name'] = rename(server['key_name'])
 
     _fail_on_missing_required_parameters(
         server,

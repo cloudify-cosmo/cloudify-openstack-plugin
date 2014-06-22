@@ -260,6 +260,7 @@ def add_proxies_to_nova_client(nova_client, logger):
             logger=logger)
         setattr(nova_client, a + '_proxy', proxy)
 
+
 def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
@@ -356,6 +357,7 @@ class ExceptionRetryProxy(object):
         attr = getattr(self.delegate, name)
         if not callable(attr):
             return attr
+
         def wrapper(*args, **kwargs):
             for i in range(API_CALL_ATTEMPTS):
                 try:

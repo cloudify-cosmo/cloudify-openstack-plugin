@@ -11,4 +11,4 @@ install:
 
 script:
     - flake8 .
-    - nosetests openstack_plugin_common:ExceptionRetryProxyTestCase --nologcapture --nocapture
+    - nosetests --nologcapture --nocapture

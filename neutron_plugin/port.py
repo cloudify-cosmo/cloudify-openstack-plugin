@@ -42,8 +42,8 @@ def create(ctx, neutron_client, **kwargs):
         'network_id': _find_network_in_related_nodes(ctx, neutron_client),
         'security_groups': [],
     }
-    transform_resource_name(port, ctx)
     port.update(ctx.properties['port'])
+    transform_resource_name(port, ctx)
     p = neutron_client.create_port({'port': port})['port']
     ctx.runtime_properties['external_id'] = p['id']
 

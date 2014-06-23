@@ -30,6 +30,7 @@ import novaclient.exceptions as nova_exceptions
 
 import cloudify.manager
 import cloudify.decorators
+from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 PREFIX_RANDOM_CHARS = 3
 CLEANUP_RETRIES = 10
@@ -99,7 +100,7 @@ class Config(object):
             with open(config_path) as f:
                 cfg = json.loads(f.read())
         except IOError:
-            raise RuntimeError(
+            raise NonRecoverableError(
                 "Failed to read {0} configuration from file '{1}'."
                 "The configuration is looked up in {2}. If defined, "
                 "environment variable "
@@ -179,24 +180,13 @@ class NeutronClient(OpenStackClient):
         return ret
 
 
-def neutron_exception_handler(exception):
-    if not isinstance(exception, neutron_exceptions.NeutronClientException):
-        raise
-    if exception.message is not None and \
-            'TokenRateLimit' not in exception.message:
-        raise
-    retry_after = 30
-    return retry_after
-
-
 # Decorators
-
 def _find_instanceof_in_kw(cls, kw):
     ret = [v for v in kw.values() if isinstance(v, cls)]
     if not ret:
         return None
     if len(ret) > 1:
-        raise RuntimeError(
+        raise NonRecoverableError(
             "Expected to find exactly one instance of {0} in "
             "kwargs but found {1}".format(cls, len(ret)))
     return ret[0]
@@ -212,15 +202,9 @@ def with_neutron_client(f):
         ctx = _find_context_in_kw(kw)
         if ctx:
             config = ctx.properties.get('neutron_config')
-            logger = ctx.logger
         else:
             config = None
-            logger = None
-        neutron_client = ExceptionRetryProxy(
-            NeutronClient().get(config=config),
-            exception_handler=neutron_exception_handler,
-            logger=logger)
-        kw['neutron_client'] = neutron_client
+        kw['neutron_client'] = NeutronClient().get(config=config)
         return f(*args, **kw)
     return wrapper
 
@@ -230,34 +214,21 @@ def with_nova_client(f):
     def wrapper(*args, **kw):
         ctx = _find_context_in_kw(kw)
         if ctx:
-            logger = ctx.logger
             config = ctx.properties.get('nova_config')
         else:
             config = None
-            logger = None
-
-        nova_client = NovaClient().get(config=config)
-
-        nova_client.servers_proxy = ExceptionRetryProxy(
-            nova_client.servers,
-            exception_handler=_nova_exception_handler,
-            logger=logger)
-        nova_client.images_proxy = ExceptionRetryProxy(
-            nova_client.images,
-            exception_handler=_nova_exception_handler,
-            logger=logger)
-        nova_client.flavors_proxy = ExceptionRetryProxy(
-            nova_client.flavors,
-            exception_handler=_nova_exception_handler,
-            logger=logger)
-
-        kw['nova_client'] = nova_client
-        return f(*args, **kw)
+        kw['nova_client'] = NovaClient().get(config=config)
+        try:
+            return f(*args, **kw)
+        except nova_exceptions.OverLimit, e:
+            retry_after = e.retry_after
+            if retry_after == 0:
+                retry_after = None
+            raise RecoverableError(retry_after=retry_after)
     return wrapper
 
+
 # Sugar for clients
-
-
 class NeutronClientWithSugar(neutron_client.Client):
 
     def cosmo_plural(self, obj_type_single):
@@ -269,7 +240,7 @@ class NeutronClientWithSugar(neutron_client.Client):
     def cosmo_get(self, obj_type_single, **kw):
         ls = list(self.cosmo_list(obj_type_single, **kw))
         if len(ls) != 1:
-            raise RuntimeError(
+            raise NonRecoverableError(
                 "Expected exactly one object of type {0} "
                 "with match {1} but there are {2}".format(
                     obj_type_single, kw, len(ls)))
@@ -311,7 +282,7 @@ class NeutronClientWithSugar(neutron_client.Client):
         if len(ls) == 1:
             return ls[0]
         if len(ls) != 1:
-            raise RuntimeError(
+            raise NonRecoverableError(
                 "Expected exactly one external network but found {0}".format(
                     len(ls)))
 
@@ -327,8 +298,7 @@ class TrackingNeutronClientWithSugar(NeutronClientWithSugar):
     _cosmo_undo = []  # Tuples of (func, args, kwargs) to run for cleanup
 
     def __init__(self, *args, **kw):
-        return super(TrackingNeutronClientWithSugar, self).__init__(
-            *args, **kw)
+        super(TrackingNeutronClientWithSugar, self).__init__(*args, **kw)
 
     def create_floatingip(self, *args, **kw):
         ret = super(TrackingNeutronClientWithSugar, self).create_floatingip(
@@ -343,102 +313,6 @@ class TrackingNeutronClientWithSugar(NeutronClientWithSugar):
                 f(*args, **kw)
             except neutron_exceptions.NeutronClientException:
                 pass
-
-
-class ExceptionRetryProxy(object):
-
-    def __init__(self, delegate, exception_handler, logger=None):
-        self.delegate = delegate
-        self.logger = logger
-        self.exception_handler = exception_handler
-
-    def __getattr__(self, name):
-        attr = getattr(self.delegate, name)
-        if callable(attr):
-            def wrapper(*args, **kwargs):
-                retries = 5
-                for i in range(retries):
-                    try:
-                        return attr(*args, **kwargs)
-                    except Exception, e:
-                        if i == retries - 1:
-                            break
-                        retry_after = self.exception_handler(e)
-                        retry_after += random.randint(0, retry_after)
-                        if self.logger is not None:
-                            message = '{0} exception caught while ' \
-                                      'executing {1}. sleeping for {2} ' \
-                                      'seconds before trying again (Attempt' \
-                                      ' {3}/{4})'.format(type(e),
-                                                         name,
-                                                         retry_after,
-                                                         i+2,
-                                                         retries)
-                            self.logger.warn(message)
-                        time.sleep(retry_after)
-                raise
-            return wrapper
-        return attr
-
-
-class ExceptionRetryProxyTestCase(unittest.TestCase):
-
-    class MockClient(object):
-        def __init__(self):
-            self.attribute = 'attribute'
-
-        def raise_over_limit(self, retry_after=None):
-            if retry_after is not None:
-                raise nova_exceptions.OverLimit(code=413,
-                                                retry_after=retry_after)
-            else:
-                raise nova_exceptions.OverLimit(code=413)
-
-        def normal_method(self):
-            return 'normal'
-
-        def raise_other(self):
-            raise RuntimeError()
-
-    def setUp(self):
-        random.seed(0)
-        logging.basicConfig()
-        logger = logging.getLogger('test')
-        logger.setLevel(logging.DEBUG)
-        self.client = ExceptionRetryProxy(
-            self.MockClient(),
-            exception_handler=_nova_exception_handler,
-            logger=logger)
-
-    def test(self):
-        self.assertRaises(AttributeError,
-                          lambda: self.client.non_existent_attribute)
-
-        start = time.time()
-        self.assertEqual(self.client.attribute, 'attribute')
-        self.assertLess(time.time() - start, 0.5)
-
-        start = time.time()
-        self.assertEqual(self.client.normal_method(), 'normal')
-        self.assertLess(time.time() - start, 0.5)
-
-        start = time.time()
-        self.assertRaises(RuntimeError, self.client.raise_other)
-        self.assertLess(time.time() - start, 0.5)
-
-        start = time.time()
-        self.assertRaises(nova_exceptions.OverLimit,
-                          self.client.raise_over_limit,
-                          retry_after=1)
-        # timing relies on # random.seed(0)
-        self.assertGreater(time.time() - start, 6)
-        self.assertLess(time.time() - start, 7)
-
-        # timing relies on # random.seed(0)
-        start = time.time()
-        self.assertRaises(nova_exceptions.OverLimit,
-                          self.client.raise_over_limit)
-        self.assertGreater(time.time() - start, 13)
 
 
 class TestCase(unittest.TestCase):

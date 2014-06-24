@@ -194,7 +194,14 @@ def with_neutron_client(f):
             config = ctx.properties.get('neutron_config')
         else:
             config = None
-        kw['neutron_client'] = NeutronClient().get(config=config)
+        try:
+            kw['neutron_client'] = NeutronClient().get(config=config)
+        except neutron_exceptions.NeutronClientException, e:
+            if e.status_code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False)
+            else:
+                raise
+
         return f(*args, **kw)
     return wrapper
 
@@ -211,14 +218,27 @@ def with_nova_client(f):
         try:
             return f(*args, **kw)
         except nova_exceptions.OverLimit, e:
-            exc_type, exc, traceback = sys.exc_info()
-            retry_after = e.retry_after
-            if retry_after == 0:
-                retry_after = None
-            raise RecoverableError(
-                message=e.message,
-                retry_after=retry_after), None, traceback
+            _re_raise(e, recoverable=True, retry_after=e.retry_after)
+        except nova_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False)
+            else:
+                raise
     return wrapper
+
+_non_recoverable_error_codes = [400, 401, 403, 404, 409]
+
+
+def _re_raise(e, recoverable, retry_after=None):
+    exc_type, exc, traceback = sys.exc_info()
+    if recoverable:
+        if retry_after == 0:
+            retry_after = None
+        raise RecoverableError(
+            message=e.message,
+            retry_after=retry_after), None, traceback
+    else:
+        raise NonRecoverableError(e.message), None, traceback
 
 
 # Sugar for clients

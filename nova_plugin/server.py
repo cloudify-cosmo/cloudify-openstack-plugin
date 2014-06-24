@@ -40,12 +40,14 @@ def start_new_server(ctx, nova_client):
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
     .servers.html#novaclient.v1_1.servers.ServerManager.create
     Userdata:
-        In all cases, note that userdata should not be base64 encoded,
-        novaclient expects it raw.
-        The 'userdata' argument under nova.instance can be one of
-        the following:
-        1. A string
-        2. A hash with 'type: http' and 'url: ...'
+
+    In all cases, note that userdata should not be base64 encoded,
+    novaclient expects it raw.
+    The 'userdata' argument under nova.instance can be one of
+    the following:
+
+    - A string
+    - A hash with 'type: http' and 'url: ...'
     """
 
     # For possible changes by _maybe_transform_userdata()

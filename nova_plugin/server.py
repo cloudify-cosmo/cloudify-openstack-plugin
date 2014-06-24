@@ -193,7 +193,10 @@ def start_new_server(ctx, nova_client):
                 "server can be connected to."
             )
         raise NonRecoverableError("Nova bad request error: " + str(e))
+    except nova_exceptions.ClientException as e:
+        raise NonRecoverableError("Nova client error: " + str(e))
     ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY] = s.id
+
 
 
 def _neutron_client(ctx):
@@ -232,9 +235,8 @@ def stop(ctx, nova_client, **kwargs):
 def delete(ctx, nova_client, **kwargs):
     server = get_server_by_context(nova_client, ctx)
     if server is None:
-        raise NonRecoverableError(
-            "Cannot delete server - server doesn't exist for node: {0}"
-            .format(ctx.node_id))
+        # nothing to do, server does not exist
+        return
 
     nova_client.servers.delete(server)
     _wait_for_server_to_be_deleted(ctx, nova_client, server)
@@ -269,8 +271,11 @@ def get_server_by_context(nova_client, ctx):
     # Getting server by its OpenStack id is faster tho it requires
     # a REST API call to Cloudify's storage for getting runtime properties.
     if OPENSTACK_SERVER_ID_PROPERTY in ctx.runtime_properties:
-        return nova_client.servers.get(
-            ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY])
+        try:
+            return nova_client.servers.get(
+                ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY])
+        except nova_exceptions.NotFound:
+            return None
     # Fallback
     servers = nova_client.servers.list()
     for server in servers:

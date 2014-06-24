@@ -21,6 +21,7 @@ import time
 import unittest
 import json
 import os
+import sys
 
 import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
@@ -134,8 +135,6 @@ class OpenStackClient(object):
 
 
 # Clients acquireres
-
-
 class KeystoneClient(OpenStackClient):
 
     config = KeystoneConfig
@@ -157,15 +156,6 @@ class NovaClient(OpenStackClient):
                                   auth_url=cfg['auth_url'],
                                   region_name=region or cfg['region'],
                                   http_log_debug=False)
-
-
-def _nova_exception_handler(exception):
-    if not isinstance(exception, nova_exceptions.OverLimit):
-        raise
-    retry_after = exception.retry_after
-    if retry_after == 0:
-        retry_after = 5
-    return retry_after
 
 
 class NeutronClient(OpenStackClient):
@@ -221,10 +211,13 @@ def with_nova_client(f):
         try:
             return f(*args, **kw)
         except nova_exceptions.OverLimit, e:
+            exc_type, exc, traceback = sys.exc_info()
             retry_after = e.retry_after
             if retry_after == 0:
                 retry_after = None
-            raise RecoverableError(retry_after=retry_after)
+            raise RecoverableError(
+                message=e.message,
+                retry_after=retry_after), None, traceback
     return wrapper
 
 

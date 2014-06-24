@@ -40,7 +40,7 @@ class ResourcesRenamingTest(unittest.TestCase):
             return self.neutron_mock
         common.NeutronClient.connect = neutron_mock_connect
 
-    def _test(self, obj_type):
+    def _setup_ctx(self, obj_type):
         ctx = MockCloudifyContext(
             node_id='__cloudify_id_something_001',
             properties={
@@ -50,6 +50,10 @@ class ResourcesRenamingTest(unittest.TestCase):
                 'rules': []  # For security_group
             }
         )
+        return ctx
+
+    def _test(self, obj_type):
+        ctx = self._setup_ctx(obj_type)
         common_test.set_mock_provider_context_from_file(ctx)
         attr = getattr(self.neutron_mock, 'create_' + obj_type)
         attr.return_value = {
@@ -59,12 +63,12 @@ class ResourcesRenamingTest(unittest.TestCase):
         }
         getattr(neutron_plugin, obj_type).create(ctx)
         calls = attr.mock_calls
-        self.assertEquals(len(calls), 1)  # Exactly one server created
+        self.assertEquals(len(calls), 1)  # Exactly one object created
         # Indexes into call[]:
         # 0 - the only call
         # 1 - regular arguments
         # 0 - first argument
-        arg = calls[0][1][0]  # 1 - args, which in case of Nova are all args
+        arg = calls[0][1][0]
         self.assertEquals(arg[obj_type]['name'], 'p2_' + obj_type + '_name')
 
     def test_network(self):
@@ -78,6 +82,29 @@ class ResourcesRenamingTest(unittest.TestCase):
 
     def test_security_group(self):
         self._test('security_group')
+
+    # Network chosen arbitrary for this test.
+    # Just testing something without prefix.
+    def test_network_no_prefix(self):
+        ctx = self._setup_ctx('network')
+        for pctx in common_test.PROVIDER_CONTEXTS_WITHOUT_PREFIX:
+            common_test.set_mock_provider_context(ctx, pctx)
+            self.neutron_mock.create_network.reset_mock()
+            self.neutron_mock.create_network.return_value = {
+                'network': {
+                    'id': 'network_id',
+                }
+            }
+            neutron_plugin.network.create(ctx)
+            calls = self.neutron_mock.create_network.mock_calls
+            self.assertEquals(len(calls), 1)  # Exactly one network created
+            # Indexes into call[]:
+            # 0 - the only call
+            # 1 - regular arguments
+            # 0 - first argument
+            arg = calls[0][1][0]
+            self.assertEquals(arg['network']['name'], 'network_name',
+                              "Failed with context: " + str(pctx))
 
 
 if __name__ == '__main__':

@@ -82,6 +82,10 @@ class ProviderContext(object):
     def subnet(self):
         return self._resources.get('subnet')
 
+    def __repr__(self):
+        info = json.dumps(self._provider_context)
+        return '<' + self.__class__.__name__ + ' ' + info + '>'
+
 
 def provider(ctx):
     provider_context = ctx.get_provider_context('cloudify_openstack')

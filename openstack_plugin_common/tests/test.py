@@ -17,6 +17,25 @@ RETRY_AFTER = 1
 # Time during which no retry could possibly happen.
 NO_POSSIBLE_RETRY_TIME = RETRY_AFTER / 2.0
 
+PROVIDER_CONTEXTS_WITHOUT_PREFIX = (
+    {},
+    {
+        'cloudify': {
+
+        }
+    },
+    {
+        'cloudify': {
+            'prefix_for_all_resources': ''
+        }
+    },
+    {
+        'cloudify': {
+            'prefix_for_all_resources': None
+        }
+    },
+)
+
 
 def set_mock_provider_context(ctx, provider_context):
     def mock_provider_context(provider_name_unused):

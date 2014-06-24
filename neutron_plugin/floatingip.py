@@ -14,6 +14,8 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
+from cloudify.exceptions import NonRecoverableError
+
 from openstack_plugin_common import with_neutron_client, provider
 
 
@@ -58,7 +60,7 @@ def create(ctx, neutron_client, **kwargs):
         if ext_network:
             floatingip['floating_network_id'] = ext_network['id']
     else:
-        raise RuntimeError('Missing floating network id or name')
+        raise NonRecoverableError('Missing floating network id or name')
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']

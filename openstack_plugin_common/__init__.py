@@ -272,12 +272,11 @@ class NeutronClientWithSugar(neutron_client.Client):
         """ For tests of floating IP """
         nets = self.list_networks()['networks']
         ls = [net for net in nets if net.get('router:external')]
-        if len(ls) == 1:
-            return ls[0]
         if len(ls) != 1:
             raise NonRecoverableError(
                 "Expected exactly one external network but found {0}".format(
                     len(ls)))
+        return ls[0]
 
     def cosmo_is_network(self, id):
         return any(self.cosmo_list('network', id=id))

@@ -198,7 +198,6 @@ def start_new_server(ctx, nova_client):
     ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY] = s.id
 
 
-
 def _neutron_client(ctx):
     return NeutronClient().get(config=ctx.properties.get('neutron_config'))
 

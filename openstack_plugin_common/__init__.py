@@ -194,15 +194,14 @@ def with_neutron_client(f):
             config = ctx.properties.get('neutron_config')
         else:
             config = None
+        kw['neutron_client'] = NeutronClient().get(config=config)
         try:
-            kw['neutron_client'] = NeutronClient().get(config=config)
+            return f(*args, **kw)
         except neutron_exceptions.NeutronClientException, e:
             if e.status_code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False)
             else:
                 raise
-
-        return f(*args, **kw)
     return wrapper
 
 

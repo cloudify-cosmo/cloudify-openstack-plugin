@@ -26,12 +26,12 @@ PROVIDER_CONTEXTS_WITHOUT_PREFIX = (
     },
     {
         'cloudify': {
-            'prefix_for_all_resources': ''
+            'resources_prefix': ''
         }
     },
     {
         'cloudify': {
-            'prefix_for_all_resources': None
+            'resources_prefix': None
         }
     },
 )

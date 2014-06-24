@@ -70,9 +70,9 @@ class ProviderContext(object):
         return self._resources.get('management_server')
 
     @property
-    def prefix_for_all_resources(self):
+    def resources_prefix(self):
         cfy = self._provider_context.get('cloudify', {})
-        return cfy.get('prefix_for_all_resources', '')
+        return cfy.get('resources_prefix', '')
 
     @property
     def router(self):
@@ -104,7 +104,7 @@ def transform_resource_name(res, ctx, provider_context=None):
     if not provider_context:
         provider_context = provider(ctx)
 
-    pfx = provider_context.prefix_for_all_resources
+    pfx = provider_context.resources_prefix
 
     if not pfx:
         return res['name']

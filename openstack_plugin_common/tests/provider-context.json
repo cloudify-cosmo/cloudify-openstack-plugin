@@ -63,7 +63,7 @@
       }
     },
     "cloudify": {
-      "prefix_for_all_resources": "p2_",
+      "resources_prefix": "p2_",
       "cloudify_agent": {
         "user": "ubuntu",
         "agent_key_path": "/PATH/CENSORED/p2_cloudify-agents-kp-ilya.pem",

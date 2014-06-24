@@ -30,6 +30,9 @@ import neutron_plugin.security_group
 class ResourcesRenamingTest(unittest.TestCase):
     def setUp(self):
         neutron_plugin.port._find_network_in_related_nodes = mock.Mock()
+        # *** Configs from files ********************
+        common.Config.get = mock.Mock()
+        common.Config.get.return_value = {}
         # *** Neutron ********************
         self.neutron_mock = mock.Mock()
 

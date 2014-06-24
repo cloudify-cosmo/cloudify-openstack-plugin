@@ -28,6 +28,9 @@ import nova_plugin.server
 class ResourcesRenamingTest(unittest.TestCase):
 
     def setUp(self):
+        # *** Configs from files ********************
+        common.Config.get = mock.Mock()
+        common.Config.get.return_value = {}
         # *** Nova ********************
         self.nova_mock = mock.Mock()
         # Next line was derived from

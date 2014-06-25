@@ -86,8 +86,7 @@ class ProviderContext(object):
 
 
 def provider(ctx):
-    provider_context = ctx.get_provider_context('cloudify_openstack')
-    return ProviderContext(provider_context)
+    return ProviderContext(ctx.provider_context)
 
 
 class Config(object):

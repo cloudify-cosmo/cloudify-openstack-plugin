@@ -70,11 +70,6 @@ class ProviderContext(object):
         return self._resources.get('management_server')
 
     @property
-    def resources_prefix(self):
-        cfy = self._provider_context.get('cloudify', {})
-        return cfy.get('resources_prefix', '')
-
-    @property
     def router(self):
         return self._resources.get('router')
 
@@ -88,11 +83,10 @@ class ProviderContext(object):
 
 
 def provider(ctx):
-    provider_context = ctx.get_provider_context('cloudify_openstack')
-    return ProviderContext(provider_context)
+    return ProviderContext(ctx.provider_context)
 
 
-def transform_resource_name(res, ctx, provider_context=None):
+def transform_resource_name(res, ctx):
 
     if isinstance(res, basestring):
         res = {'name': res}
@@ -101,10 +95,7 @@ def transform_resource_name(res, ctx, provider_context=None):
         raise ValueError("transform_resource_name() expects either string or "
                          "dict as the first parameter")
 
-    if not provider_context:
-        provider_context = provider(ctx)
-
-    pfx = provider_context.resources_prefix
+    pfx = ctx.bootstrap_context.resources_prefix
 
     if not pfx:
         return res['name']

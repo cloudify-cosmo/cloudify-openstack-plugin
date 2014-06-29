@@ -56,7 +56,7 @@ def start_new_server(ctx, nova_client):
     provider_context = provider(ctx)
 
     def rename(name):
-        return transform_resource_name(name, ctx, provider_context)
+        return transform_resource_name(name, ctx)
 
     # For possible changes by _maybe_transform_userdata()
 
@@ -64,7 +64,7 @@ def start_new_server(ctx, nova_client):
         'name': ctx.node_id
     }
     server.update(copy.deepcopy(ctx.properties['server']))
-    transform_resource_name(server, ctx, provider_context)
+    transform_resource_name(server, ctx)
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))

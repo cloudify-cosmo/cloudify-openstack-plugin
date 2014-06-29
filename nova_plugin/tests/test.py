@@ -18,7 +18,6 @@ import unittest
 
 import novaclient.v1_1.client as nova_client
 
-from cloudify.mocks import MockCloudifyContext
 import openstack_plugin_common as common
 import openstack_plugin_common.tests.test as common_test
 
@@ -59,7 +58,7 @@ class ResourcesRenamingTest(unittest.TestCase):
         common.NeutronClient.connect = neutron_mock_connect
 
     def test_resources_renaming(self):
-        ctx = MockCloudifyContext(
+        ctx = common_test.create_mock_ctx_with_provider_info(
             node_id='__cloudify_id_server_001',
             properties={
                 'server': {
@@ -72,7 +71,6 @@ class ResourcesRenamingTest(unittest.TestCase):
             }
         )
 
-        common_test.set_mock_provider_context_from_file(ctx)
         nova_plugin.server.start(ctx)
         calls = self.nova_mock.servers_proxy.create.mock_calls
         self.assertEquals(len(calls), 1)  # Exactly one server created

@@ -39,7 +39,7 @@ def create(ctx, neutron_client, **kwargs):
         'name': ctx.node_id,
     }
     router.update(ctx.properties['router'])
-    transform_resource_name(router, ctx, provider_context)
+    transform_resource_name(router, ctx)
 
     # Probably will not be used. External network
     # is usually provisioned externally.

@@ -16,7 +16,8 @@
 import mock
 import unittest
 
-from cloudify.mocks import MockCloudifyContext
+from cloudify.context import BootstrapContext
+
 import openstack_plugin_common as common
 import openstack_plugin_common.tests.test as common_test
 
@@ -41,7 +42,7 @@ class ResourcesRenamingTest(unittest.TestCase):
         common.NeutronClient.connect = neutron_mock_connect
 
     def _setup_ctx(self, obj_type):
-        ctx = MockCloudifyContext(
+        ctx = common_test.create_mock_ctx_with_provider_info(
             node_id='__cloudify_id_something_001',
             properties={
                 obj_type: {
@@ -54,7 +55,6 @@ class ResourcesRenamingTest(unittest.TestCase):
 
     def _test(self, obj_type):
         ctx = self._setup_ctx(obj_type)
-        common_test.set_mock_provider_context_from_file(ctx)
         attr = getattr(self.neutron_mock, 'create_' + obj_type)
         attr.return_value = {
             obj_type: {
@@ -87,8 +87,8 @@ class ResourcesRenamingTest(unittest.TestCase):
     # Just testing something without prefix.
     def test_network_no_prefix(self):
         ctx = self._setup_ctx('network')
-        for pctx in common_test.PROVIDER_CONTEXTS_WITHOUT_PREFIX:
-            common_test.set_mock_provider_context(ctx, pctx)
+        for pctx in common_test.BOOTSTRAP_CONTEXTS_WITHOUT_PREFIX:
+            ctx._bootstrap_context = BootstrapContext(pctx)
             self.neutron_mock.create_network.reset_mock()
             self.neutron_mock.create_network.return_value = {
                 'network': {

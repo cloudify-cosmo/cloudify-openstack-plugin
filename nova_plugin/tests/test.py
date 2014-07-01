@@ -74,8 +74,11 @@ class ResourcesRenamingTest(unittest.TestCase):
         nova_plugin.server.start(ctx)
         calls = self.nova_mock.servers._boot.mock_calls
         self.assertEquals(len(calls), 1)  # Exactly one server created
-        args = calls[0][1]  # ('/servers', 'server', u'p2_server_name',
-                            #  'DUMMY_IMAGE', 'DUMMY_FLAVOR')
+
+        # ('/servers', 'server', u'p2_server_name',
+        #  'DUMMY_IMAGE', 'DUMMY_FLAVOR')
+        args = calls[0][1]
+
         kw = calls[0][2]  # 2 - kwargs, which in case of Nova are all args
         self.assertEquals(args[2], 'p2_server_name')
         self.assertEquals(kw['key_name'], 'p2_key_name')

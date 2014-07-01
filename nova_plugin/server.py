@@ -23,8 +23,12 @@ from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
 from novaclient import exceptions as nova_exceptions
-from openstack_plugin_common import provider, with_nova_client, NeutronClient
-
+from openstack_plugin_common import (
+    NeutronClient,
+    provider,
+    transform_resource_name,
+    with_nova_client,
+)
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
@@ -49,17 +53,23 @@ def start_new_server(ctx, nova_client):
     - A hash with 'type: http' and 'url: ...'
     """
 
+    provider_context = provider(ctx)
+
+    def rename(name):
+        return transform_resource_name(name, ctx)
+
     # For possible changes by _maybe_transform_userdata()
 
     server = {
         'name': ctx.node_id
     }
     server.update(copy.deepcopy(ctx.properties['server']))
+    transform_resource_name(server, ctx)
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
 
-    if server.get('nics'):
+    if 'nics' in server:
         raise NonRecoverableError(
             "Parameter with name 'nics' must not be passed to"
             " openstack provisioner (under host's "
@@ -71,11 +81,10 @@ def start_new_server(ctx, nova_client):
     management_network_name = None
     nc = None
 
-    provider_context = provider(ctx)
-
     if ('management_network_name' in ctx.properties) and \
             ctx.properties['management_network_name']:
         management_network_name = ctx.properties['management_network_name']
+        management_network_name = rename(management_network_name)
         nc = _neutron_client(ctx)
         management_network_id = nc.cosmo_get_named(
             'network', management_network_name)['id']
@@ -84,7 +93,7 @@ def start_new_server(ctx, nova_client):
         int_network = provider_context.int_network
         if int_network:
             management_network_id = int_network['id']
-            management_network_name = int_network['name']
+            management_network_name = int_network['name']  # Already transform.
     if management_network_id is not None:
         nc = _neutron_client(ctx)
         server['nics'] = [{'net-id': management_network_id}]
@@ -99,13 +108,19 @@ def start_new_server(ctx, nova_client):
             name=server['flavor_name']).id
         del server['flavor_name']
 
+    security_groups = map(rename, server.get('security_groups', []))
     if provider_context.agents_security_group:
-        security_groups = server.get('security_groups', [])
-        security_groups.append(provider_context.agents_security_group['name'])
-        server['security_groups'] = security_groups
+        asg = provider_context.agents_security_group['name']
+        if asg not in security_groups:
+            security_groups.append(asg)
+    server['security_groups'] = security_groups
 
-    if provider_context.agents_keypair and 'key_name' not in server:
-        server['key_name'] = provider_context.agents_keypair['name']
+    if 'key_name' in server:
+        server['key_name'] = rename(server['key_name'])
+    else:
+        # 'key_name' not in server
+        if provider_context.agents_keypair:
+            server['key_name'] = provider_context.agents_keypair['name']
 
     _fail_on_missing_required_parameters(
         server,

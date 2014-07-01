@@ -16,7 +16,10 @@
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
-from openstack_plugin_common import with_neutron_client
+from openstack_plugin_common import (
+    transform_resource_name,
+    with_neutron_client,
+)
 
 
 def _find_network_in_related_nodes(ctx, neutron_client):
@@ -44,6 +47,7 @@ def create(ctx, neutron_client, **kwargs):
         'security_groups': [],
     }
     port.update(ctx.properties['port'])
+    transform_resource_name(port, ctx)
     p = neutron_client.create_port({'port': port})['port']
     ctx.runtime_properties['external_id'] = p['id']
 

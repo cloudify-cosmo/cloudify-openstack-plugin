@@ -14,14 +14,10 @@
 #  * limitations under the License.
 
 from functools import wraps
-import logging
-import random
-import string
-import time
-import unittest
 import json
 import os
 import sys
+
 
 import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
@@ -29,13 +25,8 @@ import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v1_1.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
-import cloudify.manager
-import cloudify.decorators
+import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
-
-PREFIX_RANDOM_CHARS = 3
-CLEANUP_RETRIES = 10
-CLEANUP_RETRY_SLEEP = 2
 
 
 class ProviderContext(object):
@@ -84,9 +75,40 @@ class ProviderContext(object):
     def subnet(self):
         return self._resources.get('subnet')
 
+    def __repr__(self):
+        info = json.dumps(self._provider_context)
+        return '<' + self.__class__.__name__ + ' ' + info + '>'
+
 
 def provider(ctx):
     return ProviderContext(ctx.provider_context)
+
+
+def transform_resource_name(res, ctx):
+
+    if isinstance(res, basestring):
+        res = {'name': res}
+
+    if not isinstance(res, dict):
+        raise ValueError("transform_resource_name() expects either string or "
+                         "dict as the first parameter")
+
+    pfx = ctx.bootstrap_context.resources_prefix
+
+    if not pfx:
+        return res['name']
+
+    name = res['name']
+    res['name'] = pfx + name
+
+    if name.startswith(pfx):
+        ctx.logger.warn("Prefixing resource '{0}' with '{1}' but it "
+                        "already has this prefix".format(name, pfx))
+    else:
+        ctx.logger.info("Transformed resource name '{0}' to '{1}'".format(
+                        name, res['name']))
+
+    return res['name']
 
 
 class Config(object):
@@ -301,155 +323,3 @@ class NeutronClientWithSugar(neutron_client.Client):
 
     def cosmo_is_port(self, id):
         return any(self.cosmo_list('port', id=id))
-
-
-class TrackingNeutronClientWithSugar(NeutronClientWithSugar):
-
-    _cosmo_undo = []  # Tuples of (func, args, kwargs) to run for cleanup
-
-    def __init__(self, *args, **kw):
-        super(TrackingNeutronClientWithSugar, self).__init__(*args, **kw)
-
-    def create_floatingip(self, *args, **kw):
-        ret = super(TrackingNeutronClientWithSugar, self).create_floatingip(
-            *args, **kw)
-        self.__class__._cosmo_undo.append(
-            (self.delete_floatingip, (ret['floatingip']['id'],), {}))
-        return ret
-
-    def cosmo_delete_tracked(self):
-        for f, args, kw in self.__class__._cosmo_undo:
-            try:
-                f(*args, **kw)
-            except neutron_exceptions.NeutronClientException:
-                pass
-
-
-class TestCase(unittest.TestCase):
-
-    def get_nova_client(self):
-        r = NovaClient().get()
-        self.get_nova_client = lambda: r
-        return self.get_nova_client()
-
-    def get_neutron_client(self):
-        r = NeutronClient().get()
-        self.get_neutron_client = lambda: r
-        return self.get_neutron_client()
-
-    def _mock_send_event(self, *args, **kw):
-        self.logger.debug("_mock_send_event(args={0}, kw={1})".format(
-            args, kw))
-
-    def _mock_get_node_state(self, __cloudify_id, *args, **kw):
-        self.logger.debug(
-            "_mock_get_node_state(__cloudify_id={0} args={1}, kw={2})".format(
-                __cloudify_id, args, kw))
-        return self.nodes_data[__cloudify_id]
-
-    def setUp(self):
-        # Careful!
-        globals()['NeutronClientWithSugar'] = TrackingNeutronClientWithSugar
-        logger = logging.getLogger(__name__)
-        logging.basicConfig(
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        self.logger = logger
-        self.logger.level = logging.DEBUG
-        self.logger.debug("Cosmo test setUp() called")
-        chars = string.ascii_uppercase + string.digits
-        self.name_prefix = 'cosmo_test_{0}_'\
-            .format(''.join(
-                random.choice(chars) for x in range(PREFIX_RANDOM_CHARS)))
-        self.timeout = 120
-
-        self.logger.debug("Cosmo test setUp() done")
-
-    def tearDown(self):
-        self.logger.debug("Cosmo test tearDown() called")
-        servers_list = self.get_nova_client().servers.list()
-        for server in servers_list:
-            if server.name.startswith(self.name_prefix):
-                self.logger.info("Deleting server with name " + server.name)
-                try:
-                    server.delete()
-                except BaseException:
-                    self.logger.warning("Failed to delete server with name "
-                                        + server.name)
-            else:
-                self.logger.info("NOT deleting server with name "
-                                 + server.name)
-        for i in range(1, CLEANUP_RETRIES+1):
-            try:
-                self.logger.debug(
-                    "Neutron resources cleanup attempt {0}/{1}"
-                    .format(i, CLEANUP_RETRIES)
-                )
-                NeutronClient().get().cosmo_delete_prefixed(self.name_prefix)
-                NeutronClient().get().cosmo_delete_tracked()
-                break
-            except neutron_exceptions.NetworkInUseClient:
-                pass
-            time.sleep(CLEANUP_RETRY_SLEEP)
-        self.logger.debug("Cosmo test tearDown() done")
-
-    @with_neutron_client
-    def create_network(self, name_suffix, neutron_client):
-        return neutron_client.create_network({'network': {
-            'name': self.name_prefix + name_suffix, 'admin_state_up': True
-        }})['network']
-
-    @with_neutron_client
-    def create_subnet(self, name_suffix, cidr, neutron_client, network=None):
-        if not network:
-            network = self.create_network(name_suffix)
-        return neutron_client.create_subnet({
-            'subnet': {
-                'name': self.name_prefix + name_suffix,
-                'ip_version': 4,
-                'cidr': cidr,
-                'network_id': network['id']
-            }
-        })['subnet']
-
-    @with_neutron_client
-    def create_port(self, name_suffix, network, neutron_client):
-        return neutron_client.create_port({
-            'port': {
-                'name': self.name_prefix + name_suffix,
-                'network_id': network['id']
-            }
-        })['port']
-
-    @with_neutron_client
-    def create_sg(self, name_suffix, neutron_client):
-        return neutron_client.create_security_group({
-            'security_group': {
-                'name': self.name_prefix + name_suffix,
-            }
-        })['security_group']
-
-    @with_neutron_client
-    def assertThereIsOneAndGet(self, obj_type_single, neutron_client, **kw):
-        objs = list(neutron_client.cosmo_list(obj_type_single, **kw))
-        self.assertEquals(1, len(objs))
-        return objs[0]
-
-    assertThereIsOne = assertThereIsOneAndGet
-
-    @with_neutron_client
-    def assertThereIsNo(self, obj_type_single, neutron_client, **kw):
-        objs = list(neutron_client.cosmo_list(obj_type_single, **kw))
-        self.assertEquals(0, len(objs))
-
-    @with_nova_client
-    def assertThereIsOneServerAndGet(self, nova_client, **kw):
-        servers = nova_client.servers.findall(**kw)
-        self.assertEquals(1, len(servers))
-        return servers[0]
-
-    assertThereIsOneServer = assertThereIsOneServerAndGet
-
-    @with_nova_client
-    def assertThereIsNoServer(self, nova_client, **kw):
-        servers = nova_client.servers.findall(**kw)
-        self.assertEquals(0, len(servers))

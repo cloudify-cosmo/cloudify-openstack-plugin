@@ -28,6 +28,7 @@ import novaclient.exceptions as nova_exceptions
 import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
+
 class ProviderContext(object):
 
     def __init__(self, provider_context):

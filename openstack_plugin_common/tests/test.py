@@ -1,6 +1,5 @@
 import json
 import os
-import time
 
 from cloudify.context import BootstrapContext
 

@@ -14,6 +14,8 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
+from cloudify.exceptions import NonRecoverableError
+
 from openstack_plugin_common import (
     provider,
     transform_resource_name,
@@ -72,7 +74,7 @@ def create(ctx, neutron_client, **kwargs):
             network_id_set = True
 
     if not network_id_set:
-        raise RuntimeError('Missing network name or network')
+        raise NonRecoverableError('Missing network name or network')
 
     r = neutron_client.create_router({'router': router})['router']
 

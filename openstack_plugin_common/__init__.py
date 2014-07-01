@@ -14,10 +14,10 @@
 #  * limitations under the License.
 
 from functools import wraps
-import random
-import time
 import json
 import os
+import sys
+
 
 import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
@@ -26,10 +26,7 @@ import novaclient.v1_1.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
 import cloudify
-
-OVERLIMIT_DEFAULT_RETRY_AFTER = 5
-API_CALL_ATTEMPTS = 5
-
+from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 class ProviderContext(object):
 
@@ -124,7 +121,7 @@ class Config(object):
             with open(config_path) as f:
                 cfg = json.loads(f.read())
         except IOError:
-            raise RuntimeError(
+            raise NonRecoverableError(
                 "Failed to read {0} configuration from file '{1}'."
                 "The configuration is looked up in {2}. If defined, "
                 "environment variable "
@@ -158,8 +155,6 @@ class OpenStackClient(object):
 
 
 # Clients acquireres
-
-
 class KeystoneClient(OpenStackClient):
 
     config = KeystoneConfig
@@ -183,12 +178,6 @@ class NovaClient(OpenStackClient):
                                   http_log_debug=False)
 
 
-def _nova_exception_handler(exception):
-    if not isinstance(exception, nova_exceptions.OverLimit):
-        raise
-    return exception.retry_after or OVERLIMIT_DEFAULT_RETRY_AFTER
-
-
 class NeutronClient(OpenStackClient):
 
     config = NeutronConfig
@@ -201,24 +190,13 @@ class NeutronClient(OpenStackClient):
         return ret
 
 
-def neutron_exception_handler(exception):
-    if not isinstance(exception, neutron_exceptions.NeutronClientException):
-        raise
-    if exception.message is not None and \
-            'TokenRateLimit' not in exception.message:
-        raise
-    retry_after = 30
-    return retry_after
-
-
 # Decorators
-
 def _find_instanceof_in_kw(cls, kw):
     ret = [v for v in kw.values() if isinstance(v, cls)]
     if not ret:
         return None
     if len(ret) > 1:
-        raise RuntimeError(
+        raise NonRecoverableError(
             "Expected to find exactly one instance of {0} in "
             "kwargs but found {1}".format(cls, len(ret)))
     return ret[0]
@@ -234,26 +212,17 @@ def with_neutron_client(f):
         ctx = _find_context_in_kw(kw)
         if ctx:
             config = ctx.properties.get('neutron_config')
-            logger = ctx.logger
         else:
             config = None
-            logger = None
-        neutron_client = ExceptionRetryProxy(
-            NeutronClient().get(config=config),
-            exception_handler=neutron_exception_handler,
-            logger=logger)
-        kw['neutron_client'] = neutron_client
-        return f(*args, **kw)
+        kw['neutron_client'] = NeutronClient().get(config=config)
+        try:
+            return f(*args, **kw)
+        except neutron_exceptions.NeutronClientException, e:
+            if e.status_code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False)
+            else:
+                raise
     return wrapper
-
-
-def add_proxies_to_nova_client(nova_client, logger):
-    for a in 'images', 'servers', 'flavors':
-        proxy = ExceptionRetryProxy(
-            getattr(nova_client, a),
-            exception_handler=_nova_exception_handler,
-            logger=logger)
-        setattr(nova_client, a + '_proxy', proxy)
 
 
 def with_nova_client(f):
@@ -262,21 +231,36 @@ def with_nova_client(f):
         ctx = _find_context_in_kw(kw)
         if ctx:
             config = ctx.properties.get('nova_config')
-            logger = ctx.logger
         else:
             config = None
-            logger = None
-
-        nova_client = NovaClient().get(config=config)
-        add_proxies_to_nova_client(nova_client, logger)
-
-        kw['nova_client'] = nova_client
-        return f(*args, **kw)
+        kw['nova_client'] = NovaClient().get(config=config)
+        try:
+            return f(*args, **kw)
+        except nova_exceptions.OverLimit, e:
+            _re_raise(e, recoverable=True, retry_after=e.retry_after)
+        except nova_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False)
+            else:
+                raise
     return wrapper
 
+_non_recoverable_error_codes = [400, 401, 403, 404, 409]
+
+
+def _re_raise(e, recoverable, retry_after=None):
+    exc_type, exc, traceback = sys.exc_info()
+    if recoverable:
+        if retry_after == 0:
+            retry_after = None
+        raise RecoverableError(
+            message=e.message,
+            retry_after=retry_after), None, traceback
+    else:
+        raise NonRecoverableError(e.message), None, traceback
+
+
 # Sugar for clients
-
-
 class NeutronClientWithSugar(neutron_client.Client):
 
     def cosmo_plural(self, obj_type_single):
@@ -288,7 +272,7 @@ class NeutronClientWithSugar(neutron_client.Client):
     def cosmo_get(self, obj_type_single, **kw):
         ls = list(self.cosmo_list(obj_type_single, **kw))
         if len(ls) != 1:
-            raise RuntimeError(
+            raise NonRecoverableError(
                 "Expected exactly one object of type {0} "
                 "with match {1} but there are {2}".format(
                     obj_type_single, kw, len(ls)))
@@ -327,51 +311,14 @@ class NeutronClientWithSugar(neutron_client.Client):
         """ For tests of floating IP """
         nets = self.list_networks()['networks']
         ls = [net for net in nets if net.get('router:external')]
-        if len(ls) == 1:
-            return ls[0]
         if len(ls) != 1:
-            raise RuntimeError(
+            raise NonRecoverableError(
                 "Expected exactly one external network but found {0}".format(
                     len(ls)))
+        return ls[0]
 
     def cosmo_is_network(self, id):
         return any(self.cosmo_list('network', id=id))
 
     def cosmo_is_port(self, id):
         return any(self.cosmo_list('port', id=id))
-
-
-class ExceptionRetryProxy(object):
-
-    def __init__(self, delegate, exception_handler, logger=None):
-        self.delegate = delegate
-        self.logger = logger
-        self.exception_handler = exception_handler
-
-    def __getattr__(self, name):
-        attr = getattr(self.delegate, name)
-        if not callable(attr):
-            return attr
-
-        def wrapper(*args, **kwargs):
-            for i in range(API_CALL_ATTEMPTS):
-                try:
-                    return attr(*args, **kwargs)
-                except Exception, e:
-                    if i == API_CALL_ATTEMPTS - 1:
-                        break
-                    retry_after = self.exception_handler(e)
-                    retry_after += random.randint(0, retry_after)
-                    if self.logger is not None:
-                        message = '{0} exception caught while ' \
-                                  'executing {1}. sleeping for {2} ' \
-                                  'seconds before trying again (Attempt' \
-                                  ' {3}/{4})'.format(type(e),
-                                                     name,
-                                                     retry_after,
-                                                     i+2,
-                                                     API_CALL_ATTEMPTS)
-                        self.logger.warn(message)
-                    time.sleep(retry_after)
-            raise
-        return wrapper

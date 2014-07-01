@@ -14,7 +14,10 @@
 #  * limitations under the License.
 
 import re
+
 from cloudify.decorators import operation
+from cloudify.exceptions import NonRecoverableError
+
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
@@ -42,12 +45,12 @@ def _capabilities_of_node_named(node_name, ctx):
             candidate_node_name = match.group(1)
             if candidate_node_name == node_name:
                 if result:
-                    raise RuntimeError(
+                    raise NonRecoverableError(
                         "More than one node named '{0}' "
                         "in capabilities".format(node_name))
                 result = (node_id, caps[node_id])
     if not result:
-        raise RuntimeError(
+        raise NonRecoverableError(
             "Could not find node named '{0}' "
             "in capabilities".format(node_name))
     return result
@@ -76,7 +79,7 @@ def create(ctx, neutron_client, **kwargs):
 
     if 'disable_egress' in ctx.properties:
         if egress_rules_to_apply and ctx.properties['disable_egress']:
-            raise RuntimeError(
+            raise NonRecoverableError(
                 "Security group {0} can not have both "
                 "disable_egress and an egress rule".format(
                     security_group['name']))

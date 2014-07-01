@@ -14,6 +14,8 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
+from cloudify.exceptions import NonRecoverableError
+
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
@@ -30,7 +32,9 @@ def _find_network_in_related_nodes(ctx, neutron_client):
             ret.append(external_id)
     if len(ret) != 1:
         # TODO: better message
-        raise RuntimeError("Failed to find port's network")
+        raise NonRecoverableError("Failed to find port's network. found"
+                                  "the following resources: {}"
+                                  .format(ret))
     return ret[0]
 
 

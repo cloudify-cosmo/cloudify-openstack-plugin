@@ -35,19 +35,19 @@ class ResourcesRenamingTest(unittest.TestCase):
         # Next line was derived from
         # https://github.com/openstack/python-novaclient/blob/d05da4e985036fa354cc1f2666e39c4aa3213609/novaclient/v1_1/client.py#L103  # noqa
         self.nova_mock.servers = nova_client.servers.ServerManager(self)
-        for a in 'servers_proxy', 'images_proxy', 'flavors_proxy':
+
+        nova_boot_mock = mock.Mock()
+        setattr(self.nova_mock.servers, '_boot', nova_boot_mock)
+        nova_boot_mock.return_value = mock.Mock()
+        for a in 'servers', 'images', 'flavors':
             proxy = getattr(self.nova_mock, a)
-            ls = getattr(proxy, 'list')
+            ls = mock.Mock()
+            setattr(proxy, 'list', ls)
             ls.return_value = []
 
         def nova_mock_connect(unused_self, unused_cfg, unused_region=None):
             return self.nova_mock
         common.NovaClient.connect = nova_mock_connect
-
-        # Don't let override our mock proxies.
-        # They are already set up when add_proxies_to_nova_client()
-        # is called.
-        common.add_proxies_to_nova_client = mock.Mock()
 
         # *** Neutron ********************
         self.neutron_mock = mock.Mock()
@@ -72,10 +72,12 @@ class ResourcesRenamingTest(unittest.TestCase):
         )
 
         nova_plugin.server.start(ctx)
-        calls = self.nova_mock.servers_proxy.create.mock_calls
+        calls = self.nova_mock.servers._boot.mock_calls
         self.assertEquals(len(calls), 1)  # Exactly one server created
+        args = calls[0][1]  # ('/servers', 'server', u'p2_server_name',
+                            #  'DUMMY_IMAGE', 'DUMMY_FLAVOR')
         kw = calls[0][2]  # 2 - kwargs, which in case of Nova are all args
-        self.assertEquals(kw['name'], 'p2_server_name')
+        self.assertEquals(args[2], 'p2_server_name')
         self.assertEquals(kw['key_name'], 'p2_key_name')
         self.assertEquals(
             kw.get('meta', {})['cloudify_management_network_name'],

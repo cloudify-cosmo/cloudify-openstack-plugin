@@ -30,7 +30,7 @@ from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 
 def get_version():
-    data = pkgutil.get_data('cosmo_cli', 'VERSION')
+    data = pkgutil.get_data('openstack_plugin_common', 'VERSION')
     return json.loads(data)['version']
 
 

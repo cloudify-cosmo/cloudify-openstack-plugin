@@ -17,7 +17,6 @@ from functools import wraps
 import json
 import os
 import sys
-import pkgutil
 
 import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
@@ -27,11 +26,6 @@ import novaclient.exceptions as nova_exceptions
 
 import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
-
-
-def get_version():
-    data = pkgutil.get_data('openstack_plugin_common', 'VERSION')
-    return json.loads(data)['version']
 
 
 class ProviderContext(object):

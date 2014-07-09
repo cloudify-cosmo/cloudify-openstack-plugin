@@ -17,7 +17,7 @@ __author__ = 'idanmo'
 
 from setuptools import setup
 
-from openstack_plugin_common import get_version 
+from nova_plugin import get_version
 
 
 setup(

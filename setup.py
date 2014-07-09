@@ -17,10 +17,13 @@ __author__ = 'idanmo'
 
 from setuptools import setup
 
+from openstack_plugin_common import get_version 
+
+
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='1.0',
+    version=get_version(),
     author='idanmo',
     author_email='idan@gigaspaces.com',
     packages=[
@@ -28,6 +31,7 @@ setup(
         'nova_plugin',
         'neutron_plugin'
     ],
+    package_data={'openstack_plugin_common': ['VERSION']},
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
     install_requires=[

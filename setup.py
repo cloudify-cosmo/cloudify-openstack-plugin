@@ -31,7 +31,7 @@ setup(
         'nova_plugin',
         'neutron_plugin'
     ],
-    package_data={'openstack_plugin_common': ['VERSION']},
+    package_data={'nova_plugin': ['VERSION']},
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
     install_requires=[

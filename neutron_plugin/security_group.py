@@ -176,11 +176,13 @@ def create(ctx, neutron_client, **kwargs):
                 sgr['remote_group_node'], ctx)
             sgr['remote_group_id'] = remote_group_node['external_id']
             del sgr['remote_group_node']
+            del sgr['remote_ip_prefix']
 
         if ('remote_group_name' in sgr) and sgr['remote_group_name']:
             sgr['remote_group_id'] = neutron_client.cosmo_get_named(
                 'security_group', sgr['remote_group_name'])['id']
             del sgr['remote_group_name']
+            del sgr['remote_ip_prefix']
 
         ctx.logger.debug(
             "security_group.create() rule after transformations: {0}".format(

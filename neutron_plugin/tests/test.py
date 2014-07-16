@@ -14,9 +14,13 @@
 #  * limitations under the License.
 
 import mock
+import random
+import string
 import unittest
 
 from cloudify.context import BootstrapContext
+
+from cloudify.mocks import MockCloudifyContext
 
 import openstack_plugin_common as common
 import openstack_plugin_common.tests.test as common_test
@@ -40,6 +44,9 @@ class ResourcesRenamingTest(unittest.TestCase):
         def neutron_mock_connect(unused_self, unused_cfg):
             return self.neutron_mock
         common.NeutronClient.connect = neutron_mock_connect
+
+        self.neutron_mock.cosmo_list = mock.Mock()
+        self.neutron_mock.cosmo_list.return_value = []
 
     def _setup_ctx(self, obj_type):
         ctx = common_test.create_mock_ctx_with_provider_info(
@@ -106,6 +113,106 @@ class ResourcesRenamingTest(unittest.TestCase):
             self.assertEquals(arg['network']['name'], 'network_name',
                               "Failed with context: " + str(pctx))
 
+
+def _rand_str(n):
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choice(chars) for _ in range(n))
+
+
+class SecurityGroupTest(unittest.TestCase):
+    def setUp(self):
+        # *** Configs from files ********************
+        common.Config.get = mock.Mock()
+        common.Config.get.return_value = {}
+        # *** Neutron ********************
+        self.neutron_mock = mock.Mock()
+
+        def neutron_mock_connect(unused_self, unused_cfg):
+            return self.neutron_mock
+        common.NeutronClient.connect = neutron_mock_connect
+        neutron_plugin.security_group._rules_for_sg_id = mock.Mock()
+        neutron_plugin.security_group._rules_for_sg_id.return_value = []
+
+    def _setup_ctx(self):
+        sg_name = _rand_str(6) + '_new'
+        ctx = MockCloudifyContext(properties={
+            'security_group': {
+                'name': sg_name,
+                'description': 'blah'
+            },
+            'rules': [{'port': 80}],
+            'disable_egress': True,
+        })
+        return ctx
+
+    def test_sg_new(self):
+        ctx = self._setup_ctx()
+        self.neutron_mock.cosmo_list = mock.Mock()
+        self.neutron_mock.cosmo_list.return_value = []
+        self.neutron_mock.create_security_group = mock.Mock()
+        self.neutron_mock.create_security_group.return_value = {
+            'security_group': {
+                'description': 'blah',
+                'id': ctx['security_group']['name'] + '_id',
+            }
+        }
+        neutron_plugin.security_group.create(ctx)
+        self.assertTrue(self.neutron_mock.create_security_group.mock_calls)
+
+    def test_sg_use_existing(self):
+        ctx = self._setup_ctx()
+        self.neutron_mock.cosmo_list = mock.Mock()
+        self.neutron_mock.cosmo_list.return_value = [{
+            'id': ctx['security_group']['name'] + '_existing_id',
+            'description': 'blah',
+            'security_group_rules': [{
+                'remote_group_id': None,
+                'direction': 'ingress',
+                'protocol': 'tcp',
+                'ethertype': 'IPv4',
+                'port_range_max': 80,
+                'port_range_min': 80,
+                'remote_ip_prefix': '0.0.0.0/0',
+            }]
+        }]
+        self.neutron_mock.create_security_group = mock.Mock()
+        self.neutron_mock.create_security_group.return_value = {
+            'security_group': {
+                'description': 'blah',
+                'id': ctx['security_group']['name'] + '_id',
+            }
+        }
+        neutron_plugin.security_group.create(ctx)
+        self.assertFalse(self.neutron_mock.create_security_group.mock_calls)
+
+    def test_sg_use_existing_with_other_rules(self):
+        ctx = self._setup_ctx()
+        self.neutron_mock.cosmo_list = mock.Mock()
+        self.neutron_mock.cosmo_list.return_value = [{
+            'id': ctx['security_group']['name'] + '_existing_id',
+            'description': 'blah',
+            'security_group_rules': [{
+                'remote_group_id': None,
+                'direction': 'ingress',
+                'protocol': 'tcp',
+                'ethertype': 'IPv4',
+                'port_range_max': 81,  # Note the different port!
+                'port_range_min': 81,  # Note the different port!
+                'remote_ip_prefix': '0.0.0.0/0',
+            }]
+        }]
+        self.neutron_mock.create_security_group = mock.Mock()
+        self.neutron_mock.create_security_group.return_value = {
+            'security_group': {
+                'description': 'blah',
+                'id': ctx['security_group']['name'] + '_id',
+            }
+        }
+        self.assertRaises(
+            neutron_plugin.security_group.RulesMismatchError,
+            neutron_plugin.security_group.create,
+            ctx
+        )
 
 if __name__ == '__main__':
     unittest.main()

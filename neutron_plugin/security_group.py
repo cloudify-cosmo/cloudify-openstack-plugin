@@ -234,9 +234,6 @@ def delete(ctx, neutron_client, **kwargs):
     try:
         neutron_client.delete_security_group(sg_id)
     except neutron_exceptions.NeutronClientException, e:
-        if not hasattr(e, 'status_code'):
-            raise NonRecoverableError("Neutron client error: " + str(e))
-
         # Sample sequence of events that explains the handling of 404 error as
         # implemented in the code below (just warning):
         # * We had a server that uses this security group.

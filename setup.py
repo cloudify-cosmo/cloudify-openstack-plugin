@@ -17,19 +17,14 @@ __author__ = 'idanmo'
 
 from setuptools import setup
 
-VERSION = '1.0'
-
-PLUGINS_COMMON_VERSION = "3.0"
-PLUGINS_COMMON_BRANCH = "3.0"
-PLUGINS_COMMON = "https://github.com/cloudify-cosmo/" \
-                 "cloudify-plugins-common/tarball/{0}".format(
-                     PLUGINS_COMMON_BRANCH)
-
-
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
+<<<<<<< HEAD
     version=VERSION,
+=======
+    version=get_version(),
+>>>>>>> 1.0
     author='idanmo',
     author_email='idan@gigaspaces.com',
     packages=[
@@ -37,14 +32,13 @@ setup(
         'nova_plugin',
         'neutron_plugin'
     ],
+    package_data={'nova_plugin': ['VERSION']},
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
     install_requires=[
-        "cloudify-plugins-common",
-        "python-novaclient==2.17.0",
-        "python-keystoneclient==0.7.1",
-        "python-neutronclient==2.3.4",
-    ],
-    dependency_links=["{0}#egg=cloudify-plugins-common-{1}"
-                      .format(PLUGINS_COMMON, PLUGINS_COMMON_VERSION)]
+        'cloudify-plugins-common>=3.0',
+        'python-novaclient==2.17.0',
+        'python-keystoneclient==0.7.1',
+        'python-neutronclient==2.3.4',
+    ]
 )

@@ -14,7 +14,9 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
-from openstack_plugin_common import with_neutron_client
+from cloudify.exceptions import NonRecoverableError
+
+from openstack_plugin_common import with_neutron_client, provider
 
 
 @operation
@@ -41,9 +43,10 @@ def create(ctx, neutron_client, **kwargs):
         fip = neutron_client.cosmo_get(
             'floatingip',
             floating_ip_address=floatingip['floating_ip_address'])
-        ctx['external_id'] = fip['id']
-        ctx['floating_ip_address'] = fip['floating_ip_address']
-        ctx['enable_deletion'] = False  # Not acquired here
+        ctx.runtime_properties['external_id'] = fip['id']
+        ctx.runtime_properties['floating_ip_address'] = \
+            fip['floating_ip_address']
+        ctx.runtime_properties['enable_deletion'] = False  # Not acquired here
         return
 
     # Sugar: floating_network_name -> (resolve) -> floating_network_id
@@ -51,13 +54,20 @@ def create(ctx, neutron_client, **kwargs):
         floatingip['floating_network_id'] = neutron_client.cosmo_get_named(
             'network', floatingip['floating_network_name'])['id']
         del floatingip['floating_network_name']
+    elif 'floating_network_id' not in floatingip:
+        provider_context = provider(ctx)
+        ext_network = provider_context.ext_network
+        if ext_network:
+            floatingip['floating_network_id'] = ext_network['id']
+    else:
+        raise NonRecoverableError('Missing floating network id or name')
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']
-    ctx['external_id'] = fip['id']
-    ctx['floating_ip_address'] = fip['floating_ip_address']
+    ctx.runtime_properties['external_id'] = fip['id']
+    ctx.runtime_properties['floating_ip_address'] = fip['floating_ip_address']
     # Acquired here -> OK to delete
-    ctx['enable_deletion'] = True
+    ctx.runtime_properties['enable_deletion'] = True
     ctx.logger.info(
         "Allocated floating IP {0}".format(fip['floating_ip_address']))
 

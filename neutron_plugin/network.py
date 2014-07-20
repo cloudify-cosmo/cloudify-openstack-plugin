@@ -14,7 +14,10 @@
 #  * limitations under the License.
 
 from cloudify.decorators import operation
-from openstack_plugin_common import with_neutron_client
+from openstack_plugin_common import (
+    transform_resource_name,
+    with_neutron_client,
+)
 
 
 @operation
@@ -25,10 +28,11 @@ def create(ctx, neutron_client, **kwargs):
         'name': ctx.node_id,
     }
     network.update(ctx.properties['network'])
+    transform_resource_name(network, ctx)
 
     net = neutron_client.create_network({'network': network})['network']
-    ctx['external_id'] = net['id']
-    ctx['external_type'] = 'network'
+    ctx.runtime_properties['external_id'] = net['id']
+    ctx.runtime_properties['external_type'] = 'network'
 
 
 @operation

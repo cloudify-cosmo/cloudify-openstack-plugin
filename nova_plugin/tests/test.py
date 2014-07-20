@@ -13,140 +13,80 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
-import argparse
-import time
+import mock
 import unittest
 
-from cloudify.mocks import MockCloudifyContext
+import novaclient.v1_1.client as nova_client
 
 import openstack_plugin_common as common
+import openstack_plugin_common.tests.test as common_test
 
-import nova_plugin.server as cfy_srv
-import nova_plugin.monitor as cfy_srv_mon
-
-tests_config = common.TestsConfig().get()
-
-DELETE_WAIT_START = 1
-DELETE_WAIT_FACTOR = 2
-DELETE_WAIT_COUNT = 6
+import nova_plugin.server
 
 
-# WIP - start
-# Maybe this chunk will not be needed as monitoring
-# will be done differently, probably as a (celery) task
-class MockReporter(object):
-    state = {}
+class ResourcesRenamingTest(unittest.TestCase):
 
-    def start(self, node_id, _host):
-        self.__class__.state[node_id] = 'started'
+    def setUp(self):
+        # *** Configs from files ********************
+        common.Config.get = mock.Mock()
+        common.Config.get.return_value = {}
+        # *** Nova ********************
+        self.nova_mock = mock.Mock()
+        # Next line was derived from
+        # https://github.com/openstack/python-novaclient/blob/d05da4e985036fa354cc1f2666e39c4aa3213609/novaclient/v1_1/client.py#L103  # noqa
+        self.nova_mock.servers = nova_client.servers.ServerManager(self)
 
-    def stop(self, node_id, _host):
-        self.__class__.state[node_id] = 'stopped'
+        nova_boot_mock = mock.Mock()
+        setattr(self.nova_mock.servers, '_boot', nova_boot_mock)
+        nova_boot_mock.return_value = mock.Mock()
+        for a in 'servers', 'images', 'flavors':
+            proxy = getattr(self.nova_mock, a)
+            ls = mock.Mock()
+            setattr(proxy, 'list', ls)
+            ls.return_value = []
 
+        def nova_mock_connect(unused_self, unused_cfg, unused_region=None):
+            return self.nova_mock
+        common.NovaClient.connect = nova_mock_connect
 
-def _mock_start_monitor(ctx):
-    reporter = MockReporter(ctx)
-    args = argparse.Namespace(monitor_interval=3,
-                              region_name=None)
-    monitor = cfy_srv_mon.OpenstackStatusMonitor(reporter, args)
-    monitor.start()
+        # *** Neutron ********************
+        self.neutron_mock = mock.Mock()
+        self.neutron_mock.cosmo_get_named.return_value = {'id': 'MOCK_MGR_NET'}
 
-cfy_srv.start_monitor = _mock_start_monitor
-# WIP - end
+        def neutron_mock_connect(unused_self, unused_cfg):
+            return self.neutron_mock
+        common.NeutronClient.connect = neutron_mock_connect
 
-
-class OpenstackNovaTest(common.TestCase):
-
-    def test_server_create_and_delete(self):
-        management_network = self.create_network('mng')
-
-        nova_client = self.get_nova_client()
-        name = self.name_prefix + 'srv_crt_del'
-        ctx = MockCloudifyContext(
-            node_id='__cloudify_id_' + name,
+    def test_resources_renaming(self):
+        ctx = common_test.create_mock_ctx_with_provider_info(
+            node_id='__cloudify_id_server_001',
             properties={
                 'server': {
-                    'name': name,
-                    'image_name': tests_config['image_name'],
-                    'flavor': tests_config['flavor_id'],
-                    'key_name': tests_config['key_name'],
+                    'name': 'server_name',
+                    'image': 'DUMMY_IMAGE',
+                    'flavor': 'DUMMY_FLAVOR',
+                    'key_name': 'key_name',
                 },
-                'management_network_name': management_network['name']
+                'management_network_name': 'mg_net_name',
             }
         )
 
-        # Test: create
-        self.assertThereIsNoServer(name=name)
-        cfy_srv.create(ctx)
-        self.assertThereIsOneServer(name=name)
+        nova_plugin.server.start(ctx)
+        calls = self.nova_mock.servers._boot.mock_calls
+        self.assertEquals(len(calls), 1)  # Exactly one server created
 
-        # WIP # # Test: start
-        # WIP # cfy_srv.start(ctx)
+        # ('/servers', 'server', u'p2_server_name',
+        #  'DUMMY_IMAGE', 'DUMMY_FLAVOR')
+        args = calls[0][1]
 
-        # WIP # # Test: stop
-        # WIP # cfy_srv.stop(ctx)
-
-        # Test: delete
-        cfy_srv.delete(ctx)
-
-        wait = DELETE_WAIT_START
-        for attempt in range(1, DELETE_WAIT_COUNT + 1):
-            servers = nova_client.servers.findall(name=name)
-            if len(servers) == 0:
-                break
-            self.logger.debug(
-                "Waiting for server {0} to disappear after deletion. "
-                "Attempt #{1}, sleeping for {2} seconds".format(
-                    name, attempt, wait))
-            time.sleep(wait)
-            wait *= DELETE_WAIT_FACTOR
-
-        self.assertThereIsNoServer(name=name)
-
-    @unittest.skip("Not implemented yet")
-    def test_server_in_networks(self):
-        pass
-
-    def _create_networks(self):
-        NETS = 3
-        networks = []
-        for i in range(0, NETS):
-            network = self.create_network('net_' + str(i))
-            self.create_subnet('subnet_' + str(i), '10.1.' + str(i) + '.0/24')
-            networks.append(network)
-        return networks
-
-    def test_server_with_ports(self):
-        name = self.name_prefix + 'srv_w_ports'
-
-        management_network = self.create_network('mng')
-
-        networks = self._create_networks()
-        ports = [self.create_port('port_' + str(i), n)
-                 for i, n in enumerate(networks)]
-
-        related = {}
-        for i, port in enumerate(ports):
-            related['related_port_' + str(i)] = {'external_id': port['id']}
-
-        ctx = MockCloudifyContext(
-            node_id='__cloudify_id_' + name,
-            properties={
-                'server': {
-                    'name': name,
-                    'image_name': tests_config['image_name'],
-                    'flavor': tests_config['flavor_id'],
-                    'key_name': tests_config['key_name'],
-                },
-                'management_network_name': management_network['name']
-            },
-            related=related
+        kw = calls[0][2]  # 2 - kwargs, which in case of Nova are all args
+        self.assertEquals(args[2], 'p2_server_name')
+        self.assertEquals(kw['key_name'], 'p2_key_name')
+        self.assertEquals(
+            kw.get('meta', {})['cloudify_management_network_name'],
+            'p2_mg_net_name'
         )
-        self.assertThereIsNoServer(name=name)
-        cfy_srv.create(ctx)
-        self.assertThereIsOneServer(name=name)
-
+        self.assertEquals(kw['security_groups'], ['p2_cloudify-sg-agents'])
 
 if __name__ == '__main__':
     unittest.main()
-    # _mock_start_monitor(object())

@@ -17,14 +17,13 @@ __author__ = 'idanmo'
 
 from setuptools import setup
 
+from nova_plugin import get_version
+
+
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-<<<<<<< HEAD
-    version=VERSION,
-=======
     version=get_version(),
->>>>>>> 1.0
     author='idanmo',
     author_email='idan@gigaspaces.com',
     packages=[

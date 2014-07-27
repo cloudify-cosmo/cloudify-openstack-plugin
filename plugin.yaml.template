@@ -2,9 +2,6 @@
 # Cloudify OpenStack built in types and plugins definitions.
 ##################################################################################
 
-imports:
-    - http://www.getcloudify.org/spec/cloudify/{{ cloudify_version }}/types.yaml
-
 plugins:
     nova_plugin:
         derived_from: cloudify.plugins.manager_plugin

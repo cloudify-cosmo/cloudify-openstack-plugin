@@ -15,10 +15,3 @@
 
 __author__ = 'idanmo'
 
-import json
-import pkgutil
-
-
-def get_version():
-    data = pkgutil.get_data('nova_plugin', 'VERSION')
-    return json.loads(data)['version']

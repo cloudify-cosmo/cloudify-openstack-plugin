@@ -20,6 +20,12 @@ from openstack_plugin_common import (
     with_neutron_client,
 )
 
+# Runtime properties
+OPENSTACK_ID_PROPERTY = 'external_id'  # network's openstack id
+TYPE_NAME_PROPERTY = 'external_type'  # a property to identify the node as
+                                      #  an openstack network node
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY, TYPE_NAME_PROPERTY]
+
 
 @operation
 @with_neutron_client
@@ -32,31 +38,37 @@ def create(neutron_client, **kwargs):
     transform_resource_name(network)
 
     net = neutron_client.create_network({'network': network})['network']
-    ctx.runtime_properties['external_id'] = net['id']
-    ctx.runtime_properties['external_type'] = 'network'
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = net['id']
+    ctx.runtime_properties[TYPE_NAME_PROPERTY] = 'network'
 
 
 @operation
 @with_neutron_client
 def start(neutron_client, **kwargs):
-    neutron_client.update_network(ctx.runtime_properties['external_id'], {
-        'network': {
-            'admin_state_up': True
-        }
-    })
+    neutron_client.update_network(
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY], {
+            'network': {
+                'admin_state_up': True
+            }
+        })
 
 
 @operation
 @with_neutron_client
 def stop(neutron_client, **kwargs):
-    neutron_client.update_network(ctx.runtime_properties['external_id'], {
-        'network': {
-            'admin_state_up': False
-        }
-    })
+    neutron_client.update_network(
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY], {
+            'network': {
+                'admin_state_up': False
+            }
+        })
 
 
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    neutron_client.delete_network(ctx.runtime_properties['external_id'])
+    neutron_client.delete_network(
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+
+    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
+        del ctx.runtime_properties[runtime_prop_key]

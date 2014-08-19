@@ -45,6 +45,10 @@ for ethertype in SUPPORTED_ETHER_TYPES:
         'remote_ip_prefix': None,
     })
 
+# Runtime properties
+OPENSTACK_ID_PROPERTY = 'external_id'  # security-group's openstack id
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
+
 
 class RulesMismatchError(NonRecoverableError):
     pass
@@ -203,7 +207,7 @@ def create(neutron_client, **kwargs):
                             "id {1}".format(
                                 security_group['name'],
                                 existing_sg['id']))
-            ctx.runtime_properties['external_id'] = existing_sg['id']
+            ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = existing_sg['id']
             return
         else:
             raise RulesMismatchError("Rules of existing security group"
@@ -227,13 +231,13 @@ def create(neutron_client, **kwargs):
     for sgr in security_group_rules:
         sgr['security_group_id'] = sg['id']
         neutron_client.create_security_group_rule({'security_group_rule': sgr})
-    ctx.runtime_properties['external_id'] = sg['id']
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = sg['id']
 
 
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    sg_id = ctx.runtime_properties['external_id']
+    sg_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     try:
         neutron_client.delete_security_group(sg_id)
     except neutron_exceptions.NeutronClientException, e:
@@ -246,11 +250,14 @@ def delete(neutron_client, **kwargs):
         if e.status_code == 404:
             ctx.logger.warn("Security group with id '{0}' not found "
                             "while trying to delete it.".format(sg_id))
-            return
         # The security group might be used by other deployments
         # so just warning.
-        if e.status_code == 409:
+        elif e.status_code == 409:
             ctx.logger.warn("Security group with id '{0}' is in use "
                             "while trying to delete it.".format(sg_id))
             return
-        raise NonRecoverableError("Neutron client error: " + str(e))
+        else:
+            raise NonRecoverableError("Neutron client error: " + str(e))
+
+    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
+        del ctx.runtime_properties[runtime_prop_key]

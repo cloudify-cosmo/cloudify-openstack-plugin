@@ -22,6 +22,10 @@ from openstack_plugin_common import (
     with_neutron_client,
 )
 
+# Runtime properties
+OPENSTACK_ID_PROPERTY = 'external_id'  # port's openstack id
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
+
 
 def _find_network_in_related_nodes(neutron_client):
     networks_ids = [n['id'] for n in
@@ -50,26 +54,28 @@ def create(neutron_client, **kwargs):
     port.update(ctx.properties['port'])
     transform_resource_name(port)
     p = neutron_client.create_port({'port': port})['port']
-    ctx.runtime_properties['external_id'] = p['id']
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
 
 
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    neutron_client.delete_port(ctx.runtime_properties['external_id'])
+    neutron_client.delete_port(ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
 
+    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
+        del ctx.runtime_properties[runtime_prop_key]
 
 @operation
 @with_neutron_client
 def connect_security_group(neutron_client, **kwargs):
     # WARNING: non-atomic operation
-    port = neutron_client.cosmo_get('port',
-                                    id=ctx.runtime_properties['external_id'])
+    port = neutron_client.cosmo_get(
+        'port', id=ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
     ctx.logger.info(
         "connect_security_group(): id={0} related={1}".format(
-            ctx.runtime_properties['external_id'],
+            ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
             ctx.related.runtime_properties))
     sgs = port['security_groups']\
         + [ctx.related.runtime_properties['external_id']]
-    neutron_client.update_port(ctx.runtime_properties['external_id'],
+    neutron_client.update_port(ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
                                {'port': {'security_groups': sgs}})

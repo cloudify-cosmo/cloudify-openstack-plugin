@@ -19,15 +19,22 @@ from cloudify.exceptions import NonRecoverableError
 
 from openstack_plugin_common import with_neutron_client, provider
 
+# Runtime properties
+OPENSTACK_ID_PROPERTY = 'external_id'  # floatingip's openstack id
+IP_ADDRESS_PROPERTY = 'floating_ip_address'  # the actual ip address
+ENABLE_DELETION_PROPERTY = 'enable_deletion'  # a boolean describing whether
+                                              #  the IP is to be deleted
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
+                           IP_ADDRESS_PROPERTY, ENABLE_DELETION_PROPERTY]
 
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
 
     # Already acquired?
-    if ctx.runtime_properties.get('external_id'):
+    if ctx.runtime_properties.get(OPENSTACK_ID_PROPERTY):
         ctx.logger.debug("Using already allocated Floating IP {0}".format(
-            ctx.runtime_properties['floating_ip_address']))
+            ctx.runtime_properties[IP_ADDRESS_PROPERTY]))
         return
 
     floatingip = {
@@ -44,10 +51,11 @@ def create(neutron_client, **kwargs):
         fip = neutron_client.cosmo_get(
             'floatingip',
             floating_ip_address=floatingip['floating_ip_address'])
-        ctx.runtime_properties['external_id'] = fip['id']
-        ctx.runtime_properties['floating_ip_address'] = \
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = fip['id']
+        ctx.runtime_properties[IP_ADDRESS_PROPERTY] = \
             fip['floating_ip_address']
-        ctx.runtime_properties['enable_deletion'] = False  # Not acquired here
+        ctx.runtime_properties[ENABLE_DELETION_PROPERTY] = \
+            False  # Not acquired here
         return
 
     # Sugar: floating_network_name -> (resolve) -> floating_network_id
@@ -65,10 +73,10 @@ def create(neutron_client, **kwargs):
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']
-    ctx.runtime_properties['external_id'] = fip['id']
-    ctx.runtime_properties['floating_ip_address'] = fip['floating_ip_address']
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = fip['id']
+    ctx.runtime_properties[IP_ADDRESS_PROPERTY] = fip['floating_ip_address']
     # Acquired here -> OK to delete
-    ctx.runtime_properties['enable_deletion'] = True
+    ctx.runtime_properties[ENABLE_DELETION_PROPERTY] = True
     ctx.logger.info(
         "Allocated floating IP {0}".format(fip['floating_ip_address']))
 
@@ -76,9 +84,13 @@ def create(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    do_delete = bool(ctx.runtime_properties.get('enable_deletion'))
+    do_delete = bool(ctx.runtime_properties.get(ENABLE_DELETION_PROPERTY))
     op = ['Not deleting', 'Deleting'][do_delete]
     ctx.logger.debug("{0} floating IP {1}".format(
-        op, ctx.runtime_properties['floating_ip_address']))
+        op, ctx.runtime_properties[IP_ADDRESS_PROPERTY]))
     if do_delete:
-        neutron_client.delete_floatingip(ctx.runtime_properties['external_id'])
+        neutron_client.delete_floatingip(
+            ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+
+        for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
+            del ctx.runtime_properties[runtime_prop_key]

@@ -23,6 +23,10 @@ from openstack_plugin_common import (
     with_neutron_client,
 )
 
+# Runtime properties
+OPENSTACK_ID_PROPERTY = 'external_id'  # router's openstack id
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
+
 
 @operation
 @with_neutron_client
@@ -79,14 +83,14 @@ def create(neutron_client, **kwargs):
 
     r = neutron_client.create_router({'router': router})['router']
 
-    ctx.runtime_properties['external_id'] = r['id']
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = r['id']
 
 
 @operation
 @with_neutron_client
 def connect_subnet(neutron_client, **kwargs):
     neutron_client.add_interface_router(
-        ctx.runtime_properties['external_id'],
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
         {'subnet_id': ctx.related.runtime_properties['external_id']}
     )
 
@@ -95,7 +99,7 @@ def connect_subnet(neutron_client, **kwargs):
 @with_neutron_client
 def disconnect_subnet(neutron_client, **kwargs):
     neutron_client.remove_interface_router(
-        ctx.runtime_properties['external_id'],
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
         {'subnet_id': ctx.related.runtime_properties['external_id']}
     )
 
@@ -103,4 +107,7 @@ def disconnect_subnet(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    neutron_client.delete_router(ctx.runtime_properties['external_id'])
+    neutron_client.delete_router(ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+
+    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
+        del ctx.runtime_properties[runtime_prop_key]

@@ -65,6 +65,7 @@ def delete(neutron_client, **kwargs):
     for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
         del ctx.runtime_properties[runtime_prop_key]
 
+
 @operation
 @with_neutron_client
 def connect_security_group(neutron_client, **kwargs):

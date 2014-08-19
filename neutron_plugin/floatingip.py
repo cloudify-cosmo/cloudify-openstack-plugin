@@ -22,10 +22,10 @@ from openstack_plugin_common import with_neutron_client, provider
 # Runtime properties
 OPENSTACK_ID_PROPERTY = 'external_id'  # floatingip's openstack id
 IP_ADDRESS_PROPERTY = 'floating_ip_address'  # the actual ip address
-ENABLE_DELETION_PROPERTY = 'enable_deletion'  # a boolean describing whether
-                                              #  the IP is to be deleted
+ENABLE_DELETION_PROPERTY = 'enable_deletion'  # NOQA a boolean describing whether the IP is to be deleted
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
                            IP_ADDRESS_PROPERTY, ENABLE_DELETION_PROPERTY]
+
 
 @operation
 @with_neutron_client

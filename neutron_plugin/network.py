@@ -22,8 +22,7 @@ from openstack_plugin_common import (
 
 # Runtime properties
 OPENSTACK_ID_PROPERTY = 'external_id'  # network's openstack id
-TYPE_NAME_PROPERTY = 'external_type'  # a property to identify the node as
-                                      #  an openstack network node
+TYPE_NAME_PROPERTY = 'external_type'  # NOQA a property to identify the node as an openstack network node
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY, TYPE_NAME_PROPERTY]
 
 

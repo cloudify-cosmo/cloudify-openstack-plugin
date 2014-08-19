@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
@@ -25,7 +26,7 @@ from openstack_plugin_common import (
 
 @operation
 @with_neutron_client
-def create(ctx, neutron_client, **kwargs):
+def create(neutron_client, **kwargs):
     """ Create a router.
     Optional relationship is to gateway network.
     Also supports `router.external_gateway_info.network_name`,
@@ -34,14 +35,14 @@ def create(ctx, neutron_client, **kwargs):
 
     network_id_set = False
 
-    provider_context = provider(ctx)
+    provider_context = provider()
 
     ctx.logger.debug('router.create(): kwargs={0}'.format(kwargs))
     router = {
         'name': ctx.node_id,
     }
     router.update(ctx.properties['router'])
-    transform_resource_name(router, ctx)
+    transform_resource_name(router)
 
     # Probably will not be used. External network
     # is usually provisioned externally.
@@ -83,7 +84,7 @@ def create(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def connect_subnet(ctx, neutron_client, **kwargs):
+def connect_subnet(neutron_client, **kwargs):
     neutron_client.add_interface_router(
         ctx.runtime_properties['external_id'],
         {'subnet_id': ctx.related.runtime_properties['external_id']}
@@ -92,7 +93,7 @@ def connect_subnet(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def disconnect_subnet(ctx, neutron_client, **kwargs):
+def disconnect_subnet(neutron_client, **kwargs):
     neutron_client.remove_interface_router(
         ctx.runtime_properties['external_id'],
         {'subnet_id': ctx.related.runtime_properties['external_id']}
@@ -101,5 +102,5 @@ def disconnect_subnet(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def delete(ctx, neutron_client, **kwargs):
+def delete(neutron_client, **kwargs):
     neutron_client.delete_router(ctx.runtime_properties['external_id'])

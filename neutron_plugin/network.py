@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from cloudify import ctx
 from cloudify.decorators import operation
 from openstack_plugin_common import (
     transform_resource_name,
@@ -22,13 +23,13 @@ from openstack_plugin_common import (
 
 @operation
 @with_neutron_client
-def create(ctx, neutron_client, **kwargs):
+def create(neutron_client, **kwargs):
     network = {
         'admin_state_up': True,
         'name': ctx.node_id,
     }
     network.update(ctx.properties['network'])
-    transform_resource_name(network, ctx)
+    transform_resource_name(network)
 
     net = neutron_client.create_network({'network': network})['network']
     ctx.runtime_properties['external_id'] = net['id']
@@ -37,7 +38,7 @@ def create(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def start(ctx, neutron_client, **kwargs):
+def start(neutron_client, **kwargs):
     neutron_client.update_network(ctx.runtime_properties['external_id'], {
         'network': {
             'admin_state_up': True
@@ -47,7 +48,7 @@ def start(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def stop(ctx, neutron_client, **kwargs):
+def stop(neutron_client, **kwargs):
     neutron_client.update_network(ctx.runtime_properties['external_id'], {
         'network': {
             'admin_state_up': False
@@ -57,5 +58,5 @@ def stop(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def delete(ctx, neutron_client, **kwargs):
+def delete(neutron_client, **kwargs):
     neutron_client.delete_network(ctx.runtime_properties['external_id'])

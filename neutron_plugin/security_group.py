@@ -19,6 +19,7 @@ import re
 
 import neutronclient.common.exceptions as neutron_exceptions
 
+from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
@@ -59,7 +60,7 @@ def _rules_for_sg_id(neutron_client, id):
     return rules
 
 
-def _capabilities_of_node_named(node_name, ctx):
+def _capabilities_of_node_named(node_name):
     result = None
     caps = ctx.capabilities.get_all()
     for node_id in caps:
@@ -79,7 +80,7 @@ def _capabilities_of_node_named(node_name, ctx):
     return result
 
 
-def _find_existing_sg(ctx, neutron_client, security_group):
+def _find_existing_sg(neutron_client, security_group):
     existing_sgs = neutron_client.cosmo_list(
         'security_group',
         name=security_group['name']
@@ -115,7 +116,7 @@ def _sg_rules_are_equal(r1, r2):
 
 @operation
 @with_neutron_client
-def create(ctx, neutron_client, **kwargs):
+def create(neutron_client, **kwargs):
     """ Create security group with rules.
     Parameters transformations:
         rules.N.remote_group_name -> rules.N.remote_group_id
@@ -129,9 +130,9 @@ def create(ctx, neutron_client, **kwargs):
     }
 
     security_group.update(ctx.properties['security_group'])
-    transform_resource_name(security_group, ctx)
+    transform_resource_name(security_group)
 
-    existing_sg = _find_existing_sg(ctx, neutron_client, security_group)
+    existing_sg = _find_existing_sg(neutron_client, security_group)
     if existing_sg:
         if existing_sg['description'] != security_group['description']:
             raise NonRecoverableError("Descriptions of existing security group"
@@ -173,7 +174,7 @@ def create(ctx, neutron_client, **kwargs):
 
         if ('remote_group_node' in sgr) and sgr['remote_group_node']:
             _, remote_group_node = _capabilities_of_node_named(
-                sgr['remote_group_node'], ctx)
+                sgr['remote_group_node'])
             sgr['remote_group_id'] = remote_group_node['external_id']
             del sgr['remote_group_node']
             del sgr['remote_ip_prefix']
@@ -231,7 +232,7 @@ def create(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def delete(ctx, neutron_client, **kwargs):
+def delete(neutron_client, **kwargs):
     sg_id = ctx.runtime_properties['external_id']
     try:
         neutron_client.delete_security_group(sg_id)

@@ -24,6 +24,7 @@ import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v1_1.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
+from cloudify import ctx
 import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
@@ -79,11 +80,11 @@ class ProviderContext(object):
         return '<' + self.__class__.__name__ + ' ' + info + '>'
 
 
-def provider(ctx):
+def provider():
     return ProviderContext(ctx.provider_context)
 
 
-def transform_resource_name(res, ctx):
+def transform_resource_name(res):
 
     if isinstance(res, basestring):
         res = {'name': res}

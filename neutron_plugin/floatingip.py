@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
@@ -21,7 +22,7 @@ from openstack_plugin_common import with_neutron_client, provider
 
 @operation
 @with_neutron_client
-def create(ctx, neutron_client, **kwargs):
+def create(neutron_client, **kwargs):
 
     # Already acquired?
     if ctx.runtime_properties.get('external_id'):
@@ -55,7 +56,7 @@ def create(ctx, neutron_client, **kwargs):
             'network', floatingip['floating_network_name'])['id']
         del floatingip['floating_network_name']
     elif 'floating_network_id' not in floatingip:
-        provider_context = provider(ctx)
+        provider_context = provider()
         ext_network = provider_context.ext_network
         if ext_network:
             floatingip['floating_network_id'] = ext_network['id']
@@ -74,7 +75,7 @@ def create(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def delete(ctx, neutron_client, **kwargs):
+def delete(neutron_client, **kwargs):
     do_delete = bool(ctx.runtime_properties.get('enable_deletion'))
     op = ['Not deleting', 'Deleting'][do_delete]
     ctx.logger.debug("{0} floating IP {1}".format(

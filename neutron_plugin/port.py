@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
@@ -22,7 +23,7 @@ from openstack_plugin_common import (
 )
 
 
-def _find_network_in_related_nodes(ctx, neutron_client):
+def _find_network_in_related_nodes(neutron_client):
     networks_ids = [n['id'] for n in
                     neutron_client.list_networks()['networks']]
     ret = []
@@ -40,27 +41,27 @@ def _find_network_in_related_nodes(ctx, neutron_client):
 
 @operation
 @with_neutron_client
-def create(ctx, neutron_client, **kwargs):
+def create(neutron_client, **kwargs):
     port = {
         'name': ctx.node_id,
-        'network_id': _find_network_in_related_nodes(ctx, neutron_client),
+        'network_id': _find_network_in_related_nodes(neutron_client),
         'security_groups': [],
     }
     port.update(ctx.properties['port'])
-    transform_resource_name(port, ctx)
+    transform_resource_name(port)
     p = neutron_client.create_port({'port': port})['port']
     ctx.runtime_properties['external_id'] = p['id']
 
 
 @operation
 @with_neutron_client
-def delete(ctx, neutron_client, **kwargs):
+def delete(neutron_client, **kwargs):
     neutron_client.delete_port(ctx.runtime_properties['external_id'])
 
 
 @operation
 @with_neutron_client
-def connect_security_group(ctx, neutron_client, **kwargs):
+def connect_security_group(neutron_client, **kwargs):
     # WARNING: non-atomic operation
     port = neutron_client.cosmo_get('port',
                                     id=ctx.runtime_properties['external_id'])

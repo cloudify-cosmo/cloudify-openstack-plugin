@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
@@ -21,8 +22,7 @@ from openstack_plugin_common import with_neutron_client
 
 @operation
 @with_neutron_client
-def create(ctx, neutron_client, **kwargs):
-
+def create(neutron_client, **kwargs):
     ls = [caps for caps in ctx.capabilities.get_all().values() if
           caps.get('external_type') == 'network']
     if len(ls) != 1:
@@ -41,5 +41,5 @@ def create(ctx, neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def delete(ctx, neutron_client, **kwargs):
+def delete(neutron_client, **kwargs):
     neutron_client.delete_subnet(ctx.runtime_properties['external_id'])

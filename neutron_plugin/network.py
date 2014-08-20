@@ -18,12 +18,14 @@ from cloudify.decorators import operation
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
+    OPENSTACK_ID_PROPERTY,
+    OPENSTACK_TYPE_PROPERTY
 )
 
+NETWORK_OPENSTACK_TYPE = 'network'
+
 # Runtime properties
-OPENSTACK_ID_PROPERTY = 'external_id'  # network's openstack id
-TYPE_NAME_PROPERTY = 'external_type'  # NOQA a property to identify the node as an openstack network node
-RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY, TYPE_NAME_PROPERTY]
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY, OPENSTACK_TYPE_PROPERTY]
 
 
 @operation
@@ -38,7 +40,7 @@ def create(neutron_client, **kwargs):
 
     net = neutron_client.create_network({'network': network})['network']
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = net['id']
-    ctx.runtime_properties[TYPE_NAME_PROPERTY] = 'network'
+    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = NETWORK_OPENSTACK_TYPE
 
 
 @operation

@@ -29,7 +29,10 @@ from openstack_plugin_common import (
     provider,
     transform_resource_name,
     with_nova_client,
+    OPENSTACK_ID_PROPERTY
 )
+from neutron_plugin.floatingip import IP_ADDRESS_PROPERTY
+
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
@@ -37,7 +40,6 @@ SERVER_DELETE_CHECK_SLEEP = 2
 NODE_ID_PROPERTY = 'cloudify_id'
 
 # Runtime properties
-OPENSTACK_ID_PROPERTY = 'openstack_server_id'  # server's openstack id
 NETWORKS_PROPERTY = 'networks'  # all of the server's ips
 IP_PROPERTY = 'ip'  # the server's private ip
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY, NETWORKS_PROPERTY,
@@ -144,9 +146,9 @@ def start_new_server(nova_client):
             "'management_network_name' in properties  or id "
             "from provider context, which was not supplied")
     nics = [
-        {'net-id': n['external_id']}
+        {'net-id': n[OPENSTACK_ID_PROPERTY]}
         for n in network_nodes_runtime_properties
-        if nc.cosmo_is_network(n['external_id'])
+        if nc.cosmo_is_network(n[OPENSTACK_ID_PROPERTY])
     ]
     if nics:
         server['nics'] = server.get('nics', []) + nics
@@ -162,9 +164,9 @@ def start_new_server(nova_client):
             "'management_network_name' in properties  or id "
             "from provider context, which was not supplied")
     nics = [
-        {'port-id': n['external_id']}
+        {'port-id': n[OPENSTACK_ID_PROPERTY]}
         for n in port_nodes_runtime_properties
-        if nc.cosmo_is_port(n['external_id'])
+        if nc.cosmo_is_port(n[OPENSTACK_ID_PROPERTY])
     ]
     if nics:
         server['nics'] = server.get('nics', []) + nics
@@ -336,7 +338,7 @@ def connect_floatingip(nova_client, **kwargs):
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     server = nova_client.servers.get(server_id)
     server.add_floating_ip(ctx.related.runtime_properties[
-        'floating_ip_address'])
+        IP_ADDRESS_PROPERTY])
 
 
 @operation
@@ -345,7 +347,7 @@ def disconnect_floatingip(nova_client, **kwargs):
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     server = nova_client.servers.get(server_id)
     server.remove_floating_ip(ctx.related.runtime_properties[
-        'floating_ip_address'])
+        IP_ADDRESS_PROPERTY])
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

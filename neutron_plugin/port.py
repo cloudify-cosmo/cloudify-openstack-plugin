@@ -20,10 +20,10 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
+    OPENSTACK_ID_PROPERTY
 )
 
 # Runtime properties
-OPENSTACK_ID_PROPERTY = 'external_id'  # port's openstack id
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 
 
@@ -77,6 +77,6 @@ def connect_security_group(neutron_client, **kwargs):
             ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
             ctx.related.runtime_properties))
     sgs = port['security_groups']\
-        + [ctx.related.runtime_properties['external_id']]
+        + [ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]]
     neutron_client.update_port(ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
                                {'port': {'security_groups': sgs}})

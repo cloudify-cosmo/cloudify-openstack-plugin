@@ -29,6 +29,10 @@ import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 
+OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
+OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
+
+
 class ProviderContext(object):
 
     def __init__(self, provider_context):

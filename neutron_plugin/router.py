@@ -21,10 +21,10 @@ from openstack_plugin_common import (
     provider,
     transform_resource_name,
     with_neutron_client,
+    OPENSTACK_ID_PROPERTY
 )
 
 # Runtime properties
-OPENSTACK_ID_PROPERTY = 'external_id'  # router's openstack id
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 
 
@@ -50,13 +50,13 @@ def create(neutron_client, **kwargs):
 
     # Probably will not be used. External network
     # is usually provisioned externally.
-    if 'external_id' in ctx.capabilities:
+    if OPENSTACK_ID_PROPERTY in ctx.capabilities:
         if 'external_gateway_info' not in router:
             router['external_gateway_info'] = {
                 'enable_snat': True
             }
         router['external_gateway_info'][
-            'network_id'] = ctx.capabilities['external_id']
+            'network_id'] = ctx.capabilities[OPENSTACK_ID_PROPERTY]
         network_id_set = True
 
     # Sugar: external_gateway_info.network_name ->
@@ -91,7 +91,7 @@ def create(neutron_client, **kwargs):
 def connect_subnet(neutron_client, **kwargs):
     neutron_client.add_interface_router(
         ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
-        {'subnet_id': ctx.related.runtime_properties['external_id']}
+        {'subnet_id': ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]}
     )
 
 
@@ -100,7 +100,7 @@ def connect_subnet(neutron_client, **kwargs):
 def disconnect_subnet(neutron_client, **kwargs):
     neutron_client.remove_interface_router(
         ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
-        {'subnet_id': ctx.related.runtime_properties['external_id']}
+        {'subnet_id': ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]}
     )
 
 

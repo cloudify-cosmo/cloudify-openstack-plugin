@@ -26,6 +26,7 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
+    OPENSTACK_ID_PROPERTY
 )
 
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
@@ -46,7 +47,6 @@ for ethertype in SUPPORTED_ETHER_TYPES:
     })
 
 # Runtime properties
-OPENSTACK_ID_PROPERTY = 'external_id'  # security-group's openstack id
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 
 
@@ -179,7 +179,7 @@ def create(neutron_client, **kwargs):
         if ('remote_group_node' in sgr) and sgr['remote_group_node']:
             _, remote_group_node = _capabilities_of_node_named(
                 sgr['remote_group_node'])
-            sgr['remote_group_id'] = remote_group_node['external_id']
+            sgr['remote_group_id'] = remote_group_node[OPENSTACK_ID_PROPERTY]
             del sgr['remote_group_node']
             del sgr['remote_ip_prefix']
 

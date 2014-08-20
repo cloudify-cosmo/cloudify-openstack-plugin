@@ -17,10 +17,15 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
-from openstack_plugin_common import with_neutron_client
+from openstack_plugin_common import (
+    with_neutron_client,
+    OPENSTACK_ID_PROPERTY,
+    OPENSTACK_TYPE_PROPERTY
+)
+
+from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 
 # Runtime properties
-OPENSTACK_ID_PROPERTY = 'external_id'  # subnet's openstack id
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 
 
@@ -28,14 +33,14 @@ RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 @with_neutron_client
 def create(neutron_client, **kwargs):
     ls = [caps for caps in ctx.capabilities.get_all().values() if
-          caps.get('external_type') == 'network']
+          caps.get(OPENSTACK_TYPE_PROPERTY) == NETWORK_OPENSTACK_TYPE]
     if len(ls) != 1:
         raise NonRecoverableError(
             'Expected exactly one network capability. got {0}'.format(ls))
     network_caps = ls[0]
     subnet = {
         'name': ctx.node_id,
-        'network_id': network_caps['external_id'],
+        'network_id': network_caps[OPENSTACK_ID_PROPERTY],
     }
     subnet.update(ctx.properties['subnet'])
 

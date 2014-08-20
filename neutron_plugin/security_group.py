@@ -224,6 +224,8 @@ def create(neutron_client, **kwargs):
     sg = neutron_client.create_security_group(
         {'security_group': security_group})['security_group']
 
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = sg['id']
+
     if egress_rules_to_apply or do_disable_egress:
         for er in _egress_rules(_rules_for_sg_id(neutron_client, sg['id'])):
             neutron_client.delete_security_group_rule(er['id'])
@@ -231,7 +233,6 @@ def create(neutron_client, **kwargs):
     for sgr in security_group_rules:
         sgr['security_group_id'] = sg['id']
         neutron_client.create_security_group_rule({'security_group_rule': sgr})
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = sg['id']
 
 
 @operation

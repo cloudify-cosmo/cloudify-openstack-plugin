@@ -15,8 +15,6 @@
 
 import re
 
-import neutronclient.common.exceptions as neutron_exceptions
-
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError

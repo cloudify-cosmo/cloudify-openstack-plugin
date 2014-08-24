@@ -19,6 +19,7 @@ import copy
 import inspect
 import itertools
 
+from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
@@ -28,16 +29,24 @@ from openstack_plugin_common import (
     provider,
     transform_resource_name,
     with_nova_client,
+    OPENSTACK_ID_PROPERTY
 )
+from neutron_plugin.floatingip import IP_ADDRESS_PROPERTY
+
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
 
 NODE_ID_PROPERTY = 'cloudify_id'
-OPENSTACK_SERVER_ID_PROPERTY = 'openstack_server_id'
+
+# Runtime properties
+NETWORKS_PROPERTY = 'networks'  # all of the server's ips
+IP_PROPERTY = 'ip'  # the server's private ip
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY, NETWORKS_PROPERTY,
+                           IP_PROPERTY]
 
 
-def start_new_server(ctx, nova_client):
+def start_new_server(nova_client):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
@@ -56,7 +65,7 @@ def start_new_server(ctx, nova_client):
     provider_context = provider(ctx)
 
     def rename(name):
-        return transform_resource_name(name, ctx)
+        return transform_resource_name(ctx, name)
 
     # For possible changes by _maybe_transform_userdata()
 
@@ -64,7 +73,7 @@ def start_new_server(ctx, nova_client):
         'name': ctx.node_id
     }
     server.update(copy.deepcopy(ctx.properties['server']))
-    transform_resource_name(server, ctx)
+    transform_resource_name(ctx, server)
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
@@ -85,7 +94,7 @@ def start_new_server(ctx, nova_client):
             ctx.properties['management_network_name']:
         management_network_name = ctx.properties['management_network_name']
         management_network_name = rename(management_network_name)
-        nc = _neutron_client(ctx)
+        nc = _neutron_client()
         management_network_id = nc.cosmo_get_named(
             'network', management_network_name)['id']
     else:
@@ -95,7 +104,7 @@ def start_new_server(ctx, nova_client):
             management_network_id = int_network['id']
             management_network_name = int_network['name']  # Already transform.
     if management_network_id is not None:
-        nc = _neutron_client(ctx)
+        nc = _neutron_client()
         server['nics'] = [{'net-id': management_network_id}]
 
     # Sugar
@@ -137,9 +146,9 @@ def start_new_server(ctx, nova_client):
             "'management_network_name' in properties  or id "
             "from provider context, which was not supplied")
     nics = [
-        {'net-id': n['external_id']}
+        {'net-id': n[OPENSTACK_ID_PROPERTY]}
         for n in network_nodes_runtime_properties
-        if nc.cosmo_is_network(n['external_id'])
+        if nc.cosmo_is_network(n[OPENSTACK_ID_PROPERTY])
     ]
     if nics:
         server['nics'] = server.get('nics', []) + nics
@@ -155,9 +164,9 @@ def start_new_server(ctx, nova_client):
             "'management_network_name' in properties  or id "
             "from provider context, which was not supplied")
     nics = [
-        {'port-id': n['external_id']}
+        {'port-id': n[OPENSTACK_ID_PROPERTY]}
         for n in port_nodes_runtime_properties
-        if nc.cosmo_is_port(n['external_id'])
+        if nc.cosmo_is_port(n[OPENSTACK_ID_PROPERTY])
     ]
     if nics:
         server['nics'] = server.get('nics', []) + nics
@@ -212,33 +221,33 @@ def start_new_server(ctx, nova_client):
         raise NonRecoverableError("Nova bad request error: " + str(e))
     except nova_exceptions.ClientException as e:
         raise NonRecoverableError("Nova client error: " + str(e))
-    ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY] = s.id
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = s.id
 
 
-def _neutron_client(ctx):
+def _neutron_client():
     return NeutronClient().get(config=ctx.properties.get('neutron_config'))
 
 
 @operation
 @with_nova_client
-def start(ctx, nova_client, **kwargs):
-    server = get_server_by_context(nova_client, ctx)
+def start(nova_client, **kwargs):
+    server = get_server_by_context(nova_client)
     if server is not None:
         server.start()
         return
 
-    start_new_server(ctx, nova_client)
+    start_new_server(nova_client)
 
 
 @operation
 @with_nova_client
-def stop(ctx, nova_client, **kwargs):
+def stop(nova_client, **kwargs):
     """
     Stop server.
 
     Depends on OpenStack implementation, server.stop() might not be supported.
     """
-    server = get_server_by_context(nova_client, ctx)
+    server = get_server_by_context(nova_client)
     if server is None:
         raise NonRecoverableError(
             "Cannot stop server - server doesn't exist for node: {0}"
@@ -248,18 +257,17 @@ def stop(ctx, nova_client, **kwargs):
 
 @operation
 @with_nova_client
-def delete(ctx, nova_client, **kwargs):
-    server = get_server_by_context(nova_client, ctx)
-    if server is None:
-        # nothing to do, server does not exist
-        return
+def delete(nova_client, **kwargs):
+    server = get_server_by_context(nova_client)
+    if server is not None:
+        nova_client.servers.delete(server)
+        _wait_for_server_to_be_deleted(nova_client, server)
 
-    nova_client.servers.delete(server)
-    _wait_for_server_to_be_deleted(ctx, nova_client, server)
+    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
+        del ctx.runtime_properties[runtime_prop_key]
 
 
-def _wait_for_server_to_be_deleted(ctx,
-                                   nova_client,
+def _wait_for_server_to_be_deleted(nova_client,
                                    server,
                                    timeout=120,
                                    sleep_interval=5):
@@ -277,7 +285,7 @@ def _wait_for_server_to_be_deleted(ctx,
                        .format(server.id, timeout))
 
 
-def get_server_by_context(nova_client, ctx):
+def get_server_by_context(nova_client):
     """
     Gets a server for the provided context.
 
@@ -286,10 +294,10 @@ def get_server_by_context(nova_client, ctx):
     """
     # Getting server by its OpenStack id is faster tho it requires
     # a REST API call to Cloudify's storage for getting runtime properties.
-    if OPENSTACK_SERVER_ID_PROPERTY in ctx.runtime_properties:
+    if OPENSTACK_ID_PROPERTY in ctx.runtime_properties:
         try:
             return nova_client.servers.get(
-                ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY])
+                ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
         except nova_exceptions.NotFound:
             return None
     # Fallback
@@ -303,8 +311,8 @@ def get_server_by_context(nova_client, ctx):
 
 @operation
 @with_nova_client
-def get_state(ctx, nova_client, **kwargs):
-    server = get_server_by_context(nova_client, ctx)
+def get_state(nova_client, **kwargs):
+    server = get_server_by_context(nova_client)
     if server.status == 'ACTIVE':
         ips = {}
         _, default_network_ips = server.networks.items()[0]
@@ -317,29 +325,29 @@ def get_state(ctx, nova_client, **kwargs):
             ips[network] = network_ips
         if manager_network_ip is None:
             manager_network_ip = default_network_ips[0]
-        ctx.runtime_properties['networks'] = ips
+        ctx.runtime_properties[NETWORKS_PROPERTY] = ips
         # The ip of this instance in the management network
-        ctx.runtime_properties['ip'] = manager_network_ip
+        ctx.runtime_properties[IP_PROPERTY] = manager_network_ip
         return True
     return False
 
 
 @operation
 @with_nova_client
-def connect_floatingip(ctx, nova_client, **kwargs):
-    server_id = ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY]
+def connect_floatingip(nova_client, **kwargs):
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     server = nova_client.servers.get(server_id)
     server.add_floating_ip(ctx.related.runtime_properties[
-        'floating_ip_address'])
+        IP_ADDRESS_PROPERTY])
 
 
 @operation
 @with_nova_client
-def disconnect_floatingip(ctx, nova_client, **kwargs):
-    server_id = ctx.runtime_properties[OPENSTACK_SERVER_ID_PROPERTY]
+def disconnect_floatingip(nova_client, **kwargs):
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     server = nova_client.servers.get(server_id)
     server.remove_floating_ip(ctx.related.runtime_properties[
-        'floating_ip_address'])
+        IP_ADDRESS_PROPERTY])
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

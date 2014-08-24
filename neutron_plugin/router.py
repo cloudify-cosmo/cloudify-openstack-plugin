@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
@@ -20,12 +21,16 @@ from openstack_plugin_common import (
     provider,
     transform_resource_name,
     with_neutron_client,
+    OPENSTACK_ID_PROPERTY
 )
+
+# Runtime properties
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 
 
 @operation
 @with_neutron_client
-def create(ctx, neutron_client, **kwargs):
+def create(neutron_client, **kwargs):
     """ Create a router.
     Optional relationship is to gateway network.
     Also supports `router.external_gateway_info.network_name`,
@@ -41,17 +46,17 @@ def create(ctx, neutron_client, **kwargs):
         'name': ctx.node_id,
     }
     router.update(ctx.properties['router'])
-    transform_resource_name(router, ctx)
+    transform_resource_name(ctx, router)
 
     # Probably will not be used. External network
     # is usually provisioned externally.
-    if 'external_id' in ctx.capabilities:
+    if OPENSTACK_ID_PROPERTY in ctx.capabilities:
         if 'external_gateway_info' not in router:
             router['external_gateway_info'] = {
                 'enable_snat': True
             }
         router['external_gateway_info'][
-            'network_id'] = ctx.capabilities['external_id']
+            'network_id'] = ctx.capabilities[OPENSTACK_ID_PROPERTY]
         network_id_set = True
 
     # Sugar: external_gateway_info.network_name ->
@@ -78,28 +83,31 @@ def create(ctx, neutron_client, **kwargs):
 
     r = neutron_client.create_router({'router': router})['router']
 
-    ctx.runtime_properties['external_id'] = r['id']
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = r['id']
 
 
 @operation
 @with_neutron_client
-def connect_subnet(ctx, neutron_client, **kwargs):
+def connect_subnet(neutron_client, **kwargs):
     neutron_client.add_interface_router(
-        ctx.runtime_properties['external_id'],
-        {'subnet_id': ctx.related.runtime_properties['external_id']}
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
+        {'subnet_id': ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]}
     )
 
 
 @operation
 @with_neutron_client
-def disconnect_subnet(ctx, neutron_client, **kwargs):
+def disconnect_subnet(neutron_client, **kwargs):
     neutron_client.remove_interface_router(
-        ctx.runtime_properties['external_id'],
-        {'subnet_id': ctx.related.runtime_properties['external_id']}
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
+        {'subnet_id': ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]}
     )
 
 
 @operation
 @with_neutron_client
-def delete(ctx, neutron_client, **kwargs):
-    neutron_client.delete_router(ctx.runtime_properties['external_id'])
+def delete(neutron_client, **kwargs):
+    neutron_client.delete_router(ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+
+    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
+        del ctx.runtime_properties[runtime_prop_key]

@@ -13,33 +13,40 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from cloudify import ctx
 from cloudify.decorators import operation
-from cloudify.exceptions import NonRecoverableError
 
-from openstack_plugin_common import with_neutron_client
+from openstack_plugin_common import (
+    with_neutron_client,
+    get_openstack_id_of_single_connected_node_by_openstack_type,
+    OPENSTACK_ID_PROPERTY,
+)
+
+from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
+
+# Runtime properties
+RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 
 
 @operation
 @with_neutron_client
-def create(ctx, neutron_client, **kwargs):
-
-    ls = [caps for caps in ctx.capabilities.get_all().values() if
-          caps.get('external_type') == 'network']
-    if len(ls) != 1:
-        raise NonRecoverableError(
-            'Expected exactly one network capability. got {0}'.format(ls))
-    network_caps = ls[0]
+def create(neutron_client, **kwargs):
+    net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
+        ctx, NETWORK_OPENSTACK_TYPE)
     subnet = {
         'name': ctx.node_id,
-        'network_id': network_caps['external_id'],
+        'network_id': net_id,
     }
     subnet.update(ctx.properties['subnet'])
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
-    ctx.runtime_properties['external_id'] = s['id']
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = s['id']
 
 
 @operation
 @with_neutron_client
-def delete(ctx, neutron_client, **kwargs):
-    neutron_client.delete_subnet(ctx.runtime_properties['external_id'])
+def delete(neutron_client, **kwargs):
+    neutron_client.delete_subnet(ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+
+    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
+        del ctx.runtime_properties[runtime_prop_key]

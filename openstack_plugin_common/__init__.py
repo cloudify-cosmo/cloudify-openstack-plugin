@@ -28,6 +28,10 @@ import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 
+OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
+OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
+
+
 class ProviderContext(object):
 
     def __init__(self, provider_context):
@@ -83,7 +87,19 @@ def provider(ctx):
     return ProviderContext(ctx.provider_context)
 
 
-def transform_resource_name(res, ctx):
+def get_openstack_id_of_single_connected_node_by_openstack_type(ctx,
+                                                                type_name):
+    type_caps = [caps for caps in ctx.capabilities.get_all().values() if
+                 caps.get(OPENSTACK_TYPE_PROPERTY) == type_name]
+    if len(type_caps) != 1:
+        raise NonRecoverableError(
+            'Expected exactly one {0} capability. got {1}'.format(type_name,
+                                                                  type_caps))
+    caps = type_caps[0]
+    return caps[OPENSTACK_ID_PROPERTY]
+
+
+def transform_resource_name(ctx, res):
 
     if isinstance(res, basestring):
         res = {'name': res}

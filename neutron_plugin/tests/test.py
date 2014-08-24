@@ -18,6 +18,7 @@ import random
 import string
 import unittest
 
+from cloudify.exceptions import NonRecoverableError
 from cloudify.context import BootstrapContext
 
 from cloudify.mocks import MockCloudifyContext
@@ -141,7 +142,7 @@ class SecurityGroupTest(unittest.TestCase):
                 'description': 'blah'
             },
             'rules': [{'port': 80}],
-            'disable_egress': True,
+            'disable_default_egress_rules': True,
         })
         return ctx
 
@@ -209,7 +210,7 @@ class SecurityGroupTest(unittest.TestCase):
             }
         }
         self.assertRaises(
-            neutron_plugin.security_group.RulesMismatchError,
+            NonRecoverableError,
             neutron_plugin.security_group.create,
             ctx
         )

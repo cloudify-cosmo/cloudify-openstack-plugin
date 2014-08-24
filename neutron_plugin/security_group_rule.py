@@ -43,13 +43,7 @@ def create(neutron_client, **kwargs):
     sg_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         SECURITY_GROUP_OPENSTACK_TYPE)
     sgr['security_group_id'] = sg_id
-    try:
-        neutron_client.create_security_group_rule({'security_group_rule': sgr})
-    except neutron_exceptions.NeutronClientException, e:
-        if e.status_code == 409:
-            # rule already exists
-            pass
-        raise
+    neutron_client.create_security_group_rule({'security_group_rule': sgr})
 
 
 @operation

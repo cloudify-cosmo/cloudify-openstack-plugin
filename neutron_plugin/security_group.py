@@ -102,9 +102,7 @@ def create(neutron_client, **kwargs):
             neutron_client.create_security_group_rule(
                 {'security_group_rule': sgr})
     except neutron_exceptions.NeutronClientException:
-        neutron_client.delete_security_group(sg['id'])
-        for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
-            del ctx.runtime_properties[runtime_prop_key]
+        _delete_security_group_and_properties(neutron_client, sg['id'])
         raise
 
 
@@ -112,27 +110,11 @@ def create(neutron_client, **kwargs):
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     sg_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
-    try:
-        neutron_client.delete_security_group(sg_id)
-    except neutron_exceptions.NeutronClientException, e:
-        # Sample sequence of events that explains the handling of 404 error as
-        # implemented in the code below (just warning):
-        # * We had a server that uses this security group.
-        # * We deleted the server
-        # * Other deployment deleted the security group
-        # * We are trying to delete the security group
-        if e.status_code == 404:
-            ctx.logger.warn("Security group with id '{0}' not found "
-                            "while trying to delete it.".format(sg_id))
-        # The security group might be used by other deployments
-        # so just warning.
-        elif e.status_code == 409:
-            ctx.logger.warn("Security group with id '{0}' is in use "
-                            "while trying to delete it.".format(sg_id))
-            return
-        else:
-            raise NonRecoverableError("Neutron client error: " + str(e))
+    _delete_security_group_and_properties(neutron_client, sg_id)
 
+
+def _delete_security_group_and_properties(neutron_client, sg_id):
+    neutron_client.delete_security_group(sg_id)
     for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
         del ctx.runtime_properties[runtime_prop_key]
 
@@ -173,7 +155,7 @@ def _ensure_existing_sg_is_identical(existing_sg, security_group,
         ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = existing_sg['id']
         return
     else:
-        raise RulesMismatchError(
+        raise NonRecoverableError(
             "Rules of existing security group and the security group to be "
             "created or used do not match while the names do match. Security "
             "group name: '{0}'. Existing rules: {1}. Requested/expected rules:"
@@ -207,7 +189,3 @@ def _find_existing_sg(neutron_client, security_group):
         return existing_sgs[0]
 
     return None
-
-
-class RulesMismatchError(NonRecoverableError):
-    pass

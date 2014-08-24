@@ -15,40 +15,28 @@
 
 from cloudify import ctx
 from cloudify.decorators import operation
-from cloudify.exceptions import NonRecoverableError
 
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
+    get_openstack_id_of_single_connected_node_by_openstack_type,
     OPENSTACK_ID_PROPERTY
 )
+
+from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 
 
-def _find_network_in_related_nodes(neutron_client):
-    networks_ids = [n['id'] for n in
-                    neutron_client.list_networks()['networks']]
-    ret = []
-    for runtime_properties in ctx.capabilities.get_all().values():
-        external_id = runtime_properties.get('external_id')
-        if external_id in networks_ids:
-            ret.append(external_id)
-    if len(ret) != 1:
-        # TODO: better message
-        raise NonRecoverableError("Failed to find port's network. found"
-                                  "the following resources: {}"
-                                  .format(ret))
-    return ret[0]
-
-
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
+    net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
+        NETWORK_OPENSTACK_TYPE)
     port = {
         'name': ctx.node_id,
-        'network_id': _find_network_in_related_nodes(neutron_client),
+        'network_id': net_id,
         'security_groups': [],
     }
     port.update(ctx.properties['port'])

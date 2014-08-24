@@ -69,6 +69,17 @@ node_types:
                 - create: neutron_plugin.security_group.create
                 - delete: neutron_plugin.security_group.delete
 
+    cloudify.openstack.security_group_rule:
+        derived_from: cloudify.types.base
+        properties:
+            security_group_rule: {}
+            neutron_config:
+                default: {}
+        interfaces:
+            cloudify.interfaces.lifecycle:
+                - create: neutron_plugin.security_group_rule.create
+                - delete: neutron_plugin.security_group_rule.delete
+
     cloudify.openstack.router:
         derived_from: cloudify.types.router
         properties:
@@ -140,3 +151,6 @@ relationships:
         
     cloudify.openstack.floating_ip_connected_to_port:
         derived_from: cloudify.relationships.connected_to
+
+    cloudify.openstack.security_group_rule_in_security_group:
+        derived_from: cloudify.relationships.contained_in

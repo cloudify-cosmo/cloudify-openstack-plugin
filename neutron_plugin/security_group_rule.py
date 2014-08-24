@@ -42,7 +42,7 @@ def create(neutron_client, **kwargs):
         ctx, SECURITY_GROUP_OPENSTACK_TYPE)
     sgr['security_group_id'] = sg_id
     rule_id = neutron_client.create_security_group_rule(
-        {'security_group_rule': sgr})['id']
+        {'security_group_rule': sgr})['security_group_rule']['id']
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = rule_id
 
 

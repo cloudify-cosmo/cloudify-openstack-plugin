@@ -17,6 +17,8 @@ __author__ = 'ran'
 
 import re
 
+import neutronclient.common.exceptions as neutron_exceptions
+
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
@@ -43,7 +45,13 @@ def create(neutron_client, **kwargs):
     sg_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         SECURITY_GROUP_OPENSTACK_TYPE)
     sgr['security_group_id'] = sg_id
-    neutron_client.create_security_group_rule({'security_group_rule': sgr})
+    try:
+        neutron_client.create_security_group_rule({'security_group_rule': sgr})
+    except neutron_exceptions.NeutronClientException, e:
+        if e.status_code == 409:
+            # rule already exists
+            pass
+        raise
 
 
 @operation

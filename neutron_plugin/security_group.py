@@ -29,8 +29,6 @@ from openstack_plugin_common import (
     OPENSTACK_TYPE_PROPERTY
 )
 
-from neutron_plugin.security_group_rule import _process_rule
-
 # DEFAULT_EGRESS_RULES are based on
 # https://github.com/openstack/neutron/blob/5385d06f86a1309176b5f688071e6ea55d91e8e5/neutron/db/securitygroups_db.py#L132-L136  # noqa
 SUPPORTED_ETHER_TYPES = ('IPv4', 'IPv6')
@@ -81,6 +79,7 @@ def create(neutron_client, **kwargs):
             "disable_egress and an egress rule".format(
                 security_group['name']))
 
+    from neutron_plugin.security_group_rule import _process_rule
     security_group_rules = []
     for rule in rules_to_apply:
         security_group_rules.append(_process_rule(rule, neutron_client))

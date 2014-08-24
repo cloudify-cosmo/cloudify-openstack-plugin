@@ -34,6 +34,7 @@ NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 
+
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):

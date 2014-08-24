@@ -162,11 +162,10 @@ def _ensure_existing_sg_is_identical(existing_sg, security_group,
         return set(s1) == set(s2)
 
     if existing_sg['description'] != security_group['description']:
-        raise NonRecoverableError("Descriptions of existing security group"
-                                  " and the security group to be created "
-                                  "do not match while the names do match."
-                                  " Security group name: {0}".format(
-                                  security_group['name']))
+        raise NonRecoverableError(
+            "Descriptions of existing security group and the security group "
+            "to be created do not match while the names do match. Security "
+            "group name: {0}".format(security_group['name']))
 
     r1 = existing_sg['security_group_rules']
     r2 = security_group_rules
@@ -176,23 +175,17 @@ def _ensure_existing_sg_is_identical(existing_sg, security_group,
         # the default egress rules.
         r2 = r2 + DEFAULT_EGRESS_RULES
     if _sg_rules_are_equal(r1, r2):
-        ctx.logger.info("Using existing security group named '{0}' with "
-                        "id {1}".format(
-                        security_group['name'],
-                        existing_sg['id']))
+        ctx.logger.info(
+            "Using existing security group named '{0}' with id {1}".format(
+                security_group['name'], existing_sg['id']))
         ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = existing_sg['id']
         return
     else:
-        raise RulesMismatchError("Rules of existing security group"
-                                 " and the security group to be created "
-                                 "or used do not match while the names "
-                                 "do match. Security group name: '{0}'. "
-                                 "Existing rules: {1}. "
-                                 "Requested/expected rules: {2} "
-                                 "".format(
-                                 security_group['name'],
-                                 r1,
-                                 r2))
+        raise RulesMismatchError(
+            "Rules of existing security group and the security group to be "
+            "created or used do not match while the names do match. Security "
+            "group name: '{0}'. Existing rules: {1}. Requested/expected rules:"
+            " {2} ".format(security_group['name'], r1, r2))
 
 
 def _egress_rules(rules):
@@ -212,10 +205,10 @@ def _find_existing_sg(neutron_client, security_group):
     )
     existing_sgs = list(existing_sgs)
     if len(existing_sgs) > 1:
-        raise NonRecoverableError("Multiple security groups with name '{0}' "
-                                  "already exist while trying to create "
-                                  "security group with same name".format(
-                                  security_group['name']))
+        raise NonRecoverableError(
+            "Multiple security groups with name '{0}' already exist while "
+            "trying to create security group with same name".format(
+                security_group['name']))
     if existing_sgs:
         ctx.logger.info("Found existing security group "
                         "with name '{0}'".format(security_group['name']))

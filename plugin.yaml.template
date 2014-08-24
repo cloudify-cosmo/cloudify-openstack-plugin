@@ -62,7 +62,7 @@ node_types:
                 default: {}
             rules:
                 default: []
-            disable_egress:
+            disable_default_egress_rules:
                 default: false
         interfaces:
             cloudify.interfaces.lifecycle:

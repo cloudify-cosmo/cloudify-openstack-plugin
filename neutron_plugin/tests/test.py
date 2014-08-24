@@ -141,7 +141,7 @@ class SecurityGroupTest(unittest.TestCase):
                 'description': 'blah'
             },
             'rules': [{'port': 80}],
-            'disable_egress': True,
+            'disable_default_egress_rules': True,
         })
         return ctx
 

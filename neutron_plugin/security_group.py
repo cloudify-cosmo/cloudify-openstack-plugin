@@ -70,25 +70,18 @@ def create(neutron_client, **kwargs):
     transform_resource_name(security_group)
 
     rules_to_apply = ctx.properties['rules']
-    egress_rules_to_apply = _egress_rules(rules_to_apply)
-
-    do_disable_egress = ctx.properties.get('disable_egress')
-    if do_disable_egress and egress_rules_to_apply:
-        raise NonRecoverableError(
-            "Security group {0} can not have both "
-            "disable_egress and an egress rule".format(
-                security_group['name']))
-
     from neutron_plugin.security_group_rule import _process_rule
     security_group_rules = []
     for rule in rules_to_apply:
         security_group_rules.append(_process_rule(rule, neutron_client))
 
+    disable_default_egress_rules = ctx.properties.get(
+        'disable_default_egress_rules')
     existing_sg = _find_existing_sg(neutron_client, security_group)
     if existing_sg:
         _ensure_existing_sg_is_identical(
             existing_sg, security_group, security_group_rules,
-            not (egress_rules_to_apply or do_disable_egress))
+            not disable_default_egress_rules)
         return
 
     sg = neutron_client.create_security_group(
@@ -99,7 +92,7 @@ def create(neutron_client, **kwargs):
         SECURITY_GROUP_OPENSTACK_TYPE
 
     try:
-        if egress_rules_to_apply or do_disable_egress:
+        if disable_default_egress_rules:
             for er in _egress_rules(_rules_for_sg_id(neutron_client,
                                                      sg['id'])):
                 neutron_client.delete_security_group_rule(er['id'])

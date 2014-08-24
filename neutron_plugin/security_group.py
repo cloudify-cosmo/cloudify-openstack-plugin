@@ -67,7 +67,7 @@ def create(neutron_client, **kwargs):
     }
 
     security_group.update(ctx.properties['security_group'])
-    transform_resource_name(security_group)
+    transform_resource_name(ctx, security_group)
 
     rules_to_apply = ctx.properties['rules']
     from neutron_plugin.security_group_rule import _process_rule

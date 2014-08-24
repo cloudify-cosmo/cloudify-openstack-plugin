@@ -24,7 +24,6 @@ import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v1_1.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
-from cloudify import ctx
 import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
@@ -84,11 +83,12 @@ class ProviderContext(object):
         return '<' + self.__class__.__name__ + ' ' + info + '>'
 
 
-def provider():
+def provider(ctx):
     return ProviderContext(ctx.provider_context)
 
 
-def get_openstack_id_of_single_connected_node_by_openstack_type(type_name):
+def get_openstack_id_of_single_connected_node_by_openstack_type(ctx,
+                                                                type_name):
     type_caps = [caps for caps in ctx.capabilities.get_all().values() if
                  caps.get(OPENSTACK_TYPE_PROPERTY) == type_name]
     if len(type_caps) != 1:
@@ -99,7 +99,7 @@ def get_openstack_id_of_single_connected_node_by_openstack_type(type_name):
     return caps[OPENSTACK_ID_PROPERTY]
 
 
-def transform_resource_name(res):
+def transform_resource_name(ctx, res):
 
     if isinstance(res, basestring):
         res = {'name': res}

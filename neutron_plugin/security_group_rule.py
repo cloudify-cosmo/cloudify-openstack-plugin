@@ -41,9 +41,11 @@ def create(neutron_client, **kwargs):
     sgr = _process_rule(ctx.properties['security_group_rule'], neutron_client)
 
     sg_id = get_openstack_id_of_single_connected_node_by_openstack_type(
-        SECURITY_GROUP_OPENSTACK_TYPE)
+        ctx, SECURITY_GROUP_OPENSTACK_TYPE)
     sgr['security_group_id'] = sg_id
-    neutron_client.create_security_group_rule({'security_group_rule': sgr})
+    rule_id = neutron_client.create_security_group_rule(
+        {'security_group_rule': sgr})['id']
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = rule_id
 
 
 @operation

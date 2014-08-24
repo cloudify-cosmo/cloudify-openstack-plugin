@@ -64,7 +64,7 @@ def create(neutron_client, **kwargs):
             'network', floatingip['floating_network_name'])['id']
         del floatingip['floating_network_name']
     elif 'floating_network_id' not in floatingip:
-        provider_context = provider()
+        provider_context = provider(ctx)
         ext_network = provider_context.ext_network
         if ext_network:
             floatingip['floating_network_id'] = ext_network['id']

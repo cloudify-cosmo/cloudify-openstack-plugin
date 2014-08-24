@@ -39,14 +39,14 @@ def create(neutron_client, **kwargs):
 
     network_id_set = False
 
-    provider_context = provider()
+    provider_context = provider(ctx)
 
     ctx.logger.debug('router.create(): kwargs={0}'.format(kwargs))
     router = {
         'name': ctx.node_id,
     }
     router.update(ctx.properties['router'])
-    transform_resource_name(router)
+    transform_resource_name(ctx, router)
 
     # Probably will not be used. External network
     # is usually provisioned externally.

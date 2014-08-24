@@ -36,7 +36,7 @@ def create(neutron_client, **kwargs):
         'name': ctx.node_id,
     }
     network.update(ctx.properties['network'])
-    transform_resource_name(network)
+    transform_resource_name(ctx, network)
 
     net = neutron_client.create_network({'network': network})['network']
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = net['id']

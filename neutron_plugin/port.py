@@ -33,14 +33,14 @@ RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 @with_neutron_client
 def create(neutron_client, **kwargs):
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
-        NETWORK_OPENSTACK_TYPE)
+        ctx, NETWORK_OPENSTACK_TYPE)
     port = {
         'name': ctx.node_id,
         'network_id': net_id,
         'security_groups': [],
     }
     port.update(ctx.properties['port'])
-    transform_resource_name(port)
+    transform_resource_name(ctx, port)
     p = neutron_client.create_port({'port': port})['port']
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
 

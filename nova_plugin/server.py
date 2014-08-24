@@ -62,10 +62,10 @@ def start_new_server(nova_client):
     - A hash with 'type: http' and 'url: ...'
     """
 
-    provider_context = provider()
+    provider_context = provider(ctx)
 
     def rename(name):
-        return transform_resource_name(name)
+        return transform_resource_name(ctx, name)
 
     # For possible changes by _maybe_transform_userdata()
 
@@ -73,7 +73,7 @@ def start_new_server(nova_client):
         'name': ctx.node_id
     }
     server.update(copy.deepcopy(ctx.properties['server']))
-    transform_resource_name(server)
+    transform_resource_name(ctx, server)
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))

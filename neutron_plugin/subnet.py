@@ -32,7 +32,7 @@ RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 @with_neutron_client
 def create(neutron_client, **kwargs):
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
-        NETWORK_OPENSTACK_TYPE)
+        ctx, NETWORK_OPENSTACK_TYPE)
     subnet = {
         'name': ctx.node_id,
         'network_id': net_id,

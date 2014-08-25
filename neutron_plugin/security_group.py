@@ -48,7 +48,7 @@ SECURITY_GROUP_OPENSTACK_TYPE = 'security-group'
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
-                           SECURITY_GROUP_OPENSTACK_TYPE]
+                           OPENSTACK_TYPE_PROPERTY]
 
 
 @operation
@@ -87,9 +87,7 @@ def create(neutron_client, **kwargs):
     sg = neutron_client.create_security_group(
         {'security_group': security_group})['security_group']
 
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = sg['id']
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-        SECURITY_GROUP_OPENSTACK_TYPE
+    _set_security_group_runtime_properties(sg['id'])
 
     try:
         if disable_default_egress_rules:
@@ -152,7 +150,7 @@ def _ensure_existing_sg_is_identical(existing_sg, security_group,
         ctx.logger.info(
             "Using existing security group named '{0}' with id {1}".format(
                 security_group['name'], existing_sg['id']))
-        ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = existing_sg['id']
+        _set_security_group_runtime_properties(existing_sg['id'])
         return
     else:
         raise NonRecoverableError(
@@ -160,6 +158,12 @@ def _ensure_existing_sg_is_identical(existing_sg, security_group,
             "created or used do not match while the names do match. Security "
             "group name: '{0}'. Existing rules: {1}. Requested/expected rules:"
             " {2} ".format(security_group['name'], r1, r2))
+
+
+def _set_security_group_runtime_properties(sg_openstack_id):
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = sg_openstack_id
+    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        SECURITY_GROUP_OPENSTACK_TYPE
 
 
 def _egress_rules(rules):

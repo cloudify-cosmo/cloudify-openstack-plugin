@@ -30,13 +30,13 @@ node_types:
         derived_from: cloudify.openstack.server
         interfaces:
             cloudify.interfaces.worker_installer:
-                - install: windows_agent_installer.tasks.install
-                - start: windows_agent_installer.tasks.start
-                - stop: windows_agent_installer.tasks.stop
-                - uninstall: windows_agent_installer.tasks.uninstall
-                - restart: windows_agent_installer.tasks.restart
+                - install: windows_agent_installer.windows_agent_installer.tasks.install
+                - start: windows_agent_installer.windows_agent_installer.tasks.start
+                - stop: windows_agent_installer.windows_agent_installer.tasks.stop
+                - uninstall: windows_agent_installer.windows_agent_installer.tasks.uninstall
+                - restart: windows_agent_installer.windows_agent_installer.tasks.restart
             cloudify.interfaces.plugin_installer:
-                - install: windows_plugin_installer.tasks.install
+                - install: windows_plugin_installer.windows_plugin_installer.tasks.install
 
 
     cloudify.openstack.subnet:
@@ -73,8 +73,8 @@ node_types:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
-                - create: neutron_plugin.security_group_rule.create
-                - delete: neutron_plugin.security_group_rule.delete
+                - create: openstack.neutron_plugin.security_group_rule.create
+                - delete: openstack.neutron_plugin.security_group_rule.delete
 
     cloudify.openstack.router:
         derived_from: cloudify.types.router

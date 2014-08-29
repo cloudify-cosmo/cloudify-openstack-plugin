@@ -36,5 +36,6 @@ setup(
         'python-novaclient==2.17.0',
         'python-keystoneclient==0.7.1',
         'python-neutronclient==2.3.4',
+        'python-cinderclient'
     ]
 )

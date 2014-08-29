@@ -18,6 +18,8 @@ import json
 import os
 import sys
 
+from cinderclient.v2 import client as cinder_client
+from cinderclient import exceptions as cinder_exceptions
 import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
@@ -283,6 +285,18 @@ class NovaClient(OpenStackClient):
                                    http_log_debug=False)
 
 
+class CinderClient(OpenStackClient):
+
+    config = KeystoneConfig
+
+    def connect(self, cfg, region=None):
+        return cinder_client.Client(username=cfg['username'],
+                                    api_key=cfg['password'],
+                                    project_id=cfg['tenant_name'],
+                                    auth_url=cfg['auth_url'],
+                                    region_name=region or cfg['region'])
+
+
 class NeutronClient(OpenStackClient):
 
     config = NeutronConfig
@@ -349,6 +363,31 @@ def with_nova_client(f):
             else:
                 raise
     return wrapper
+
+
+def with_cinder_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        ctx = _find_context_in_kw(kw)
+        if ctx:
+            config = ctx.properties.get('cinder_config')
+        else:
+            config = None
+
+        if 'cinder_client' not in kw:
+            kw['cinder_client'] = CinderClient().get(config=config)
+
+        try:
+            return f(*args, **kw)
+        except cinder_exceptions.OverLimit, e:
+            _re_raise(e, recoverable=True, retry_after=e.retry_after)
+        except cinder_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False)
+            else:
+                raise
+    return wrapper
+
 
 _non_recoverable_error_codes = [400, 401, 403, 404, 409]
 

@@ -20,6 +20,7 @@ from cloudify import decorators as cfy_decorators
 from cloudify import exceptions as cfy_exc
 import openstack_plugin_common
 
+VOLUME_DEVICE_NAME = 'volume_device_name'
 VOLUME_ID = 'volume_id'
 VOLUME_ATTACHMENT_ID = 'attachment_id'
 
@@ -37,6 +38,7 @@ VOLUME_ERROR_STATUSES = (VOLUME_STATUS_ERROR, VOLUME_STATUS_ERROR_DELETING)
 def create(cinder_client, **kwargs):
     resource_id = cfy_ctx.properties['resource_id']
     use_existing = cfy_ctx.properties['use_existing']
+    device_name = cfy_ctx.properties['device_name']
 
     if use_existing:
         v = cinder_client.volumes.get(_get_volume_id(resource_id))
@@ -60,6 +62,7 @@ def create(cinder_client, **kwargs):
                                            VOLUME_STATUS_AVAILABLE))
 
     cfy_ctx.runtime_properties[VOLUME_ID] = v.id
+    cfy_ctx.runtime_properties[VOLUME_DEVICE_NAME] = device_name
 
 
 @cfy_decorators.operation
@@ -113,3 +116,9 @@ def wait_until_status(cinder_client, volume_id, status, num_tries=10,
             return volume, True
         time.sleep(timeout)
     return volume, False
+
+
+def get_attachment_id(volume, server_id):
+    for attachment in volume.attachments:
+        if attachment['server_id'] == server_id:
+            return attachment['id']

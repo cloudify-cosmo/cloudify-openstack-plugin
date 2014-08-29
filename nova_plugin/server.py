@@ -24,6 +24,7 @@ from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
+from cinder_plugin import volume
 from novaclient import exceptions as nova_exceptions
 from openstack_plugin_common import (
     NeutronClient,
@@ -382,6 +383,39 @@ def disconnect_floatingip(nova_client, **kwargs):
     server = nova_client.servers.get(server_id)
     server.remove_floating_ip(ctx.related.runtime_properties[
         IP_ADDRESS_PROPERTY])
+
+
+@operation
+@with_nova_client
+def attach_volume(nova_client, **kwargs):
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    volume_id = ctx.runtime_properties[volume.VOLUME_ID]
+    device = ctx.runtime_properties[volume.VOLUME_DEVICE_NAME]
+
+    nova_client.volumes.create_server_volume(server_id, volume_id, device)
+    v, status_verified = volume.wait_until_status(
+        volume_id, volume.VOLUME_STATUS_AVAILABLE)
+
+    if status_verified:
+        ctx.runtime_properties[volume.VOLUME_ATTACHMENT_ID] = \
+            volume.get_attachment_id(v, server_id)
+    else:
+        #NOTE(ochyrko): maybe a non-recoverable error?
+        ctx.logger.warning(
+            "Volume {0} current state: '{1}', "
+            "expected state: '{2}'".format(v.id,
+                                           v.status,
+                                           volume.VOLUME_STATUS_AVAILABLE))
+
+
+@operation
+@with_nova_client
+def detach_volume(nova_client, **kwargs):
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    attachment_id = ctx.runtime_properties.get(volume.VOLUME_ATTACHMENT_ID)
+    if attachment_id:
+        nova_client.delete_server_volume(server_id, attachment_id)
+        del ctx.runtime_properties[volume.VOLUME_ATTACHMENT_ID]
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

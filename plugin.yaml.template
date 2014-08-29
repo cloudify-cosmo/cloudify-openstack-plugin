@@ -198,3 +198,15 @@ relationships:
 
     cloudify.openstack.security_group_rule_in_security_group:
         derived_from: cloudify.relationships.contained_in
+
+    cloudify.relationships.attached_to:
+        derived_from: cloudify.relationships.connected_to
+
+    cloudify.openstack.volume_attached_to_server:
+        derived_from: cloudify.relationships.attached_to
+        properties:
+            device: ''
+        target_interfaces:
+            cloudify.interfaces.relationship_lifecycle:
+                - establish: openstack.nova_plugin.server.attach_volume
+                - unlink: openstack.nova_plugin.server.detach_volume

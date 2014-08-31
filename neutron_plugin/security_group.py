@@ -25,6 +25,7 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
+    get_default_resource_id,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY
 )
@@ -63,7 +64,7 @@ def create(neutron_client, **kwargs):
 
     security_group = {
         'description': None,
-        'name': ctx.node_id,
+        'name': get_default_resource_id(ctx, SECURITY_GROUP_OPENSTACK_TYPE),
     }
 
     security_group.update(ctx.properties['security_group'])

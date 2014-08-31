@@ -99,6 +99,10 @@ def get_openstack_id_of_single_connected_node_by_openstack_type(ctx,
     return caps[OPENSTACK_ID_PROPERTY]
 
 
+def get_default_resource_id(ctx, type_name):
+    return "{0}_{1}_{2}".format(type_name, ctx.deployment_id, ctx.node_id)
+
+
 def transform_resource_name(ctx, res):
 
     if isinstance(res, basestring):

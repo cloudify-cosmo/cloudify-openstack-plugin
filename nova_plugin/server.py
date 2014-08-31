@@ -28,11 +28,14 @@ from openstack_plugin_common import (
     NeutronClient,
     provider,
     transform_resource_name,
+    get_default_resource_id,
     with_nova_client,
     OPENSTACK_ID_PROPERTY
 )
 from neutron_plugin.floatingip import IP_ADDRESS_PROPERTY
 
+
+SERVER_OPENSTACK_TYPE = 'server'
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
@@ -70,7 +73,7 @@ def start_new_server(nova_client):
     # For possible changes by _maybe_transform_userdata()
 
     server = {
-        'name': ctx.node_id
+        'name': get_default_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
     server.update(copy.deepcopy(ctx.properties['server']))
     transform_resource_name(ctx, server)

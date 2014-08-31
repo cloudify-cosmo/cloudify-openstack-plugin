@@ -20,9 +20,12 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     provider,
     transform_resource_name,
+    get_default_resource_id,
     with_neutron_client,
     OPENSTACK_ID_PROPERTY
 )
+
+ROUTER_OPENSTACK_TYPE = 'router'
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
@@ -43,7 +46,7 @@ def create(neutron_client, **kwargs):
 
     ctx.logger.debug('router.create(): kwargs={0}'.format(kwargs))
     router = {
-        'name': ctx.node_id,
+        'name': get_default_resource_id(ctx, ROUTER_OPENSTACK_TYPE),
     }
     router.update(ctx.properties['router'])
     transform_resource_name(ctx, router)

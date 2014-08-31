@@ -19,11 +19,14 @@ from cloudify.decorators import operation
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
+    get_default_resource_id,
     get_openstack_id_of_single_connected_node_by_openstack_type,
     OPENSTACK_ID_PROPERTY
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
+
+PORT_OPENSTACK_TYPE = 'port'
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
@@ -35,7 +38,7 @@ def create(neutron_client, **kwargs):
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
     port = {
-        'name': ctx.node_id,
+        'name': get_default_resource_id(ctx, PORT_OPENSTACK_TYPE),
         'network_id': net_id,
         'security_groups': [],
     }

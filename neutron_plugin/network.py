@@ -18,6 +18,7 @@ from cloudify.decorators import operation
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
+    get_default_resource_id,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY
 )
@@ -33,7 +34,7 @@ RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY, OPENSTACK_TYPE_PROPERTY]
 def create(neutron_client, **kwargs):
     network = {
         'admin_state_up': True,
-        'name': ctx.node_id,
+        'name': get_default_resource_id(ctx, NETWORK_OPENSTACK_TYPE),
     }
     network.update(ctx.properties['network'])
     transform_resource_name(ctx, network)

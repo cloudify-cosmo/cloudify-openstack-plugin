@@ -199,7 +199,7 @@ def is_external_relationship(ctx):
 
 def is_external_resource_by_runtime_properties(runtime_properties):
     return OPENSTACK_EXTERNAL_RESOURCE in runtime_properties and \
-           runtime_properties[OPENSTACK_EXTERNAL_RESOURCE]
+        runtime_properties[OPENSTACK_EXTERNAL_RESOURCE]
 
 
 def delete_runtime_properties(ctx, runtime_properties_keys):

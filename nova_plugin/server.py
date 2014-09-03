@@ -58,7 +58,7 @@ SERVER_DELETE_CHECK_SLEEP = 2
 NETWORKS_PROPERTY = 'networks'  # all of the server's ips
 IP_PROPERTY = 'ip'  # the server's private ip
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
-                          [NETWORKS_PROPERTY, IP_PROPERTY]
+    [NETWORKS_PROPERTY, IP_PROPERTY]
 
 
 @operation
@@ -379,8 +379,8 @@ def _validate_external_server_nics(network_ids, port_ids):
     new_nic_nodes = \
         [node_id for node_id, runtime_props in
          ctx.capabilities.get_all().iteritems() if runtime_props.get(
-            OPENSTACK_TYPE_PROPERTY) in (PORT_OPENSTACK_TYPE,
-                                         NETWORK_OPENSTACK_TYPE)
+             OPENSTACK_TYPE_PROPERTY) in (PORT_OPENSTACK_TYPE,
+                                          NETWORK_OPENSTACK_TYPE)
          and not is_external_resource_by_runtime_properties(runtime_props)]
     if new_nic_nodes:
         raise NonRecoverableError("Can't connect new port and/or network "

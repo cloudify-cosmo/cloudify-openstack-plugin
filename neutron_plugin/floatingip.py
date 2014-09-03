@@ -31,7 +31,7 @@ FLOATINGIP_OPENSTACK_TYPE = 'floating-ip'
 # Runtime properties
 IP_ADDRESS_PROPERTY = 'floating_ip_address'  # the actual ip address
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
-                          [IP_ADDRESS_PROPERTY]
+    [IP_ADDRESS_PROPERTY]
 
 
 @operation

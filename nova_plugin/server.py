@@ -340,6 +340,7 @@ def get_state(nova_client, **kwargs):
 def connect_floatingip(nova_client, **kwargs):
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     floating_ip_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+    floating_ip_address = ctx.related.runtime_properties[IP_ADDRESS_PROPERTY]
 
     if is_external_relationship(ctx):
         nc = _neutron_client()
@@ -351,7 +352,7 @@ def connect_floatingip(nova_client, **kwargs):
             'connected'.format(server_id, floating_ip_id))
 
     server = nova_client.servers.get(server_id)
-    server.add_floating_ip(floating_ip_id)
+    server.add_floating_ip(floating_ip_address)
 
 
 @operation

@@ -391,8 +391,11 @@ def _validate_external_server_nics(network_ids, port_ids):
     nc = _neutron_client()
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     connected_ports = nc.list_ports(device_id=server_id)['ports']
+
+    # not counting networks connected by a connected port since allegedly
+    # the connection should be on a separate port
     connected_ports_networks = {port['network_id'] for port in
-                                connected_ports}
+                                connected_ports if port['id'] not in port_ids}
     connected_ports_ids = {port['id'] for port in
                            connected_ports}
     disconnected_networks = [network_id for network_id in network_ids if

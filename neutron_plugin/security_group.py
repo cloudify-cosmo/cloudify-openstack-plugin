@@ -49,7 +49,7 @@ for ethertype in SUPPORTED_ETHER_TYPES:
         'remote_ip_prefix': None,
     })
 
-SECURITY_GROUP_OPENSTACK_TYPE = 'security-group'
+SECURITY_GROUP_OPENSTACK_TYPE = 'security_group'
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS

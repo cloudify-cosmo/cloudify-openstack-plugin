@@ -26,7 +26,7 @@ from openstack_plugin_common import (
     OPENSTACK_TYPE_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS)
 
-FLOATINGIP_OPENSTACK_TYPE = 'floating-ip'
+FLOATINGIP_OPENSTACK_TYPE = 'floatingip'
 
 # Runtime properties
 IP_ADDRESS_PROPERTY = 'floating_ip_address'  # the actual ip address

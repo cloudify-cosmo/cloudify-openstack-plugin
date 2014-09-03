@@ -30,6 +30,12 @@ from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
 OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
+OPENSTACK_EXTERNAL_RESOURCE = 'external_resource'  # external resource
+
+# runtime properties which all types use
+COMMON_RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
+                                  OPENSTACK_TYPE_PROPERTY,
+                                  OPENSTACK_EXTERNAL_RESOURCE]
 
 
 class ProviderContext(object):
@@ -87,16 +93,22 @@ def provider(ctx):
     return ProviderContext(ctx.provider_context)
 
 
-def get_openstack_id_of_single_connected_node_by_openstack_type(ctx,
-                                                                type_name):
+def get_openstack_ids_of_connected_nodes_by_openstack_type(ctx, type_name):
     type_caps = [caps for caps in ctx.capabilities.get_all().values() if
                  caps.get(OPENSTACK_TYPE_PROPERTY) == type_name]
-    if len(type_caps) != 1:
+    return [cap[OPENSTACK_ID_PROPERTY] for cap in type_caps]
+
+
+def get_openstack_id_of_single_connected_node_by_openstack_type(
+        ctx, type_name, if_exists=False):
+    ids = get_openstack_ids_of_connected_nodes_by_openstack_type(ctx,
+                                                                 type_name)
+    check = len(ids) > 1 if if_exists else len(ids) != 1
+    if check:
         raise NonRecoverableError(
-            'Expected exactly one {0} capability. got {1}'.format(type_name,
-                                                                  type_caps))
-    caps = type_caps[0]
-    return caps[OPENSTACK_ID_PROPERTY]
+            'Expected {0} one {1} capability. got {2}'.format(
+                'at most' if if_exists else 'exactly', type_name, len(ids)))
+    return ids[0] if ids else None
 
 
 def get_default_resource_id(ctx, type_name):
@@ -128,6 +140,72 @@ def transform_resource_name(ctx, res):
                         name, res['name']))
 
     return res['name']
+
+
+def use_external_resource(ctx, sugared_client, openstack_type):
+    if not ctx.properties['use_existing']:
+        return None
+
+    resource_id = ctx.properties['resource_id']
+    if not resource_id:
+        raise NonRecoverableError("Can't set 'use_existing' to True without "
+                                  "supplying a value for 'resource_id'")
+
+    from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
+    if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
+        # search for resource by name
+        resource = sugared_client.cosmo_get_if_exists(
+            openstack_type, name=resource_id)
+    else:
+        # search for resource by ip address
+        resource = sugared_client.cosmo_get_if_exists(
+            openstack_type, floating_ip_address=resource_id)
+
+    if not resource:
+        # fallback - search for resource by id
+        resource = sugared_client.cosmo_get_if_exists(
+            openstack_type, id=resource_id)
+
+    if not resource:
+        raise NonRecoverableError("Couldn't find a resource with the name or "
+                                  "id {0}".format(resource_id))
+
+    ctx.runtime_properties[OPENSTACK_EXTERNAL_RESOURCE] = True
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = \
+        sugared_client.get_id_from_resource(resource)
+    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
+    return resource
+
+
+def delete_resource_and_runtime_properties(ctx, sugared_client,
+                                           runtime_properties_keys):
+    if not is_external_resource(ctx):
+        sugared_client.cosmo_delete_resource(
+            ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY],
+            ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+
+    delete_runtime_properties(ctx, runtime_properties_keys)
+
+
+def is_external_resource(ctx):
+    return is_external_resource_by_runtime_properties(ctx.runtime_properties)
+
+
+def is_external_relationship(ctx):
+    return is_external_resource_by_runtime_properties(
+        ctx.runtime_properties) and is_external_resource_by_runtime_properties(
+        ctx.related.runtime_properties)
+
+
+def is_external_resource_by_runtime_properties(runtime_properties):
+    return OPENSTACK_EXTERNAL_RESOURCE in runtime_properties and \
+           runtime_properties[OPENSTACK_EXTERNAL_RESOURCE]
+
+
+def delete_runtime_properties(ctx, runtime_properties_keys):
+    for runtime_prop_key in runtime_properties_keys:
+        if runtime_prop_key in ctx.runtime_properties:
+            del ctx.runtime_properties[runtime_prop_key]
 
 
 class Config(object):
@@ -190,12 +268,12 @@ class NovaClient(OpenStackClient):
     config = KeystoneConfig
 
     def connect(self, cfg, region=None):
-        return nova_client.Client(username=cfg['username'],
-                                  api_key=cfg['password'],
-                                  project_id=cfg['tenant_name'],
-                                  auth_url=cfg['auth_url'],
-                                  region_name=region or cfg['region'],
-                                  http_log_debug=False)
+        return NovaClientWithSugar(username=cfg['username'],
+                                   api_key=cfg['password'],
+                                   project_id=cfg['tenant_name'],
+                                   auth_url=cfg['auth_url'],
+                                   region_name=region or cfg['region'],
+                                   http_log_debug=False)
 
 
 class NeutronClient(OpenStackClient):
@@ -281,7 +359,8 @@ def _re_raise(e, recoverable, retry_after=None):
 
 
 # Sugar for clients
-class NeutronClientWithSugar(neutron_client.Client):
+
+class ClientWithSugar(object):
 
     def cosmo_plural(self, obj_type_single):
         return obj_type_single + 's'
@@ -290,13 +369,41 @@ class NeutronClientWithSugar(neutron_client.Client):
         return self.cosmo_get(obj_type_single, name=name, **kw)
 
     def cosmo_get(self, obj_type_single, **kw):
+        return self._cosmo_get(obj_type_single, False, **kw)
+
+    def cosmo_get_if_exists(self, obj_type_single, **kw):
+        return self._cosmo_get(obj_type_single, True, **kw)
+
+    def _cosmo_get(self, obj_type_single, if_exists, **kw):
         ls = list(self.cosmo_list(obj_type_single, **kw))
-        if len(ls) != 1:
+        check = len(ls) > 1 if if_exists else len(ls) != 1
+        if check:
             raise NonRecoverableError(
-                "Expected exactly one object of type {0} "
-                "with match {1} but there are {2}".format(
+                "Expected {0} one object of type {1} "
+                "with match {2} but there are {3}".format(
+                    'at most' if if_exists else 'exactly',
                     obj_type_single, kw, len(ls)))
-        return ls[0]
+        return ls[0] if ls else None
+
+
+class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
+
+    def cosmo_list(self, obj_type_single, **kw):
+        """ Sugar for xxx.findall() - not using xxx.list() because findall
+        can receive filtering parameters, and it's common for all types"""
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        for obj in getattr(self, obj_type_plural).findall(**kw):
+            yield obj
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(id=obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+
+class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for list_XXXs()['XXXs'] """
@@ -304,6 +411,12 @@ class NeutronClientWithSugar(neutron_client.Client):
         for obj in getattr(self, 'list_' + obj_type_plural)(**kw)[
                 obj_type_plural]:
             yield obj
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        getattr(self, 'delete_' + obj_type_single)(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource['id']
 
     def cosmo_list_prefixed(self, obj_type_single, name_prefix):
         for obj in self.cosmo_list(obj_type_single):
@@ -336,9 +449,3 @@ class NeutronClientWithSugar(neutron_client.Client):
                 "Expected exactly one external network but found {0}".format(
                     len(ls)))
         return ls[0]
-
-    def cosmo_is_network(self, id):
-        return any(self.cosmo_list('network', id=id))
-
-    def cosmo_is_port(self, id):
-        return any(self.cosmo_list('port', id=id))

@@ -15,12 +15,17 @@
 
 from cloudify import ctx
 from cloudify.decorators import operation
+from cloudify.exceptions import NonRecoverableError
 
 from openstack_plugin_common import (
     with_neutron_client,
     get_default_resource_id,
     get_openstack_id_of_single_connected_node_by_openstack_type,
+    delete_resource_and_runtime_properties,
+    use_external_resource,
     OPENSTACK_ID_PROPERTY,
+    OPENSTACK_TYPE_PROPERTY,
+    COMMON_RUNTIME_PROPERTIES_KEYS
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
@@ -28,12 +33,27 @@ from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 SUBNET_OPENSTACK_TYPE = 'subnet'
 
 # Runtime properties
-RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
+RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
+
+    if use_external_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE):
+        net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
+            ctx, SUBNET_OPENSTACK_TYPE, True)
+
+        if net_id:
+            subnet_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+            if neutron_client.show_subnet(
+                    subnet_id)['subnet']['network_id'] != net_id:
+                raise NonRecoverableError(
+                    'Expected external resources subnet {0} and network {1} '
+                    'to be connected'.format(subnet_id, net_id))
+        return
+
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
     subnet = {
@@ -44,12 +64,11 @@ def create(neutron_client, **kwargs):
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = s['id']
+    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = SUBNET_OPENSTACK_TYPE
 
 
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    neutron_client.delete_subnet(ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
-
-    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
-        del ctx.runtime_properties[runtime_prop_key]
+    delete_resource_and_runtime_properties(ctx, neutron_client,
+                                           RUNTIME_PROPERTIES_KEYS)

@@ -22,13 +22,18 @@ from openstack_plugin_common import (
     transform_resource_name,
     get_default_resource_id,
     with_neutron_client,
-    OPENSTACK_ID_PROPERTY
+    use_external_resource,
+    is_external_relationship,
+    delete_resource_and_runtime_properties,
+    COMMON_RUNTIME_PROPERTIES_KEYS,
+    OPENSTACK_ID_PROPERTY,
+    OPENSTACK_TYPE_PROPERTY
 )
 
 ROUTER_OPENSTACK_TYPE = 'router'
 
 # Runtime properties
-RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
+RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation
@@ -39,6 +44,9 @@ def create(neutron_client, **kwargs):
     Also supports `router.external_gateway_info.network_name`,
     which is translated to `router.external_gateway_info.network_id`.
     """
+
+    if use_external_resource(ctx, neutron_client, ROUTER_OPENSTACK_TYPE):
+        return
 
     network_id_set = False
 
@@ -53,6 +61,11 @@ def create(neutron_client, **kwargs):
 
     # Probably will not be used. External network
     # is usually provisioned externally.
+    # TODO: remove this or modify - it's unreasonable to look for
+    # OPENSTACK_ID_PROPERTY in capabilities as it can be of any connected
+    # node. If the usage of capabilities here remains, need to add
+    # validation in the 'use_external_resource' (before returning) that the
+    # network used is the one connected to the router.
     if OPENSTACK_ID_PROPERTY in ctx.capabilities:
         if 'external_gateway_info' not in router:
             router['external_gateway_info'] = {
@@ -87,20 +100,33 @@ def create(neutron_client, **kwargs):
     r = neutron_client.create_router({'router': router})['router']
 
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = r['id']
+    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = ROUTER_OPENSTACK_TYPE
 
 
 @operation
 @with_neutron_client
 def connect_subnet(neutron_client, **kwargs):
-    neutron_client.add_interface_router(
-        ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
-        {'subnet_id': ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]}
-    )
+    router_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    subnet_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+    if is_external_relationship(ctx):
+        for port in neutron_client.list_ports(device_id=router_id)['ports']:
+            for fixed_ip in port.get('fixed_ips', []):
+                if fixed_ip.get('subnet_id') == subnet_id:
+                    return
+        raise NonRecoverableError(
+            'Expected external resources router {0} and subnet {1} to be '
+            'connected'.format(router_id, subnet_id))
+
+    neutron_client.add_interface_router(router_id, {'subnet_id': subnet_id})
 
 
 @operation
 @with_neutron_client
 def disconnect_subnet(neutron_client, **kwargs):
+    if is_external_relationship(ctx):
+        return
+
     neutron_client.remove_interface_router(
         ctx.runtime_properties[OPENSTACK_ID_PROPERTY],
         {'subnet_id': ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]}
@@ -110,7 +136,5 @@ def disconnect_subnet(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    neutron_client.delete_router(ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
-
-    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
-        del ctx.runtime_properties[runtime_prop_key]
+    delete_resource_and_runtime_properties(ctx, neutron_client,
+                                           RUNTIME_PROPERTIES_KEYS)

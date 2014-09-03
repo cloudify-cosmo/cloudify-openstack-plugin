@@ -63,7 +63,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
 
 @operation
 @with_nova_client
-def create(nova_client):
+def create(nova_client, **kwargs):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1

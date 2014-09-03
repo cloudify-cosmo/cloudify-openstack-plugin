@@ -25,6 +25,7 @@ node_types:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
+                - create: openstack.nova_plugin.server.create
                 - start: openstack.nova_plugin.server.start
                 - stop: openstack.nova_plugin.server.stop
                 - delete: openstack.nova_plugin.server.delete

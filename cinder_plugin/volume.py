@@ -41,7 +41,8 @@ def create(cinder_client, **kwargs):
     device_name = cfy_ctx.properties['device_name']
 
     if use_existing:
-        v = cinder_client.volumes.get(_get_volume_id(resource_id))
+        volume_id = _get_volume_id(cinder_client, resource_id)
+        v = cinder_client.volumes.get(volume_id)
     else:
         volume = {
             'name': resource_id,
@@ -73,7 +74,7 @@ def delete(cinder_client, **kwargs):
     del cfy_ctx.runtime_properties[VOLUME_ID]
 
 
-def _get_volume_id(volume_name_or_id, cinder_client):
+def _get_volume_id(cinder_client, volume_name_or_id):
     if _is_uuid_like(volume_name_or_id):
         return volume_name_or_id
     volume = _get_volume_by_name(volume_name_or_id, cinder_client)

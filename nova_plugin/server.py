@@ -400,7 +400,7 @@ def attach_volume(nova_client, **kwargs):
         ctx.runtime_properties[volume.VOLUME_ATTACHMENT_ID] = \
             volume.get_attachment_id(v, server_id)
     else:
-        #NOTE(ochyrko): maybe a non-recoverable error?
+        # NOTE(ochyrko): maybe a non-recoverable error?
         ctx.logger.warning(
             "Volume {0} current state: '{1}', "
             "expected state: '{2}'".format(v.id,
@@ -414,7 +414,7 @@ def detach_volume(nova_client, **kwargs):
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     attachment_id = ctx.runtime_properties.get(volume.VOLUME_ATTACHMENT_ID)
     if attachment_id:
-        nova_client.delete_server_volume(server_id, attachment_id)
+        nova_client.volumes.delete_server_volume(server_id, attachment_id)
         del ctx.runtime_properties[volume.VOLUME_ATTACHMENT_ID]
 
 

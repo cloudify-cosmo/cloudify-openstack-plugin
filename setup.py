@@ -27,7 +27,8 @@ setup(
     packages=[
         'openstack_plugin_common',
         'nova_plugin',
-        'neutron_plugin'
+        'neutron_plugin',
+        'cinder_plugin'
     ],
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',

@@ -58,7 +58,7 @@ class TestCinderVolume(unittest.TestCase):
 
         cinder_client_m.volumes.create.assert_called_once_with(
             size=volume_size,
-            name=volume_name,
+            display_name=volume_name,
             description=volume_description)
         cinder_client_m.volumes.get.assert_called_once_with(volume_id)
         self.assertEqual(volume_id,
@@ -91,11 +91,15 @@ class TestCinderVolume(unittest.TestCase):
     def test_delete(self):
         volume_id = '00000000-0000-0000-0000-000000000000'
 
+        volume_properties = {
+            'use_existing': False,
+        }
+
         cinder_client_m = mock.Mock()
         cinder_client_m.volumes = mock.Mock()
         cinder_client_m.volumes.delete = mock.Mock()
 
-        ctx_m = cfy_mocks.MockCloudifyContext()
+        ctx_m = cfy_mocks.MockCloudifyContext(properties=volume_properties)
         ctx_m.runtime_properties[volume.VOLUME_ID] = volume_id
 
         volume.delete(cinder_client=cinder_client_m, ctx=ctx_m)
@@ -106,26 +110,19 @@ class TestCinderVolume(unittest.TestCase):
     def test_attach(self):
         volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
-        attachment_id = '22222222-2222-2222-2222-222222222222'
         device_name = '/dev/fake'
 
-        ctx_m = cfy_mocks.MockCloudifyContext()
-        ctx_m.runtime_properties[volume.VOLUME_ID] = volume_id
-        ctx_m.runtime_properties[volume.VOLUME_DEVICE_NAME] = device_name
+        volume_ctx_m = cfy_mocks.MockCloudifyContext()
+        volume_ctx_m.runtime_properties[volume.VOLUME_ID] = volume_id
+        volume_ctx_m.runtime_properties[volume.VOLUME_DEVICE_NAME] = \
+            device_name
+
+        ctx_m = cfy_mocks.MockCloudifyContext(related=volume_ctx_m)
         ctx_m.runtime_properties[server.OPENSTACK_ID_PROPERTY] = server_id
 
         novaclient_m = mock.Mock()
         novaclient_m.volumes = mock.Mock()
         novaclient_m.volumes.create_server_volume = mock.Mock()
-
-        attachment = {'id': attachment_id,
-                      'server_id': server_id,
-                      'volume_id': volume_id}
-
-        attached_volume_m = mock.Mock()
-        attached_volume_m.id = volume_id
-        attached_volume_m.status = volume.VOLUME_STATUS_AVAILABLE
-        attached_volume_m.attachments = [attachment]
 
         with contextlib.nested(
             mock.patch.object(
@@ -135,34 +132,62 @@ class TestCinderVolume(unittest.TestCase):
             mock.patch.object(
                 volume,
                 'wait_until_status',
-                mock.Mock(return_value=(attached_volume_m, True)))):
+                mock.Mock())):
 
             server.attach_volume(ctx=ctx_m)
 
             novaclient_m.volumes.create_server_volume.assert_called_once_with(
                 server_id, volume_id, device_name)
-            self.assertEqual(
-                attachment_id,
-                ctx_m.runtime_properties[volume.VOLUME_ATTACHMENT_ID])
+            volume.wait_until_status.assert_called_once_with(
+                volume_id=volume_id,
+                status=volume.VOLUME_STATUS_IN_USE)
 
     def test_detach(self):
+        volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
         attachment_id = '22222222-2222-2222-2222-222222222222'
 
-        ctx_m = cfy_mocks.MockCloudifyContext()
-        ctx_m.runtime_properties[volume.VOLUME_ATTACHMENT_ID] = attachment_id
+        attachment = {'id': attachment_id,
+                      'server_id': server_id,
+                      'volume_id': volume_id}
+
+        volume_ctx_m = cfy_mocks.MockCloudifyContext()
+        volume_ctx_m.runtime_properties[volume.VOLUME_ID] = volume_id
+
+        ctx_m = cfy_mocks.MockCloudifyContext(related=volume_ctx_m)
         ctx_m.runtime_properties[server.OPENSTACK_ID_PROPERTY] = server_id
+
+        attached_volume_m = mock.Mock()
+        attached_volume_m.id = volume_id
+        attached_volume_m.status = volume.VOLUME_STATUS_IN_USE
+        attached_volume_m.attachments = [attachment]
+        cinder_client_m = mock.Mock()
+        cinder_client_m.volumes = mock.Mock()
+        cinder_client_m.volumes.get = mock.Mock(
+            return_value=attached_volume_m)
 
         novaclient_m = mock.Mock()
         novaclient_m.volumes = mock.Mock()
         novaclient_m.volumes.delete_server_volume = mock.Mock()
 
-        with mock.patch('openstack_plugin_common.NovaClient.get',
-                        mock.Mock(return_value=novaclient_m)):
+        with contextlib.nested(
+            mock.patch.object(
+                openstack_plugin_common.NovaClient,
+                'get',
+                mock.Mock(return_value=novaclient_m)),
+            mock.patch.object(
+                openstack_plugin_common.CinderClient,
+                'get',
+                mock.Mock(return_value=cinder_client_m)),
+            mock.patch.object(
+                volume,
+                'wait_until_status',
+                mock.Mock())):
 
             server.detach_volume(ctx=ctx_m)
 
             novaclient_m.volumes.delete_server_volume.assert_called_once_with(
                 server_id, attachment_id)
-            self.assertTrue(volume.VOLUME_ATTACHMENT_ID
-                            not in ctx_m.runtime_properties)
+            volume.wait_until_status.assert_called_once_with(
+                volume_id=volume_id,
+                status=volume.VOLUME_STATUS_AVAILABLE)

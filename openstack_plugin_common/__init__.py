@@ -18,7 +18,7 @@ import json
 import os
 import sys
 
-from cinderclient.v2 import client as cinder_client
+from cinderclient.v1 import client as cinder_client
 from cinderclient import exceptions as cinder_exceptions
 import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client

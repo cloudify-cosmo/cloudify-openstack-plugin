@@ -163,7 +163,7 @@ node_types:
             resource_id:
                 default: ''
             device_name:
-                default: 'auto'
+                default: ''
             cinder_config:
                 default: {}
         interfaces:

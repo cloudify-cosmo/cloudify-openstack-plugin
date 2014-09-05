@@ -22,7 +22,6 @@ import openstack_plugin_common
 
 VOLUME_DEVICE_NAME = 'volume_device_name'
 VOLUME_ID = 'volume_id'
-VOLUME_ATTACHMENT_ID = 'attachment_id'
 
 VOLUME_STATUS_CREATING = 'creating'
 VOLUME_STATUS_DELETING = 'deleting'
@@ -41,26 +40,18 @@ def create(cinder_client, **kwargs):
     device_name = cfy_ctx.properties['device_name']
 
     if use_existing:
-        volume_id = _get_volume_id(cinder_client, resource_id)
-        v = cinder_client.volumes.get(volume_id)
+        v = get_volume(cinder_client=cinder_client,
+                       volume_name_or_id=resource_id)
     else:
         volume = {
-            'name': resource_id,
+            'display_name': resource_id,
         }
         volume.update(cfy_ctx.properties['volume'])
         v = cinder_client.volumes.create(**volume)
 
-    v, status_verified = wait_until_status(
-        cinder_client=cinder_client,
-        volume_id=v.id,
-        status=VOLUME_STATUS_AVAILABLE)
-
-    if not status_verified:
-        cfy_ctx.logger.warning(
-            "Volume {0} current state: '{1}', "
-            "expected state: '{2}'".format(v.id,
-                                           v.status,
-                                           VOLUME_STATUS_AVAILABLE))
+    wait_until_status(cinder_client=cinder_client,
+                      volume_id=v.id,
+                      status=VOLUME_STATUS_AVAILABLE)
 
     cfy_ctx.runtime_properties[VOLUME_ID] = v.id
     cfy_ctx.runtime_properties[VOLUME_DEVICE_NAME] = device_name
@@ -69,16 +60,48 @@ def create(cinder_client, **kwargs):
 @cfy_decorators.operation
 @openstack_plugin_common.with_cinder_client
 def delete(cinder_client, **kwargs):
-    volume_id = cfy_ctx.runtime_properties.get(VOLUME_ID)
-    cinder_client.volumes.delete(volume_id)
-    del cfy_ctx.runtime_properties[VOLUME_ID]
+    use_existing = cfy_ctx.properties['use_existing']
+    if not use_existing:
+        volume_id = cfy_ctx.runtime_properties.get(VOLUME_ID)
+        cinder_client.volumes.delete(volume_id)
+        del cfy_ctx.runtime_properties[VOLUME_ID]
 
 
-def _get_volume_id(cinder_client, volume_name_or_id):
+@openstack_plugin_common.with_cinder_client
+def get_volume(cinder_client, volume_name_or_id):
     if _is_uuid_like(volume_name_or_id):
-        return volume_name_or_id
-    volume = _get_volume_by_name(volume_name_or_id, cinder_client)
-    return volume.id
+        volume = cinder_client.volumes.get(volume_name_or_id)
+    else:
+        volume = _get_volume_by_name(volume_name_or_id, cinder_client)
+    return volume
+
+
+@openstack_plugin_common.with_cinder_client
+def wait_until_status(cinder_client, volume_id, status, num_tries=10,
+                      timeout=2):
+    for _ in range(num_tries):
+        volume = cinder_client.volumes.get(volume_id)
+
+        if volume.status in VOLUME_ERROR_STATUSES:
+            raise cfy_exc.NonRecoverableError(
+                "Volume {0} is in error state".format(volume_id))
+
+        if volume.status == status:
+            return volume, True
+        time.sleep(timeout)
+
+    cfy_ctx.logger.warning("Volume {0} current state: '{1}', "
+                           "expected state: '{2}'".format(volume_id,
+                                                          volume.status,
+                                                          status))
+    return volume, False
+
+
+def get_attachment(volume_id, server_id):
+    volume = get_volume(volume_name_or_id=volume_id)
+    for attachment in volume.attachments:
+        if attachment['server_id'] == server_id:
+            return attachment
 
 
 def _get_volume_by_name(name, cinder_client):
@@ -101,25 +124,3 @@ def _is_uuid_like(val):
         return str(uuid.UUID(val)) == val
     except (TypeError, ValueError, AttributeError):
         return False
-
-
-@openstack_plugin_common.with_cinder_client
-def wait_until_status(cinder_client, volume_id, status, num_tries=10,
-                      timeout=2):
-    for _ in range(num_tries):
-        volume = cinder_client.volumes.get(volume_id)
-
-        if volume.status in VOLUME_ERROR_STATUSES:
-            raise cfy_exc.NonRecoverableError(
-                "Volume {0} is in error state".format(volume_id))
-
-        if volume.status == status:
-            return volume, True
-        time.sleep(timeout)
-    return volume, False
-
-
-def get_attachment_id(volume, server_id):
-    for attachment in volume.attachments:
-        if attachment['server_id'] == server_id:
-            return attachment['id']

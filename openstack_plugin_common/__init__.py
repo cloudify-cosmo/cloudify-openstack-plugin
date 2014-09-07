@@ -27,15 +27,16 @@ import novaclient.exceptions as nova_exceptions
 import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
+# properties
+USE_EXISTING_PROPERTY = 'use_existing'
 
+# runtime properties
 OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
 OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
-OPENSTACK_EXTERNAL_RESOURCE = 'external_resource'  # external resource
 
 # runtime properties which all types use
 COMMON_RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
-                                  OPENSTACK_TYPE_PROPERTY,
-                                  OPENSTACK_EXTERNAL_RESOURCE]
+                                  OPENSTACK_TYPE_PROPERTY]
 
 
 class ProviderContext(object):
@@ -143,13 +144,14 @@ def transform_resource_name(ctx, res):
 
 
 def use_external_resource(ctx, sugared_client, openstack_type):
-    if not ctx.properties['use_existing']:
+    if not is_external_resource(ctx):
         return None
 
     resource_id = ctx.properties['resource_id']
     if not resource_id:
-        raise NonRecoverableError("Can't set 'use_existing' to True without "
-                                  "supplying a value for 'resource_id'")
+        raise NonRecoverableError(
+            "Can't set '{0}' to True without supplying a value for "
+            "'resource_id'".format(USE_EXISTING_PROPERTY))
 
     from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
     if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
@@ -170,36 +172,41 @@ def use_external_resource(ctx, sugared_client, openstack_type):
         raise NonRecoverableError("Couldn't find a resource with the name or "
                                   "id {0}".format(resource_id))
 
-    ctx.runtime_properties[OPENSTACK_EXTERNAL_RESOURCE] = True
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
+    ctx.logger.info('Using existing {0}: {1}'.format(openstack_type,
+                                                     resource_id))
     return resource
 
 
 def delete_resource_and_runtime_properties(ctx, sugared_client,
                                            runtime_properties_keys):
+    node_openstack_type = ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY]
     if not is_external_resource(ctx):
+        ctx.logger.info('deleting {0}'.format(node_openstack_type))
         sugared_client.cosmo_delete_resource(
-            ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY],
-            ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+            node_openstack_type, ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+    else:
+        ctx.logger.info('not deleting {0} since an external {0} is '
+                        'being used'.format(node_openstack_type))
 
     delete_runtime_properties(ctx, runtime_properties_keys)
 
 
 def is_external_resource(ctx):
-    return is_external_resource_by_runtime_properties(ctx.runtime_properties)
+    return is_external_resource_by_properties(ctx.properties)
 
 
 def is_external_relationship(ctx):
-    return is_external_resource_by_runtime_properties(
-        ctx.runtime_properties) and is_external_resource_by_runtime_properties(
-        ctx.related.runtime_properties)
+    return is_external_resource_by_properties(
+        ctx.properties) and is_external_resource_by_properties(
+        ctx.related.properties)
 
 
-def is_external_resource_by_runtime_properties(runtime_properties):
-    return OPENSTACK_EXTERNAL_RESOURCE in runtime_properties and \
-        runtime_properties[OPENSTACK_EXTERNAL_RESOURCE]
+def is_external_resource_by_properties(properties):
+    return USE_EXISTING_PROPERTY in properties and \
+        properties[USE_EXISTING_PROPERTY]
 
 
 def delete_runtime_properties(ctx, runtime_properties_keys):

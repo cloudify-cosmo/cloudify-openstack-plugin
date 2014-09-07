@@ -59,6 +59,7 @@ def start(neutron_client, **kwargs):
     network_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_resource(ctx):
+        ctx.logger.info('Validating external network is started')
         if not neutron_client.show_network(
                 network_id)['network']['admin_state_up']:
             raise NonRecoverableError(
@@ -78,6 +79,8 @@ def start(neutron_client, **kwargs):
 @with_neutron_client
 def stop(neutron_client, **kwargs):
     if is_external_resource(ctx):
+        ctx.logger.info('Not stopping network since an external network is '
+                        'being used')
         return
 
     neutron_client.update_network(

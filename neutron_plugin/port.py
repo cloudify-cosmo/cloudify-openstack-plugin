@@ -23,6 +23,7 @@ from openstack_plugin_common import (
     get_default_resource_id,
     get_openstack_id_of_single_connected_node_by_openstack_type,
     delete_resource_and_runtime_properties,
+    delete_runtime_properties,
     use_external_resource,
     is_external_relationship,
     OPENSTACK_ID_PROPERTY,
@@ -43,18 +44,23 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 def create(neutron_client, **kwargs):
 
     if use_external_resource(ctx, neutron_client, PORT_OPENSTACK_TYPE):
-        net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
-            ctx, PORT_OPENSTACK_TYPE, True)
+        try:
+            net_id = \
+                get_openstack_id_of_single_connected_node_by_openstack_type(
+                    ctx, PORT_OPENSTACK_TYPE, True)
 
-        if net_id:
-            port_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+            if net_id:
+                port_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-            if neutron_client.show_port(
-                    port_id)['port']['network_id'] != net_id:
-                raise NonRecoverableError(
-                    'Expected external resources port {0} and network {1} to '
-                    'be connected'.format(port_id, net_id))
-        return
+                if neutron_client.show_port(
+                        port_id)['port']['network_id'] != net_id:
+                    raise NonRecoverableError(
+                        'Expected external resources port {0} and network {1} '
+                        'to be connected'.format(port_id, net_id))
+            return
+        except Exception:
+            delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
+            raise
 
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
@@ -84,6 +90,8 @@ def connect_security_group(neutron_client, **kwargs):
     security_group_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):
+        ctx.logger.info('Validating external port and security-group are '
+                        'connected')
         if any(sg for sg in neutron_client.show_port(port_id)['port'].get(
                 'security_groups', []) if sg == security_group_id):
             return

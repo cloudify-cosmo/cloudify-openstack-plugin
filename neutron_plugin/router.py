@@ -110,6 +110,8 @@ def connect_subnet(neutron_client, **kwargs):
     subnet_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):
+        ctx.logger.info('Validating external subnet and router '
+                        'are associated')
         for port in neutron_client.list_ports(device_id=router_id)['ports']:
             for fixed_ip in port.get('fixed_ips', []):
                 if fixed_ip.get('subnet_id') == subnet_id:
@@ -125,6 +127,8 @@ def connect_subnet(neutron_client, **kwargs):
 @with_neutron_client
 def disconnect_subnet(neutron_client, **kwargs):
     if is_external_relationship(ctx):
+        ctx.logger.info('Not connecting subnet and router since external '
+                        'subnet and router are being used')
         return
 
     neutron_client.remove_interface_router(

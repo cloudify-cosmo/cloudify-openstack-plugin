@@ -15,25 +15,35 @@
 
 from cloudify import ctx
 from cloudify.decorators import operation
+from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
+    get_default_resource_id,
+    is_external_resource,
+    delete_resource_and_runtime_properties,
+    use_external_resource,
     OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY
+    OPENSTACK_TYPE_PROPERTY,
+    COMMON_RUNTIME_PROPERTIES_KEYS
 )
 
 NETWORK_OPENSTACK_TYPE = 'network'
 
 # Runtime properties
-RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY, OPENSTACK_TYPE_PROPERTY]
+RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
+
+    if use_external_resource(ctx, neutron_client, NETWORK_OPENSTACK_TYPE):
+        return
+
     network = {
         'admin_state_up': True,
-        'name': ctx.node_id,
+        'name': get_default_resource_id(ctx, NETWORK_OPENSTACK_TYPE),
     }
     network.update(ctx.properties['network'])
     transform_resource_name(ctx, network)
@@ -46,8 +56,19 @@ def create(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def start(neutron_client, **kwargs):
+    network_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+    if is_external_resource(ctx):
+        ctx.logger.info('Validating external network is started')
+        if not neutron_client.show_network(
+                network_id)['network']['admin_state_up']:
+            raise NonRecoverableError(
+                'Expected external resource network {0} to be in '
+                '"admin_state_up"=True'.format(network_id))
+        return
+
     neutron_client.update_network(
-        ctx.runtime_properties[OPENSTACK_ID_PROPERTY], {
+        network_id, {
             'network': {
                 'admin_state_up': True
             }
@@ -57,6 +78,11 @@ def start(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def stop(neutron_client, **kwargs):
+    if is_external_resource(ctx):
+        ctx.logger.info('Not stopping network since an external network is '
+                        'being used')
+        return
+
     neutron_client.update_network(
         ctx.runtime_properties[OPENSTACK_ID_PROPERTY], {
             'network': {
@@ -68,8 +94,5 @@ def stop(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    neutron_client.delete_network(
-        ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
-
-    for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
-        del ctx.runtime_properties[runtime_prop_key]
+    delete_resource_and_runtime_properties(ctx, neutron_client,
+                                           RUNTIME_PROPERTIES_KEYS)

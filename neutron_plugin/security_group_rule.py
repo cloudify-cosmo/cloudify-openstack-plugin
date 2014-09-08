@@ -27,6 +27,8 @@ from openstack_plugin_common import (
 
 from neutron_plugin.security_group import SECURITY_GROUP_OPENSTACK_TYPE
 
+SECURITY_GROUP_RULE_OPENSTACK_TYPE = 'security-group-rule'
+
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
 
 # Runtime properties

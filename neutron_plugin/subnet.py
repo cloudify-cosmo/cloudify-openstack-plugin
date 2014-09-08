@@ -19,6 +19,7 @@ from cloudify.exceptions import NonRecoverableError
 
 from openstack_plugin_common import (
     with_neutron_client,
+    transform_resource_name,
     get_default_resource_id,
     get_openstack_id_of_single_connected_node_by_openstack_type,
     delete_resource_and_runtime_properties,
@@ -67,6 +68,7 @@ def create(neutron_client, **kwargs):
         'network_id': net_id,
     }
     subnet.update(ctx.properties['subnet'])
+    transform_resource_name(ctx, subnet)
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = s['id']

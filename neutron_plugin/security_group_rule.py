@@ -81,13 +81,13 @@ def _process_rule(rule, neutron_client):
             sgr['remote_group_node'])
         sgr['remote_group_id'] = remote_group_node[OPENSTACK_ID_PROPERTY]
         del sgr['remote_group_node']
-        del sgr['remote_ip_prefix']
+        sgr['remote_ip_prefix'] = None
 
     if ('remote_group_name' in sgr) and sgr['remote_group_name']:
         sgr['remote_group_id'] = neutron_client.cosmo_get_named(
             'security_group', sgr['remote_group_name'])['id']
         del sgr['remote_group_name']
-        del sgr['remote_ip_prefix']
+        sgr['remote_ip_prefix'] = None
 
     ctx.logger.debug(
         "Security group rule after transformations: {0}".format(sgr))

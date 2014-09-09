@@ -360,7 +360,7 @@ def connect_floatingip(nova_client, **kwargs):
                         'are associated')
         nc = _neutron_client()
         port_id = nc.show_floatingip(floating_ip_id)['floatingip']['port_id']
-        if port_id and nc.show_port(port_id)['port']['device_id'] != server_id:
+        if port_id and nc.show_port(port_id)['port']['device_id'] == server_id:
             return
         raise NonRecoverableError(
             'Expected external resources server {0} and floating-ip {1} to be '

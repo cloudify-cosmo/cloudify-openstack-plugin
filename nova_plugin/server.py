@@ -91,11 +91,7 @@ def create(nova_client, **kwargs):
     if external_server:
         try:
             _validate_external_server_nics(network_ids, port_ids)
-
-            ctx.runtime_properties[NETWORKS_PROPERTY] = \
-                external_server.runtime_properties[NETWORKS_PROPERTY]
-            ctx.runtime_properties[IP_PROPERTY] = \
-                external_server.runtime_properties[IP_PROPERTY]
+            _set_network_and_ip_runtime_properties(external_server)
             return
         except Exception:
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
@@ -325,25 +321,29 @@ def get_server_by_context(nova_client):
         ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
 
 
+def _set_network_and_ip_runtime_properties(server):
+    ips = {}
+    _, default_network_ips = server.networks.items()[0]
+    manager_network_ip = None
+    management_network_name = server.metadata.get(
+        'cloudify_management_network_name')
+    for network, network_ips in server.networks.items():
+        if management_network_name and network == management_network_name:
+            manager_network_ip = network_ips[0]
+        ips[network] = network_ips
+    if manager_network_ip is None:
+        manager_network_ip = default_network_ips[0]
+    ctx.runtime_properties[NETWORKS_PROPERTY] = ips
+    # The ip of this instance in the management network
+    ctx.runtime_properties[IP_PROPERTY] = manager_network_ip
+
+
 @operation
 @with_nova_client
 def get_state(nova_client, **kwargs):
     server = get_server_by_context(nova_client)
     if server.status == SERVER_STATUS_ACTIVE:
-        ips = {}
-        _, default_network_ips = server.networks.items()[0]
-        manager_network_ip = None
-        management_network_name = server.metadata.get(
-            'cloudify_management_network_name')
-        for network, network_ips in server.networks.items():
-            if management_network_name and network == management_network_name:
-                manager_network_ip = network_ips[0]
-            ips[network] = network_ips
-        if manager_network_ip is None:
-            manager_network_ip = default_network_ips[0]
-        ctx.runtime_properties[NETWORKS_PROPERTY] = ips
-        # The ip of this instance in the management network
-        ctx.runtime_properties[IP_PROPERTY] = manager_network_ip
+        _set_network_and_ip_runtime_properties(server)
         return True
     return False
 

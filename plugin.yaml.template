@@ -158,7 +158,7 @@ node_types:
         derived_from: cloudify.types.volume
         properties:
             volume: {}
-            use_existing:
+            use_external_resource:
                 default: false
             resource_id:
                 default: ''

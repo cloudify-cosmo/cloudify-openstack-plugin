@@ -1,3 +1,4 @@
+#########
 # Copyright (c) 2014 GigaSpaces Technologies Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,10 +16,11 @@
 import time
 import uuid
 
-from cloudify import ctx as cfy_ctx
-from cloudify import decorators as cfy_decorators
+from cloudify import ctx
+from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
-import openstack_plugin_common
+
+from openstack_plugin_common import with_cinder_client
 
 VOLUME_DEVICE_NAME = 'volume_device_name'
 VOLUME_ID = 'volume_id'
@@ -32,12 +34,12 @@ VOLUME_STATUS_ERROR_DELETING = 'error_deleting'
 VOLUME_ERROR_STATUSES = (VOLUME_STATUS_ERROR, VOLUME_STATUS_ERROR_DELETING)
 
 
-@cfy_decorators.operation
-@openstack_plugin_common.with_cinder_client
+@operation
+@with_cinder_client
 def create(cinder_client, **kwargs):
-    resource_id = cfy_ctx.properties['resource_id']
-    use_existing = cfy_ctx.properties['use_existing']
-    device_name = cfy_ctx.properties['device_name']
+    resource_id = ctx.properties['resource_id']
+    use_existing = ctx.properties['use_external_resource']
+    device_name = ctx.properties['device_name']
 
     if use_existing:
         v = get_volume(cinder_client=cinder_client,
@@ -46,28 +48,28 @@ def create(cinder_client, **kwargs):
         volume = {
             'display_name': resource_id,
         }
-        volume.update(cfy_ctx.properties['volume'])
+        volume.update(ctx.properties['volume'])
         v = cinder_client.volumes.create(**volume)
 
     wait_until_status(cinder_client=cinder_client,
                       volume_id=v.id,
                       status=VOLUME_STATUS_AVAILABLE)
 
-    cfy_ctx.runtime_properties[VOLUME_ID] = v.id
-    cfy_ctx.runtime_properties[VOLUME_DEVICE_NAME] = device_name
+    ctx.runtime_properties[VOLUME_ID] = v.id
+    ctx.runtime_properties[VOLUME_DEVICE_NAME] = device_name
 
 
-@cfy_decorators.operation
-@openstack_plugin_common.with_cinder_client
+@operation
+@with_cinder_client
 def delete(cinder_client, **kwargs):
-    use_existing = cfy_ctx.properties['use_existing']
+    use_existing = ctx.properties['use_external_resource']
     if not use_existing:
-        volume_id = cfy_ctx.runtime_properties.get(VOLUME_ID)
+        volume_id = ctx.runtime_properties.get(VOLUME_ID)
         cinder_client.volumes.delete(volume_id)
-        del cfy_ctx.runtime_properties[VOLUME_ID]
+        del ctx.runtime_properties[VOLUME_ID]
 
 
-@openstack_plugin_common.with_cinder_client
+@with_cinder_client
 def get_volume(cinder_client, volume_name_or_id):
     if _is_uuid_like(volume_name_or_id):
         volume = cinder_client.volumes.get(volume_name_or_id)
@@ -76,7 +78,7 @@ def get_volume(cinder_client, volume_name_or_id):
     return volume
 
 
-@openstack_plugin_common.with_cinder_client
+@with_cinder_client
 def wait_until_status(cinder_client, volume_id, status, num_tries=10,
                       timeout=2):
     for _ in range(num_tries):
@@ -90,10 +92,10 @@ def wait_until_status(cinder_client, volume_id, status, num_tries=10,
             return volume, True
         time.sleep(timeout)
 
-    cfy_ctx.logger.warning("Volume {0} current state: '{1}', "
-                           "expected state: '{2}'".format(volume_id,
-                                                          volume.status,
-                                                          status))
+    ctx.logger.warning("Volume {0} current state: '{1}', "
+                       "expected state: '{2}'".format(volume_id,
+                                                      volume.status,
+                                                      status))
     return volume, False
 
 

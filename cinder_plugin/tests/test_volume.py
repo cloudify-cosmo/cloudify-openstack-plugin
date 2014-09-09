@@ -1,3 +1,4 @@
+#########
 # Copyright (c) 2014 GigaSpaces Technologies Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +17,11 @@ import contextlib
 import mock
 import unittest
 
+from cloudify import mocks as cfy_mocks
+
 from cinder_plugin import volume
 from nova_plugin import server
 import openstack_plugin_common
-from cloudify import mocks as cfy_mocks
 
 
 class TestCinderVolume(unittest.TestCase):
@@ -35,7 +37,7 @@ class TestCinderVolume(unittest.TestCase):
                 'size': volume_size,
                 'description': volume_description
             },
-            'use_existing': False,
+            'use_external_resource': False,
             'device_name': '/dev/fake',
             'resource_id': volume_name,
         }
@@ -68,7 +70,7 @@ class TestCinderVolume(unittest.TestCase):
         volume_id = '00000000-0000-0000-0000-000000000000'
 
         volume_properties = {
-            'use_existing': True,
+            'use_external_resource': True,
             'device_name': '/dev/fake',
             'resource_id': volume_id,
         }
@@ -92,7 +94,7 @@ class TestCinderVolume(unittest.TestCase):
         volume_id = '00000000-0000-0000-0000-000000000000'
 
         volume_properties = {
-            'use_existing': False,
+            'use_external_resource': False,
         }
 
         cinder_client_m = mock.Mock()

@@ -37,6 +37,7 @@ from openstack_plugin_common import (
     use_external_resource,
     delete_runtime_properties,
     is_external_relationship,
+    USE_EXTERNAL_RESOURCE_PROPERTY,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS
@@ -403,7 +404,7 @@ def _validate_external_server_nics(network_ids, port_ids):
     if new_nic_nodes:
         raise NonRecoverableError(
             "Can't connect new port and/or network nodes to a server node "
-            "with 'use_existing'=True")
+            "with '{0}'=True".format(USE_EXTERNAL_RESOURCE_PROPERTY))
 
     nc = _neutron_client()
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]

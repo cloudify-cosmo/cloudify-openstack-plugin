@@ -13,7 +13,7 @@ node_types:
         derived_from: cloudify.types.host
         properties:
             server: {}
-            use_existing:
+            use_external_resource:
                 default: False
             resource_id:
                 default: ''
@@ -48,7 +48,7 @@ node_types:
         derived_from: cloudify.types.subnet
         properties:
             subnet: {}
-            use_existing:
+            use_external_resource:
                 default: False
             resource_id:
                 default: ''
@@ -63,7 +63,7 @@ node_types:
         derived_from: cloudify.types.base
         properties:
             security_group: {}
-            use_existing:
+            use_external_resource:
                 default: False
             resource_id:
                 default: ''
@@ -82,7 +82,7 @@ node_types:
         derived_from: cloudify.types.base
         properties:
             security_group_rule: {}
-            use_existing:
+            use_external_resource:
                 default: False
             resource_id:
                 default: ''
@@ -98,7 +98,7 @@ node_types:
         properties:
             router:
                 default: {}
-            use_existing:
+            use_external_resource:
                 default: False
             resource_id:
                 default: ''
@@ -113,7 +113,7 @@ node_types:
         derived_from: cloudify.types.base
         properties:
             port: {}
-            use_existing:
+            use_external_resource:
                 default: False
             resource_id:
                 default: ''
@@ -127,7 +127,7 @@ node_types:
         derived_from: cloudify.types.network
         properties:
             network: {}
-            use_existing:
+            use_external_resource:
                 default: False
             resource_id:
                 default: ''
@@ -143,7 +143,7 @@ node_types:
         properties:
             floatingip:
                 default: {}
-            use_existing:
+            use_external_resource:
                 default: False
             resource_id:
                 default: ''

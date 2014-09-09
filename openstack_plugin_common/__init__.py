@@ -28,7 +28,7 @@ import cloudify
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 # properties
-USE_EXISTING_PROPERTY = 'use_existing'
+USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
 
 # runtime properties
 OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
@@ -151,7 +151,7 @@ def use_external_resource(ctx, sugared_client, openstack_type):
     if not resource_id:
         raise NonRecoverableError(
             "Can't set '{0}' to True without supplying a value for "
-            "'resource_id'".format(USE_EXISTING_PROPERTY))
+            "'resource_id'".format(USE_EXTERNAL_RESOURCE_PROPERTY))
 
     from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
     if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
@@ -175,8 +175,8 @@ def use_external_resource(ctx, sugared_client, openstack_type):
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
-    ctx.logger.info('Using existing {0}: {1}'.format(openstack_type,
-                                                     resource_id))
+    ctx.logger.info('Using external resource {0}: {1}'.format(
+        openstack_type, resource_id))
     return resource
 
 
@@ -205,8 +205,8 @@ def is_external_relationship(ctx):
 
 
 def is_external_resource_by_properties(properties):
-    return USE_EXISTING_PROPERTY in properties and \
-        properties[USE_EXISTING_PROPERTY]
+    return USE_EXTERNAL_RESOURCE_PROPERTY in properties and \
+        properties[USE_EXTERNAL_RESOURCE_PROPERTY]
 
 
 def delete_runtime_properties(ctx, runtime_properties_keys):

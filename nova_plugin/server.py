@@ -431,7 +431,7 @@ def _validate_external_server_nics(network_ids, port_ids):
 def _get_properties_by_node_instance_id(node_instance_id):
     client = get_rest_client()
     node_instance = client.node_instances.get(node_instance_id)
-    node = client.nodes.get(node_instance.node_id)
+    node = client.nodes.get(ctx.deployment_id, node_instance.node_id)
     return node.properties
 
 

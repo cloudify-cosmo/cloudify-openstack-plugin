@@ -368,14 +368,13 @@ def connect_floatingip(nova_client, **kwargs):
 
     server = nova_client.servers.get(server_id)
     server.add_floating_ip(floating_ip_address)
-    _set_network_and_ip_runtime_properties(server)
 
 
 @operation
 @with_nova_client
 def disconnect_floatingip(nova_client, **kwargs):
     if is_external_relationship(ctx):
-        ctx.logger.info('Not associating floatingip and server since '
+        ctx.logger.info('Not disassociating floatingip and server since '
                         'external floatingip and server are being used')
         return
 
@@ -383,7 +382,6 @@ def disconnect_floatingip(nova_client, **kwargs):
     server = nova_client.servers.get(server_id)
     server.remove_floating_ip(ctx.related.runtime_properties[
         IP_ADDRESS_PROPERTY])
-    _set_network_and_ip_runtime_properties(server)
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

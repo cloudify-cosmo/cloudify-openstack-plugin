@@ -17,6 +17,8 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
+import neutronclient.common.exceptions as neutron_exceptions
+
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
@@ -79,8 +81,15 @@ def create(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    delete_resource_and_runtime_properties(ctx, neutron_client,
-                                           RUNTIME_PROPERTIES_KEYS)
+    try:
+        delete_resource_and_runtime_properties(ctx, neutron_client,
+                                               RUNTIME_PROPERTIES_KEYS)
+    except neutron_exceptions.NeutronClientException, e:
+        if e.status_code == 404:
+            # port was probably deleted when an attached device was deleted
+            delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
+        else:
+            raise
 
 
 @operation

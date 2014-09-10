@@ -57,7 +57,7 @@ node_types:
         interfaces:
              cloudify.interfaces.lifecycle:
                   - create: openstack.neutron_plugin.subnet.create
-                  # deleted together with network
+                  - delete: openstack.neutron_plugin.subnet.delete
 
     cloudify.openstack.security_group:
         derived_from: cloudify.types.base
@@ -122,6 +122,7 @@ node_types:
         interfaces:
             cloudify.interfaces.lifecycle:
                 - create: openstack.neutron_plugin.port.create
+                - delete: openstack.neutron_plugin.port.delete
 
     cloudify.openstack.network:
         derived_from: cloudify.types.network

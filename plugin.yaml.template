@@ -4,9 +4,8 @@
 
 plugins:
     openstack:
-        derived_from: cloudify.plugins.manager_plugin
-        properties:
-            url: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/{{ plugin_branch }}.zip
+        executor: central_deployment_agent
+        source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/{{ plugin_branch }}.zip
 
 node_types:
     cloudify.openstack.server:

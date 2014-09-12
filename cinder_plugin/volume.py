@@ -108,7 +108,7 @@ def get_attachment(volume_id, server_id):
 
 def _get_volume_by_name(name, cinder_client):
     volumes = cinder_client.volumes.list()
-    result = [item for item in volumes if item.name == name]
+    result = [item for item in volumes if item.display_name == name]
     if len(result) != 1:
         raise cfy_exc.NonRecoverableError(
             "Multiple volumes match '{0}' name".format(name))

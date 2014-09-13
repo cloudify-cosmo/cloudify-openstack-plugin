@@ -14,7 +14,7 @@ node_types:
         properties:
             server: {}
             use_external_resource:
-                default: False
+                default: false
             resource_id:
                 default: ''
             management_network_name:
@@ -49,7 +49,7 @@ node_types:
         properties:
             subnet: {}
             use_external_resource:
-                default: False
+                default: false
             resource_id:
                 default: ''
             neutron_config:
@@ -64,7 +64,7 @@ node_types:
         properties:
             security_group: {}
             use_external_resource:
-                default: False
+                default: false
             resource_id:
                 default: ''
             neutron_config:
@@ -83,7 +83,7 @@ node_types:
         properties:
             security_group_rule: {}
             use_external_resource:
-                default: False
+                default: false
             resource_id:
                 default: ''
             neutron_config:
@@ -99,7 +99,7 @@ node_types:
             router:
                 default: {}
             use_external_resource:
-                default: False
+                default: false
             resource_id:
                 default: ''
             neutron_config:
@@ -114,7 +114,7 @@ node_types:
         properties:
             port: {}
             use_external_resource:
-                default: False
+                default: false
             resource_id:
                 default: ''
             neutron_config:
@@ -129,7 +129,7 @@ node_types:
         properties:
             network: {}
             use_external_resource:
-                default: False
+                default: false
             resource_id:
                 default: ''
             neutron_config:
@@ -145,7 +145,7 @@ node_types:
             floatingip:
                 default: {}
             use_external_resource:
-                default: False
+                default: false
             resource_id:
                 default: ''
             neutron_config:

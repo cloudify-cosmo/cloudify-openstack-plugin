@@ -12,6 +12,10 @@ node_types:
         derived_from: cloudify.types.host
         properties:
             server: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
             management_network_name:
                 default: ''
             nova_config:
@@ -20,6 +24,7 @@ node_types:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
+                - create: openstack.nova_plugin.server.create
                 - start: openstack.nova_plugin.server.start
                 - stop: openstack.nova_plugin.server.stop
                 - delete: openstack.nova_plugin.server.delete
@@ -42,17 +47,25 @@ node_types:
         derived_from: cloudify.types.subnet
         properties:
             subnet: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
             neutron_config:
                 default: {}
         interfaces:
              cloudify.interfaces.lifecycle:
                   - create: openstack.neutron_plugin.subnet.create
-                  # deleted together with network
+                  - delete: openstack.neutron_plugin.subnet.delete
 
     cloudify.openstack.security_group:
         derived_from: cloudify.types.base
         properties:
             security_group: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
             neutron_config:
                 default: {}
             rules:
@@ -68,6 +81,10 @@ node_types:
         derived_from: cloudify.types.base
         properties:
             security_group_rule: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
             neutron_config:
                 default: {}
         interfaces:
@@ -80,6 +97,10 @@ node_types:
         properties:
             router:
                 default: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
             neutron_config:
                 default: {}
         interfaces:
@@ -91,16 +112,25 @@ node_types:
         derived_from: cloudify.types.base
         properties:
             port: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
             neutron_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
                 - create: openstack.neutron_plugin.port.create
+                - delete: openstack.neutron_plugin.port.delete
 
     cloudify.openstack.network:
         derived_from: cloudify.types.network
         properties:
             network: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
             neutron_config:
                 default: {}
         interfaces:
@@ -113,6 +143,10 @@ node_types:
         properties:
             floatingip:
                 default: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
             neutron_config:
                 default: {}
         interfaces:

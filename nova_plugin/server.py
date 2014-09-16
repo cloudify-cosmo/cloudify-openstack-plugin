@@ -389,9 +389,21 @@ def disconnect_floatingip(nova_client, **kwargs):
 @with_nova_client
 def attach_volume(nova_client, **kwargs):
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
-    volume_id = ctx.related.runtime_properties[volume.VOLUME_ID]
-    device = ctx.related.runtime_properties[volume.VOLUME_DEVICE_NAME]
+    volume_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
+    if is_external_relationship(ctx):
+        ctx.logger.info('Validating external volume and server '
+                        'are connected')
+        attachment = volume.get_attachment(volume_id=volume_id,
+                                           server_id=server_id)
+        if attachment:
+            return
+        else:
+            raise NonRecoverableError(
+                'Expected external resources server {0} and volume {1} to be '
+                'connected'.format(server_id, volume_id))
+
+    device = ctx.related.runtime_properties[volume.VOLUME_DEVICE_NAME]
     nova_client.volumes.create_server_volume(server_id, volume_id, device)
     volume.wait_until_status(volume_id=volume_id,
                              status=volume.VOLUME_STATUS_IN_USE)
@@ -400,10 +412,16 @@ def attach_volume(nova_client, **kwargs):
 @operation
 @with_nova_client
 def detach_volume(nova_client, **kwargs):
-    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
-    volume_id = ctx.related.runtime_properties[volume.VOLUME_ID]
+    if is_external_relationship(ctx):
+        ctx.logger.info('Not detaching volume from server since '
+                        'external volume and server are being used')
+        return
 
-    attachment = volume.get_attachment(volume_id, server_id)
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    volume_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+    attachment = volume.get_attachment(volume_id=volume_id,
+                                       server_id=server_id)
     if attachment:
         nova_client.volumes.delete_server_volume(server_id, attachment['id'])
         volume.wait_until_status(volume_id=volume_id,

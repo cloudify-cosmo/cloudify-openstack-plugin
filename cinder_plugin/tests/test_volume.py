@@ -21,7 +21,10 @@ from cloudify import mocks as cfy_mocks
 
 from cinder_plugin import volume
 from nova_plugin import server
-import openstack_plugin_common
+from openstack_plugin_common import (CinderClient,
+                                     NovaClient,
+                                     OPENSTACK_ID_PROPERTY,
+                                     OPENSTACK_TYPE_PROPERTY)
 
 
 class TestCinderVolume(unittest.TestCase):
@@ -64,7 +67,9 @@ class TestCinderVolume(unittest.TestCase):
             description=volume_description)
         cinder_client_m.volumes.get.assert_called_once_with(volume_id)
         self.assertEqual(volume_id,
-                         ctx_m.runtime_properties[volume.VOLUME_ID])
+                         ctx_m.runtime_properties[OPENSTACK_ID_PROPERTY])
+        self.assertEqual(volume.VOLUME_OPENSTACK_TYPE,
+                         ctx_m.runtime_properties[OPENSTACK_TYPE_PROPERTY])
 
     def test_create_use_existing(self):
         volume_id = '00000000-0000-0000-0000-000000000000'
@@ -79,16 +84,20 @@ class TestCinderVolume(unittest.TestCase):
         existing_volume_m.status = volume.VOLUME_STATUS_AVAILABLE
         cinder_client_m = mock.Mock()
         cinder_client_m.volumes = mock.Mock()
-        cinder_client_m.volumes.get = mock.Mock(
+        cinder_client_m.volumes.create = mock.Mock()
+        cinder_client_m.cosmo_get_if_exists = mock.Mock(
             return_value=existing_volume_m)
-        volume_get_calls = [mock.call(volume_id), mock.call(volume_id)]
+        cinder_client_m.get_id_from_resource = mock.Mock(
+            return_value=volume_id)
         ctx_m = cfy_mocks.MockCloudifyContext(properties=volume_properties)
 
         volume.create(cinder_client=cinder_client_m, ctx=ctx_m)
 
-        cinder_client_m.volumes.get.assert_has_calls(volume_get_calls)
+        self.assertFalse(cinder_client_m.volumes.create.called)
         self.assertEqual(volume_id,
-                         ctx_m.runtime_properties[volume.VOLUME_ID])
+                         ctx_m.runtime_properties[OPENSTACK_ID_PROPERTY])
+        self.assertEqual(volume.VOLUME_OPENSTACK_TYPE,
+                         ctx_m.runtime_properties[OPENSTACK_TYPE_PROPERTY])
 
     def test_delete(self):
         volume_id = '00000000-0000-0000-0000-000000000000'
@@ -102,12 +111,16 @@ class TestCinderVolume(unittest.TestCase):
         cinder_client_m.volumes.delete = mock.Mock()
 
         ctx_m = cfy_mocks.MockCloudifyContext(properties=volume_properties)
-        ctx_m.runtime_properties[volume.VOLUME_ID] = volume_id
+        ctx_m.runtime_properties[OPENSTACK_ID_PROPERTY] = volume_id
+        ctx_m.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+            volume.VOLUME_OPENSTACK_TYPE
 
         volume.delete(cinder_client=cinder_client_m, ctx=ctx_m)
 
         cinder_client_m.volumes.delete.assert_called_once_with(volume_id)
-        self.assertTrue(volume.VOLUME_ID not in ctx_m.runtime_properties)
+        self.assertTrue(OPENSTACK_ID_PROPERTY not in ctx_m.runtime_properties)
+        self.assertTrue(OPENSTACK_TYPE_PROPERTY
+                        not in ctx_m.runtime_properties)
 
     def test_attach(self):
         volume_id = '00000000-0000-0000-0000-000000000000'
@@ -115,7 +128,7 @@ class TestCinderVolume(unittest.TestCase):
         device_name = '/dev/fake'
 
         volume_ctx_m = cfy_mocks.MockCloudifyContext()
-        volume_ctx_m.runtime_properties[volume.VOLUME_ID] = volume_id
+        volume_ctx_m.runtime_properties[OPENSTACK_ID_PROPERTY] = volume_id
         volume_ctx_m.runtime_properties[volume.VOLUME_DEVICE_NAME] = \
             device_name
 
@@ -127,14 +140,9 @@ class TestCinderVolume(unittest.TestCase):
         novaclient_m.volumes.create_server_volume = mock.Mock()
 
         with contextlib.nested(
-            mock.patch.object(
-                openstack_plugin_common.NovaClient,
-                'get',
-                mock.Mock(return_value=novaclient_m)),
-            mock.patch.object(
-                volume,
-                'wait_until_status',
-                mock.Mock())):
+                mock.patch.object(NovaClient, 'get',
+                                  mock.Mock(return_value=novaclient_m)),
+                mock.patch.object(volume, 'wait_until_status', mock.Mock())):
 
             server.attach_volume(ctx=ctx_m)
 
@@ -154,7 +162,7 @@ class TestCinderVolume(unittest.TestCase):
                       'volume_id': volume_id}
 
         volume_ctx_m = cfy_mocks.MockCloudifyContext()
-        volume_ctx_m.runtime_properties[volume.VOLUME_ID] = volume_id
+        volume_ctx_m.runtime_properties[OPENSTACK_ID_PROPERTY] = volume_id
 
         ctx_m = cfy_mocks.MockCloudifyContext(related=volume_ctx_m)
         ctx_m.runtime_properties[server.OPENSTACK_ID_PROPERTY] = server_id
@@ -173,18 +181,11 @@ class TestCinderVolume(unittest.TestCase):
         novaclient_m.volumes.delete_server_volume = mock.Mock()
 
         with contextlib.nested(
-            mock.patch.object(
-                openstack_plugin_common.NovaClient,
-                'get',
-                mock.Mock(return_value=novaclient_m)),
-            mock.patch.object(
-                openstack_plugin_common.CinderClient,
-                'get',
-                mock.Mock(return_value=cinder_client_m)),
-            mock.patch.object(
-                volume,
-                'wait_until_status',
-                mock.Mock())):
+                mock.patch.object(NovaClient, 'get',
+                                  mock.Mock(return_value=novaclient_m)),
+                mock.patch.object(CinderClient, 'get',
+                                  mock.Mock(return_value=cinder_client_m)),
+                mock.patch.object(volume, 'wait_until_status', mock.Mock())):
 
             server.detach_volume(ctx=ctx_m)
 

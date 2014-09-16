@@ -155,8 +155,12 @@ def use_external_resource(ctx, sugared_client, openstack_type):
             "Can't set '{0}' to True without supplying a value for "
             "'resource_id'".format(USE_EXTERNAL_RESOURCE_PROPERTY))
 
+    from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
     from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
-    if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
+    if openstack_type == VOLUME_OPENSTACK_TYPE:
+        resource = sugared_client.cosmo_get_if_exists(
+            openstack_type, display_name=resource_id)
+    elif openstack_type != FLOATINGIP_OPENSTACK_TYPE:
         # search for resource by name
         resource = sugared_client.cosmo_get_if_exists(
             openstack_type, name=resource_id)
@@ -290,11 +294,11 @@ class CinderClient(OpenStackClient):
     config = KeystoneConfig
 
     def connect(self, cfg, region=None):
-        return cinder_client.Client(username=cfg['username'],
-                                    api_key=cfg['password'],
-                                    project_id=cfg['tenant_name'],
-                                    auth_url=cfg['auth_url'],
-                                    region_name=region or cfg['region'])
+        return CinderClientWithSugar(username=cfg['username'],
+                                     api_key=cfg['password'],
+                                     project_id=cfg['tenant_name'],
+                                     auth_url=cfg['auth_url'],
+                                     region_name=region or cfg['region'])
 
 
 class NeutronClient(OpenStackClient):
@@ -495,3 +499,14 @@ class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
                 "Expected exactly one external network but found {0}".format(
                     len(ls)))
         return ls[0]
+
+
+class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        for obj in getattr(self, obj_type_plural).list(search_opts=kw):
+            yield obj
+
+    def get_id_from_resource(self, resource):
+        return resource.id

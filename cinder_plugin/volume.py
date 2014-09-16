@@ -14,16 +14,23 @@
 #  * limitations under the License.
 
 import time
-import uuid
 
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 
-from openstack_plugin_common import with_cinder_client
+from openstack_plugin_common import (delete_runtime_properties,
+                                     is_external_resource,
+                                     with_cinder_client,
+                                     get_default_resource_id,
+                                     transform_resource_name,
+                                     use_external_resource,
+                                     COMMON_RUNTIME_PROPERTIES_KEYS,
+                                     OPENSTACK_ID_PROPERTY,
+                                     OPENSTACK_TYPE_PROPERTY)
 
+VOLUME_OPENSTACK_TYPE = 'volume'
 VOLUME_DEVICE_NAME = 'volume_device_name'
-VOLUME_ID = 'volume_id'
 
 VOLUME_STATUS_CREATING = 'creating'
 VOLUME_STATUS_DELETING = 'deleting'
@@ -38,44 +45,34 @@ VOLUME_ERROR_STATUSES = (VOLUME_STATUS_ERROR, VOLUME_STATUS_ERROR_DELETING)
 @with_cinder_client
 def create(cinder_client, **kwargs):
     resource_id = ctx.properties['resource_id']
-    use_existing = ctx.properties['use_external_resource']
-    device_name = ctx.properties['device_name']
+    ctx.runtime_properties[VOLUME_DEVICE_NAME] = ctx.properties['device_name']
 
-    if use_existing:
-        v = get_volume(cinder_client=cinder_client,
-                       volume_name_or_id=resource_id)
-    else:
-        volume = {
-            'display_name': resource_id,
-        }
-        volume.update(ctx.properties['volume'])
-        v = cinder_client.volumes.create(**volume)
+    volume = use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE)
 
-    wait_until_status(cinder_client=cinder_client,
-                      volume_id=v.id,
-                      status=VOLUME_STATUS_AVAILABLE)
+    if volume is None:
+        name = resource_id or get_default_resource_id(ctx,
+                                                      VOLUME_OPENSTACK_TYPE)
+        name = transform_resource_name(ctx, name)
+        volume_dict = {'display_name': name}
+        volume_dict.update(ctx.properties['volume'])
 
-    ctx.runtime_properties[VOLUME_ID] = v.id
-    ctx.runtime_properties[VOLUME_DEVICE_NAME] = device_name
+        v = cinder_client.volumes.create(**volume_dict)
+
+        ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = v.id
+        ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+            VOLUME_OPENSTACK_TYPE
+        wait_until_status(cinder_client=cinder_client,
+                          volume_id=v.id,
+                          status=VOLUME_STATUS_AVAILABLE)
 
 
 @operation
 @with_cinder_client
 def delete(cinder_client, **kwargs):
-    use_existing = ctx.properties['use_external_resource']
-    if not use_existing:
-        volume_id = ctx.runtime_properties.get(VOLUME_ID)
+    if not is_external_resource(ctx):
+        volume_id = ctx.runtime_properties.get(OPENSTACK_ID_PROPERTY)
         cinder_client.volumes.delete(volume_id)
-        del ctx.runtime_properties[VOLUME_ID]
-
-
-@with_cinder_client
-def get_volume(cinder_client, volume_name_or_id):
-    if _is_uuid_like(volume_name_or_id):
-        volume = cinder_client.volumes.get(volume_name_or_id)
-    else:
-        volume = _get_volume_by_name(volume_name_or_id, cinder_client)
-    return volume
+    delete_runtime_properties(ctx, COMMON_RUNTIME_PROPERTIES_KEYS)
 
 
 @with_cinder_client
@@ -99,30 +96,9 @@ def wait_until_status(cinder_client, volume_id, status, num_tries=10,
     return volume, False
 
 
-def get_attachment(volume_id, server_id):
-    volume = get_volume(volume_name_or_id=volume_id)
+@with_cinder_client
+def get_attachment(cinder_client, volume_id, server_id):
+    volume = cinder_client.volumes.get(volume_id)
     for attachment in volume.attachments:
         if attachment['server_id'] == server_id:
             return attachment
-
-
-def _get_volume_by_name(name, cinder_client):
-    volumes = cinder_client.volumes.list()
-    result = [item for item in volumes if item.display_name == name]
-    if len(result) != 1:
-        raise cfy_exc.NonRecoverableError(
-            "Multiple volumes match '{0}' name".format(name))
-    return result[0]
-
-
-def _is_uuid_like(val):
-    """Returns validation of a value as a UUID.
-
-    For our purposes, a UUID is a canonical form string:
-    aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
-
-    """
-    try:
-        return str(uuid.UUID(val)) == val
-    except (TypeError, ValueError, AttributeError):
-        return False

@@ -61,7 +61,8 @@ node_types:
     cloudify.openstack.security_group:
         derived_from: cloudify.types.base
         properties:
-            security_group: {}
+            security_group:
+                default: {}
             use_external_resource:
                 default: false
             resource_id:
@@ -111,7 +112,8 @@ node_types:
     cloudify.openstack.port:
         derived_from: cloudify.types.base
         properties:
-            port: {}
+            port:
+                default: {}
             use_external_resource:
                 default: false
             resource_id:
@@ -126,7 +128,8 @@ node_types:
     cloudify.openstack.network:
         derived_from: cloudify.types.network
         properties:
-            network: {}
+            network:
+                default: {}
             use_external_resource:
                 default: false
             resource_id:

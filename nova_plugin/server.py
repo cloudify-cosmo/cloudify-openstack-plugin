@@ -113,12 +113,6 @@ def create(nova_client, **kwargs):
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
 
-    if 'nics' in server:
-        raise NonRecoverableError(
-            "Parameter with name 'nics' must not be passed to"
-            " openstack provisioner (under host's "
-            "properties.nova.instance)")
-
     _maybe_transform_userdata(server)
 
     management_network_id = None
@@ -137,7 +131,8 @@ def create(nova_client, **kwargs):
             management_network_id = int_network['id']
             management_network_name = int_network['name']  # Already transform.
     if management_network_id is not None:
-        server['nics'] = [{'net-id': management_network_id}]
+        server['nics'] = \
+            server.get('nics', []) + [{'net-id': management_network_id}]
 
     # Sugar
     if 'image_name' in server:

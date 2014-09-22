@@ -173,6 +173,15 @@ def create(nova_client, **kwargs):
     # Multi-NIC by networks - start
     nics = [{'net-id': net_id} for net_id in network_ids]
     if nics:
+        if management_network_id in network_ids:
+            # de-duplicating the management network id in case it appears in
+            # network_ids. There has to be a management network if a
+            # network is connected to the server.
+            # note: if the management network appears more than once in
+            # network_ids it won't get de-duplicated and the server creation
+            # will fail.
+            nics.remove({'net-id': management_network_id})
+
         server['nics'] = server.get('nics', []) + nics
     # Multi-NIC by networks - end
 

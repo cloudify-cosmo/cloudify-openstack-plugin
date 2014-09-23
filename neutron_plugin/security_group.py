@@ -25,12 +25,13 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
-    get_default_resource_id,
+    get_resource_id,
     use_external_resource,
     delete_resource_and_runtime_properties,
     delete_runtime_properties,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
+    OPENSTACK_NAME_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
 
@@ -67,7 +68,7 @@ def create(neutron_client, **kwargs):
 
     security_group = {
         'description': None,
-        'name': get_default_resource_id(ctx, SECURITY_GROUP_OPENSTACK_TYPE),
+        'name': get_resource_id(ctx, SECURITY_GROUP_OPENSTACK_TYPE),
     }
 
     security_group.update(ctx.properties['security_group'])
@@ -101,6 +102,7 @@ def create(neutron_client, **kwargs):
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = sg['id']
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         SECURITY_GROUP_OPENSTACK_TYPE
+    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = sg['name']
 
     try:
         if disable_default_egress_rules:

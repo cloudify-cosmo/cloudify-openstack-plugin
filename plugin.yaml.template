@@ -18,9 +18,7 @@ node_types:
                 default: ''
             management_network_name:
                 default: ''
-            nova_config:
-                default: {}
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -51,7 +49,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
              cloudify.interfaces.lifecycle:
@@ -67,7 +65,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
             rules:
                 default: []
@@ -86,7 +84,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -102,7 +100,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -118,7 +116,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -134,7 +132,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -150,7 +148,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
              cloudify.interfaces.lifecycle:

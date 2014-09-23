@@ -29,7 +29,7 @@ from openstack_plugin_common import (
     NeutronClient,
     provider,
     transform_resource_name,
-    get_default_resource_id,
+    get_resource_id,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     with_nova_client,
     is_external_resource,
@@ -40,6 +40,7 @@ from openstack_plugin_common import (
     USE_EXTERNAL_RESOURCE_PROPERTY,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
+    OPENSTACK_NAME_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
 from neutron_plugin.floatingip import IP_ADDRESS_PROPERTY
@@ -105,7 +106,7 @@ def create(nova_client, **kwargs):
     # For possible changes by _maybe_transform_userdata()
 
     server = {
-        'name': get_default_resource_id(ctx, SERVER_OPENSTACK_TYPE),
+        'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
     server.update(copy.deepcopy(ctx.properties['server']))
     transform_resource_name(ctx, server)
@@ -241,6 +242,7 @@ def create(nova_client, **kwargs):
         raise NonRecoverableError("Nova client error: " + str(e))
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = s.id
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = SERVER_OPENSTACK_TYPE
+    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = server['name']
 
 
 def _neutron_client():

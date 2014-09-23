@@ -33,10 +33,12 @@ USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
 # runtime properties
 OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
 OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
+OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name
 
 # runtime properties which all types use
 COMMON_RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
-                                  OPENSTACK_TYPE_PROPERTY]
+                                  OPENSTACK_TYPE_PROPERTY,
+                                  OPENSTACK_NAME_PROPERTY]
 
 
 class ProviderContext(object):
@@ -112,7 +114,9 @@ def get_openstack_id_of_single_connected_node_by_openstack_type(
     return ids[0] if ids else None
 
 
-def get_default_resource_id(ctx, type_name):
+def get_resource_id(ctx, type_name):
+    if ctx.properties['resource_id']:
+        return ctx.properties['resource_id']
     return "{0}_{1}_{2}".format(type_name, ctx.deployment_id, ctx.node_id)
 
 
@@ -175,6 +179,11 @@ def use_external_resource(ctx, sugared_client, openstack_type):
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
+
+    if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
+        ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+            sugared_client.get_name_from_resource(resource)
+
     ctx.logger.info('Using external resource {0}: {1}'.format(
         openstack_type, resource_id))
     return resource
@@ -216,63 +225,84 @@ def delete_runtime_properties(ctx, runtime_properties_keys):
 
 
 class Config(object):
+
+    OPENSTACK_CONFIG_PATH_ENV_VAR = 'OPENSTACK_CONFIG_PATH'
+    OPENSTACK_CONFIG_PATH_DEFAULT_PATH = '~/openstack_config.json'
+
     def get(self):
-        which = self.__class__.which
-        env_name = which.upper() + '_CONFIG_PATH'
-        default_location_tpl = '~/' + which + '_config.json'
+        cfg = self._build_config_from_env_variables()
+        env_name = self.OPENSTACK_CONFIG_PATH_ENV_VAR
+        default_location_tpl = self.OPENSTACK_CONFIG_PATH_DEFAULT_PATH
         default_location = os.path.expanduser(default_location_tpl)
         config_path = os.getenv(env_name, default_location)
         try:
             with open(config_path) as f:
-                cfg = json.loads(f.read())
+                cfg.update(json.loads(f.read()))
         except IOError:
-            raise NonRecoverableError(
-                "Failed to read {0} configuration from file '{1}'."
-                "The configuration is looked up in {2}. If defined, "
-                "environment variable "
-                "{3} overrides that location.".format(
-                    which, config_path, default_location_tpl, env_name))
+            pass
         return cfg
 
+    def _build_config_from_env_variables(self):
+        cfg = dict()
 
-class KeystoneConfig(Config):
-    which = 'keystone'
+        def take_env_var_if_exists(cfg_key, env_var):
+            if env_var in os.environ:
+                cfg[cfg_key] = os.environ[env_var]
 
+        take_env_var_if_exists('username', 'OS_USERNAME')
+        take_env_var_if_exists('password', 'OS_PASSWORD')
+        take_env_var_if_exists('tenant_name', 'OS_TENANT_NAME')
+        take_env_var_if_exists('auth_url', 'OS_AUTH_URL')
 
-class NeutronConfig(Config):
-    which = 'neutron'
-
-
-class TestsConfig(Config):
-    which = 'os_tests'
+        return cfg
 
 
 class OpenStackClient(object):
     def get(self, config=None, *args, **kw):
-        static_config = self.__class__.config().get()
+        static_config = Config().get()
         cfg = {}
         cfg.update(static_config)
         if config:
             cfg.update(config)
+
+        self._validate_config(cfg)
         ret = self.connect(cfg, *args, **kw)
         ret.format = 'json'
         return ret
+
+    def _validate_config(self, cfg):
+        missing_config_params = \
+            [param for param in self.REQUIRED_CONFIG_PARAMS if param not in
+             cfg]
+
+        if missing_config_params:
+            raise NonRecoverableError(
+                "Missing Openstack configuration parameters: {0}; "
+                "Expected to find parameters either as environment "
+                "variables, in a JSON file (at either a path which is "
+                "set under the environment variable {1} or at the "
+                "default location {2}), or as nested properties under "
+                "a 'openstack_config' property".format(
+                    missing_config_params,
+                    Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
+                    Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH))
 
 
 # Clients acquireres
 class KeystoneClient(OpenStackClient):
 
-    config = KeystoneConfig
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url']
 
     def connect(self, cfg):
-        args = {field: cfg[field] for field in (
-            'username', 'password', 'tenant_name', 'auth_url')}
+        args = {field: cfg[field] for field in self.REQUIRED_CONFIG_PARAMS}
         return keystone_client.Client(**args)
 
 
 class NovaClient(OpenStackClient):
 
-    config = KeystoneConfig
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url', 'region']
 
     def connect(self, cfg, region=None):
         return NovaClientWithSugar(username=cfg['username'],
@@ -285,13 +315,13 @@ class NovaClient(OpenStackClient):
 
 class NeutronClient(OpenStackClient):
 
-    config = NeutronConfig
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url', 'neutron_url']
 
     def connect(self, cfg):
-        ks = KeystoneClient().get(config=cfg.get('keystone_config'))
-        ret = NeutronClientWithSugar(endpoint_url=cfg['url'],
+        ks = KeystoneClient().connect(cfg=cfg)
+        ret = NeutronClientWithSugar(endpoint_url=cfg['neutron_url'],
                                      token=ks.auth_token)
-        ret.format = 'json'
         return ret
 
 
@@ -316,7 +346,7 @@ def with_neutron_client(f):
     def wrapper(*args, **kw):
         ctx = _find_context_in_kw(kw)
         if ctx:
-            config = ctx.properties.get('neutron_config')
+            config = ctx.properties.get('openstack_config')
         else:
             config = None
         kw['neutron_client'] = NeutronClient().get(config=config)
@@ -335,7 +365,7 @@ def with_nova_client(f):
     def wrapper(*args, **kw):
         ctx = _find_context_in_kw(kw)
         if ctx:
-            config = ctx.properties.get('nova_config')
+            config = ctx.properties.get('openstack_config')
         else:
             config = None
         kw['nova_client'] = NovaClient().get(config=config)
@@ -409,6 +439,9 @@ class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
     def get_id_from_resource(self, resource):
         return resource.id
 
+    def get_name_from_resource(self, resource):
+        return resource.name
+
 
 class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
 
@@ -424,6 +457,9 @@ class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
 
     def get_id_from_resource(self, resource):
         return resource['id']
+
+    def get_name_from_resource(self, resource):
+        return resource['name']
 
     def cosmo_list_prefixed(self, obj_type_single, name_prefix):
         for obj in self.cosmo_list(obj_type_single):

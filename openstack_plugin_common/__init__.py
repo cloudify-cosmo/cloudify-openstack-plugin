@@ -345,14 +345,10 @@ def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         ctx = _find_context_in_kw(kw)
-        t = open('/home/ran/DBG-INIT', 'a', 0)
         if ctx:
             config = ctx.properties.get('openstack_config')
-            import json
-            t.write('{0}\n\n'.format(json.dumps(config)))
         else:
             config = None
-            t.write('no config\n\n')
         kw['neutron_client'] = NeutronClient().get(config=config)
         try:
             return f(*args, **kw)

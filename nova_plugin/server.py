@@ -246,7 +246,7 @@ def create(nova_client, **kwargs):
 
 
 def _neutron_client():
-    return NeutronClient().get(config=ctx.properties.get('neutron_config'))
+    return NeutronClient().get(config=ctx.properties.get('openstack_config'))
 
 
 @operation

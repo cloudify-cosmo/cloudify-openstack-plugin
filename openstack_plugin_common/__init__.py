@@ -230,19 +230,20 @@ class Config(object):
     OPENSTACK_CONFIG_PATH_DEFAULT_PATH = '~/openstack_config.json'
 
     def get(self):
-        cfg = self._build_config_from_env_variables()
+        static_config = self._build_config_from_env_variables()
         env_name = self.OPENSTACK_CONFIG_PATH_ENV_VAR
         default_location_tpl = self.OPENSTACK_CONFIG_PATH_DEFAULT_PATH
         default_location = os.path.expanduser(default_location_tpl)
         config_path = os.getenv(env_name, default_location)
         try:
             with open(config_path) as f:
-                cfg.update(json.loads(f.read()))
+                Config.update_config(static_config, json.loads(f.read()))
         except IOError:
             pass
-        return cfg
+        return static_config
 
-    def _build_config_from_env_variables(self):
+    @staticmethod
+    def _build_config_from_env_variables():
         cfg = dict()
 
         def take_env_var_if_exists(cfg_key, env_var):
@@ -256,14 +257,20 @@ class Config(object):
 
         return cfg
 
+    @staticmethod
+    def update_config(overridden_cfg, overriding_cfg):
+        """ this method is like dict.update() only that it doesn't override
+        with (or set new) empty values (e.g. empty string) """
+        for k, v in overriding_cfg.iteritems():
+            if v:
+                overridden_cfg[k] = v
+
 
 class OpenStackClient(object):
     def get(self, config=None, *args, **kw):
-        static_config = Config().get()
-        cfg = {}
-        cfg.update(static_config)
+        cfg = Config().get()
         if config:
-            cfg.update(config)
+            Config.update_config(cfg, config)
 
         self._validate_config(cfg)
         ret = self.connect(cfg, *args, **kw)

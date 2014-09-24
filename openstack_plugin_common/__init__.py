@@ -273,7 +273,7 @@ class OpenStackClient(object):
     def _validate_config(self, cfg):
         missing_config_params = \
             [param for param in self.REQUIRED_CONFIG_PARAMS if param not in
-             cfg]
+             cfg or not cfg[param]]
 
         if missing_config_params:
             raise NonRecoverableError(

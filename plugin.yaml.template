@@ -176,6 +176,13 @@ relationships:
                 - establish: openstack.nova_plugin.server.connect_floatingip
                 - unlink: openstack.nova_plugin.server.disconnect_floatingip
 
+    cloudify.openstack.server_connected_to_security_group:
+        derived_from: cloudify.relationships.connected_to
+        source_interfaces:
+            cloudify.interfaces.relationship_lifecycle:
+                - establish: openstack.nova_plugin.server.connect_security_group
+                - unlink: openstack.nova_plugin.server.disconnect_security_group
+
     cloudify.openstack.server_connected_to_port:
         derived_from: cloudify.relationships.connected_to
         

@@ -145,12 +145,12 @@ def create(nova_client, **kwargs):
             name=server['flavor_name']).id
         del server['flavor_name']
 
-    security_groups = map(rename, server.get('security_groups', []))
     if provider_context.agents_security_group:
+        security_groups = server.get('security_groups', [])
         asg = provider_context.agents_security_group['name']
         if asg not in security_groups:
             security_groups.append(asg)
-    server['security_groups'] = security_groups
+        server['security_groups'] = security_groups
 
     if 'key_name' in server:
         server['key_name'] = rename(server['key_name'])
@@ -388,6 +388,41 @@ def disconnect_floatingip(nova_client, **kwargs):
     server = nova_client.servers.get(server_id)
     server.remove_floating_ip(ctx.related.runtime_properties[
         IP_ADDRESS_PROPERTY])
+
+
+@operation
+@with_nova_client
+def connect_security_group(nova_client, **kwargs):
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    security_group_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+    if is_external_relationship(ctx):
+        ctx.logger.info('Validating external security group and server '
+                        'are associated')
+        server = nova_client.servers.get(server_id)
+        if [sg for sg in server.list_security_group() if sg.id ==
+                security_group_id]:
+            return
+        raise NonRecoverableError(
+            'Expected external resources server {0} and security-group {1} to '
+            'be connected'.format(server_id, security_group_id))
+
+    server = nova_client.servers.get(server_id)
+    server.add_security_group(security_group_id)
+
+
+@operation
+@with_nova_client
+def disconnect_security_group(nova_client, **kwargs):
+    if is_external_relationship(ctx):
+        ctx.logger.info('Not disconnecting security group and server since '
+                        'external security group and server are being used')
+        return
+
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server = nova_client.servers.get(server_id)
+    server.remove_security_group(ctx.related.runtime_properties[
+        OPENSTACK_ID_PROPERTY])
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

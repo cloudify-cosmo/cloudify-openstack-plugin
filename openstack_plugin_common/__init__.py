@@ -323,13 +323,14 @@ class NovaClient(OpenStackClient):
 class NeutronClient(OpenStackClient):
 
     REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url', 'neutron_url']
+        ['username', 'password', 'tenant_name', 'auth_url', 'region']
 
     def connect(self, cfg):
-        ks = KeystoneClient().connect(cfg=cfg)
-        ret = NeutronClientWithSugar(endpoint_url=cfg['neutron_url'],
-                                     token=ks.auth_token)
-        return ret
+        return NeutronClientWithSugar(username=cfg['username'],
+                                      password=cfg['password'],
+                                      tenant_name=cfg['tenant_name'],
+                                      auth_url=cfg['auth_url'],
+                                      region_name=cfg['region'])
 
 
 # Decorators

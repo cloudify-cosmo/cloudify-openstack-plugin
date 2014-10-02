@@ -376,7 +376,8 @@ def with_neutron_client(f):
             config = ctx.properties.get('openstack_config')
         else:
             config = None
-        kw['neutron_client'] = NeutronClient().get(config=config)
+        if 'neutron_client' not in kw:
+            kw['neutron_client'] = NeutronClient().get(config=config)
         try:
             return f(*args, **kw)
         except neutron_exceptions.NeutronClientException, e:
@@ -395,7 +396,8 @@ def with_nova_client(f):
             config = ctx.properties.get('openstack_config')
         else:
             config = None
-        kw['nova_client'] = NovaClient().get(config=config)
+        if 'nova_client' not in kw:
+            kw['nova_client'] = NovaClient().get(config=config)
         try:
             return f(*args, **kw)
         except nova_exceptions.OverLimit, e:

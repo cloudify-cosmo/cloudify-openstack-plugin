@@ -19,15 +19,15 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 
-from openstack_plugin_common import (delete_runtime_properties,
-                                     is_external_resource,
+from openstack_plugin_common import (delete_resource_and_runtime_properties,
                                      with_cinder_client,
                                      get_resource_id,
                                      transform_resource_name,
                                      use_external_resource,
                                      COMMON_RUNTIME_PROPERTIES_KEYS,
                                      OPENSTACK_ID_PROPERTY,
-                                     OPENSTACK_TYPE_PROPERTY)
+                                     OPENSTACK_TYPE_PROPERTY,
+                                     OPENSTACK_NAME_PROPERTY)
 
 VOLUME_OPENSTACK_TYPE = 'volume'
 VOLUME_DEVICE_NAME = 'volume_device_name'
@@ -39,6 +39,8 @@ VOLUME_STATUS_IN_USE = 'in-use'
 VOLUME_STATUS_ERROR = 'error'
 VOLUME_STATUS_ERROR_DELETING = 'error_deleting'
 VOLUME_ERROR_STATUSES = (VOLUME_STATUS_ERROR, VOLUME_STATUS_ERROR_DELETING)
+
+RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation
@@ -60,6 +62,8 @@ def create(cinder_client, **kwargs):
         ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = v.id
         ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
             VOLUME_OPENSTACK_TYPE
+        ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+            volume_dict['display_name']
         wait_until_status(cinder_client=cinder_client,
                           volume_id=v.id,
                           status=VOLUME_STATUS_AVAILABLE)
@@ -68,10 +72,8 @@ def create(cinder_client, **kwargs):
 @operation
 @with_cinder_client
 def delete(cinder_client, **kwargs):
-    if not is_external_resource(ctx):
-        volume_id = ctx.runtime_properties.get(OPENSTACK_ID_PROPERTY)
-        cinder_client.volumes.delete(volume_id)
-    delete_runtime_properties(ctx, COMMON_RUNTIME_PROPERTIES_KEYS)
+    delete_resource_and_runtime_properties(ctx, cinder_client,
+                                           RUNTIME_PROPERTIES_KEYS)
 
 
 @with_cinder_client

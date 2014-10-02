@@ -485,7 +485,7 @@ class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
         obj_type_plural = self.cosmo_plural(obj_type_single)
-        getattr(self, obj_type_plural).delete(id=obj_id)
+        getattr(self, obj_type_plural).delete(obj_id)
 
     def get_id_from_resource(self, resource):
         return resource.id
@@ -552,5 +552,12 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
         for obj in getattr(self, obj_type_plural).list(search_opts=kw):
             yield obj
 
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
     def get_id_from_resource(self, resource):
         return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.name

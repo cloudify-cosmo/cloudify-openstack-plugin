@@ -30,7 +30,7 @@ from openstack_plugin_common import (
     NeutronClient,
     provider,
     transform_resource_name,
-    get_default_resource_id,
+    get_resource_id,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     with_nova_client,
     is_external_resource,
@@ -41,6 +41,7 @@ from openstack_plugin_common import (
     USE_EXTERNAL_RESOURCE_PROPERTY,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
+    OPENSTACK_NAME_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
 from neutron_plugin.floatingip import IP_ADDRESS_PROPERTY
@@ -106,19 +107,13 @@ def create(nova_client, **kwargs):
     # For possible changes by _maybe_transform_userdata()
 
     server = {
-        'name': get_default_resource_id(ctx, SERVER_OPENSTACK_TYPE),
+        'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
     server.update(copy.deepcopy(ctx.properties['server']))
     transform_resource_name(ctx, server)
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
-
-    if 'nics' in server:
-        raise NonRecoverableError(
-            "Parameter with name 'nics' must not be passed to"
-            " openstack provisioner (under host's "
-            "properties.nova.instance)")
 
     _maybe_transform_userdata(server)
 
@@ -138,7 +133,8 @@ def create(nova_client, **kwargs):
             management_network_id = int_network['id']
             management_network_name = int_network['name']  # Already transform.
     if management_network_id is not None:
-        server['nics'] = [{'net-id': management_network_id}]
+        server['nics'] = \
+            server.get('nics', []) + [{'net-id': management_network_id}]
 
     # Sugar
     if 'image_name' in server:
@@ -150,12 +146,12 @@ def create(nova_client, **kwargs):
             name=server['flavor_name']).id
         del server['flavor_name']
 
-    security_groups = map(rename, server.get('security_groups', []))
     if provider_context.agents_security_group:
+        security_groups = server.get('security_groups', [])
         asg = provider_context.agents_security_group['name']
         if asg not in security_groups:
             security_groups.append(asg)
-    server['security_groups'] = security_groups
+        server['security_groups'] = security_groups
 
     if 'key_name' in server:
         server['key_name'] = rename(server['key_name'])
@@ -179,6 +175,15 @@ def create(nova_client, **kwargs):
     # Multi-NIC by networks - start
     nics = [{'net-id': net_id} for net_id in network_ids]
     if nics:
+        if management_network_id in network_ids:
+            # de-duplicating the management network id in case it appears in
+            # network_ids. There has to be a management network if a
+            # network is connected to the server.
+            # note: if the management network appears more than once in
+            # network_ids it won't get de-duplicated and the server creation
+            # will fail.
+            nics.remove({'net-id': management_network_id})
+
         server['nics'] = server.get('nics', []) + nics
     # Multi-NIC by networks - end
 
@@ -238,10 +243,11 @@ def create(nova_client, **kwargs):
         raise NonRecoverableError("Nova client error: " + str(e))
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = s.id
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = SERVER_OPENSTACK_TYPE
+    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = server['name']
 
 
 def _neutron_client():
-    return NeutronClient().get(config=ctx.properties.get('neutron_config'))
+    return NeutronClient().get(config=ctx.properties.get('openstack_config'))
 
 
 @operation
@@ -383,6 +389,41 @@ def disconnect_floatingip(nova_client, **kwargs):
     server = nova_client.servers.get(server_id)
     server.remove_floating_ip(ctx.related.runtime_properties[
         IP_ADDRESS_PROPERTY])
+
+
+@operation
+@with_nova_client
+def connect_security_group(nova_client, **kwargs):
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    security_group_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+    if is_external_relationship(ctx):
+        ctx.logger.info('Validating external security group and server '
+                        'are associated')
+        server = nova_client.servers.get(server_id)
+        if [sg for sg in server.list_security_group() if sg.id ==
+                security_group_id]:
+            return
+        raise NonRecoverableError(
+            'Expected external resources server {0} and security-group {1} to '
+            'be connected'.format(server_id, security_group_id))
+
+    server = nova_client.servers.get(server_id)
+    server.add_security_group(security_group_id)
+
+
+@operation
+@with_nova_client
+def disconnect_security_group(nova_client, **kwargs):
+    if is_external_relationship(ctx):
+        ctx.logger.info('Not disconnecting security group and server since '
+                        'external security group and server are being used')
+        return
+
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server = nova_client.servers.get(server_id)
+    server.remove_security_group(ctx.related.runtime_properties[
+        OPENSTACK_ID_PROPERTY])
 
 
 @operation

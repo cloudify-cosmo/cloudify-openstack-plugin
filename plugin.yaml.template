@@ -18,9 +18,7 @@ node_types:
                 default: ''
             management_network_name:
                 default: ''
-            nova_config:
-                default: {}
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -51,7 +49,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
              cloudify.interfaces.lifecycle:
@@ -61,12 +59,13 @@ node_types:
     cloudify.openstack.security_group:
         derived_from: cloudify.types.base
         properties:
-            security_group: {}
+            security_group:
+                default: {}
             use_external_resource:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
             rules:
                 default: []
@@ -85,7 +84,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -101,7 +100,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -111,12 +110,13 @@ node_types:
     cloudify.openstack.port:
         derived_from: cloudify.types.base
         properties:
-            port: {}
+            port:
+                default: {}
             use_external_resource:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -126,12 +126,13 @@ node_types:
     cloudify.openstack.network:
         derived_from: cloudify.types.network
         properties:
-            network: {}
+            network:
+                default: {}
             use_external_resource:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
@@ -147,7 +148,7 @@ node_types:
                 default: false
             resource_id:
                 default: ''
-            neutron_config:
+            openstack_config:
                 default: {}
         interfaces:
              cloudify.interfaces.lifecycle:
@@ -191,6 +192,13 @@ relationships:
             cloudify.interfaces.relationship_lifecycle:
                 - establish: openstack.nova_plugin.server.connect_floatingip
                 - unlink: openstack.nova_plugin.server.disconnect_floatingip
+
+    cloudify.openstack.server_connected_to_security_group:
+        derived_from: cloudify.relationships.connected_to
+        source_interfaces:
+            cloudify.interfaces.relationship_lifecycle:
+                - establish: openstack.nova_plugin.server.connect_security_group
+                - unlink: openstack.nova_plugin.server.disconnect_security_group
 
     cloudify.openstack.server_connected_to_port:
         derived_from: cloudify.relationships.connected_to

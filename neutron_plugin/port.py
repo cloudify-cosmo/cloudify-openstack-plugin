@@ -22,7 +22,7 @@ import neutronclient.common.exceptions as neutron_exceptions
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
-    get_default_resource_id,
+    get_resource_id,
     get_openstack_id_of_single_connected_node_by_openstack_type,
     delete_resource_and_runtime_properties,
     delete_runtime_properties,
@@ -30,6 +30,7 @@ from openstack_plugin_common import (
     is_external_relationship,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
+    OPENSTACK_NAME_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
 
@@ -67,7 +68,7 @@ def create(neutron_client, **kwargs):
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
     port = {
-        'name': get_default_resource_id(ctx, PORT_OPENSTACK_TYPE),
+        'name': get_resource_id(ctx, PORT_OPENSTACK_TYPE),
         'network_id': net_id,
         'security_groups': [],
     }
@@ -76,6 +77,7 @@ def create(neutron_client, **kwargs):
     p = neutron_client.create_port({'port': port})['port']
     ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = PORT_OPENSTACK_TYPE
+    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = p['name']
 
 
 @operation

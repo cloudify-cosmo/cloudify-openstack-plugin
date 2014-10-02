@@ -38,8 +38,8 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
 @with_neutron_client
 def create(neutron_client, **kwargs):
 
-    external_fip = use_external_resource(ctx, neutron_client,
-                                         FLOATINGIP_OPENSTACK_TYPE)
+    external_fip = use_external_resource(
+        ctx, neutron_client, FLOATINGIP_OPENSTACK_TYPE, 'floating_ip_address')
     if external_fip:
         ctx.runtime_properties[IP_ADDRESS_PROPERTY] = \
             external_fip['floating_ip_address']

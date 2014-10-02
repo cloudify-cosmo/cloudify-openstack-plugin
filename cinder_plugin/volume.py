@@ -51,7 +51,8 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 @with_cinder_client
 def create(cinder_client, **kwargs):
 
-    if use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE):
+    if use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
+                             'display_name'):
         return
 
     name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)

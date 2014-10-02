@@ -149,7 +149,8 @@ def transform_resource_name(ctx, res):
     return res['name']
 
 
-def use_external_resource(ctx, sugared_client, openstack_type):
+def use_external_resource(ctx, sugared_client, openstack_type,
+                          name_field_name='name'):
     if not is_external_resource(ctx):
         return None
 
@@ -159,19 +160,10 @@ def use_external_resource(ctx, sugared_client, openstack_type):
             "Can't set '{0}' to True without supplying a value for "
             "'resource_id'".format(USE_EXTERNAL_RESOURCE_PROPERTY))
 
-    from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
-    from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
-    if openstack_type == VOLUME_OPENSTACK_TYPE:
-        resource = sugared_client.cosmo_get_if_exists(
-            openstack_type, display_name=resource_id)
-    elif openstack_type != FLOATINGIP_OPENSTACK_TYPE:
-        # search for resource by name
-        resource = sugared_client.cosmo_get_if_exists(
-            openstack_type, name=resource_id)
-    else:
-        # search for resource by ip address
-        resource = sugared_client.cosmo_get_if_exists(
-            openstack_type, floating_ip_address=resource_id)
+    # search for resource by name (or name-equivalent field)
+    search_param = {name_field_name: resource_id}
+    resource = sugared_client.cosmo_get_if_exists(openstack_type,
+                                                  **search_param)
 
     if not resource:
         # fallback - search for resource by id
@@ -186,6 +178,9 @@ def use_external_resource(ctx, sugared_client, openstack_type):
         sugared_client.get_id_from_resource(resource)
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
 
+    from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
+    # store openstack name runtime property, unless it's a floating IP type,
+    # in which case the ip will be stored in the runtime properties instead.
     if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
         ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
             sugared_client.get_name_from_resource(resource)

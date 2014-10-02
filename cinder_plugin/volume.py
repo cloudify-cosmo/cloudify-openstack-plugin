@@ -22,7 +22,7 @@ from cloudify import exceptions as cfy_exc
 from openstack_plugin_common import (delete_runtime_properties,
                                      is_external_resource,
                                      with_cinder_client,
-                                     get_default_resource_id,
+                                     get_resource_id,
                                      transform_resource_name,
                                      use_external_resource,
                                      COMMON_RUNTIME_PROPERTIES_KEYS,
@@ -44,14 +44,12 @@ VOLUME_ERROR_STATUSES = (VOLUME_STATUS_ERROR, VOLUME_STATUS_ERROR_DELETING)
 @operation
 @with_cinder_client
 def create(cinder_client, **kwargs):
-    resource_id = ctx.properties['resource_id']
     ctx.runtime_properties[VOLUME_DEVICE_NAME] = ctx.properties['device_name']
 
     volume = use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE)
 
     if volume is None:
-        name = resource_id or get_default_resource_id(ctx,
-                                                      VOLUME_OPENSTACK_TYPE)
+        name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)
         volume_dict = {'display_name': name}
         volume_dict.update(ctx.properties['volume'])
         volume_dict['display_name'] = transform_resource_name(

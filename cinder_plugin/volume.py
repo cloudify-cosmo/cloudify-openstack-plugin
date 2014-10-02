@@ -29,9 +29,6 @@ from openstack_plugin_common import (delete_resource_and_runtime_properties,
                                      OPENSTACK_TYPE_PROPERTY,
                                      OPENSTACK_NAME_PROPERTY)
 
-VOLUME_OPENSTACK_TYPE = 'volume'
-VOLUME_DEVICE_NAME = 'volume_device_name'
-
 VOLUME_STATUS_CREATING = 'creating'
 VOLUME_STATUS_DELETING = 'deleting'
 VOLUME_STATUS_AVAILABLE = 'available'
@@ -40,33 +37,38 @@ VOLUME_STATUS_ERROR = 'error'
 VOLUME_STATUS_ERROR_DELETING = 'error_deleting'
 VOLUME_ERROR_STATUSES = (VOLUME_STATUS_ERROR, VOLUME_STATUS_ERROR_DELETING)
 
+# Note: The 'device_name' property should actually be a property of the
+# relationship between a server and a volume; It'll move to that
+# relationship type once relationship properties are better supported.
+DEVICE_NAME_PROPERTY = 'device_name'
+
+VOLUME_OPENSTACK_TYPE = 'volume'
+
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation
 @with_cinder_client
 def create(cinder_client, **kwargs):
-    ctx.runtime_properties[VOLUME_DEVICE_NAME] = ctx.properties['device_name']
 
-    volume = use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE)
+    if use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE):
+        return
 
-    if volume is None:
-        name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)
-        volume_dict = {'display_name': name}
-        volume_dict.update(ctx.properties['volume'])
-        volume_dict['display_name'] = transform_resource_name(
-            ctx, volume_dict['display_name'])
+    name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)
+    volume_dict = {'display_name': name}
+    volume_dict.update(ctx.properties['volume'])
+    volume_dict['display_name'] = transform_resource_name(
+        ctx, volume_dict['display_name'])
 
-        v = cinder_client.volumes.create(**volume_dict)
+    v = cinder_client.volumes.create(**volume_dict)
 
-        ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = v.id
-        ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-            VOLUME_OPENSTACK_TYPE
-        ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
-            volume_dict['display_name']
-        wait_until_status(cinder_client=cinder_client,
-                          volume_id=v.id,
-                          status=VOLUME_STATUS_AVAILABLE)
+    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = v.id
+    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = VOLUME_OPENSTACK_TYPE
+    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+        volume_dict['display_name']
+    wait_until_status(cinder_client=cinder_client,
+                      volume_id=v.id,
+                      status=VOLUME_STATUS_AVAILABLE)
 
 
 @operation

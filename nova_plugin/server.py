@@ -444,7 +444,10 @@ def attach_volume(nova_client, **kwargs):
                 'Expected external resources server {0} and volume {1} to be '
                 'connected'.format(server_id, volume_id))
 
-    device = ctx.related.runtime_properties[volume.VOLUME_DEVICE_NAME]
+    # Note: The 'device_name' property should actually be a property of the
+    # relationship between a server and a volume; It'll move to that
+    # relationship type once relationship properties are better supported.
+    device = ctx.related.properties[volume.DEVICE_NAME_PROPERTY]
     nova_client.volumes.create_server_volume(server_id, volume_id, device)
     volume.wait_until_status(volume_id=volume_id,
                              status=volume.VOLUME_STATUS_IN_USE)

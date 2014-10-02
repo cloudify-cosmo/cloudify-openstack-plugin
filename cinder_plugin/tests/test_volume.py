@@ -129,8 +129,6 @@ class TestCinderVolume(unittest.TestCase):
 
         volume_ctx_m = cfy_mocks.MockCloudifyContext()
         volume_ctx_m.runtime_properties[OPENSTACK_ID_PROPERTY] = volume_id
-        volume_ctx_m.runtime_properties[volume.VOLUME_DEVICE_NAME] = \
-            device_name
 
         ctx_m = cfy_mocks.MockCloudifyContext(related=volume_ctx_m)
         ctx_m.runtime_properties[server.OPENSTACK_ID_PROPERTY] = server_id

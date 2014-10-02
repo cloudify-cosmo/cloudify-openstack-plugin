@@ -371,13 +371,8 @@ def _find_context_in_kw(kw):
 def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        ctx = _find_context_in_kw(kw)
-        if ctx:
-            config = ctx.properties.get('openstack_config')
-        else:
-            config = None
-        if 'neutron_client' not in kw:
-            kw['neutron_client'] = NeutronClient().get(config=config)
+        _put_client_in_kw('neutron_client', kw)
+
         try:
             return f(*args, **kw)
         except neutron_exceptions.NeutronClientException, e:
@@ -391,13 +386,8 @@ def with_neutron_client(f):
 def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        ctx = _find_context_in_kw(kw)
-        if ctx:
-            config = ctx.properties.get('openstack_config')
-        else:
-            config = None
-        if 'nova_client' not in kw:
-            kw['nova_client'] = NovaClient().get(config=config)
+        _put_client_in_kw('nova_client', kw)
+
         try:
             return f(*args, **kw)
         except nova_exceptions.OverLimit, e:
@@ -413,14 +403,7 @@ def with_nova_client(f):
 def with_cinder_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        ctx = _find_context_in_kw(kw)
-        if ctx:
-            config = ctx.properties.get('openstack_config')
-        else:
-            config = None
-
-        if 'cinder_client' not in kw:
-            kw['cinder_client'] = CinderClient().get(config=config)
+        _put_client_in_kw('cinder_client', kw)
 
         try:
             return f(*args, **kw)
@@ -432,6 +415,18 @@ def with_cinder_client(f):
             else:
                 raise
     return wrapper
+
+
+def _put_client_in_kw(client_name, kw):
+    if client_name in kw:
+        return
+
+    ctx = _find_context_in_kw(kw)
+    if ctx:
+        config = ctx.properties.get('openstack_config')
+    else:
+        config = None
+    kw[client_name] = CinderClient().get(config=config)
 
 
 _non_recoverable_error_codes = [400, 401, 403, 404, 409]

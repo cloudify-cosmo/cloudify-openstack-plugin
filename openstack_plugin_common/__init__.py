@@ -328,7 +328,8 @@ class NovaClient(OpenStackClient):
 
 class CinderClient(OpenStackClient):
 
-    config = KeystoneConfig
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url', 'region']
 
     def connect(self, cfg, region=None):
         return CinderClientWithSugar(username=cfg['username'],
@@ -343,12 +344,12 @@ class NeutronClient(OpenStackClient):
     REQUIRED_CONFIG_PARAMS = \
         ['username', 'password', 'tenant_name', 'auth_url', 'region']
 
-    def connect(self, cfg):
+    def connect(self, cfg, region=None):
         return NeutronClientWithSugar(username=cfg['username'],
                                       password=cfg['password'],
                                       tenant_name=cfg['tenant_name'],
                                       auth_url=cfg['auth_url'],
-                                      region_name=cfg['region'])
+                                      region_name=region or cfg['region'])
 
 
 # Decorators
@@ -412,7 +413,7 @@ def with_cinder_client(f):
     def wrapper(*args, **kw):
         ctx = _find_context_in_kw(kw)
         if ctx:
-            config = ctx.properties.get('cinder_config')
+            config = ctx.properties.get('openstack_config')
         else:
             config = None
 

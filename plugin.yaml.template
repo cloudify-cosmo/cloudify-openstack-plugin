@@ -165,7 +165,7 @@ node_types:
                 default: ''
             device_name:
                 default: ''
-            cinder_config:
+            openstack_config:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:

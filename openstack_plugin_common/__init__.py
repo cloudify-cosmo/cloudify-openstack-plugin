@@ -563,4 +563,4 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
         return resource.id
 
     def get_name_from_resource(self, resource):
-        return resource.name
+        return resource.display_name

@@ -52,9 +52,10 @@ def create(cinder_client, **kwargs):
     if volume is None:
         name = resource_id or get_default_resource_id(ctx,
                                                       VOLUME_OPENSTACK_TYPE)
-        name = transform_resource_name(ctx, name)
         volume_dict = {'display_name': name}
         volume_dict.update(ctx.properties['volume'])
+        volume_dict['display_name'] = transform_resource_name(
+            ctx, volume_dict['display_name'])
 
         v = cinder_client.volumes.create(**volume_dict)
 

@@ -81,7 +81,7 @@ def delete(cinder_client, **kwargs):
 
 @with_cinder_client
 def wait_until_status(cinder_client, volume_id, status, num_tries=10,
-                      timeout=2):
+                      timeout=2, **kwargs):
     for _ in range(num_tries):
         volume = cinder_client.volumes.get(volume_id)
 
@@ -101,7 +101,7 @@ def wait_until_status(cinder_client, volume_id, status, num_tries=10,
 
 
 @with_cinder_client
-def get_attachment(cinder_client, volume_id, server_id):
+def get_attachment(cinder_client, volume_id, server_id, **kwargs):
     volume = cinder_client.volumes.get(volume_id)
     for attachment in volume.attachments:
         if attachment['server_id'] == server_id:

@@ -435,7 +435,8 @@ def attach_volume(nova_client, **kwargs):
     if is_external_relationship(ctx):
         ctx.logger.info('Validating external volume and server '
                         'are connected')
-        attachment = volume.get_attachment(volume_id=volume_id,
+        attachment = volume.get_attachment(ctx=ctx,
+                                           volume_id=volume_id,
                                            server_id=server_id)
         if attachment:
             return
@@ -449,7 +450,8 @@ def attach_volume(nova_client, **kwargs):
     # relationship type once relationship properties are better supported.
     device = ctx.related.properties[volume.DEVICE_NAME_PROPERTY]
     nova_client.volumes.create_server_volume(server_id, volume_id, device)
-    volume.wait_until_status(volume_id=volume_id,
+    volume.wait_until_status(ctx=ctx,
+                             volume_id=volume_id,
                              status=volume.VOLUME_STATUS_IN_USE)
 
 

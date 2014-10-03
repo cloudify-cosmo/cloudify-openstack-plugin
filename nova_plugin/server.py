@@ -24,6 +24,7 @@ from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
+from cinder_plugin import volume
 from novaclient import exceptions as nova_exceptions
 from openstack_plugin_common import (
     NeutronClient,
@@ -32,6 +33,7 @@ from openstack_plugin_common import (
     get_resource_id,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     with_nova_client,
+    with_cinder_client,
     is_external_resource,
     is_external_resource_by_properties,
     use_external_resource,
@@ -423,6 +425,58 @@ def disconnect_security_group(nova_client, **kwargs):
     server = nova_client.servers.get(server_id)
     server.remove_security_group(ctx.related.runtime_properties[
         OPENSTACK_ID_PROPERTY])
+
+
+@operation
+@with_nova_client
+@with_cinder_client
+def attach_volume(nova_client, cinder_client, **kwargs):
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    volume_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+    if is_external_relationship(ctx):
+        ctx.logger.info('Validating external volume and server '
+                        'are connected')
+        attachment = volume.get_attachment(cinder_client=cinder_client,
+                                           volume_id=volume_id,
+                                           server_id=server_id)
+        if attachment:
+            return
+        else:
+            raise NonRecoverableError(
+                'Expected external resources server {0} and volume {1} to be '
+                'connected'.format(server_id, volume_id))
+
+    # Note: The 'device_name' property should actually be a property of the
+    # relationship between a server and a volume; It'll move to that
+    # relationship type once relationship properties are better supported.
+    device = ctx.related.properties[volume.DEVICE_NAME_PROPERTY]
+    nova_client.volumes.create_server_volume(server_id, volume_id, device)
+    volume.wait_until_status(cinder_client=cinder_client,
+                             volume_id=volume_id,
+                             status=volume.VOLUME_STATUS_IN_USE)
+
+
+@operation
+@with_nova_client
+@with_cinder_client
+def detach_volume(nova_client, cinder_client, **kwargs):
+    if is_external_relationship(ctx):
+        ctx.logger.info('Not detaching volume from server since '
+                        'external volume and server are being used')
+        return
+
+    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    volume_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+    attachment = volume.get_attachment(cinder_client=cinder_client,
+                                       volume_id=volume_id,
+                                       server_id=server_id)
+    if attachment:
+        nova_client.volumes.delete_server_volume(server_id, attachment['id'])
+        volume.wait_until_status(cinder_client=cinder_client,
+                                 volume_id=volume_id,
+                                 status=volume.VOLUME_STATUS_AVAILABLE)
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

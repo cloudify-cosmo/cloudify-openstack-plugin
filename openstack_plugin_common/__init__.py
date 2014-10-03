@@ -18,6 +18,8 @@ import json
 import os
 import sys
 
+from cinderclient.v1 import client as cinder_client
+from cinderclient import exceptions as cinder_exceptions
 import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
@@ -147,7 +149,8 @@ def transform_resource_name(ctx, res):
     return res['name']
 
 
-def use_external_resource(ctx, sugared_client, openstack_type):
+def use_external_resource(ctx, sugared_client, openstack_type,
+                          name_field_name='name'):
     if not is_external_resource(ctx):
         return None
 
@@ -157,15 +160,10 @@ def use_external_resource(ctx, sugared_client, openstack_type):
             "Can't set '{0}' to True without supplying a value for "
             "'resource_id'".format(USE_EXTERNAL_RESOURCE_PROPERTY))
 
-    from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
-    if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
-        # search for resource by name
-        resource = sugared_client.cosmo_get_if_exists(
-            openstack_type, name=resource_id)
-    else:
-        # search for resource by ip address
-        resource = sugared_client.cosmo_get_if_exists(
-            openstack_type, floating_ip_address=resource_id)
+    # search for resource by name (or name-equivalent field)
+    search_param = {name_field_name: resource_id}
+    resource = sugared_client.cosmo_get_if_exists(openstack_type,
+                                                  **search_param)
 
     if not resource:
         # fallback - search for resource by id
@@ -180,6 +178,9 @@ def use_external_resource(ctx, sugared_client, openstack_type):
         sugared_client.get_id_from_resource(resource)
     ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
 
+    from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
+    # store openstack name runtime property, unless it's a floating IP type,
+    # in which case the ip will be stored in the runtime properties instead.
     if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
         ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
             sugared_client.get_name_from_resource(resource)
@@ -320,17 +321,30 @@ class NovaClient(OpenStackClient):
                                    http_log_debug=False)
 
 
+class CinderClient(OpenStackClient):
+
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url', 'region']
+
+    def connect(self, cfg, region=None):
+        return CinderClientWithSugar(username=cfg['username'],
+                                     api_key=cfg['password'],
+                                     project_id=cfg['tenant_name'],
+                                     auth_url=cfg['auth_url'],
+                                     region_name=region or cfg['region'])
+
+
 class NeutronClient(OpenStackClient):
 
     REQUIRED_CONFIG_PARAMS = \
         ['username', 'password', 'tenant_name', 'auth_url', 'region']
 
-    def connect(self, cfg):
+    def connect(self, cfg, region=None):
         return NeutronClientWithSugar(username=cfg['username'],
                                       password=cfg['password'],
                                       tenant_name=cfg['tenant_name'],
                                       auth_url=cfg['auth_url'],
-                                      region_name=cfg['region'])
+                                      region_name=region or cfg['region'])
 
 
 # Decorators
@@ -352,12 +366,8 @@ def _find_context_in_kw(kw):
 def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        ctx = _find_context_in_kw(kw)
-        if ctx:
-            config = ctx.properties.get('openstack_config')
-        else:
-            config = None
-        kw['neutron_client'] = NeutronClient().get(config=config)
+        _put_client_in_kw('neutron_client', NeutronClient, kw)
+
         try:
             return f(*args, **kw)
         except neutron_exceptions.NeutronClientException, e:
@@ -371,12 +381,8 @@ def with_neutron_client(f):
 def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        ctx = _find_context_in_kw(kw)
-        if ctx:
-            config = ctx.properties.get('openstack_config')
-        else:
-            config = None
-        kw['nova_client'] = NovaClient().get(config=config)
+        _put_client_in_kw('nova_client', NovaClient, kw)
+
         try:
             return f(*args, **kw)
         except nova_exceptions.OverLimit, e:
@@ -387,6 +393,36 @@ def with_nova_client(f):
             else:
                 raise
     return wrapper
+
+
+def with_cinder_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('cinder_client', CinderClient, kw)
+
+        try:
+            return f(*args, **kw)
+        except cinder_exceptions.OverLimit, e:
+            _re_raise(e, recoverable=True, retry_after=e.retry_after)
+        except cinder_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False)
+            else:
+                raise
+    return wrapper
+
+
+def _put_client_in_kw(client_name, client_class, kw):
+    if client_name in kw:
+        return
+
+    ctx = _find_context_in_kw(kw)
+    if ctx:
+        config = ctx.properties.get('openstack_config')
+    else:
+        config = None
+    kw[client_name] = client_class().get(config=config)
+
 
 _non_recoverable_error_codes = [400, 401, 403, 404, 409]
 
@@ -442,7 +478,7 @@ class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
         obj_type_plural = self.cosmo_plural(obj_type_single)
-        getattr(self, obj_type_plural).delete(id=obj_id)
+        getattr(self, obj_type_plural).delete(obj_id)
 
     def get_id_from_resource(self, resource):
         return resource.id
@@ -500,3 +536,21 @@ class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
                 "Expected exactly one external network but found {0}".format(
                     len(ls)))
         return ls[0]
+
+
+class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        for obj in getattr(self, obj_type_plural).list(search_opts=kw):
+            yield obj
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.display_name

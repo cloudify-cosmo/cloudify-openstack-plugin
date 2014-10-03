@@ -27,7 +27,8 @@ setup(
     packages=[
         'openstack_plugin_common',
         'nova_plugin',
-        'neutron_plugin'
+        'neutron_plugin',
+        'cinder_plugin'
     ],
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
@@ -36,5 +37,6 @@ setup(
         'python-novaclient==2.17.0',
         'python-keystoneclient==0.7.1',
         'python-neutronclient==2.3.4',
+        'python-cinderclient==1.0.9'
     ]
 )

@@ -155,6 +155,23 @@ node_types:
                   - create: openstack.neutron_plugin.floatingip.create
                   - delete: openstack.neutron_plugin.floatingip.delete
 
+    cloudify.openstack.volume:
+        derived_from: cloudify.types.volume
+        properties:
+            volume: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
+            device_name:
+                default: ''
+            openstack_config:
+                default: {}
+        interfaces:
+            cloudify.interfaces.lifecycle:
+                - create: openstack.cinder_plugin.volume.create
+                - delete: openstack.cinder_plugin.volume.delete
+
 relationships:
     cloudify.openstack.port_connected_to_security_group:
         derived_from: cloudify.relationships.connected_to
@@ -191,3 +208,10 @@ relationships:
 
     cloudify.openstack.security_group_rule_in_security_group:
         derived_from: cloudify.relationships.contained_in
+
+    cloudify.openstack.volume_attached_to_server:
+        derived_from: cloudify.relationships.connected_to
+        target_interfaces:
+            cloudify.interfaces.relationship_lifecycle:
+                - establish: openstack.nova_plugin.server.attach_volume
+                - unlink: openstack.nova_plugin.server.detach_volume

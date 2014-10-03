@@ -366,7 +366,7 @@ def _find_context_in_kw(kw):
 def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('neutron_client', kw)
+        _put_client_in_kw('neutron_client', NeutronClient, kw)
 
         try:
             return f(*args, **kw)
@@ -381,7 +381,7 @@ def with_neutron_client(f):
 def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('nova_client', kw)
+        _put_client_in_kw('nova_client', NovaClient, kw)
 
         try:
             return f(*args, **kw)
@@ -398,7 +398,7 @@ def with_nova_client(f):
 def with_cinder_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('cinder_client', kw)
+        _put_client_in_kw('cinder_client', CinderClient, kw)
 
         try:
             return f(*args, **kw)
@@ -412,7 +412,7 @@ def with_cinder_client(f):
     return wrapper
 
 
-def _put_client_in_kw(client_name, kw):
+def _put_client_in_kw(client_name, client_class, kw):
     if client_name in kw:
         return
 
@@ -421,7 +421,7 @@ def _put_client_in_kw(client_name, kw):
         config = ctx.properties.get('openstack_config')
     else:
         config = None
-    kw[client_name] = CinderClient().get(config=config)
+    kw[client_name] = client_class().get(config=config)
 
 
 _non_recoverable_error_codes = [400, 401, 403, 404, 409]

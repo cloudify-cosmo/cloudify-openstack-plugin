@@ -33,6 +33,7 @@ from openstack_plugin_common import (
     get_resource_id,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     with_nova_client,
+    with_cinder_client,
     is_external_resource,
     is_external_resource_by_properties,
     use_external_resource,
@@ -428,14 +429,15 @@ def disconnect_security_group(nova_client, **kwargs):
 
 @operation
 @with_nova_client
-def attach_volume(nova_client, **kwargs):
+@with_cinder_client
+def attach_volume(nova_client, cinder_client, **kwargs):
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):
         ctx.logger.info('Validating external volume and server '
                         'are connected')
-        attachment = volume.get_attachment(ctx=ctx,
+        attachment = volume.get_attachment(cinder_client=cinder_client,
                                            volume_id=volume_id,
                                            server_id=server_id)
         if attachment:
@@ -450,14 +452,15 @@ def attach_volume(nova_client, **kwargs):
     # relationship type once relationship properties are better supported.
     device = ctx.related.properties[volume.DEVICE_NAME_PROPERTY]
     nova_client.volumes.create_server_volume(server_id, volume_id, device)
-    volume.wait_until_status(ctx=ctx,
+    volume.wait_until_status(cinder_client=cinder_client,
                              volume_id=volume_id,
                              status=volume.VOLUME_STATUS_IN_USE)
 
 
 @operation
 @with_nova_client
-def detach_volume(nova_client, **kwargs):
+@with_cinder_client
+def detach_volume(nova_client, cinder_client, **kwargs):
     if is_external_relationship(ctx):
         ctx.logger.info('Not detaching volume from server since '
                         'external volume and server are being used')
@@ -466,11 +469,13 @@ def detach_volume(nova_client, **kwargs):
     server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    attachment = volume.get_attachment(volume_id=volume_id,
+    attachment = volume.get_attachment(cinder_client=cinder_client,
+                                       volume_id=volume_id,
                                        server_id=server_id)
     if attachment:
         nova_client.volumes.delete_server_volume(server_id, attachment['id'])
-        volume.wait_until_status(volume_id=volume_id,
+        volume.wait_until_status(cinder_client=cinder_client,
+                                 volume_id=volume_id,
                                  status=volume.VOLUME_STATUS_AVAILABLE)
 
 

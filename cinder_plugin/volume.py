@@ -65,7 +65,7 @@ def create(cinder_client, **kwargs):
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = v.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-    	VOLUME_OPENSTACK_TYPE
+        VOLUME_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
         volume_dict['display_name']
     wait_until_status(cinder_client=cinder_client,

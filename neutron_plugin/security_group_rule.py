@@ -38,7 +38,8 @@ RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
-    sgr = _process_rule(ctx.node.properties['security_group_rule'], neutron_client)
+    sgr = _process_rule(ctx.node.properties['security_group_rule'],
+                        neutron_client)
 
     sg_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, SECURITY_GROUP_OPENSTACK_TYPE)

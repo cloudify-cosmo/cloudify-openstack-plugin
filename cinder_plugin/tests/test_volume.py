@@ -143,7 +143,6 @@ class TestCinderVolume(unittest.TestCase):
         self.assertTrue(OPENSTACK_NAME_PROPERTY
                         not in ctx_m.instance.runtime_properties)
 
-
     def test_attach(self):
         volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
@@ -198,7 +197,8 @@ class TestCinderVolume(unittest.TestCase):
 
         ctx_m = cfy_mocks.MockCloudifyContext(node_id='a',
                                               related=volume_ctx_m)
-        ctx_m.instance.runtime_properties[server.OPENSTACK_ID_PROPERTY] = server_id
+        ctx_m.instance.runtime_properties[server.OPENSTACK_ID_PROPERTY] = \
+            server_id
 
         attached_volume_m = mock.Mock()
         attached_volume_m.id = volume_id

@@ -71,15 +71,15 @@ def create(neutron_client, **kwargs):
         'name': get_resource_id(ctx, SECURITY_GROUP_OPENSTACK_TYPE),
     }
 
-    security_group.update(ctx.properties['security_group'])
+    security_group.update(ctx.node.properties['security_group'])
 
-    rules_to_apply = ctx.properties['rules']
+    rules_to_apply = ctx.node.properties['rules']
     from neutron_plugin.security_group_rule import _process_rule
     security_group_rules = []
     for rule in rules_to_apply:
         security_group_rules.append(_process_rule(rule, neutron_client))
 
-    disable_default_egress_rules = ctx.properties.get(
+    disable_default_egress_rules = ctx.node.properties.get(
         'disable_default_egress_rules')
 
     external_sg = use_external_resource(ctx, neutron_client,
@@ -99,10 +99,10 @@ def create(neutron_client, **kwargs):
     sg = neutron_client.create_security_group(
         {'security_group': security_group})['security_group']
 
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = sg['id']
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = sg['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         SECURITY_GROUP_OPENSTACK_TYPE
-    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = sg['name']
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = sg['name']
 
     try:
         if disable_default_egress_rules:

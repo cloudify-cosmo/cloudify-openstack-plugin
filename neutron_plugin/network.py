@@ -46,19 +46,20 @@ def create(neutron_client, **kwargs):
         'admin_state_up': True,
         'name': get_resource_id(ctx, NETWORK_OPENSTACK_TYPE),
     }
-    network.update(ctx.properties['network'])
+    network.update(ctx.node.properties['network'])
     transform_resource_name(ctx, network)
 
     net = neutron_client.create_network({'network': network})['network']
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = net['id']
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = NETWORK_OPENSTACK_TYPE
-    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = net['name']
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = net['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
+        NETWORK_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = net['name']
 
 
 @operation
 @with_neutron_client
 def start(neutron_client, **kwargs):
-    network_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    network_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_resource(ctx):
         ctx.logger.info('Validating external network is started')
@@ -86,7 +87,7 @@ def stop(neutron_client, **kwargs):
         return
 
     neutron_client.update_network(
-        ctx.runtime_properties[OPENSTACK_ID_PROPERTY], {
+        ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY], {
             'network': {
                 'admin_state_up': False
             }

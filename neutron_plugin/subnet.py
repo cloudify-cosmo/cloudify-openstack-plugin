@@ -50,7 +50,8 @@ def create(neutron_client, **kwargs):
                     ctx, SUBNET_OPENSTACK_TYPE, True)
 
             if net_id:
-                subnet_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+                subnet_id = \
+                    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
                 if neutron_client.show_subnet(
                         subnet_id)['subnet']['network_id'] != net_id:
@@ -68,13 +69,14 @@ def create(neutron_client, **kwargs):
         'name': get_resource_id(ctx, SUBNET_OPENSTACK_TYPE),
         'network_id': net_id,
     }
-    subnet.update(ctx.properties['subnet'])
+    subnet.update(ctx.node.properties['subnet'])
     transform_resource_name(ctx, subnet)
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = s['id']
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = SUBNET_OPENSTACK_TYPE
-    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = subnet['name']
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = s['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        SUBNET_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = subnet['name']
 
 
 @operation

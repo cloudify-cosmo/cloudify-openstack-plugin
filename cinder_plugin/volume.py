@@ -57,15 +57,16 @@ def create(cinder_client, **kwargs):
 
     name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)
     volume_dict = {'display_name': name}
-    volume_dict.update(ctx.properties['volume'])
+    volume_dict.update(ctx.node.properties['volume'])
     volume_dict['display_name'] = transform_resource_name(
         ctx, volume_dict['display_name'])
 
     v = cinder_client.volumes.create(**volume_dict)
 
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = v.id
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = VOLUME_OPENSTACK_TYPE
-    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = v.id
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        VOLUME_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
         volume_dict['display_name']
     wait_until_status(cinder_client=cinder_client,
                       volume_id=v.id,

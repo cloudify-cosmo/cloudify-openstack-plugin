@@ -38,24 +38,25 @@ RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY]
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
-    sgr = _process_rule(ctx.properties['security_group_rule'], neutron_client)
+    sgr = _process_rule(ctx.node.properties['security_group_rule'],
+                        neutron_client)
 
     sg_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, SECURITY_GROUP_OPENSTACK_TYPE)
     sgr['security_group_id'] = sg_id
     rule_id = neutron_client.create_security_group_rule(
         {'security_group_rule': sgr})['security_group_rule']['id']
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = rule_id
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = rule_id
 
 
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    sgr_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    sgr_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     neutron_client.delete_security_group_rule(sgr_id)
 
     for runtime_prop_key in RUNTIME_PROPERTIES_KEYS:
-        del ctx.runtime_properties[runtime_prop_key]
+        del ctx.instance.runtime_properties[runtime_prop_key]
 
 
 def _process_rule(rule, neutron_client):

@@ -110,7 +110,7 @@ def create(nova_client, **kwargs):
     server = {
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
-    server.update(copy.deepcopy(ctx.properties['server']))
+    server.update(copy.deepcopy(ctx.node.properties['server']))
     transform_resource_name(ctx, server)
 
     ctx.logger.debug(
@@ -121,9 +121,10 @@ def create(nova_client, **kwargs):
     management_network_id = None
     management_network_name = None
 
-    if ('management_network_name' in ctx.properties) and \
-            ctx.properties['management_network_name']:
-        management_network_name = ctx.properties['management_network_name']
+    if ('management_network_name' in ctx.node.properties) and \
+            ctx.node.properties['management_network_name']:
+        management_network_name = \
+            ctx.node.properties['management_network_name']
         management_network_name = rename(management_network_name)
         nc = _neutron_client()
         management_network_id = nc.cosmo_get_named(
@@ -242,13 +243,15 @@ def create(nova_client, **kwargs):
         raise NonRecoverableError("Nova bad request error: " + str(e))
     except nova_exceptions.ClientException as e:
         raise NonRecoverableError("Nova client error: " + str(e))
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = s.id
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = SERVER_OPENSTACK_TYPE
-    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = server['name']
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = s.id
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        SERVER_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = server['name']
 
 
 def _neutron_client():
-    return NeutronClient().get(config=ctx.properties.get('openstack_config'))
+    return NeutronClient().get(
+        config=ctx.node.properties.get('openstack_config'))
 
 
 @operation
@@ -326,7 +329,7 @@ def _wait_for_server_to_be_deleted(nova_client,
 
 def get_server_by_context(nova_client):
     return nova_client.servers.get(
-        ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+        ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY])
 
 
 def _set_network_and_ip_runtime_properties(server):
@@ -341,9 +344,9 @@ def _set_network_and_ip_runtime_properties(server):
         ips[network] = network_ips
     if manager_network_ip is None:
         manager_network_ip = default_network_ips[0]
-    ctx.runtime_properties[NETWORKS_PROPERTY] = ips
+    ctx.instance.runtime_properties[NETWORKS_PROPERTY] = ips
     # The ip of this instance in the management network
-    ctx.runtime_properties[IP_PROPERTY] = manager_network_ip
+    ctx.instance.runtime_properties[IP_PROPERTY] = manager_network_ip
 
 
 @operation
@@ -359,7 +362,7 @@ def get_state(nova_client, **kwargs):
 @operation
 @with_nova_client
 def connect_floatingip(nova_client, **kwargs):
-    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     floating_ip_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
     floating_ip_address = ctx.related.runtime_properties[IP_ADDRESS_PROPERTY]
 
@@ -386,7 +389,7 @@ def disconnect_floatingip(nova_client, **kwargs):
                         'external floatingip and server are being used')
         return
 
-    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     server = nova_client.servers.get(server_id)
     server.remove_floating_ip(ctx.related.runtime_properties[
         IP_ADDRESS_PROPERTY])
@@ -395,7 +398,7 @@ def disconnect_floatingip(nova_client, **kwargs):
 @operation
 @with_nova_client
 def connect_security_group(nova_client, **kwargs):
-    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     security_group_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):
@@ -421,7 +424,7 @@ def disconnect_security_group(nova_client, **kwargs):
                         'external security group and server are being used')
         return
 
-    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     server = nova_client.servers.get(server_id)
     server.remove_security_group(ctx.related.runtime_properties[
         OPENSTACK_ID_PROPERTY])
@@ -431,7 +434,7 @@ def disconnect_security_group(nova_client, **kwargs):
 @with_nova_client
 @with_cinder_client
 def attach_volume(nova_client, cinder_client, **kwargs):
-    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):
@@ -466,7 +469,7 @@ def detach_volume(nova_client, cinder_client, **kwargs):
                         'external volume and server are being used')
         return
 
-    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     attachment = volume.get_attachment(cinder_client=cinder_client,
@@ -502,7 +505,7 @@ def _validate_external_server_nics(network_ids, port_ids):
             "with '{0}'=True".format(USE_EXTERNAL_RESOURCE_PROPERTY))
 
     nc = _neutron_client()
-    server_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     connected_ports = nc.list_ports(device_id=server_id)['ports']
 
     # not counting networks connected by a connected port since allegedly
@@ -526,7 +529,7 @@ def _validate_external_server_nics(network_ids, port_ids):
 def _get_properties_by_node_instance_id(node_instance_id):
     client = get_rest_client()
     node_instance = client.node_instances.get(node_instance_id)
-    node = client.nodes.get(ctx.deployment_id, node_instance.node_id)
+    node = client.nodes.get(ctx.deployment.id, node_instance.node_id)
     return node.properties
 
 

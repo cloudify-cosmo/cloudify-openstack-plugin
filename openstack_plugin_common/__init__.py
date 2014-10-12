@@ -117,9 +117,9 @@ def get_openstack_id_of_single_connected_node_by_openstack_type(
 
 
 def get_resource_id(ctx, type_name):
-    if ctx.properties['resource_id']:
-        return ctx.properties['resource_id']
-    return "{0}_{1}_{2}".format(type_name, ctx.deployment_id, ctx.node_id)
+    if ctx.node.properties['resource_id']:
+        return ctx.node.properties['resource_id']
+    return "{0}_{1}_{2}".format(type_name, ctx.deployment.id, ctx.instance.id)
 
 
 def transform_resource_name(ctx, res):
@@ -154,7 +154,7 @@ def use_external_resource(ctx, sugared_client, openstack_type,
     if not is_external_resource(ctx):
         return None
 
-    resource_id = ctx.properties['resource_id']
+    resource_id = ctx.node.properties['resource_id']
     if not resource_id:
         raise NonRecoverableError(
             "Can't set '{0}' to True without supplying a value for "
@@ -174,15 +174,15 @@ def use_external_resource(ctx, sugared_client, openstack_type,
         raise NonRecoverableError("Couldn't find a resource with the name or "
                                   "id {0}".format(resource_id))
 
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = \
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
 
     from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
     # store openstack name runtime property, unless it's a floating IP type,
     # in which case the ip will be stored in the runtime properties instead.
     if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
-        ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+        ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
             sugared_client.get_name_from_resource(resource)
 
     ctx.logger.info('Using external resource {0}: {1}'.format(
@@ -192,11 +192,13 @@ def use_external_resource(ctx, sugared_client, openstack_type,
 
 def delete_resource_and_runtime_properties(ctx, sugared_client,
                                            runtime_properties_keys):
-    node_openstack_type = ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY]
+    node_openstack_type = ctx.instance.runtime_properties[
+        OPENSTACK_TYPE_PROPERTY]
     if not is_external_resource(ctx):
         ctx.logger.info('deleting {0}'.format(node_openstack_type))
         sugared_client.cosmo_delete_resource(
-            node_openstack_type, ctx.runtime_properties[OPENSTACK_ID_PROPERTY])
+            node_openstack_type,
+            ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY])
     else:
         ctx.logger.info('not deleting {0} since an external {0} is '
                         'being used'.format(node_openstack_type))
@@ -205,12 +207,12 @@ def delete_resource_and_runtime_properties(ctx, sugared_client,
 
 
 def is_external_resource(ctx):
-    return is_external_resource_by_properties(ctx.properties)
+    return is_external_resource_by_properties(ctx.node.properties)
 
 
 def is_external_relationship(ctx):
     return is_external_resource_by_properties(
-        ctx.properties) and is_external_resource_by_properties(
+        ctx.node.properties) and is_external_resource_by_properties(
         ctx.related.properties)
 
 
@@ -221,8 +223,8 @@ def is_external_resource_by_properties(properties):
 
 def delete_runtime_properties(ctx, runtime_properties_keys):
     for runtime_prop_key in runtime_properties_keys:
-        if runtime_prop_key in ctx.runtime_properties:
-            del ctx.runtime_properties[runtime_prop_key]
+        if runtime_prop_key in ctx.instance.runtime_properties:
+            del ctx.instance.runtime_properties[runtime_prop_key]
 
 
 class Config(object):
@@ -418,7 +420,7 @@ def _put_client_in_kw(client_name, client_class, kw):
 
     ctx = _find_context_in_kw(kw)
     if ctx:
-        config = ctx.properties.get('openstack_config')
+        config = ctx.node.properties.get('openstack_config')
     else:
         config = None
     kw[client_name] = client_class().get(config=config)

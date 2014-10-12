@@ -53,7 +53,8 @@ def create(neutron_client, **kwargs):
                     ctx, PORT_OPENSTACK_TYPE, True)
 
             if net_id:
-                port_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+                port_id = ctx.instance.runtime_properties[
+                    OPENSTACK_ID_PROPERTY]
 
                 if neutron_client.show_port(
                         port_id)['port']['network_id'] != net_id:
@@ -72,12 +73,13 @@ def create(neutron_client, **kwargs):
         'network_id': net_id,
         'security_groups': [],
     }
-    port.update(ctx.properties['port'])
+    port.update(ctx.node.properties['port'])
     transform_resource_name(ctx, port)
     p = neutron_client.create_port({'port': port})['port']
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = PORT_OPENSTACK_TYPE
-    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = p['name']
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
+        PORT_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = p['name']
 
 
 @operation
@@ -97,7 +99,7 @@ def delete(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def connect_security_group(neutron_client, **kwargs):
-    port_id = ctx.runtime_properties[OPENSTACK_ID_PROPERTY]
+    port_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     security_group_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):

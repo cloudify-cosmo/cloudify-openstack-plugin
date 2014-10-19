@@ -24,6 +24,7 @@ from openstack_plugin_common import (delete_resource_and_runtime_properties,
                                      get_resource_id,
                                      transform_resource_name,
                                      use_external_resource,
+                                     validate_resource,
                                      COMMON_RUNTIME_PROPERTIES_KEYS,
                                      OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY,
@@ -107,3 +108,10 @@ def get_attachment(cinder_client, volume_id, server_id):
     for attachment in volume.attachments:
         if attachment['server_id'] == server_id:
             return attachment
+
+
+@operation
+@with_cinder_client
+def creation_validation(cinder_client, **kwargs):
+    validate_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
+                      'display_name')

@@ -39,6 +39,7 @@ from openstack_plugin_common import (
     use_external_resource,
     delete_runtime_properties,
     is_external_relationship,
+    validate_resource,
     USE_EXTERNAL_RESOURCE_PROPERTY,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
@@ -576,3 +577,47 @@ def ud_http(params):
         "server.userdata when using type 'http'")
     return requests.get(params['url']).text
 # *** userdata handling - end ***
+
+
+@operation
+@with_nova_client
+def creation_validation(nova_client, **kwargs):
+
+    def validate_server_property_value_exists(server_props, property_name):
+        is_property_name = False
+        prop_val = server_props.get(property_name)
+        if not prop_val:
+            prop_val = server_props.get('{0}_name'.format(property_name))
+            if not prop_val:
+                err = 'must have a "{0}" or "{0}_name" field under ' \
+                      '"server" property'.format(property_name)
+                ctx.logger.error('VALIDATION ERROR: ' + err)
+            is_property_name = True
+
+        prop_val = str(prop_val)
+        ctx.logger.debug(
+            'checking whether {0} {1} exists...'.format(property_name,
+                                                        prop_val))
+        prop_values = list(nova_client.cosmo_list(property_name))
+        for f in prop_values:
+            if (is_property_name and prop_val == f.name) or \
+                    (not is_property_name and prop_val == f.id):
+                ctx.logger.debug('OK: {0} {1} exists'.format(
+                    property_name, prop_val))
+                return
+        err = '{0} {1} does not exist'.format(property_name, prop_val)
+        ctx.logger.error('VALIDATION ERROR: ' + err)
+        if prop_values:
+            ctx.logger.info('list of available {0}s:'.format(property_name))
+            for f in prop_values:
+                ctx.logger.info('    {0:>10} - {1}'.format(f.id, f.name))
+        else:
+            ctx.logger.info('there are no available {0}s'.format(
+                property_name))
+        raise NonRecoverableError(err)
+
+    validate_resource(ctx, nova_client, SERVER_OPENSTACK_TYPE)
+
+    server_props = ctx.node.properties['server']
+    validate_server_property_value_exists(server_props, 'image')
+    validate_server_property_value_exists(server_props, 'flavor')

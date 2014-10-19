@@ -23,6 +23,7 @@ from openstack_plugin_common import (
     is_external_resource,
     delete_resource_and_runtime_properties,
     use_external_resource,
+    validate_resource,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
@@ -99,3 +100,9 @@ def stop(neutron_client, **kwargs):
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
+
+
+@operation
+@with_neutron_client
+def creation_validation(neutron_client, **kwargs):
+    validate_resource(ctx, neutron_client, NETWORK_OPENSTACK_TYPE)

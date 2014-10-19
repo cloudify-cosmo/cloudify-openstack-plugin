@@ -28,6 +28,8 @@ node_types:
                 - delete: openstack.nova_plugin.server.delete
             cloudify.interfaces.host:
                 - get_state: openstack.nova_plugin.server.get_state
+            cloudify.interfaces.validation:
+                - creation: openstack.nova_plugin.server.creation_validation
     cloudify.openstack.windows_server:
         derived_from: cloudify.openstack.server
         interfaces:
@@ -52,9 +54,11 @@ node_types:
             openstack_config:
                 default: {}
         interfaces:
-             cloudify.interfaces.lifecycle:
-                  - create: openstack.neutron_plugin.subnet.create
-                  - delete: openstack.neutron_plugin.subnet.delete
+            cloudify.interfaces.lifecycle:
+                - create: openstack.neutron_plugin.subnet.create
+                - delete: openstack.neutron_plugin.subnet.delete
+            cloudify.interfaces.validation:
+                - creation: openstack.neutron_plugin.subnet.creation_validation
 
     cloudify.openstack.security_group:
         derived_from: cloudify.types.base
@@ -75,6 +79,8 @@ node_types:
             cloudify.interfaces.lifecycle:
                 - create: openstack.neutron_plugin.security_group.create
                 - delete: openstack.neutron_plugin.security_group.delete
+            cloudify.interfaces.validation:
+                - creation: openstack.neutron_plugin.security_group.creation_validation
 
     cloudify.openstack.security_group_rule:
         derived_from: cloudify.types.base
@@ -106,6 +112,8 @@ node_types:
             cloudify.interfaces.lifecycle:
                 - create: openstack.neutron_plugin.router.create
                 - delete: openstack.neutron_plugin.router.delete
+            cloudify.interfaces.validation:
+                - creation: openstack.neutron_plugin.router.creation_validation
 
     cloudify.openstack.port:
         derived_from: cloudify.types.base
@@ -122,6 +130,8 @@ node_types:
             cloudify.interfaces.lifecycle:
                 - create: openstack.neutron_plugin.port.create
                 - delete: openstack.neutron_plugin.port.delete
+            cloudify.interfaces.validation:
+                - creation: openstack.neutron_plugin.port.creation_validation
 
     cloudify.openstack.network:
         derived_from: cloudify.types.network
@@ -138,6 +148,8 @@ node_types:
             cloudify.interfaces.lifecycle:
                 - create: openstack.neutron_plugin.network.create
                 - delete: openstack.neutron_plugin.network.delete
+            cloudify.interfaces.validation:
+                - creation: openstack.neutron_plugin.network.creation_validation
 
     cloudify.openstack.floatingip:
         derived_from: cloudify.types.base
@@ -151,9 +163,11 @@ node_types:
             openstack_config:
                 default: {}
         interfaces:
-             cloudify.interfaces.lifecycle:
-                  - create: openstack.neutron_plugin.floatingip.create
-                  - delete: openstack.neutron_plugin.floatingip.delete
+            cloudify.interfaces.lifecycle:
+                - create: openstack.neutron_plugin.floatingip.create
+                - delete: openstack.neutron_plugin.floatingip.delete
+            cloudify.interfaces.validation:
+                - creation: openstack.neutron_plugin.floatingip.creation_validation
 
     cloudify.openstack.volume:
         derived_from: cloudify.types.volume
@@ -171,6 +185,8 @@ node_types:
             cloudify.interfaces.lifecycle:
                 - create: openstack.cinder_plugin.volume.create
                 - delete: openstack.cinder_plugin.volume.delete
+            cloudify.interfaces.validation:
+                - creation: openstack.cinder_plugin.volume.creation_validation
 
 relationships:
     cloudify.openstack.port_connected_to_security_group:

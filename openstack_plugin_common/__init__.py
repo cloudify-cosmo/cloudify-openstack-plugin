@@ -18,6 +18,7 @@ import json
 import os
 import sys
 
+from IPy import IP
 from cinderclient.v1 import client as cinder_client
 from cinderclient import exceptions as cinder_exceptions
 import keystoneclient.v2_0.client as keystone_client
@@ -149,11 +150,8 @@ def transform_resource_name(ctx, res):
     return res['name']
 
 
-def use_external_resource(ctx, sugared_client, openstack_type,
-                          name_field_name='name'):
-    if not is_external_resource(ctx):
-        return None
-
+def _get_resource_by_name_or_id(ctx, name_field_name, openstack_type,
+                                sugared_client):
     resource_id = ctx.node.properties['resource_id']
     if not resource_id:
         raise NonRecoverableError(
@@ -164,15 +162,26 @@ def use_external_resource(ctx, sugared_client, openstack_type,
     search_param = {name_field_name: resource_id}
     resource = sugared_client.cosmo_get_if_exists(openstack_type,
                                                   **search_param)
-
     if not resource:
         # fallback - search for resource by id
         resource = sugared_client.cosmo_get_if_exists(
             openstack_type, id=resource_id)
 
     if not resource:
-        raise NonRecoverableError("Couldn't find a resource with the name or "
-                                  "id {0}".format(resource_id))
+        raise NonRecoverableError(
+            "Couldn't find a resource of type {0} with the name or id {1}"
+            .format(openstack_type, resource_id))
+
+    return resource
+
+
+def use_external_resource(ctx, sugared_client, openstack_type,
+                          name_field_name='name'):
+    if not is_external_resource(ctx):
+        return None
+
+    resource = _get_resource_by_name_or_id(ctx, name_field_name,
+                                           openstack_type, sugared_client)
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
@@ -186,8 +195,60 @@ def use_external_resource(ctx, sugared_client, openstack_type,
             sugared_client.get_name_from_resource(resource)
 
     ctx.logger.info('Using external resource {0}: {1}'.format(
-        openstack_type, resource_id))
+        openstack_type, ctx.node.properties['resource_id']))
     return resource
+
+
+def validate_resource(ctx, sugared_client, openstack_type,
+                      name_field_name='name'):
+    ctx.logger.debug('validating resource {0} (node {1})'.format(
+        openstack_type, ctx.node.id))
+
+    openstack_type_plural = sugared_client.cosmo_plural(openstack_type)
+    if is_external_resource(ctx):
+        # validate the resource truly exists
+        try:
+            _get_resource_by_name_or_id(ctx, name_field_name, openstack_type,
+                                        sugared_client)
+            ctx.logger.debug('OK: {0} {1} found in pool'.format(
+                openstack_type, ctx.node.properties['resource_id']))
+        except NonRecoverableError as e:
+            ctx.logger.error('VALIDATION ERROR:' + str(e))
+            resource_list = list(sugared_client.cosmo_list(openstack_type))
+            if resource_list:
+                ctx.logger.info('list of existing {0}:'.format(
+                    openstack_type_plural))
+                for resource in resource_list:
+                    ctx.logger.info('    {0:>10} - {1}'.format(
+                        sugared_client.get_id_from_resource(resource),
+                        sugared_client.get_name_from_resource(resource)))
+            else:
+                ctx.logger.info('there are no existing {0}'.format(
+                    openstack_type_plural))
+            raise
+    else:
+        if isinstance(sugared_client, NovaClientWithSugar):
+            # not checking quota for Nova resources due to a bug in Nova client
+            return
+
+        # validate available quota for provisioning the resource
+        resource_list = list(sugared_client.cosmo_list(openstack_type))
+        resource_amount = len(resource_list)
+
+        resource_quota = sugared_client.get_quota(openstack_type)
+        if resource_amount < resource_quota:
+            ctx.logger.debug(
+                'OK: {0} (node {1}) can be created. provisioned {2}: {3}, '
+                'quota: {4}'
+                .format(openstack_type, ctx.node.id, openstack_type_plural,
+                        resource_amount, resource_quota))
+        else:
+            err = ('{0} (node {1}) cannot be created due to quota limitations.'
+                   ' provisioned {2}: {3}, quota: {4}'
+                   .format(openstack_type, ctx.node.id, openstack_type_plural,
+                           resource_amount, resource_quota))
+            ctx.logger.error('VALIDATION ERROR:' + err)
+            raise NonRecoverableError(err)
 
 
 def delete_resource_and_runtime_properties(ctx, sugared_client,
@@ -225,6 +286,22 @@ def delete_runtime_properties(ctx, runtime_properties_keys):
     for runtime_prop_key in runtime_properties_keys:
         if runtime_prop_key in ctx.instance.runtime_properties:
             del ctx.instance.runtime_properties[runtime_prop_key]
+
+
+def validate_ip_or_range_syntax(ctx, address, is_range=True):
+    range_suffix = ' range' if is_range else ''
+    ctx.logger.debug('checking whether {0} is a valid address{1}...'
+                     .format(address, range_suffix))
+    try:
+        IP(address)
+        ctx.logger.debug('OK:'
+                         '{0} is a valid address{1}.'.format(address,
+                                                             range_suffix))
+    except ValueError as e:
+        err = ('{0} is not a valid address{1}; {2}'.format(
+            address, range_suffix, e.message))
+        ctx.logger.error('VALIDATION ERROR:' + err)
+        raise NonRecoverableError(err)
 
 
 class Config(object):
@@ -488,6 +565,21 @@ class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
     def get_name_from_resource(self, resource):
         return resource.name
 
+    def get_quota(self, obj_type_single):
+        raise RuntimeError(
+            'Retrieving quotas from Nova service is currently unsupported '
+            'due to a bug in Nova python client')
+
+        # we're already authenticated, but the following call will make
+        # 'service_catalog' available under 'client', through which we can
+        # extract the tenant_id (Note that self.client.tenant_id might be
+        # None if project_id (AKA tenant_name) was used instead; However the
+        # actual tenant_id must be used to retrieve the quotas)
+        self.client.authenticate()
+        tenant_id = self.client.service_catalog.get_tenant_id()
+        quotas = self.quotas.get(tenant_id)
+        return getattr(quotas, self.cosmo_plural(obj_type_single))
+
 
 class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
 
@@ -506,6 +598,11 @@ class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
 
     def get_name_from_resource(self, resource):
         return resource['name']
+
+    def get_quota(self, obj_type_single):
+        tenant_id = self.get_quotas_tenant()['tenant']['tenant_id']
+        quotas = self.show_quota(tenant_id)['quota']
+        return quotas[obj_type_single]
 
     def cosmo_list_prefixed(self, obj_type_single, name_prefix):
         for obj in self.cosmo_list(obj_type_single):
@@ -556,3 +653,14 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
 
     def get_name_from_resource(self, resource):
         return resource.display_name
+
+    def get_quota(self, obj_type_single):
+        # we're already authenticated, but the following call will make
+        # 'service_catalog' available under 'client', through which we can
+        # extract the tenant_id (Note that self.client.tenant_id might be
+        # None if project_id (AKA tenant_name) was used instead; However the
+        # actual tenant_id must be used to retrieve the quotas)
+        self.client.authenticate()
+        tenant_id = self.client.service_catalog.get_token()['tenant_id']
+        quotas = self.quotas.get(tenant_id)
+        return getattr(quotas, self.cosmo_plural(obj_type_single))

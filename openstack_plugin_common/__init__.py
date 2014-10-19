@@ -211,9 +211,8 @@ def is_external_resource(ctx):
 
 
 def is_external_relationship(ctx):
-    return is_external_resource_by_properties(
-        ctx.node.properties) and is_external_resource_by_properties(
-        ctx.related.properties)
+    return is_external_resource_by_properties(ctx.source.node.properties) and \
+        is_external_resource_by_properties(ctx.target.node.properties)
 
 
 def is_external_resource_by_properties(properties):

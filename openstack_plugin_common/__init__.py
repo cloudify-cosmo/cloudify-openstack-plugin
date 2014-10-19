@@ -27,6 +27,7 @@ import novaclient.v1_1.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
 import cloudify
+from cloudify import context
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 # properties
@@ -418,7 +419,7 @@ def _put_client_in_kw(client_name, client_class, kw):
         return
 
     ctx = _find_context_in_kw(kw)
-    if ctx:
+    if ctx.type == context.NODE_INSTANCE:
         config = ctx.node.properties.get('openstack_config')
     else:
         config = None

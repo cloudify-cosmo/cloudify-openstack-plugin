@@ -29,6 +29,8 @@ from openstack_plugin_common import (
     use_external_resource,
     delete_resource_and_runtime_properties,
     delete_runtime_properties,
+    validate_resource,
+    validate_ip_or_range_syntax,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
@@ -172,3 +174,14 @@ def _rules_for_sg_id(neutron_client, id):
     rules = neutron_client.list_security_group_rules()['security_group_rules']
     rules = [rule for rule in rules if rule['security_group_id'] == id]
     return rules
+
+
+@operation
+@with_neutron_client
+def creation_validation(neutron_client, **kwargs):
+    validate_resource(ctx, neutron_client, SECURITY_GROUP_OPENSTACK_TYPE)
+
+    ctx.logger.debug('validating CIDR for rules with a remote_ip_prefix field')
+    for rule in ctx.node.properties['rules']:
+        if 'remote_ip_prefix' in rule:
+            validate_ip_or_range_syntax(ctx, rule['remote_ip_prefix'])

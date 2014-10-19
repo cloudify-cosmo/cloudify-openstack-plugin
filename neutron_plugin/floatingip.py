@@ -22,6 +22,7 @@ from openstack_plugin_common import (
     provider,
     delete_resource_and_runtime_properties,
     use_external_resource,
+    validate_resource,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS)
@@ -41,14 +42,14 @@ def create(neutron_client, **kwargs):
     external_fip = use_external_resource(
         ctx, neutron_client, FLOATINGIP_OPENSTACK_TYPE, 'floating_ip_address')
     if external_fip:
-        ctx.runtime_properties[IP_ADDRESS_PROPERTY] = \
+        ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
             external_fip['floating_ip_address']
         return
 
     floatingip = {
         # No defaults
     }
-    floatingip.update(ctx.properties['floatingip'])
+    floatingip.update(ctx.node.properties['floatingip'])
 
     # Sugar: floating_network_name -> (resolve) -> floating_network_id
     if 'floating_network_name' in floatingip:
@@ -65,9 +66,11 @@ def create(neutron_client, **kwargs):
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = fip['id']
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = FLOATINGIP_OPENSTACK_TYPE
-    ctx.runtime_properties[IP_ADDRESS_PROPERTY] = fip['floating_ip_address']
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = fip['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        FLOATINGIP_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
+        fip['floating_ip_address']
 
 
 @operation
@@ -75,3 +78,10 @@ def create(neutron_client, **kwargs):
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
+
+
+@operation
+@with_neutron_client
+def creation_validation(neutron_client, **kwargs):
+    validate_resource(ctx, neutron_client, FLOATINGIP_OPENSTACK_TYPE,
+                      'floating_ip_address')

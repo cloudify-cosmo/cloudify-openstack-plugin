@@ -16,7 +16,6 @@
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
-
 from openstack_plugin_common import (
     with_neutron_client,
     transform_resource_name,
@@ -25,6 +24,8 @@ from openstack_plugin_common import (
     delete_resource_and_runtime_properties,
     delete_runtime_properties,
     use_external_resource,
+    validate_resource,
+    validate_ip_or_range_syntax,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
@@ -84,3 +85,16 @@ def create(neutron_client, **kwargs):
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
+
+
+@operation
+@with_neutron_client
+def creation_validation(neutron_client, **kwargs):
+    validate_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE)
+
+    if 'cidr' not in ctx.node.properties['subnet']:
+        err = '"cidr" property must appear under the "subnet" property of a ' \
+              'subnet node'
+        ctx.logger.error('VALIDATION ERROR: ' + err)
+        raise NonRecoverableError(err)
+    validate_ip_or_range_syntax(ctx, ctx.node.properties['subnet']['cidr'])

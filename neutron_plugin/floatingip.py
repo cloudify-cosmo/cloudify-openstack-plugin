@@ -41,14 +41,14 @@ def create(neutron_client, **kwargs):
     external_fip = use_external_resource(
         ctx, neutron_client, FLOATINGIP_OPENSTACK_TYPE, 'floating_ip_address')
     if external_fip:
-        ctx.runtime_properties[IP_ADDRESS_PROPERTY] = \
+        ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
             external_fip['floating_ip_address']
         return
 
     floatingip = {
         # No defaults
     }
-    floatingip.update(ctx.properties['floatingip'])
+    floatingip.update(ctx.node.properties['floatingip'])
 
     # Sugar: floating_network_name -> (resolve) -> floating_network_id
     if 'floating_network_name' in floatingip:
@@ -65,9 +65,11 @@ def create(neutron_client, **kwargs):
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = fip['id']
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = FLOATINGIP_OPENSTACK_TYPE
-    ctx.runtime_properties[IP_ADDRESS_PROPERTY] = fip['floating_ip_address']
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = fip['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        FLOATINGIP_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
+        fip['floating_ip_address']
 
 
 @operation

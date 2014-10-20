@@ -57,7 +57,7 @@ def create(neutron_client, **kwargs):
     router = {
         'name': get_resource_id(ctx, ROUTER_OPENSTACK_TYPE),
     }
-    router.update(ctx.properties['router'])
+    router.update(ctx.node.properties['router'])
     transform_resource_name(ctx, router)
 
     # Probably will not be used. External network
@@ -100,9 +100,10 @@ def create(neutron_client, **kwargs):
 
     r = neutron_client.create_router({'router': router})['router']
 
-    ctx.runtime_properties[OPENSTACK_ID_PROPERTY] = r['id']
-    ctx.runtime_properties[OPENSTACK_TYPE_PROPERTY] = ROUTER_OPENSTACK_TYPE
-    ctx.runtime_properties[OPENSTACK_NAME_PROPERTY] = r['name']
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = r['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        ROUTER_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = r['name']
 
 
 @operation

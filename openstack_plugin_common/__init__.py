@@ -498,6 +498,10 @@ def _put_client_in_kw(client_name, client_class, kw):
     ctx = _find_context_in_kw(kw)
     if ctx.type == context.NODE_INSTANCE:
         config = ctx.node.properties.get('openstack_config')
+    elif ctx.type == context.RELATIONSHIP_INSTANCE:
+        config = ctx.source.node.properties.get('openstack_config')
+        if not config:
+            config = ctx.target.node.properties.get('openstack_config')
     else:
         config = None
     kw[client_name] = client_class().get(config=config)

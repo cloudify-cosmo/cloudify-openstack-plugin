@@ -25,6 +25,7 @@ from openstack_plugin_common import (
     use_external_resource,
     is_external_relationship,
     delete_resource_and_runtime_properties,
+    validate_resource,
     COMMON_RUNTIME_PROPERTIES_KEYS,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
@@ -101,7 +102,7 @@ def create(neutron_client, **kwargs):
     r = neutron_client.create_router({'router': router})['router']
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = r['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
         ROUTER_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = r['name']
 
@@ -147,3 +148,9 @@ def disconnect_subnet(neutron_client, **kwargs):
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
+
+
+@operation
+@with_neutron_client
+def creation_validation(neutron_client, **kwargs):
+    validate_resource(ctx, neutron_client, ROUTER_OPENSTACK_TYPE)

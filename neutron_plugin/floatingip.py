@@ -22,6 +22,7 @@ from openstack_plugin_common import (
     provider,
     delete_resource_and_runtime_properties,
     use_external_resource,
+    validate_resource,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS)
@@ -77,3 +78,10 @@ def create(neutron_client, **kwargs):
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
+
+
+@operation
+@with_neutron_client
+def creation_validation(neutron_client, **kwargs):
+    validate_resource(ctx, neutron_client, FLOATINGIP_OPENSTACK_TYPE,
+                      'floating_ip_address')

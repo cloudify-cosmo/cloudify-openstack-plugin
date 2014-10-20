@@ -28,6 +28,7 @@ from openstack_plugin_common import (
     delete_runtime_properties,
     use_external_resource,
     is_external_relationship,
+    validate_resource,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
@@ -120,3 +121,9 @@ def connect_security_group(neutron_client, **kwargs):
             port_id, ctx.target.instance.runtime_properties))
     sgs = port['security_groups'] + [security_group_id]
     neutron_client.update_port(port_id, {'port': {'security_groups': sgs}})
+
+
+@operation
+@with_neutron_client
+def creation_validation(neutron_client, **kwargs):
+    validate_resource(ctx, neutron_client, PORT_OPENSTACK_TYPE)

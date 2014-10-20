@@ -197,6 +197,9 @@ class TestCinderVolume(unittest.TestCase):
                       'volume_id': volume_id}
 
         volume_ctx = cfy_mocks.MockContext({
+            'node': cfy_mocks.MockContext({
+                'properties': {}
+            }),
             'instance': cfy_mocks.MockContext({
                 'runtime_properties': {
                     OPENSTACK_ID_PROPERTY: volume_id,

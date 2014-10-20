@@ -100,8 +100,9 @@ def delete(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def connect_security_group(neutron_client, **kwargs):
-    port_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    security_group_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+    port_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    security_group_id = ctx.target.instance.runtime_properties[
+        OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):
         ctx.logger.info('Validating external port and security-group are '
@@ -116,8 +117,8 @@ def connect_security_group(neutron_client, **kwargs):
     # WARNING: non-atomic operation
     port = neutron_client.cosmo_get('port', id=port_id)
     ctx.logger.info(
-        "connect_security_group(): id={0} related={1}".format(
-            port_id, ctx.related.runtime_properties))
+        "connect_security_group(): source_id={0} target={1}".format(
+            port_id, ctx.target.instance.runtime_properties))
     sgs = port['security_groups'] + [security_group_id]
     neutron_client.update_port(port_id, {'port': {'security_groups': sgs}})
 

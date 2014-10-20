@@ -28,13 +28,6 @@ from openstack_plugin_common import (CinderClient,
                                      OPENSTACK_NAME_PROPERTY)
 
 
-class MockRelatedNode(object):
-
-    def __init__(self, properties=None, runtime_properties=None):
-        self.properties = properties or {}
-        self.runtime_properties = runtime_properties or {}
-
-
 class TestCinderVolume(unittest.TestCase):
 
     def test_create_new(self):
@@ -148,18 +141,30 @@ class TestCinderVolume(unittest.TestCase):
         server_id = '11111111-1111-1111-1111-111111111111'
         device_name = '/dev/fake'
 
-        volume_ctx_m = MockRelatedNode(
-            properties={
-                volume.DEVICE_NAME_PROPERTY: device_name
-            },
-            runtime_properties={
-                OPENSTACK_ID_PROPERTY: volume_id
+        volume_ctx = cfy_mocks.MockContext({
+            'node': cfy_mocks.MockContext({
+                'properties': {volume.DEVICE_NAME_PROPERTY: device_name}
+            }),
+            'instance': cfy_mocks.MockContext({
+                'runtime_properties': {
+                    OPENSTACK_ID_PROPERTY: volume_id,
+                }
             })
+        })
+        server_ctx = cfy_mocks.MockContext({
+            'node': cfy_mocks.MockContext({
+                'properties': {}
+            }),
+            'instance': cfy_mocks.MockContext({
+                'runtime_properties': {
+                    server.OPENSTACK_ID_PROPERTY: server_id
+                }
+            })
+        })
 
         ctx_m = cfy_mocks.MockCloudifyContext(node_id='a',
-                                              related=volume_ctx_m)
-        ctx_m.instance.runtime_properties[server.OPENSTACK_ID_PROPERTY] = \
-            server_id
+                                              source=server_ctx,
+                                              target=volume_ctx)
 
         cinderclient_m = mock.Mock()
         novaclient_m = mock.Mock()
@@ -191,14 +196,30 @@ class TestCinderVolume(unittest.TestCase):
                       'server_id': server_id,
                       'volume_id': volume_id}
 
-        volume_ctx_m = MockRelatedNode(runtime_properties={
-            OPENSTACK_ID_PROPERTY: volume_id
+        volume_ctx = cfy_mocks.MockContext({
+            'node': cfy_mocks.MockContext({
+                'properties': {}
+            }),
+            'instance': cfy_mocks.MockContext({
+                'runtime_properties': {
+                    OPENSTACK_ID_PROPERTY: volume_id,
+                }
+            })
+        })
+        server_ctx = cfy_mocks.MockContext({
+            'node': cfy_mocks.MockContext({
+                'properties': {}
+            }),
+            'instance': cfy_mocks.MockContext({
+                'runtime_properties': {
+                    server.OPENSTACK_ID_PROPERTY: server_id
+                }
+            })
         })
 
         ctx_m = cfy_mocks.MockCloudifyContext(node_id='a',
-                                              related=volume_ctx_m)
-        ctx_m.instance.runtime_properties[server.OPENSTACK_ID_PROPERTY] = \
-            server_id
+                                              source=server_ctx,
+                                              target=volume_ctx)
 
         attached_volume_m = mock.Mock()
         attached_volume_m.id = volume_id

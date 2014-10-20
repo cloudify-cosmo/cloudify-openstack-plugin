@@ -41,7 +41,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
-    """ Create a router.
+    """Create a router.
     Optional relationship is to gateway network.
     Also supports `router.external_gateway_info.network_name`,
     which is translated to `router.external_gateway_info.network_id`.
@@ -110,8 +110,8 @@ def create(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def connect_subnet(neutron_client, **kwargs):
-    router_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    subnet_id = ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]
+    router_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    subnet_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):
         ctx.logger.info('Validating external subnet and router '
@@ -136,8 +136,10 @@ def disconnect_subnet(neutron_client, **kwargs):
         return
 
     neutron_client.remove_interface_router(
-        ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY],
-        {'subnet_id': ctx.related.runtime_properties[OPENSTACK_ID_PROPERTY]}
+        ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY], {
+            'subnet_id': ctx.source.instance.runtime_properties[
+                OPENSTACK_ID_PROPERTY]
+        }
     )
 
 

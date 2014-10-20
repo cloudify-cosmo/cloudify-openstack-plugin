@@ -28,6 +28,7 @@ import novaclient.v1_1.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
 import cloudify
+from cloudify import context
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 # properties
@@ -272,9 +273,8 @@ def is_external_resource(ctx):
 
 
 def is_external_relationship(ctx):
-    return is_external_resource_by_properties(
-        ctx.node.properties) and is_external_resource_by_properties(
-        ctx.related.properties)
+    return is_external_resource_by_properties(ctx.source.node.properties) and \
+        is_external_resource_by_properties(ctx.target.node.properties)
 
 
 def is_external_resource_by_properties(properties):
@@ -496,8 +496,12 @@ def _put_client_in_kw(client_name, client_class, kw):
         return
 
     ctx = _find_context_in_kw(kw)
-    if ctx:
+    if ctx.type == context.NODE_INSTANCE:
         config = ctx.node.properties.get('openstack_config')
+    elif ctx.type == context.RELATIONSHIP_INSTANCE:
+        config = ctx.source.node.properties.get('openstack_config')
+        if not config:
+            config = ctx.target.node.properties.get('openstack_config')
     else:
         config = None
     kw[client_name] = client_class().get(config=config)

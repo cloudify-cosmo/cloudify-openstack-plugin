@@ -20,6 +20,7 @@ import inspect
 import itertools
 
 from cloudify import ctx
+from cloudify import context
 from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
@@ -251,8 +252,13 @@ def create(nova_client, **kwargs):
 
 
 def _neutron_client():
-    return NeutronClient().get(
-        config=ctx.node.properties.get('openstack_config'))
+    if ctx.type == context.NODE_INSTANCE:
+        config = ctx.node.properties.get('openstack_config')
+    else:
+        config = ctx.source.node.properties.get('openstack_config')
+        if not config:
+            config = ctx.target.node.properties.get('openstack_config')
+    return NeutronClient().get(config=config)
 
 
 @operation

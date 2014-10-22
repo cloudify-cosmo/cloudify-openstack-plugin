@@ -42,6 +42,23 @@ node_types:
             cloudify.interfaces.plugin_installer:
                 - install: windows_plugin_installer.windows_plugin_installer.tasks.install
 
+    cloudify.openstack.keypair
+        derived_from: cloudify.types.base
+        properties:
+            keypair: {}
+            private_key_path: {}
+            use_external_resource:
+                default: false
+            resources_id:
+                default: ''
+            openstack_config:
+                default: {}
+        interfaces:
+            cloudify.interfaces.lifecycle:
+                - create: openstack.nova_plugin.keypair.create
+                - delete: openstack.nova_plugin.keypair.delete
+            cloudify.interfaces.validation:
+                - creation: openstack.nova_plugin.keypair.creation_validation
 
     cloudify.openstack.subnet:
         derived_from: cloudify.types.subnet

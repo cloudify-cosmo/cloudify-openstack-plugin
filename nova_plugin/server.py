@@ -299,12 +299,12 @@ def stop(nova_client, **kwargs):
 @with_nova_client
 def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
-        ctx.logger.info('Deleting Server')
+        ctx.logger.info('deleting server')
         server = get_server_by_context(nova_client)
         nova_client.servers.delete(server)
         _wait_for_server_to_be_deleted(nova_client, server)
     else:
-        ctx.logger.info('Not deleting server since an external server is '
+        ctx.logger.info('not deleting server since an external server is '
                         'being used')
 
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)

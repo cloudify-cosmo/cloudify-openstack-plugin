@@ -451,7 +451,7 @@ def with_neutron_client(f):
             return f(*args, **kw)
         except neutron_exceptions.NeutronClientException, e:
             if e.status_code in _non_recoverable_error_codes:
-                _re_raise(e, recoverable=False)
+                _re_raise(e, recoverable=False, status_code=e.status_code)
             else:
                 raise
     return wrapper
@@ -468,7 +468,7 @@ def with_nova_client(f):
             _re_raise(e, recoverable=True, retry_after=e.retry_after)
         except nova_exceptions.ClientException, e:
             if e.code in _non_recoverable_error_codes:
-                _re_raise(e, recoverable=False)
+                _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
     return wrapper
@@ -485,7 +485,7 @@ def with_cinder_client(f):
             _re_raise(e, recoverable=True, retry_after=e.retry_after)
         except cinder_exceptions.ClientException, e:
             if e.code in _non_recoverable_error_codes:
-                _re_raise(e, recoverable=False)
+                _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
     return wrapper
@@ -510,16 +510,19 @@ def _put_client_in_kw(client_name, client_class, kw):
 _non_recoverable_error_codes = [400, 401, 403, 404, 409]
 
 
-def _re_raise(e, recoverable, retry_after=None):
+def _re_raise(e, recoverable, retry_after=None, status_code=None):
     exc_type, exc, traceback = sys.exc_info()
+    message = e.message
+    if status_code is not None:
+        message = '{0} [status_code={1}]'.format(message, status_code)
     if recoverable:
         if retry_after == 0:
             retry_after = None
         raise RecoverableError(
-            message=e.message,
+            message=message,
             retry_after=retry_after), None, traceback
     else:
-        raise NonRecoverableError(e.message), None, traceback
+        raise NonRecoverableError(message), None, traceback
 
 
 # Sugar for clients

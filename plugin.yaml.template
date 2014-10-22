@@ -42,14 +42,15 @@ node_types:
             cloudify.interfaces.plugin_installer:
                 - install: windows_plugin_installer.windows_plugin_installer.tasks.install
 
-    cloudify.openstack.keypair
+    cloudify.openstack.keypair:
         derived_from: cloudify.types.base
         properties:
-            keypair: {}
+            keypair:
+                default: {}
             private_key_path: {}
             use_external_resource:
                 default: false
-            resources_id:
+            resource_id:
                 default: ''
             openstack_config:
                 default: {}

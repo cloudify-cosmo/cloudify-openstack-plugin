@@ -16,7 +16,6 @@
 import os
 import stat
 import errno
-import shutil
 import platform
 from getpass import getuser
 
@@ -31,6 +30,7 @@ from openstack_plugin_common import (
     is_external_resource,
     delete_runtime_properties,
     get_resource_id,
+    delete_resource_and_runtime_properties,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
@@ -78,11 +78,17 @@ def create(nova_client, **kwargs):
         KEYPAIR_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = keypair.name
 
-    # write private key file
-    _mkdir_p(os.path.dirname(private_key_path))
-    with open(private_key_path, 'w') as f:
-        f.write(keypair.private_key)
-        os.fchmod(f.fileno(), stat.S_IRUSR | stat.S_IWUSR)
+    try:
+        # write private key file
+        _mkdir_p(os.path.dirname(private_key_path))
+        with open(private_key_path, 'w') as f:
+            f.write(keypair.private_key)
+            os.fchmod(f.fileno(), stat.S_IRUSR | stat.S_IWUSR)
+    except Exception:
+        _delete_private_key_file()
+        delete_resource_and_runtime_properties(ctx, nova_client,
+                                               RUNTIME_PROPERTIES_KEYS)
+        raise
 
 
 @operation
@@ -91,10 +97,7 @@ def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
         ctx.logger.info('deleting keypair')
 
-        private_key_path = _get_private_key_path()
-        ctx.logger.debug('deleting private key file at {0}'.format(
-            private_key_path))
-        shutil.rmtree(private_key_path)
+        _delete_private_key_file()
 
         nova_client.keypairs.delete(
             ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY])
@@ -112,7 +115,6 @@ def creation_validation(nova_client, **kwargs):
     def validate_private_key_permissions(private_key_path):
         ctx.logger.debug('checking whether private key file {0} has the '
                          'correct permissions'.format(private_key_path))
-        private_key_path = os.path.expanduser(private_key_path)
         if not os.access(private_key_path, os.R_OK | os.W_OK):
             err = 'private key file {0} is not readable and/or ' \
                   'writeable'.format(private_key_path)
@@ -126,7 +128,6 @@ def creation_validation(nova_client, **kwargs):
                          'current user'.format(path))
         from pwd import getpwnam, getpwuid
 
-        path = os.path.expanduser(path)
         user = getuser()
         owner = getpwuid(os.stat(path).st_uid).pw_name
         current_user_id = str(getpwnam(user).pw_uid)
@@ -170,19 +171,30 @@ def creation_validation(nova_client, **kwargs):
 
 
 def _get_private_key_path():
-    return ctx.node.properties[PRIVATE_KEY_PATH_PROP]
+    return os.path.expanduser(ctx.node.properties[PRIVATE_KEY_PATH_PROP])
+
+
+def _delete_private_key_file():
+    private_key_path = _get_private_key_path()
+    ctx.logger.debug('deleting private key file at {0}'.format(
+        private_key_path))
+    try:
+        os.remove(private_key_path)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            # file was already deleted somehow
+            pass
+        raise
 
 
 def _check_private_key_exists(private_key_path):
-    private_key_path = os.path.expanduser(private_key_path)
     return os.path.isfile(private_key_path)
 
 
 def _mkdir_p(path):
-    path = os.path.expanduser(path)
     try:
         os.makedirs(path)
-    except OSError, exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
+    except OSError as e:
+        if e.errno == errno.EEXIST and os.path.isdir(path):
             return
         raise

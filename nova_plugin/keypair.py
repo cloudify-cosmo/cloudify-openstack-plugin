@@ -142,9 +142,6 @@ def creation_validation(nova_client, **kwargs):
 
     validate_resource(ctx, nova_client, KEYPAIR_OPENSTACK_TYPE)
 
-    #exists on OS but not locally, or otherwise around
-    #check other options too (both exists but no use external? other way?)
-
     private_key_path = _get_private_key_path()
     pk_exists = _check_private_key_exists(private_key_path)
 

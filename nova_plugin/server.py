@@ -160,7 +160,7 @@ def create(nova_client, **kwargs):
             security_groups.append(asg)
         server['security_groups'] = security_groups
 
-    #server keypair handling
+    # server keypair handling
     keypair_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, KEYPAIR_OPENSTACK_TYPE, True)
 
@@ -527,8 +527,8 @@ def _validate_external_server_keypair(nova_client):
 
     keypair_instance_id = \
         [node_instance_id for node_instance_id, runtime_props in
-         ctx.capabilities.get_all().iteritems() if runtime_props.get(
-         OPENSTACK_ID_PROPERTY) == keypair_id]
+         ctx.capabilities.get_all().iteritems() if
+         runtime_props.get(OPENSTACK_ID_PROPERTY) == keypair_id]
     keypair_node_properties = _get_properties_by_node_instance_id(
         keypair_instance_id)
     if not is_external_resource_by_properties(keypair_node_properties):

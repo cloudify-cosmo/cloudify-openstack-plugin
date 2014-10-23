@@ -179,7 +179,7 @@ node_types:
                     inputs: {}
                 delete:
                     implementation: openstack.neutron_plugin.router.delete
-                    inputs: {]
+                    inputs: {}
             cloudify.interfaces.validation:
                 creation:
                     implementation: openstack.neutron_plugin.router.creation_validation
@@ -224,7 +224,7 @@ node_types:
             cloudify.interfaces.lifecycle:
                 create:
                     implementation: openstack.neutron_plugin.network.create
-                    inputs: {]
+                    inputs: {}
                 delete:
                     implementation: openstack.neutron_plugin.network.delete
                     inputs: {}

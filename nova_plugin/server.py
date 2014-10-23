@@ -172,7 +172,7 @@ def create(nova_client, **kwargs):
                                       'relationship at the same time')
         server['key_name'] = rename(server['key_name'])
     elif keypair_id:
-        server['key_name'] = _get_keypair_id_by_name(nova_client, keypair_id)
+        server['key_name'] = _get_keypair_name_by_id(nova_client, keypair_id)
     elif provider_context.agents_keypair:
         server['key_name'] = provider_context.agents_keypair['name']
     else:
@@ -537,14 +537,14 @@ def _validate_external_server_keypair(nova_client):
             "with '{0}'=True".format(USE_EXTERNAL_RESOURCE_PROPERTY))
 
     server = get_server_by_context(nova_client)
-    if keypair_id == _get_keypair_id_by_name(nova_client, server.key_name):
+    if keypair_id == _get_keypair_name_by_id(nova_client, server.key_name):
         return
     raise NonRecoverableError(
         "Expected external resources server {0} and keypair {1} to be "
         "connected".format(server.id, keypair_id))
 
 
-def _get_keypair_id_by_name(nova_client, key_name):
+def _get_keypair_name_by_id(nova_client, key_name):
     keypair = nova_client.cosmo_get_named(KEYPAIR_OPENSTACK_TYPE, key_name)
     return keypair.id
 

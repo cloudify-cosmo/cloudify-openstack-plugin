@@ -35,6 +35,7 @@ from openstack_plugin_common import (
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     with_nova_client,
     with_cinder_client,
+    get_openstack_id_of_single_connected_node_by_openstack_type,
     is_external_resource,
     is_external_resource_by_properties,
     use_external_resource,
@@ -47,6 +48,7 @@ from openstack_plugin_common import (
     OPENSTACK_NAME_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
+from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
 from neutron_plugin.floatingip import IP_ADDRESS_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
@@ -96,6 +98,7 @@ def create(nova_client, **kwargs):
     if external_server:
         try:
             _validate_external_server_nics(network_ids, port_ids)
+            _validate_external_server_keypair(nova_client)
             _set_network_and_ip_runtime_properties(external_server)
             return
         except Exception:
@@ -157,12 +160,27 @@ def create(nova_client, **kwargs):
             security_groups.append(asg)
         server['security_groups'] = security_groups
 
+    # server keypair handling
+    keypair_id = get_openstack_id_of_single_connected_node_by_openstack_type(
+        ctx, KEYPAIR_OPENSTACK_TYPE, True)
+
     if 'key_name' in server:
+        if keypair_id:
+            raise NonRecoverableError("server can't both have the "
+                                      '"key_name" nested property and be '
+                                      'connected to a keypair via a '
+                                      'relationship at the same time')
         server['key_name'] = rename(server['key_name'])
+    elif keypair_id:
+        server['key_name'] = _get_keypair_name_by_id(nova_client, keypair_id)
+    elif provider_context.agents_keypair:
+        server['key_name'] = provider_context.agents_keypair['name']
     else:
-        # 'key_name' not in server
-        if provider_context.agents_keypair:
-            server['key_name'] = provider_context.agents_keypair['name']
+        raise NonRecoverableError(
+            'server must have a keypair, yet no keypair was connected to the '
+            'server node, the "key_name" nested property'
+            "wasn't used, and there is no agent keypair in the provider "
+            "context")
 
     _fail_on_missing_required_parameters(
         server,
@@ -305,12 +323,12 @@ def stop(nova_client, **kwargs):
 @with_nova_client
 def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
-        ctx.logger.info('Deleting Server')
+        ctx.logger.info('deleting server')
         server = get_server_by_context(nova_client)
         nova_client.servers.delete(server)
         _wait_for_server_to_be_deleted(nova_client, server)
     else:
-        ctx.logger.info('Not deleting server since an external server is '
+        ctx.logger.info('not deleting server since an external server is '
                         'being used')
 
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
@@ -499,6 +517,36 @@ def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):
                 "Required parameter '{0}' is missing (under host's "
                 "properties.{1}). Required parameters are: {2}"
                 .format(k, hint_where, required_parameters))
+
+
+def _validate_external_server_keypair(nova_client):
+    keypair_id = get_openstack_id_of_single_connected_node_by_openstack_type(
+        ctx, KEYPAIR_OPENSTACK_TYPE, True)
+    if not keypair_id:
+        return
+
+    keypair_instance_id = \
+        [node_instance_id for node_instance_id, runtime_props in
+         ctx.capabilities.get_all().iteritems() if
+         runtime_props.get(OPENSTACK_ID_PROPERTY) == keypair_id]
+    keypair_node_properties = _get_properties_by_node_instance_id(
+        keypair_instance_id)
+    if not is_external_resource_by_properties(keypair_node_properties):
+        raise NonRecoverableError(
+            "Can't connect a new keypair node to a server node "
+            "with '{0}'=True".format(USE_EXTERNAL_RESOURCE_PROPERTY))
+
+    server = get_server_by_context(nova_client)
+    if keypair_id == _get_keypair_name_by_id(nova_client, server.key_name):
+        return
+    raise NonRecoverableError(
+        "Expected external resources server {0} and keypair {1} to be "
+        "connected".format(server.id, keypair_id))
+
+
+def _get_keypair_name_by_id(nova_client, key_name):
+    keypair = nova_client.cosmo_get_named(KEYPAIR_OPENSTACK_TYPE, key_name)
+    return keypair.id
 
 
 def _validate_external_server_nics(network_ids, port_ids):

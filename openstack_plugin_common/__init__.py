@@ -214,10 +214,10 @@ def validate_resource(ctx, sugared_client, openstack_type,
             ctx.logger.debug('OK: {0} {1} found in pool'.format(
                 openstack_type, ctx.node.properties['resource_id']))
         except NonRecoverableError as e:
-            ctx.logger.error('VALIDATION ERROR:' + str(e))
+            ctx.logger.error('VALIDATION ERROR: ' + str(e))
             resource_list = list(sugared_client.cosmo_list(openstack_type))
             if resource_list:
-                ctx.logger.info('list of existing {0}:'.format(
+                ctx.logger.info('list of existing {0}: '.format(
                     openstack_type_plural))
                 for resource in resource_list:
                     ctx.logger.info('    {0:>10} - {1}'.format(

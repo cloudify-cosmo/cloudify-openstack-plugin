@@ -80,10 +80,16 @@ node_types:
                 default: {}
         interfaces:
             cloudify.interfaces.lifecycle:
-                - create: openstack.nova_plugin.keypair.create
-                - delete: openstack.nova_plugin.keypair.delete
+                create:
+                    implementation: openstack.nova_plugin.keypair.create
+                    inputs: {}
+                delete:
+                    implementation: openstack.nova_plugin.keypair.delete
+                    inputs: {}
             cloudify.interfaces.validation:
-                - creation: openstack.nova_plugin.keypair.creation_validation
+                creation:
+                    implementation: openstack.nova_plugin.keypair.creation_validation
+                    inputs: {}
 
     cloudify.openstack.subnet:
         derived_from: cloudify.types.subnet

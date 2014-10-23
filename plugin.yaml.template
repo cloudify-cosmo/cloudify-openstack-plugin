@@ -236,7 +236,10 @@ relationships:
 
     cloudify.openstack.server_connected_to_port:
         derived_from: cloudify.relationships.connected_to
-        
+
+    cloudify.openstack.server_connected_to_keypair:
+        derived_from: cloudify.relationships.connected_to
+
     cloudify.openstack.floating_ip_connected_to_port:
         derived_from: cloudify.relationships.connected_to
 

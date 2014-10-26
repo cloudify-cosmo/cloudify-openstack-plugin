@@ -142,25 +142,6 @@ node_types:
                     implementation: openstack.neutron_plugin.security_group.creation_validation
                     inputs: {}
 
-    cloudify.openstack.security_group_rule:
-        derived_from: cloudify.types.base
-        properties:
-            security_group_rule: {}
-            use_external_resource:
-                default: false
-            resource_id:
-                default: ''
-            openstack_config:
-                default: {}
-        interfaces:
-            cloudify.interfaces.lifecycle:
-                create:
-                    implementation: openstack.neutron_plugin.security_group_rule.create
-                    inputs: {}
-                delete:
-                    implementation: openstack.neutron_plugin.security_group_rule.delete
-                    inputs: {}
-
     cloudify.openstack.router:
         derived_from: cloudify.types.router
         properties:
@@ -332,9 +313,6 @@ relationships:
 
     cloudify.openstack.floating_ip_connected_to_port:
         derived_from: cloudify.relationships.connected_to
-
-    cloudify.openstack.security_group_rule_in_security_group:
-        derived_from: cloudify.relationships.contained_in
 
     cloudify.openstack.volume_attached_to_server:
         derived_from: cloudify.relationships.connected_to

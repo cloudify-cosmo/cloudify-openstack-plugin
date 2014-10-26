@@ -71,13 +71,38 @@ node_types:
         properties:
             keypair:
                 default: {}
-            private_key_path: {}
+                description: >
+                    the keypair object as described by Openstack. This
+                    parameter can be used to override and pass parameters
+                    directly to Nova client.
+                    Note that in the case of keypair, the only nested parameter
+                    that can be used is "name".
+            private_key_path:
+                description: >
+                    the path (on the machine the plugin is running on) to
+                    where the private key should be stored. If
+                    use_external_resource is set to "true", the existing
+                    private key is expected to be at this path.
             use_external_resource:
                 default: false
+                description: >
+                    a boolean describing whether this resource should be
+                    created or rather that it already exists on Openstack
+                    and should be used as-is.
             resource_id:
                 default: ''
+                description: >
+                    the name that will be given to the resource on Openstack (excluding optional prefix).
+                    If not provided, a default name will be given instead.
+                    If use_external_resource is set to "true", this exact
+                    value (without any prefixes applied) will be looked for
+                    as either the name or id of an existing keypair to be used.
             openstack_config:
                 default: {}
+                description: >
+                    endpoints and authentication configuration for Openstack.
+                    Expected to contain the following nested fields:
+                    username, password, tenant_name, auth_url, region.
         interfaces:
             cloudify.interfaces.lifecycle:
                 create:

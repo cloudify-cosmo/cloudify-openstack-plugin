@@ -528,7 +528,7 @@ def _validate_external_server_keypair(nova_client):
     keypair_instance_id = \
         [node_instance_id for node_instance_id, runtime_props in
          ctx.capabilities.get_all().iteritems() if
-         runtime_props.get(OPENSTACK_ID_PROPERTY) == keypair_id]
+         runtime_props.get(OPENSTACK_ID_PROPERTY) == keypair_id][0]
     keypair_node_properties = _get_properties_by_node_instance_id(
         keypair_instance_id)
     if not is_external_resource_by_properties(keypair_node_properties):

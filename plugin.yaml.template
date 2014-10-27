@@ -9,7 +9,7 @@ plugins:
 
 node_types:
     cloudify.openstack.server:
-        derived_from: cloudify.types.host
+        derived_from: cloudify.nodes.Compute
         properties:
             server: {}
             use_external_resource:
@@ -67,7 +67,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.keypair:
-        derived_from: cloudify.types.base
+        derived_from: cloudify.nodes.Root
         properties:
             keypair:
                 default: {}
@@ -117,7 +117,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.subnet:
-        derived_from: cloudify.types.subnet
+        derived_from: cloudify.nodes.Subnet
         properties:
             subnet: {}
             use_external_resource:
@@ -140,7 +140,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.security_group:
-        derived_from: cloudify.types.base
+        derived_from: cloudify.nodes.Root
         properties:
             security_group:
                 default: {}
@@ -168,7 +168,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.router:
-        derived_from: cloudify.types.router
+        derived_from: cloudify.nodes.Router
         properties:
             router:
                 default: {}
@@ -192,7 +192,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.port:
-        derived_from: cloudify.types.base
+        derived_from: cloudify.nodes.Root
         properties:
             port:
                 default: {}
@@ -216,7 +216,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.network:
-        derived_from: cloudify.types.network
+        derived_from: cloudify.nodes.Network
         properties:
             network:
                 default: {}
@@ -240,7 +240,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.floatingip:
-        derived_from: cloudify.types.base
+        derived_from: cloudify.nodes.Root
         properties:
             floatingip:
                 default: {}
@@ -264,7 +264,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.volume:
-        derived_from: cloudify.types.volume
+        derived_from: cloudify.nodes.Volume
         properties:
             volume: {}
             use_external_resource:

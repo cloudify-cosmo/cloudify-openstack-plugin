@@ -8,7 +8,7 @@ plugins:
         source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/{{ plugin_branch }}.zip
 
 node_types:
-    cloudify.openstack.server:
+    cloudify.openstack.nodes.Server:
         derived_from: cloudify.nodes.Compute
         properties:
             server: {}
@@ -42,7 +42,7 @@ node_types:
                 creation:
                     implementation: openstack.nova_plugin.server.creation_validation
                     inputs: {}
-    cloudify.openstack.windows_server:
+    cloudify.openstack.nodes.WindowsServer:
         derived_from: cloudify.openstack.server
         interfaces:
             cloudify.interfaces.worker_installer:
@@ -66,7 +66,7 @@ node_types:
                     implementation: windows_plugin_installer.windows_plugin_installer.tasks.install
                     inputs: {}
 
-    cloudify.openstack.keypair:
+    cloudify.openstack.nodes.KeyPair:
         derived_from: cloudify.nodes.Root
         properties:
             keypair:
@@ -116,7 +116,7 @@ node_types:
                     implementation: openstack.nova_plugin.keypair.creation_validation
                     inputs: {}
 
-    cloudify.openstack.subnet:
+    cloudify.openstack.nodes.Subnet:
         derived_from: cloudify.nodes.Subnet
         properties:
             subnet: {}
@@ -139,7 +139,7 @@ node_types:
                     implementation: openstack.neutron_plugin.subnet.creation_validation
                     inputs: {}
 
-    cloudify.openstack.security_group:
+    cloudify.openstack.nodes.SecurityGroup:
         derived_from: cloudify.nodes.Root
         properties:
             security_group:
@@ -167,7 +167,7 @@ node_types:
                     implementation: openstack.neutron_plugin.security_group.creation_validation
                     inputs: {}
 
-    cloudify.openstack.router:
+    cloudify.openstack.nodes.Router:
         derived_from: cloudify.nodes.Router
         properties:
             router:
@@ -191,8 +191,8 @@ node_types:
                     implementation: openstack.neutron_plugin.router.creation_validation
                     inputs: {}
 
-    cloudify.openstack.port:
-        derived_from: cloudify.nodes.Root
+    cloudify.openstack.nodes.Port:
+        derived_from: cloudify.nodes.Port
         properties:
             port:
                 default: {}
@@ -215,7 +215,7 @@ node_types:
                     implementation: openstack.neutron_plugin.port.creation_validation
                     inputs: {}
 
-    cloudify.openstack.network:
+    cloudify.openstack.nodes.Network:
         derived_from: cloudify.nodes.Network
         properties:
             network:
@@ -239,7 +239,7 @@ node_types:
                     implementation: openstack.neutron_plugin.network.creation_validation
                     inputs: {}
 
-    cloudify.openstack.floatingip:
+    cloudify.openstack.nodes.FloatingIP:
         derived_from: cloudify.nodes.Root
         properties:
             floatingip:
@@ -263,7 +263,7 @@ node_types:
                     implementation: openstack.neutron_plugin.floatingip.creation_validation
                     inputs: {}
 
-    cloudify.openstack.volume:
+    cloudify.openstack.nodes.Volume:
         derived_from: cloudify.nodes.Volume
         properties:
             volume: {}

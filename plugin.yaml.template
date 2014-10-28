@@ -8,8 +8,8 @@ plugins:
         source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/{{ plugin_branch }}.zip
 
 node_types:
-    cloudify.openstack.server:
-        derived_from: cloudify.types.host
+    cloudify.openstack.nodes.Server:
+        derived_from: cloudify.nodes.Compute
         properties:
             server: {}
             use_external_resource:
@@ -42,8 +42,8 @@ node_types:
                 creation:
                     implementation: openstack.nova_plugin.server.creation_validation
                     inputs: {}
-    cloudify.openstack.windows_server:
-        derived_from: cloudify.openstack.server
+    cloudify.openstack.nodes.WindowsServer:
+        derived_from: cloudify.openstack.nodes.Server
         interfaces:
             cloudify.interfaces.worker_installer:
                 install:
@@ -66,8 +66,8 @@ node_types:
                     implementation: windows_plugin_installer.windows_plugin_installer.tasks.install
                     inputs: {}
 
-    cloudify.openstack.keypair:
-        derived_from: cloudify.types.base
+    cloudify.openstack.nodes.KeyPair:
+        derived_from: cloudify.nodes.Root
         properties:
             keypair:
                 default: {}
@@ -116,8 +116,8 @@ node_types:
                     implementation: openstack.nova_plugin.keypair.creation_validation
                     inputs: {}
 
-    cloudify.openstack.subnet:
-        derived_from: cloudify.types.subnet
+    cloudify.openstack.nodes.Subnet:
+        derived_from: cloudify.nodes.Subnet
         properties:
             subnet: {}
             use_external_resource:
@@ -139,8 +139,8 @@ node_types:
                     implementation: openstack.neutron_plugin.subnet.creation_validation
                     inputs: {}
 
-    cloudify.openstack.security_group:
-        derived_from: cloudify.types.base
+    cloudify.openstack.nodes.SecurityGroup:
+        derived_from: cloudify.nodes.Root
         properties:
             security_group:
                 default: {}
@@ -167,8 +167,8 @@ node_types:
                     implementation: openstack.neutron_plugin.security_group.creation_validation
                     inputs: {}
 
-    cloudify.openstack.router:
-        derived_from: cloudify.types.router
+    cloudify.openstack.nodes.Router:
+        derived_from: cloudify.nodes.Router
         properties:
             router:
                 default: {}
@@ -191,8 +191,8 @@ node_types:
                     implementation: openstack.neutron_plugin.router.creation_validation
                     inputs: {}
 
-    cloudify.openstack.port:
-        derived_from: cloudify.types.base
+    cloudify.openstack.nodes.Port:
+        derived_from: cloudify.nodes.Port
         properties:
             port:
                 default: {}
@@ -215,8 +215,8 @@ node_types:
                     implementation: openstack.neutron_plugin.port.creation_validation
                     inputs: {}
 
-    cloudify.openstack.network:
-        derived_from: cloudify.types.network
+    cloudify.openstack.nodes.Network:
+        derived_from: cloudify.nodes.Network
         properties:
             network:
                 default: {}
@@ -239,8 +239,8 @@ node_types:
                     implementation: openstack.neutron_plugin.network.creation_validation
                     inputs: {}
 
-    cloudify.openstack.floatingip:
-        derived_from: cloudify.types.base
+    cloudify.openstack.nodes.FloatingIP:
+        derived_from: cloudify.nodes.VirtualIP
         properties:
             floatingip:
                 default: {}
@@ -263,8 +263,8 @@ node_types:
                     implementation: openstack.neutron_plugin.floatingip.creation_validation
                     inputs: {}
 
-    cloudify.openstack.volume:
-        derived_from: cloudify.types.volume
+    cloudify.openstack.nodes.Volume:
+        derived_from: cloudify.nodes.Volume
         properties:
             volume: {}
             use_external_resource:

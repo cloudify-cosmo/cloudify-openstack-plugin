@@ -240,7 +240,7 @@ node_types:
                     inputs: {}
 
     cloudify.openstack.nodes.FloatingIP:
-        derived_from: cloudify.nodes.Root
+        derived_from: cloudify.nodes.VirtualIP
         properties:
             floatingip:
                 default: {}

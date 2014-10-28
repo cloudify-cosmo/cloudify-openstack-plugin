@@ -43,7 +43,7 @@ node_types:
                     implementation: openstack.nova_plugin.server.creation_validation
                     inputs: {}
     cloudify.openstack.nodes.WindowsServer:
-        derived_from: cloudify.openstack.server
+        derived_from: cloudify.openstack.nodes.Server
         interfaces:
             cloudify.interfaces.worker_installer:
                 install:

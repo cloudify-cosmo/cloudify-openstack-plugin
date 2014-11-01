@@ -36,7 +36,7 @@ setup(
         'cloudify-plugins-common==3.1rc1',
         'python-novaclient==2.17.0',
         'python-keystoneclient==0.7.1',
-        'python-neutronclient==2.3.4',
+        'python-neutronclient==2.3.9',
         'python-cinderclient==1.0.9',
         'IPy==0.81'
     ]

@@ -358,21 +358,27 @@ class OpenStackClient(object):
         return ret
 
     def _validate_config(self, cfg):
+        missing_config_params = self._get_missing_config_params(cfg)
+        if missing_config_params:
+            self._raise_missing_config_params_error(missing_config_params)
+
+    def _get_missing_config_params(self, cfg):
         missing_config_params = \
             [param for param in self.REQUIRED_CONFIG_PARAMS if param not in
              cfg or not cfg[param]]
+        return missing_config_params
 
-        if missing_config_params:
-            raise NonRecoverableError(
-                "Missing Openstack configuration parameters: {0}; "
-                "Expected to find parameters either as environment "
-                "variables, in a JSON file (at either a path which is "
-                "set under the environment variable {1} or at the "
-                "default location {2}), or as nested properties under "
-                "a 'openstack_config' property".format(
-                    missing_config_params,
-                    Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
-                    Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH))
+    def _raise_missing_config_params_error(self, missing_config_params):
+        raise NonRecoverableError(
+            "Missing Openstack configuration parameters: {0}; "
+            "Expected to find parameters either as environment "
+            "variables, in a JSON file (at either a path which is "
+            "set under the environment variable {1} or at the "
+            "default location {2}), or as nested properties under "
+            "a 'openstack_config' property".format(
+                missing_config_params,
+                Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
+                Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH))
 
 
 # Clients acquireres
@@ -416,14 +422,31 @@ class CinderClient(OpenStackClient):
 class NeutronClient(OpenStackClient):
 
     REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url', 'region']
+        ['username', 'password', 'tenant_name', 'auth_url']
+
+    def _get_missing_config_params(self, cfg):
+        missing_config_params =\
+            super(NeutronClient, self)._get_missing_config_params(cfg)
+
+        if not cfg.get('neutron_url') and not cfg.get('region'):
+            missing_config_params.append('region or neutron_url')
+
+        return missing_config_params
 
     def connect(self, cfg, region=None):
-        return NeutronClientWithSugar(username=cfg['username'],
-                                      password=cfg['password'],
-                                      tenant_name=cfg['tenant_name'],
-                                      auth_url=cfg['auth_url'],
-                                      region_name=region or cfg['region'])
+        client_kwargs = dict(
+            username=cfg['username'],
+            password=cfg['password'],
+            tenant_name=cfg['tenant_name'],
+            auth_url=cfg['auth_url'],
+        )
+
+        if cfg.get('neutron_url'):
+            client_kwargs['endpoint_url'] = cfg['neutron_url']
+        else:
+            client_kwargs['region_name'] = region or cfg['region']
+
+        return NeutronClientWithSugar(**client_kwargs)
 
 
 # Decorators

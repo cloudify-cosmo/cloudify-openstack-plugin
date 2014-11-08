@@ -376,7 +376,7 @@ class OpenStackClient(object):
             "set under the environment variable {1} or at the "
             "default location {2}), or as nested properties under "
             "a 'openstack_config' property".format(
-                missing_config_params,
+                ', '.join(missing_config_params),
                 Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
                 Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH))
 

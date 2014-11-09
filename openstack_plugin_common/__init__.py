@@ -398,30 +398,22 @@ class KeystoneClient(OpenStackClient):
 class NovaClient(OpenStackClient):
 
     REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url']
-
-    def _get_missing_config_params(self, cfg):
-        missing_config_params = \
-            super(NovaClient, self)._get_missing_config_params(cfg)
-
-        if not cfg.get('nova_url') and not cfg.get('region'):
-            missing_config_params.append('region or nova_url')
-
-        return missing_config_params
+        ['username', 'password', 'tenant_name', 'auth_url', 'region']
 
     def connect(self, cfg, region=None):
+        # note: 'region_name' is required regardless of whether 'bypass_url'
+        # is used or not
         client_kwargs = dict(
             username=cfg['username'],
             api_key=cfg['password'],
             project_id=cfg['tenant_name'],
             auth_url=cfg['auth_url'],
+            region_name=region or cfg['region'],
             http_log_debug=False
         )
 
         if cfg.get('nova_url'):
             client_kwargs['bypass_url'] = cfg['nova_url']
-        else:
-            client_kwargs['region_name'] = region or cfg['region']
 
         return NovaClientWithSugar(**client_kwargs)
 

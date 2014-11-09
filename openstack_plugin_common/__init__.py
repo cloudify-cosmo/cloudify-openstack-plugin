@@ -334,6 +334,9 @@ class Config(object):
         take_env_var_if_exists('password', 'OS_PASSWORD')
         take_env_var_if_exists('tenant_name', 'OS_TENANT_NAME')
         take_env_var_if_exists('auth_url', 'OS_AUTH_URL')
+        take_env_var_if_exists('region', 'OS_REGION_NAME')
+        take_env_var_if_exists('neutron_url', 'OS_URL')
+        take_env_var_if_exists('nova_url', 'NOVACLIENT_BYPASS_URL')
 
         return cfg
 
@@ -395,15 +398,32 @@ class KeystoneClient(OpenStackClient):
 class NovaClient(OpenStackClient):
 
     REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url', 'region']
+        ['username', 'password', 'tenant_name', 'auth_url']
+
+    def _get_missing_config_params(self, cfg):
+        missing_config_params = \
+            super(NovaClient, self)._get_missing_config_params(cfg)
+
+        if not cfg.get('nova_url') and not cfg.get('region'):
+            missing_config_params.append('region or nova_url')
+
+        return missing_config_params
 
     def connect(self, cfg, region=None):
-        return NovaClientWithSugar(username=cfg['username'],
-                                   api_key=cfg['password'],
-                                   project_id=cfg['tenant_name'],
-                                   auth_url=cfg['auth_url'],
-                                   region_name=region or cfg['region'],
-                                   http_log_debug=False)
+        client_kwargs = dict(
+            username=cfg['username'],
+            api_key=cfg['password'],
+            project_id=cfg['tenant_name'],
+            auth_url=cfg['auth_url'],
+            http_log_debug=False
+        )
+
+        if cfg.get('nova_url'):
+            client_kwargs['bypass_url'] = cfg['nova_url']
+        else:
+            client_kwargs['region_name'] = region or cfg['region']
+
+        return NovaClientWithSugar(**client_kwargs)
 
 
 class CinderClient(OpenStackClient):

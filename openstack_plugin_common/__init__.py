@@ -334,6 +334,7 @@ class Config(object):
         take_env_var_if_exists('password', 'OS_PASSWORD')
         take_env_var_if_exists('tenant_name', 'OS_TENANT_NAME')
         take_env_var_if_exists('auth_url', 'OS_AUTH_URL')
+        take_env_var_if_exists('endpoint_type', 'OS_ENDPOINT_TYPE')
 
         return cfg
 
@@ -379,7 +380,7 @@ class OpenStackClient(object):
 class KeystoneClient(OpenStackClient):
 
     REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url']
+        ['username', 'password', 'tenant_name', 'auth_url', 'endpoint_type']
 
     def connect(self, cfg):
         args = {field: cfg[field] for field in self.REQUIRED_CONFIG_PARAMS}
@@ -389,13 +390,14 @@ class KeystoneClient(OpenStackClient):
 class NovaClient(OpenStackClient):
 
     REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url', 'region']
+        ['username', 'password', 'tenant_name', 'auth_url', 'endpoint_type', 'region']
 
     def connect(self, cfg, region=None):
         return NovaClientWithSugar(username=cfg['username'],
                                    api_key=cfg['password'],
                                    project_id=cfg['tenant_name'],
                                    auth_url=cfg['auth_url'],
+                                   endpoint_type=cfg['endpoint_type'],
                                    region_name=region or cfg['region'],
                                    http_log_debug=False)
 
@@ -403,13 +405,14 @@ class NovaClient(OpenStackClient):
 class CinderClient(OpenStackClient):
 
     REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url', 'region']
+        ['username', 'password', 'tenant_name', 'auth_url', 'endpoint_type', 'region']
 
     def connect(self, cfg, region=None):
         return CinderClientWithSugar(username=cfg['username'],
                                      api_key=cfg['password'],
                                      project_id=cfg['tenant_name'],
                                      auth_url=cfg['auth_url'],
+                                     endpoint_type=cfg['endpoint_type'],
                                      region_name=region or cfg['region'])
 
 
@@ -423,6 +426,7 @@ class NeutronClient(OpenStackClient):
                                       password=cfg['password'],
                                       tenant_name=cfg['tenant_name'],
                                       auth_url=cfg['auth_url'],
+                                      endpoint_type=cfg['endpoint_type'],
                                       region_name=region or cfg['region'])
 
 

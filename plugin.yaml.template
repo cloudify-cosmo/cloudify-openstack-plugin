@@ -288,6 +288,56 @@ node_types:
                     implementation: openstack.cinder_plugin.volume.creation_validation
                     inputs: {}
 
+    cloudify.openstack.nova_net.nodes.FloatingIP:
+        derived_from: cloudify.nodes.VirtualIP
+        properties:
+            floatingip:
+                default: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
+            openstack_config:
+                default: {}
+        interfaces:
+            cloudify.interfaces.lifecycle:
+                create:
+                    implementation: openstack.nova_plugin.floatingip.create
+                    inputs: {}
+                delete:
+                    implementation: openstack.nova_plugin.floatingip.delete
+                    inputs: {}
+            cloudify.interfaces.validation:
+                creation:
+                    implementation: openstack.nova_plugin.floatingip.creation_validation
+                    inputs: {}
+
+    cloudify.openstack.nova_net.nodes.SecurityGroup:
+        derived_from: cloudify.nodes.Root
+        properties:
+            security_group:
+                default: {}
+            use_external_resource:
+                default: false
+            resource_id:
+                default: ''
+            openstack_config:
+                default: {}
+            rules:
+                default: []
+        interfaces:
+            cloudify.interfaces.lifecycle:
+                create:
+                    implementation: openstack.nova_plugin.security_group.create
+                    inputs: {}
+                delete:
+                    implementation: openstack.nova_plugin.security_group.delete
+                    inputs: {}
+            cloudify.interfaces.validation:
+                creation:
+                    implementation: openstack.nova_plugin.security_group.creation_validation
+                    inputs: {}
+
 relationships:
     cloudify.openstack.port_connected_to_security_group:
         derived_from: cloudify.relationships.connected_to

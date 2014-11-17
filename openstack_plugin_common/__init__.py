@@ -188,7 +188,7 @@ def use_external_resource(ctx, sugared_client, openstack_type,
         sugared_client.get_id_from_resource(resource)
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
 
-    from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
+    from openstack_plugin_common.floatingip import FLOATINGIP_OPENSTACK_TYPE
     # store openstack name runtime property, unless it's a floating IP type,
     # in which case the ip will be stored in the runtime properties instead.
     if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
@@ -350,6 +350,10 @@ class Config(object):
 
 
 class OpenStackClient(object):
+
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url']
+
     def get(self, config=None, *args, **kw):
         cfg = Config().get()
         if config:
@@ -387,9 +391,6 @@ class OpenStackClient(object):
 # Clients acquireres
 class KeystoneClient(OpenStackClient):
 
-    REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url']
-
     def connect(self, cfg):
         args = {field: cfg[field] for field in self.REQUIRED_CONFIG_PARAMS}
         return keystone_client.Client(**args)
@@ -397,10 +398,7 @@ class KeystoneClient(OpenStackClient):
 
 class NovaClient(OpenStackClient):
 
-    REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url', 'region']
-
-    def connect(self, cfg, region=None):
+    def connect(self, cfg):
         # note: 'region_name' is required regardless of whether 'bypass_url'
         # is used or not
         client_kwargs = dict(
@@ -408,7 +406,7 @@ class NovaClient(OpenStackClient):
             api_key=cfg['password'],
             project_id=cfg['tenant_name'],
             auth_url=cfg['auth_url'],
-            region_name=region or cfg['region'],
+            region_name=cfg.get('region', ''),
             http_log_debug=False
         )
 
@@ -420,32 +418,17 @@ class NovaClient(OpenStackClient):
 
 class CinderClient(OpenStackClient):
 
-    REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url', 'region']
-
-    def connect(self, cfg, region=None):
+    def connect(self, cfg):
         return CinderClientWithSugar(username=cfg['username'],
                                      api_key=cfg['password'],
                                      project_id=cfg['tenant_name'],
                                      auth_url=cfg['auth_url'],
-                                     region_name=region or cfg['region'])
+                                     region_name=cfg.get('region', ''))
 
 
 class NeutronClient(OpenStackClient):
 
-    REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url']
-
-    def _get_missing_config_params(self, cfg):
-        missing_config_params =\
-            super(NeutronClient, self)._get_missing_config_params(cfg)
-
-        if not cfg.get('neutron_url') and not cfg.get('region'):
-            missing_config_params.append('region or neutron_url')
-
-        return missing_config_params
-
-    def connect(self, cfg, region=None):
+    def connect(self, cfg):
         client_kwargs = dict(
             username=cfg['username'],
             password=cfg['password'],
@@ -456,7 +439,7 @@ class NeutronClient(OpenStackClient):
         if cfg.get('neutron_url'):
             client_kwargs['endpoint_url'] = cfg['neutron_url']
         else:
-            client_kwargs['region_name'] = region or cfg['region']
+            client_kwargs['region_name'] = cfg.get('region', '')
 
         return NeutronClientWithSugar(**client_kwargs)
 
@@ -593,12 +576,12 @@ class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for xxx.findall() - not using xxx.list() because findall
         can receive filtering parameters, and it's common for all types"""
-        obj_type_plural = self.cosmo_plural(obj_type_single)
+        obj_type_plural = self._get_nova_field_name_for_type(obj_type_single)
         for obj in getattr(self, obj_type_plural).findall(**kw):
             yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
-        obj_type_plural = self.cosmo_plural(obj_type_single)
+        obj_type_plural = self._get_nova_field_name_for_type(obj_type_single)
         getattr(self, obj_type_plural).delete(obj_id)
 
     def get_id_from_resource(self, resource):
@@ -621,6 +604,16 @@ class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
         tenant_id = self.client.service_catalog.get_tenant_id()
         quotas = self.quotas.get(tenant_id)
         return getattr(quotas, self.cosmo_plural(obj_type_single))
+
+    def _get_nova_field_name_for_type(self, obj_type_single):
+        from openstack_plugin_common.floatingip import \
+            FLOATINGIP_OPENSTACK_TYPE
+        if obj_type_single == FLOATINGIP_OPENSTACK_TYPE:
+            # since we use the same 'openstack type' property value for both
+            # neutron and nova floating-ips, this adjustment must be made
+            # for nova client, as fields names differ between the two clients
+            obj_type_single = 'floating_ip'
+        return self.cosmo_plural(obj_type_single)
 
 
 class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):

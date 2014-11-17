@@ -13,33 +13,44 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
-import copy
 import json
-
-import neutronclient.common.exceptions as neutron_exceptions
+import copy
+from functools import partial
 
 from cloudify import ctx
 from cloudify.decorators import operation
-from cloudify.exceptions import NonRecoverableError
-
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
-    get_resource_id,
-    use_external_resource,
     delete_resource_and_runtime_properties,
-    delete_runtime_properties,
-    validate_resource,
-    validate_ip_or_range_syntax,
-    OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY,
-    OPENSTACK_NAME_PROPERTY,
-    COMMON_RUNTIME_PROPERTIES_KEYS
+)
+from openstack_plugin_common.security_group import (
+    build_sg_data,
+    process_rules,
+    use_external_sg,
+    set_sg_runtime_properties,
+    delete_sg,
+    raise_mismatching_descriptions_error,
+    raise_mismatching_rules_error,
+    test_sg_rules_equality,
+    sg_creation_validation,
+    RUNTIME_PROPERTIES_KEYS
 )
 
 # DEFAULT_EGRESS_RULES are based on
 # https://github.com/openstack/neutron/blob/5385d06f86a1309176b5f688071e6ea55d91e8e5/neutron/db/securitygroups_db.py#L132-L136  # noqa
 SUPPORTED_ETHER_TYPES = ('IPv4', 'IPv6')
+
+DEFAULT_RULE_VALUES = {
+    'direction': 'ingress',
+    'ethertype': 'IPv4',
+    'port_range_min': 1,
+    'port_range_max': 65535,
+    'protocol': 'tcp',
+    'remote_group_id': None,
+    'remote_ip_prefix': '0.0.0.0/0',
+}
+
 DEFAULT_EGRESS_RULES = []
 for ethertype in SUPPORTED_ETHER_TYPES:
     DEFAULT_EGRESS_RULES.append({
@@ -52,59 +63,39 @@ for ethertype in SUPPORTED_ETHER_TYPES:
         'remote_ip_prefix': None,
     })
 
-SECURITY_GROUP_OPENSTACK_TYPE = 'security_group'
-
-# Runtime properties
-RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
-
 
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
-    """ Create security group with rules.
-    Parameters transformations:
-        rules.N.remote_group_name -> rules.N.remote_group_id
-        rules.N.remote_group_node -> rules.N.remote_group_id
-        (Node name in YAML)
-    """
 
-    security_group = {
-        'description': None,
-        'name': get_resource_id(ctx, SECURITY_GROUP_OPENSTACK_TYPE),
-    }
+    security_group = build_sg_data(None)
 
-    security_group.update(ctx.node.properties['security_group'])
-
-    rules_to_apply = ctx.node.properties['rules']
-    from neutron_plugin.security_group_rule import _process_rule
-    security_group_rules = []
-    for rule in rules_to_apply:
-        security_group_rules.append(_process_rule(rule, neutron_client))
+    sg_rules = process_rules(neutron_client, DEFAULT_RULE_VALUES,
+                             'remote_ip_prefix', 'remote_group_id',
+                             'port_range_min', 'port_range_max')
 
     disable_default_egress_rules = ctx.node.properties.get(
         'disable_default_egress_rules')
 
-    external_sg = use_external_resource(ctx, neutron_client,
-                                        SECURITY_GROUP_OPENSTACK_TYPE)
-    if external_sg:
-        try:
-            _ensure_existing_sg_is_identical(
-                external_sg, security_group, security_group_rules,
-                not disable_default_egress_rules)
-            return
-        except Exception:
-            delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
-            raise
+    # We do expect to see the default egress rules
+    # if they shouldn't be disabled
+    expected_sg_rules = sg_rules if disable_default_egress_rules \
+        else sg_rules + DEFAULT_EGRESS_RULES
+
+    existing_sg_equivalence_verifier = \
+        partial(_existing_sg_equivalence_verifier,
+                security_group=security_group,
+                expected_sg_rules=expected_sg_rules)
+
+    if use_external_sg(neutron_client, existing_sg_equivalence_verifier):
+        return
 
     transform_resource_name(ctx, security_group)
 
     sg = neutron_client.create_security_group(
         {'security_group': security_group})['security_group']
 
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = sg['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-        SECURITY_GROUP_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = sg['name']
+    set_sg_runtime_properties(sg, neutron_client)
 
     try:
         if disable_default_egress_rules:
@@ -112,11 +103,11 @@ def create(neutron_client, **kwargs):
                                                      sg['id'])):
                 neutron_client.delete_security_group_rule(er['id'])
 
-        for sgr in security_group_rules:
+        for sgr in sg_rules:
             sgr['security_group_id'] = sg['id']
             neutron_client.create_security_group_rule(
                 {'security_group_rule': sgr})
-    except neutron_exceptions.NeutronClientException:
+    except Exception:
         delete_resource_and_runtime_properties(ctx, neutron_client,
                                                RUNTIME_PROPERTIES_KEYS)
         raise
@@ -125,45 +116,13 @@ def create(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    delete_resource_and_runtime_properties(ctx, neutron_client,
-                                           RUNTIME_PROPERTIES_KEYS)
+    delete_sg(neutron_client)
 
 
-def _ensure_existing_sg_is_identical(existing_sg, security_group,
-                                     security_group_rules,
-                                     expect_default_egress_rules):
-    def _serialize_sg_rule_for_comparison(security_group_rule):
-        r = copy.deepcopy(security_group_rule)
-        # XXX: check later whether excluding tenant_id is OK in all cases.
-        for excluded_field in ('id', 'security_group_id', 'tenant_id'):
-            if excluded_field in r:
-                del r[excluded_field]
-        return json.dumps(r, sort_keys=True)
-
-    def _sg_rules_are_equal(r1, r2):
-        s1 = map(_serialize_sg_rule_for_comparison, r1)
-        s2 = map(_serialize_sg_rule_for_comparison, r2)
-        return set(s1) == set(s2)
-
-    if existing_sg['description'] != security_group['description']:
-        raise NonRecoverableError(
-            "Descriptions of existing security group and the security group "
-            "to be created do not match while the names do match. Security "
-            "group name: {0}".format(security_group['name']))
-
-    r1 = existing_sg['security_group_rules']
-    r2 = security_group_rules
-    if expect_default_egress_rules:
-        # We do expect to see the default egress rules
-        # if we don't have our own and we do not disable
-        # the default egress rules.
-        r2 = r2 + DEFAULT_EGRESS_RULES
-    if not _sg_rules_are_equal(r1, r2):
-        raise NonRecoverableError(
-            "Rules of existing security group and the security group to be "
-            "created or used do not match while the names do match. Security "
-            "group name: '{0}'. Existing rules: {1}. Requested/expected rules:"
-            " {2} ".format(security_group['name'], r1, r2))
+@operation
+@with_neutron_client
+def creation_validation(neutron_client, **kwargs):
+    sg_creation_validation(neutron_client, 'remote_ip_prefix')
 
 
 def _egress_rules(rules):
@@ -176,12 +135,23 @@ def _rules_for_sg_id(neutron_client, id):
     return rules
 
 
-@operation
-@with_neutron_client
-def creation_validation(neutron_client, **kwargs):
-    validate_resource(ctx, neutron_client, SECURITY_GROUP_OPENSTACK_TYPE)
+def _existing_sg_equivalence_verifier(existing_sg, security_group,
+                                      expected_sg_rules):
+    if existing_sg['description'] != security_group['description']:
+        raise_mismatching_descriptions_error(security_group['name'])
 
-    ctx.logger.debug('validating CIDR for rules with a remote_ip_prefix field')
-    for rule in ctx.node.properties['rules']:
-        if 'remote_ip_prefix' in rule:
-            validate_ip_or_range_syntax(ctx, rule['remote_ip_prefix'])
+    r1 = existing_sg['security_group_rules']
+    r2 = expected_sg_rules
+
+    # XXX: check later whether excluding tenant_id is OK in all cases.
+    excluded_fields = ('id', 'security_group_id', 'tenant_id')
+
+    def sg_rule_comparison_serializer(security_group_rule):
+        r = copy.deepcopy(security_group_rule)
+        for excluded_field in excluded_fields:
+            if excluded_field in r:
+                del r[excluded_field]
+        return json.dumps(r, sort_keys=True)
+
+    if not test_sg_rules_equality(r1, r2, sg_rule_comparison_serializer):
+        raise_mismatching_rules_error(security_group['name'], r1, r2)

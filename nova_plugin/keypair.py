@@ -72,7 +72,8 @@ def create(nova_client, **kwargs):
     keypair.update(ctx.node.properties['keypair'])
     transform_resource_name(ctx, keypair)
 
-    keypair = nova_client.keypairs.create(keypair['name'])
+    keypair = nova_client.keypairs.create(keypair['name'],
+                                          keypair.get('public_key'))
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = keypair.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         KEYPAIR_OPENSTACK_TYPE

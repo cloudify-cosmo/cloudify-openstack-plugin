@@ -457,8 +457,10 @@ def disconnect_security_group(nova_client, **kwargs):
 
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     server = nova_client.servers.get(server_id)
+    # to support nova security groups as well, we disconnect the security group
+    # by name (as disconnecting by id doesn't seem to work well for nova SGs)
     server.remove_security_group(ctx.target.instance.runtime_properties[
-        OPENSTACK_ID_PROPERTY])
+        OPENSTACK_NAME_PROPERTY])
 
 
 @operation

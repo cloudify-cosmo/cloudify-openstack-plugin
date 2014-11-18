@@ -16,34 +16,24 @@
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
-
 from openstack_plugin_common import (
     with_neutron_client,
     provider,
-    delete_resource_and_runtime_properties,
-    use_external_resource,
-    validate_resource,
-    OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY,
-    COMMON_RUNTIME_PROPERTIES_KEYS)
-
-FLOATINGIP_OPENSTACK_TYPE = 'floatingip'
-
-# Runtime properties
-IP_ADDRESS_PROPERTY = 'floating_ip_address'  # the actual ip address
-RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
-    [IP_ADDRESS_PROPERTY]
+)
+from openstack_plugin_common.floatingip import (
+    use_external_floatingip,
+    set_floatingip_runtime_properties,
+    delete_floatingip,
+    floatingip_creation_validation
+)
 
 
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
 
-    external_fip = use_external_resource(
-        ctx, neutron_client, FLOATINGIP_OPENSTACK_TYPE, 'floating_ip_address')
-    if external_fip:
-        ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
-            external_fip['floating_ip_address']
+    if use_external_floatingip(neutron_client, 'floating_ip_address',
+                               lambda ext_fip: ext_fip['floating_ip_address']):
         return
 
     floatingip = {
@@ -66,22 +56,16 @@ def create(neutron_client, **kwargs):
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = fip['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-        FLOATINGIP_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
-        fip['floating_ip_address']
+    set_floatingip_runtime_properties(fip['id'], fip['floating_ip_address'])
 
 
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    delete_resource_and_runtime_properties(ctx, neutron_client,
-                                           RUNTIME_PROPERTIES_KEYS)
+    delete_floatingip(neutron_client)
 
 
 @operation
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
-    validate_resource(ctx, neutron_client, FLOATINGIP_OPENSTACK_TYPE,
-                      'floating_ip_address')
+    floatingip_creation_validation(neutron_client, 'floating_ip_address')

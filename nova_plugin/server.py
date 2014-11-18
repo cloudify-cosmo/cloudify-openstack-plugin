@@ -49,7 +49,7 @@ from openstack_plugin_common import (
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
-from neutron_plugin.floatingip import IP_ADDRESS_PROPERTY
+from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
 
@@ -190,7 +190,7 @@ def create(nova_client, **kwargs):
     if management_network_id is None and (network_ids or port_ids):
         # Known limitation
         raise NonRecoverableError(
-            "Nova server with multi-NIC requires "
+            "Nova server with NICs requires "
             "'management_network_name' in properties or id "
             "from provider context, which was not supplied")
 
@@ -390,20 +390,19 @@ def connect_floatingip(nova_client, **kwargs):
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     floating_ip_id = ctx.target.instance.runtime_properties[
         OPENSTACK_ID_PROPERTY]
-    floating_ip_address = ctx.target.instance.runtime_properties[
-        IP_ADDRESS_PROPERTY]
 
     if is_external_relationship(ctx):
         ctx.logger.info('Validating external floatingip and server '
                         'are associated')
-        nc = _neutron_client()
-        port_id = nc.show_floatingip(floating_ip_id)['floatingip']['port_id']
-        if port_id and nc.show_port(port_id)['port']['device_id'] == server_id:
+        if nova_client.floating_ips.get(floating_ip_id).instance_id ==\
+                server_id:
             return
         raise NonRecoverableError(
             'Expected external resources server {0} and floating-ip {1} to be '
             'connected'.format(server_id, floating_ip_id))
 
+    floating_ip_address = ctx.target.instance.runtime_properties[
+        IP_ADDRESS_PROPERTY]
     server = nova_client.servers.get(server_id)
     server.add_floating_ip(floating_ip_address)
 
@@ -428,6 +427,8 @@ def connect_security_group(nova_client, **kwargs):
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     security_group_id = ctx.target.instance.runtime_properties[
         OPENSTACK_ID_PROPERTY]
+    security_group_name = ctx.target.instance.runtime_properties[
+        OPENSTACK_NAME_PROPERTY]
 
     if is_external_relationship(ctx):
         ctx.logger.info('Validating external security group and server '
@@ -441,7 +442,9 @@ def connect_security_group(nova_client, **kwargs):
             'be connected'.format(server_id, security_group_id))
 
     server = nova_client.servers.get(server_id)
-    server.add_security_group(security_group_id)
+    # to support nova security groups as well, we connect the security group
+    # by name (as connecting by id doesn't seem to work well for nova SGs)
+    server.add_security_group(security_group_name)
 
 
 @operation
@@ -454,8 +457,10 @@ def disconnect_security_group(nova_client, **kwargs):
 
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     server = nova_client.servers.get(server_id)
+    # to support nova security groups as well, we disconnect the security group
+    # by name (as disconnecting by id doesn't seem to work well for nova SGs)
     server.remove_security_group(ctx.target.instance.runtime_properties[
-        OPENSTACK_ID_PROPERTY])
+        OPENSTACK_NAME_PROPERTY])
 
 
 @operation
@@ -550,6 +555,8 @@ def _get_keypair_name_by_id(nova_client, key_name):
 
 
 def _validate_external_server_nics(network_ids, port_ids):
+    # validate no new nics are being assigned to an existing server (which
+    # isn't possible on Openstack)
     new_nic_nodes = \
         [node_instance_id for node_instance_id, runtime_props in
          ctx.capabilities.get_all().iteritems() if runtime_props.get(
@@ -561,6 +568,12 @@ def _validate_external_server_nics(network_ids, port_ids):
         raise NonRecoverableError(
             "Can't connect new port and/or network nodes to a server node "
             "with '{0}'=True".format(USE_EXTERNAL_RESOURCE_PROPERTY))
+
+    # validate all expected connected networks and ports are indeed already
+    # connected to the server. note that additional networks (e.g. the
+    # management network) may be connected as well with no error raised
+    if not network_ids and not port_ids:
+        return
 
     nc = _neutron_client()
     server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]

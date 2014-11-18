@@ -42,8 +42,8 @@ from openstack_plugin_common.security_group import (
 @with_nova_client
 def create(nova_client, **kwargs):
 
-    # default security group description is an empty string
-    security_group = build_sg_data('')
+    security_group = build_sg_data()
+    security_group['description'] = ctx.node.properties['description']
 
     sgr_default_values = {
         'ip_protocol': 'tcp',

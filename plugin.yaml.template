@@ -325,6 +325,8 @@ node_types:
                 default: {}
             rules:
                 default: []
+            description:
+                description: security group description
         interfaces:
             cloudify.interfaces.lifecycle:
                 create:

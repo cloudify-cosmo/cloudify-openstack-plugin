@@ -68,7 +68,7 @@ for ethertype in SUPPORTED_ETHER_TYPES:
 @with_neutron_client
 def create(neutron_client, **kwargs):
 
-    security_group = build_sg_data(None)
+    security_group = build_sg_data()
 
     sg_rules = process_rules(neutron_client, DEFAULT_RULE_VALUES,
                              'remote_ip_prefix', 'remote_group_id',

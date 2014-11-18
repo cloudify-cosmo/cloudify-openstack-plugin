@@ -149,7 +149,7 @@ def _process_rule(rule, client, sgr_default_values, cidr_field_name,
         sgr[remote_group_field_name] = \
             client.get_id_from_resource(
                 client.cosmo_get_named(
-                    'security_group', sgr['remote_group_name']))
+                    SECURITY_GROUP_OPENSTACK_TYPE, sgr['remote_group_name']))
         del sgr['remote_group_name']
         sgr[cidr_field_name] = None
 

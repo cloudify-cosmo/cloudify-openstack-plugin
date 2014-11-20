@@ -84,7 +84,7 @@ def create(nova_client, **kwargs):
         _mkdir_p(os.path.dirname(private_key_path))
         with open(private_key_path, 'w') as f:
             f.write(keypair.private_key)
-            os.fchmod(f.fileno(), stat.S_IRUSR | stat.S_IWUSR)
+        os.chmod(private_key_path, 0600)
     except Exception:
         _delete_private_key_file()
         delete_resource_and_runtime_properties(ctx, nova_client,

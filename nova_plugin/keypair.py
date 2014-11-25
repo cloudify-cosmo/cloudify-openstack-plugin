@@ -14,7 +14,6 @@
 #  * limitations under the License.
 
 import os
-import stat
 import errno
 import platform
 from getpass import getuser

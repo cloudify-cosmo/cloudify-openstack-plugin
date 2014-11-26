@@ -467,8 +467,8 @@ def disconnect_security_group(nova_client, **kwargs):
 @with_nova_client
 @with_cinder_client
 def attach_volume(nova_client, cinder_client, **kwargs):
-    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    volume_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     if is_external_relationship(ctx):
         ctx.logger.info('Validating external volume and server '
@@ -486,7 +486,7 @@ def attach_volume(nova_client, cinder_client, **kwargs):
     # Note: The 'device_name' property should actually be a property of the
     # relationship between a server and a volume; It'll move to that
     # relationship type once relationship properties are better supported.
-    device = ctx.target.node.properties[volume.DEVICE_NAME_PROPERTY]
+    device = ctx.source.node.properties[volume.DEVICE_NAME_PROPERTY]
     nova_client.volumes.create_server_volume(server_id, volume_id, device)
     volume.wait_until_status(cinder_client=cinder_client,
                              volume_id=volume_id,
@@ -502,8 +502,8 @@ def detach_volume(nova_client, cinder_client, **kwargs):
                         'external volume and server are being used')
         return
 
-    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    volume_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
     attachment = volume.get_attachment(cinder_client=cinder_client,
                                        volume_id=volume_id,

@@ -163,8 +163,8 @@ class TestCinderVolume(unittest.TestCase):
         })
 
         ctx_m = cfy_mocks.MockCloudifyContext(node_id='a',
-                                              source=server_ctx,
-                                              target=volume_ctx)
+                                              target=server_ctx,
+                                              source=volume_ctx)
 
         cinderclient_m = mock.Mock()
         novaclient_m = mock.Mock()
@@ -218,8 +218,8 @@ class TestCinderVolume(unittest.TestCase):
         })
 
         ctx_m = cfy_mocks.MockCloudifyContext(node_id='a',
-                                              source=server_ctx,
-                                              target=volume_ctx)
+                                              target=server_ctx,
+                                              source=volume_ctx)
 
         attached_volume_m = mock.Mock()
         attached_volume_m.id = volume_id

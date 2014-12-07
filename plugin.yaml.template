@@ -140,7 +140,7 @@ node_types:
           inputs: {}
 
   cloudify.openstack.nodes.SecurityGroup:
-    derived_from: cloudify.nodes.Root
+    derived_from: cloudify.nodes.SecurityGroup
     properties:
       security_group:
         default: {}
@@ -313,7 +313,7 @@ node_types:
           inputs: {}
 
   cloudify.openstack.nova_net.nodes.SecurityGroup:
-    derived_from: cloudify.nodes.Root
+    derived_from: cloudify.nodes.SecurityGroup
     properties:
       security_group:
         default: {}

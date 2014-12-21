@@ -5,7 +5,7 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/1.2m1.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/CFY-1352-openstack-router-type-improvements.zip
 
 node_types:
   cloudify.openstack.nodes.Server:

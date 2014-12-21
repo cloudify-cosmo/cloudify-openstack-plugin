@@ -24,6 +24,8 @@ from openstack_plugin_common import (
     with_neutron_client,
     use_external_resource,
     is_external_relationship,
+    delete_runtime_properties,
+    get_openstack_id_of_single_connected_node_by_openstack_type,
     delete_resource_and_runtime_properties,
     validate_resource,
     COMMON_RUNTIME_PROPERTIES_KEYS,
@@ -31,6 +33,9 @@ from openstack_plugin_common import (
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY
 )
+
+from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
+
 
 ROUTER_OPENSTACK_TYPE = 'router'
 
@@ -41,63 +46,79 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 @operation
 @with_neutron_client
 def create(neutron_client, **kwargs):
-    """Create a router.
-    Optional relationship is to gateway network.
-    Also supports `router.external_gateway_info.network_name`,
-    which is translated to `router.external_gateway_info.network_id`.
-    """
 
     if use_external_resource(ctx, neutron_client, ROUTER_OPENSTACK_TYPE):
-        return
+        try:
+            ext_net_id_by_rel = \
+                get_openstack_id_of_single_connected_node_by_openstack_type(
+                    ctx, NETWORK_OPENSTACK_TYPE, True)
 
-    network_id_set = False
+            if ext_net_id_by_rel:
+                router_id = \
+                    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    provider_context = provider(ctx)
+                router = neutron_client.show_router(router_id)['router']
+                if not (router['external_gateway_info'] and 'network_id' in
+                        router['external_gateway_info'] and
+                        router['external_gateway_info']['network_id'] ==
+                        ext_net_id_by_rel):
+                    raise NonRecoverableError(
+                        'Expected external resources router {0} and '
+                        'external network {1} to be connected'.format(
+                            router_id, ext_net_id_by_rel))
+            return
+        except Exception:
+            delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
+            raise
 
-    ctx.logger.debug('router.create(): kwargs={0}'.format(kwargs))
     router = {
         'name': get_resource_id(ctx, ROUTER_OPENSTACK_TYPE),
     }
     router.update(ctx.node.properties['router'])
     transform_resource_name(ctx, router)
 
-    # Probably will not be used. External network
-    # is usually provisioned externally.
-    # TODO: remove this or modify - it's unreasonable to look for
-    # OPENSTACK_ID_PROPERTY in capabilities as it can be of any connected
-    # node. If the usage of capabilities here remains, need to add
-    # validation in the 'use_external_resource' (before returning) that the
-    # network used is the one connected to the router.
-    if OPENSTACK_ID_PROPERTY in ctx.capabilities:
-        if 'external_gateway_info' not in router:
-            router['external_gateway_info'] = {
-                'enable_snat': True
-            }
-        router['external_gateway_info'][
-            'network_id'] = ctx.capabilities[OPENSTACK_ID_PROPERTY]
-        network_id_set = True
+    provider_context = provider(ctx)
 
-    # Sugar: external_gateway_info.network_name ->
-    # external_gateway_info.network_id
+    # attempting to find an external network for the router to connect to -
+    # first by either the external_gateway_info.network_id property passed
+    # in directly (or the network_name sugaring); then by a network
+    # connected by a relationship; with a final fallback to an external
+    # network set in the Provider-context. If no network is found,
+    # the router simply won't get connected to an external network.
+    ext_net_id_by_rel = \
+        get_openstack_id_of_single_connected_node_by_openstack_type(
+            ctx, NETWORK_OPENSTACK_TYPE, True)
 
-    if 'external_gateway_info' in router:
-        egi = router['external_gateway_info']
-        if 'network_name' in egi:
-            egi['network_id'] = neutron_client.cosmo_get_named(
-                'network', egi['network_name'])['id']
-            del egi['network_name']
-            network_id_set = True
+    if 'external_gateway_info' in router and \
+            ('network_id' in router['external_gateway_info'] or
+             'network_name' in router['external_gateway_info']):
+        ext_gw_info = router['external_gateway_info']
 
-    if not network_id_set:
-        router['external_gateway_info'] = router.get('external_gateway_info',
-                                                     {})
-        ext_network = provider_context.ext_network
-        if ext_network:
-            router['external_gateway_info']['network_id'] = ext_network['id']
-            network_id_set = True
+        if 'network_id' in ext_gw_info and 'network_name' in ext_gw_info:
+            raise RuntimeError(
+                'Must provide only one of "network_id" and "network_name" '
+                'under the "router.external_gateway_info" property of node '
+                '{0}'.format(ctx.node.name))
 
-    if not network_id_set:
-        raise NonRecoverableError('Missing network name or network')
+        if ext_net_id_by_rel:
+            raise RuntimeError(
+                "Router can't have both an external network connected by a "
+                'relationship and the "router.external_gateway_info.{0}" '
+                'property set at the same time'.format(
+                    'network_id' if 'network_id' in ext_gw_info else
+                    'network_name'))
+
+        if 'network_name' in ext_gw_info:
+            ext_gw_info['network_id'] = neutron_client.cosmo_get_named(
+                'network', ext_gw_info['network_name'])['id']
+            del(ext_gw_info['network_name'])
+
+    elif ext_net_id_by_rel:
+        _insert_ext_net_id_to_router_config(ext_net_id_by_rel, router)
+
+    elif provider_context.ext_network:
+        _insert_ext_net_id_to_router_config(provider_context.ext_network['id'],
+                                            router)
 
     r = neutron_client.create_router({'router': router})['router']
 
@@ -154,3 +175,9 @@ def delete(neutron_client, **kwargs):
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, ROUTER_OPENSTACK_TYPE)
+
+
+def _insert_ext_net_id_to_router_config(ext_net_id, router):
+    router['external_gateway_info'] = router.get(
+        'external_gateway_info', {})
+    router['external_gateway_info']['network_id'] = ext_net_id

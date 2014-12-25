@@ -151,13 +151,21 @@ def transform_resource_name(ctx, res):
     return res['name']
 
 
-def _get_resource_by_name_or_id(ctx, name_field_name, openstack_type,
-                                sugared_client):
+def _get_resource_by_name_or_id_from_ctx(ctx, name_field_name, openstack_type,
+                                         sugared_client):
     resource_id = ctx.node.properties['resource_id']
     if not resource_id:
         raise NonRecoverableError(
             "Can't set '{0}' to True without supplying a value for "
             "'resource_id'".format(USE_EXTERNAL_RESOURCE_PROPERTY))
+
+    return get_resource_by_name_or_id(resource_id, openstack_type,
+                                      sugared_client, True, name_field_name)
+
+
+def get_resource_by_name_or_id(
+        resource_id, openstack_type, sugared_client,
+        raise_if_not_found=True, name_field_name='name'):
 
     # search for resource by name (or name-equivalent field)
     search_param = {name_field_name: resource_id}
@@ -168,7 +176,7 @@ def _get_resource_by_name_or_id(ctx, name_field_name, openstack_type,
         resource = sugared_client.cosmo_get_if_exists(
             openstack_type, id=resource_id)
 
-    if not resource:
+    if not resource and raise_if_not_found:
         raise NonRecoverableError(
             "Couldn't find a resource of type {0} with the name or id {1}"
             .format(openstack_type, resource_id))
@@ -181,8 +189,8 @@ def use_external_resource(ctx, sugared_client, openstack_type,
     if not is_external_resource(ctx):
         return None
 
-    resource = _get_resource_by_name_or_id(ctx, name_field_name,
-                                           openstack_type, sugared_client)
+    resource = _get_resource_by_name_or_id_from_ctx(
+        ctx, name_field_name, openstack_type, sugared_client)
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
@@ -209,8 +217,8 @@ def validate_resource(ctx, sugared_client, openstack_type,
     if is_external_resource(ctx):
         # validate the resource truly exists
         try:
-            _get_resource_by_name_or_id(ctx, name_field_name, openstack_type,
-                                        sugared_client)
+            _get_resource_by_name_or_id_from_ctx(
+                ctx, name_field_name, openstack_type, sugared_client)
             ctx.logger.debug('OK: {0} {1} found in pool'.format(
                 openstack_type, ctx.node.properties['resource_id']))
         except NonRecoverableError as e:

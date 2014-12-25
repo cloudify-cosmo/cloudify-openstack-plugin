@@ -5,7 +5,7 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/CFY-1352-openstack-router-type-improvements.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/1.2m1.zip
 
 node_types:
   cloudify.openstack.nodes.Server:
@@ -172,6 +172,10 @@ node_types:
     properties:
       router:
         default: {}
+      external_network:
+        default: ''
+      default_to_managers_external_network:
+        default: true
       use_external_resource:
         default: false
       resource_id:

@@ -153,7 +153,7 @@ def _handle_external_network_config(router, neutron_client):
     provider_context = provider(ctx)
 
     ext_net_id_by_rel = _get_connected_ext_net_id(neutron_client)
-    ext_net_by_property = ctx.properties['external_network']
+    ext_net_by_property = ctx.node.properties['external_network']
 
     # the following is meant for backwards compatibility with the
     # 'network_name' sugaring

@@ -51,7 +51,7 @@ def create(neutron_client, **kwargs):
         try:
             net_id = \
                 get_openstack_id_of_single_connected_node_by_openstack_type(
-                    ctx, PORT_OPENSTACK_TYPE, True)
+                    ctx, NETWORK_OPENSTACK_TYPE, True)
 
             if net_id:
                 port_id = ctx.instance.runtime_properties[

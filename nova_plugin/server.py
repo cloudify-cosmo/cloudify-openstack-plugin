@@ -258,11 +258,8 @@ def create(nova_client, **kwargs):
             raise NonRecoverableError(
                 "Can not provision server: management_network_name or id"
                 " is not specified but there are several networks that the "
-                "server can be connected to."
-            )
-        raise NonRecoverableError("Nova bad request error: " + str(e))
-    except nova_exceptions.ClientException as e:
-        raise NonRecoverableError("Nova client error: " + str(e))
+                "server can be connected to.")
+        raise
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = s.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         SERVER_OPENSTACK_TYPE

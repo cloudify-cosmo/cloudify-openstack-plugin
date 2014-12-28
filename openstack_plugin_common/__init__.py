@@ -499,8 +499,6 @@ def with_cinder_client(f):
 
         try:
             return f(*args, **kw)
-        except cinder_exceptions.OverLimit, e:
-            _re_raise(e, recoverable=True, retry_after=e.retry_after)
         except cinder_exceptions.ClientException, e:
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)

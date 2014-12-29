@@ -491,6 +491,17 @@ def attach_volume(nova_client, cinder_client, **kwargs):
     volume.wait_until_status(cinder_client=cinder_client,
                              volume_id=volume_id,
                              status=volume.VOLUME_STATUS_IN_USE)
+    if device == 'auto':
+
+        # The device name was assigned automatically so we
+        # query the actual device name
+        attachment = volume.get_attachment(
+            cinder_client=cinder_client,
+            volume_id=volume_id,
+            volume_id=server_id
+        )
+        ctx.source.instance.runtime_properties[
+            volume.DEVICE_NAME_PROPERTY] = attachment['device']
 
 
 @operation

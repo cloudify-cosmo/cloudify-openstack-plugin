@@ -272,7 +272,7 @@ node_types:
       resource_id:
         default: ''
       device_name:
-        default: ''
+        default: auto
       openstack_config:
         default: {}
     interfaces:

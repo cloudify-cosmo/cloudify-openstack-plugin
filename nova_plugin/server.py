@@ -486,8 +486,11 @@ def attach_volume(nova_client, cinder_client, **kwargs):
     # Note: The 'device_name' property should actually be a property of the
     # relationship between a server and a volume; It'll move to that
     # relationship type once relationship properties are better supported.
+
     device = ctx.source.node.properties[volume.DEVICE_NAME_PROPERTY]
-    nova_client.volumes.create_server_volume(server_id, volume_id, device)
+    nova_client.volumes.create_server_volume(server_id,
+                                             volume_id,
+                                             device if device != 'auto' else None)
     volume.wait_until_status(cinder_client=cinder_client,
                              volume_id=volume_id,
                              status=volume.VOLUME_STATUS_IN_USE)

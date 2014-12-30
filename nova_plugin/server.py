@@ -498,10 +498,13 @@ def attach_volume(nova_client, cinder_client, **kwargs):
         attachment = volume.get_attachment(
             cinder_client=cinder_client,
             volume_id=volume_id,
-            volume_id=server_id
+            server_id=server_id
         )
+        device_name = attachment['device']
+        ctx.logger.info('Detected device for attachment of volume {0} to server {1}: {2}'
+                        .format(volume_id, server_id, device_name))
         ctx.source.instance.runtime_properties[
-            volume.DEVICE_NAME_PROPERTY] = attachment['device']
+            volume.DEVICE_NAME_PROPERTY] = device_name
 
 
 @operation

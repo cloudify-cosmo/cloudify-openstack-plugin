@@ -294,7 +294,7 @@ relationships:
     derived_from: cloudify.relationships.connected_to
 
   cloudify.openstack.volume_attached_to_server:
-    derived_from: cloudify.relationships.volume_attached_to_compute
+    derived_from: cloudify.relationships.connected_to
     target_interfaces:
       cloudify.interfaces.relationship_lifecycle:
         establish: openstack.nova_plugin.server.attach_volume

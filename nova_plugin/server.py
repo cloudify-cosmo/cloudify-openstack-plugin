@@ -486,7 +486,6 @@ def attach_volume(nova_client, cinder_client, **kwargs):
     # Note: The 'device_name' property should actually be a property of the
     # relationship between a server and a volume; It'll move to that
     # relationship type once relationship properties are better supported.
-
     device = ctx.source.node.properties[volume.DEVICE_NAME_PROPERTY]
     nova_client.volumes.create_server_volume(server_id,
                                              volume_id,
@@ -504,7 +503,7 @@ def attach_volume(nova_client, cinder_client, **kwargs):
             server_id=server_id
         )
         device_name = attachment['device']
-        ctx.logger.info('Detected device for attachment of volume {0} to server {1}: {2}'
+        ctx.logger.info('Detected device name for attachment of volume {0} to server {1}: {2}'
                         .format(volume_id, server_id, device_name))
         ctx.source.instance.runtime_properties[
             volume.DEVICE_NAME_PROPERTY] = device_name

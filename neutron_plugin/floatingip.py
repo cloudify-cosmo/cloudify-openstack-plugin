@@ -58,6 +58,8 @@ def create(neutron_client, **kwargs):
         {'floatingip': floatingip})['floatingip']
     set_floatingip_runtime_properties(fip['id'], fip['floating_ip_address'])
 
+    ctx.logger.info('Floating IP data: {0}'.format(fip))
+
 
 @operation
 @with_neutron_client

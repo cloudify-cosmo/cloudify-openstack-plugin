@@ -186,7 +186,7 @@ def _handle_external_network_config(router, neutron_client):
         _insert_ext_net_id_to_router_config(ext_net_id, router)
     elif ext_net_id_by_rel:
         _insert_ext_net_id_to_router_config(ext_net_id_by_rel, router)
-    elif ctx.properties['default_to_managers_external_network'] and \
+    elif ctx.node.properties['default_to_managers_external_network'] and \
             provider_context.ext_network:
         _insert_ext_net_id_to_router_config(provider_context.ext_network['id'],
                                             router)

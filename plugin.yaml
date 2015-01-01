@@ -22,49 +22,25 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.nova_plugin.server.create
-          inputs: {}
-        start:
-          implementation: openstack.nova_plugin.server.start
-          inputs: {}
-        stop:
-          implementation: openstack.nova_plugin.server.stop
-          inputs: {}
-        delete:
-          implementation: openstack.nova_plugin.server.delete
-          inputs: {}
+        create: openstack.nova_plugin.server.create
+        start: openstack.nova_plugin.server.start
+        stop: openstack.nova_plugin.server.stop
+        delete: openstack.nova_plugin.server.delete
       cloudify.interfaces.host:
-        get_state:
-          implementation: openstack.nova_plugin.server.get_state
-          inputs: {}
+        get_state: openstack.nova_plugin.server.get_state
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.nova_plugin.server.creation_validation
-          inputs: {}
+        creation: openstack.nova_plugin.server.creation_validation
   cloudify.openstack.nodes.WindowsServer:
     derived_from: cloudify.openstack.nodes.Server
     interfaces:
       cloudify.interfaces.worker_installer:
-        install:
-          implementation: windows_agent_installer.windows_agent_installer.tasks.install
-          inputs: {}
-        start:
-          implementation: windows_agent_installer.windows_agent_installer.tasks.start
-          inputs: {}
-        stop:
-          implementation: windows_agent_installer.windows_agent_installer.tasks.stop
-          inputs: {}
-        uninstall:
-          implementation: windows_agent_installer.windows_agent_installer.tasks.uninstall
-          inputs: {}
-        restart:
-          implementation: windows_agent_installer.windows_agent_installer.tasks.restart
-          inputs: {}
+        install: windows_agent_installer.windows_agent_installer.tasks.install
+        start: windows_agent_installer.windows_agent_installer.tasks.start
+        stop: windows_agent_installer.windows_agent_installer.tasks.stop
+        uninstall: windows_agent_installer.windows_agent_installer.tasks.uninstall
+        restart: windows_agent_installer.windows_agent_installer.tasks.restart
       cloudify.interfaces.plugin_installer:
-        install:
-          implementation: windows_plugin_installer.windows_plugin_installer.tasks.install
-          inputs: {}
+        install: windows_plugin_installer.windows_plugin_installer.tasks.install
 
   cloudify.openstack.nodes.KeyPair:
     derived_from: cloudify.nodes.Root
@@ -105,16 +81,10 @@ node_types:
           username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.nova_plugin.keypair.create
-          inputs: {}
-        delete:
-          implementation: openstack.nova_plugin.keypair.delete
-          inputs: {}
+        create: openstack.nova_plugin.keypair.create
+        delete: openstack.nova_plugin.keypair.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.nova_plugin.keypair.creation_validation
-          inputs: {}
+        creation: openstack.nova_plugin.keypair.creation_validation
 
   cloudify.openstack.nodes.Subnet:
     derived_from: cloudify.nodes.Subnet
@@ -128,16 +98,10 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.neutron_plugin.subnet.create
-          inputs: {}
-        delete:
-          implementation: openstack.neutron_plugin.subnet.delete
-          inputs: {}
+        create: openstack.neutron_plugin.subnet.create
+        delete: openstack.neutron_plugin.subnet.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.neutron_plugin.subnet.creation_validation
-          inputs: {}
+        creation: openstack.neutron_plugin.subnet.creation_validation
 
   cloudify.openstack.nodes.SecurityGroup:
     derived_from: cloudify.nodes.SecurityGroup
@@ -156,16 +120,10 @@ node_types:
         default: false
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.neutron_plugin.security_group.create
-          inputs: {}
-        delete:
-          implementation: openstack.neutron_plugin.security_group.delete
-          inputs: {}
+        create: openstack.neutron_plugin.security_group.create
+        delete: openstack.neutron_plugin.security_group.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.neutron_plugin.security_group.creation_validation
-          inputs: {}
+        creation: openstack.neutron_plugin.security_group.creation_validation
 
   cloudify.openstack.nodes.Router:
     derived_from: cloudify.nodes.Router
@@ -184,16 +142,10 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.neutron_plugin.router.create
-          inputs: {}
-        delete:
-          implementation: openstack.neutron_plugin.router.delete
-          inputs: {}
+        create: openstack.neutron_plugin.router.create
+        delete: openstack.neutron_plugin.router.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.neutron_plugin.router.creation_validation
-          inputs: {}
+        creation: openstack.neutron_plugin.router.creation_validation
 
   cloudify.openstack.nodes.Port:
     derived_from: cloudify.nodes.Port
@@ -208,16 +160,10 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.neutron_plugin.port.create
-          inputs: {}
-        delete:
-          implementation: openstack.neutron_plugin.port.delete
-          inputs: {}
+        create: openstack.neutron_plugin.port.create
+        delete: openstack.neutron_plugin.port.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.neutron_plugin.port.creation_validation
-          inputs: {}
+        creation: openstack.neutron_plugin.port.creation_validation
 
   cloudify.openstack.nodes.Network:
     derived_from: cloudify.nodes.Network
@@ -232,16 +178,10 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.neutron_plugin.network.create
-          inputs: {}
-        delete:
-          implementation: openstack.neutron_plugin.network.delete
-          inputs: {}
+        create: openstack.neutron_plugin.network.create
+        delete: openstack.neutron_plugin.network.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.neutron_plugin.network.creation_validation
-          inputs: {}
+        creation: openstack.neutron_plugin.network.creation_validation
 
   cloudify.openstack.nodes.FloatingIP:
     derived_from: cloudify.nodes.VirtualIP
@@ -256,16 +196,10 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.neutron_plugin.floatingip.create
-          inputs: {}
-        delete:
-          implementation: openstack.neutron_plugin.floatingip.delete
-          inputs: {}
+        create: openstack.neutron_plugin.floatingip.create
+        delete: openstack.neutron_plugin.floatingip.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.neutron_plugin.floatingip.creation_validation
-          inputs: {}
+        creation: openstack.neutron_plugin.floatingip.creation_validation
 
   cloudify.openstack.nodes.Volume:
     derived_from: cloudify.nodes.Volume
@@ -276,21 +210,15 @@ node_types:
       resource_id:
         default: ''
       device_name:
-        default: ''
+        default: auto
       openstack_config:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.cinder_plugin.volume.create
-          inputs: {}
-        delete:
-          implementation: openstack.cinder_plugin.volume.delete
-          inputs: {}
+        create: openstack.cinder_plugin.volume.create
+        delete: openstack.cinder_plugin.volume.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.cinder_plugin.volume.creation_validation
-          inputs: {}
+        creation: openstack.cinder_plugin.volume.creation_validation
 
   cloudify.openstack.nova_net.nodes.FloatingIP:
     derived_from: cloudify.nodes.VirtualIP
@@ -305,16 +233,10 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.nova_plugin.floatingip.create
-          inputs: {}
-        delete:
-          implementation: openstack.nova_plugin.floatingip.delete
-          inputs: {}
+        create: openstack.nova_plugin.floatingip.create
+        delete: openstack.nova_plugin.floatingip.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.nova_plugin.floatingip.creation_validation
-          inputs: {}
+        creation: openstack.nova_plugin.floatingip.creation_validation
 
   cloudify.openstack.nova_net.nodes.SecurityGroup:
     derived_from: cloudify.nodes.SecurityGroup
@@ -333,58 +255,38 @@ node_types:
         description: security group description
     interfaces:
       cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.nova_plugin.security_group.create
-          inputs: {}
-        delete:
-          implementation: openstack.nova_plugin.security_group.delete
-          inputs: {}
+        create: openstack.nova_plugin.security_group.create
+        delete: openstack.nova_plugin.security_group.delete
       cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.nova_plugin.security_group.creation_validation
-          inputs: {}
+        creation: openstack.nova_plugin.security_group.creation_validation
 
 relationships:
   cloudify.openstack.port_connected_to_security_group:
     derived_from: cloudify.relationships.connected_to
     source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        establish:
-          implementation: openstack.neutron_plugin.port.connect_security_group
-          inputs: {}
+        establish: openstack.neutron_plugin.port.connect_security_group
 
   cloudify.openstack.subnet_connected_to_router:
     derived_from: cloudify.relationships.connected_to
     target_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        establish:
-          implementation: openstack.neutron_plugin.router.connect_subnet
-          inputs: {}
-        unlink:
-          implementation: openstack.neutron_plugin.router.disconnect_subnet
-          inputs: {}
+        establish: openstack.neutron_plugin.router.connect_subnet
+        unlink: openstack.neutron_plugin.router.disconnect_subnet
 
   cloudify.openstack.server_connected_to_floating_ip:
     derived_from: cloudify.relationships.connected_to
     source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        establish:
-          implementation: openstack.nova_plugin.server.connect_floatingip
-          inputs: {}
-        unlink:
-          implementation: openstack.nova_plugin.server.disconnect_floatingip
-          inputs: {}
+        establish: openstack.nova_plugin.server.connect_floatingip
+        unlink: openstack.nova_plugin.server.disconnect_floatingip
 
   cloudify.openstack.server_connected_to_security_group:
     derived_from: cloudify.relationships.connected_to
     source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        establish:
-          implementation: openstack.nova_plugin.server.connect_security_group
-          inputs: {}
-        unlink:
-          implementation: openstack.nova_plugin.server.disconnect_security_group
-          inputs: {}
+        establish: openstack.nova_plugin.server.connect_security_group
+        unlink: openstack.nova_plugin.server.disconnect_security_group
 
   cloudify.openstack.server_connected_to_port:
     derived_from: cloudify.relationships.connected_to
@@ -396,9 +298,5 @@ relationships:
     derived_from: cloudify.relationships.connected_to
     target_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        establish:
-          implementation: openstack.nova_plugin.server.attach_volume
-          inputs: {}
-        unlink:
-          implementation: openstack.nova_plugin.server.detach_volume
-          inputs: {}
+        establish: openstack.nova_plugin.server.attach_volume
+        unlink: openstack.nova_plugin.server.detach_volume

@@ -484,10 +484,28 @@ def attach_volume(nova_client, cinder_client, **kwargs):
     # relationship between a server and a volume; It'll move to that
     # relationship type once relationship properties are better supported.
     device = ctx.source.node.properties[volume.DEVICE_NAME_PROPERTY]
-    nova_client.volumes.create_server_volume(server_id, volume_id, device)
+    nova_client.volumes.create_server_volume(
+        server_id,
+        volume_id,
+        device if device != 'auto' else None)
     volume.wait_until_status(cinder_client=cinder_client,
                              volume_id=volume_id,
                              status=volume.VOLUME_STATUS_IN_USE)
+    if device == 'auto':
+
+        # The device name was assigned automatically so we
+        # query the actual device name
+        attachment = volume.get_attachment(
+            cinder_client=cinder_client,
+            volume_id=volume_id,
+            server_id=server_id
+        )
+        device_name = attachment['device']
+        ctx.logger.info('Detected device name for attachment of volume '
+                        '{0} to server {1}: {2}'
+                        .format(volume_id, server_id, device_name))
+        ctx.source.instance.runtime_properties[
+            volume.DEVICE_NAME_PROPERTY] = device_name
 
 
 @operation

@@ -15,7 +15,8 @@
 
 import novaclient.v1_1.client as nvclient
 
-from cosmo_tester.framework.handlers.openstack import OpenstackHandler
+from openstack_plugin_common.system_tests.handlers.openstack.handler import \
+    OpenstackHandler
 
 
 class OpenstackNovaNetHandler(OpenstackHandler):

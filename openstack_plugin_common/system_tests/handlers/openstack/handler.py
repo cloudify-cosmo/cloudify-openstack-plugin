@@ -480,4 +480,3 @@ class OpenstackHandler(BaseHandler):
             failed[resource_group][resource_id] = ex
 
 handler = OpenstackHandler
-provider_repo = 'cloudify-openstack-provider'

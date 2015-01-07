@@ -213,28 +213,23 @@ class CloudifyOpenstackInputsConfigReader(BaseCloudifyInputsConfigReader):
 
     @property
     def management_network_name(self):
-        return self.manager_blueprint['node_templates'][
-            'management_network']['properties']['resource_id']
+        return self.config['management_network_name']
 
     @property
     def management_subnet_name(self):
-        return self.manager_blueprint['node_templates'][
-            'management_subnet']['properties']['resource_id']
+        return self.config['management_subnet_name']
 
     @property
     def management_router_name(self):
-        return self.manager_blueprint['node_templates'][
-            'router']['properties']['resource_id']
+        return self.config['management_router']
 
     @property
     def agents_security_group(self):
-        return self.manager_blueprint['node_templates'][
-            'agents_security_group']['properties']['resource_id']
+        return self.config['agents_security_group_name']
 
     @property
     def management_security_group(self):
-        return self.manager_blueprint['node_templates'][
-            'management_security_group']['properties']['resource_id']
+        return self.config['manager_security_group_name']
 
 
 class OpenstackHandler(BaseHandler):

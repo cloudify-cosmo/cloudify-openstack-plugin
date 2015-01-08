@@ -25,8 +25,6 @@ class OpenstackNovaNetHandler(OpenstackHandler):
     # nova-net tests in the first place
     # CloudifyConfigReader = None
 
-    provider = None
-
     def openstack_clients(self):
         creds = self._client_creds()
         return nvclient.Client(**creds)

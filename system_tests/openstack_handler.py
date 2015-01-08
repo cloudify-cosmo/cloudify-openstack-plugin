@@ -27,7 +27,6 @@ from retrying import retry
 
 from cosmo_tester.framework.handlers import (
     BaseHandler,
-    BaseCloudifyProviderConfigReader,
     BaseCloudifyInputsConfigReader)
 from cosmo_tester.framework.util import get_actual_keypath
 
@@ -62,94 +61,6 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
         current_state = self.env.handler.openstack_infra_state()
         return self.env.handler.openstack_infra_state_delta(
             before=self.before_run, after=current_state)
-
-
-class CloudifyOpenstackProviderConfigReader(BaseCloudifyProviderConfigReader):
-
-    def __init__(self, cloudify_config, **kwargs):
-        super(CloudifyOpenstackProviderConfigReader, self).__init__(
-            cloudify_config, **kwargs)
-
-    @property
-    def region(self):
-        return self.config['compute']['region']
-
-    @property
-    def management_server_name(self):
-        return self.config['compute']['management_server']['instance']['name']
-
-    @property
-    def management_server_floating_ip(self):
-        return self.config['compute']['management_server']['floating_ip']
-
-    @property
-    def management_network_name(self):
-        return self.config['networking']['int_network']['name']
-
-    @property
-    def management_subnet_name(self):
-        return self.config['networking']['subnet']['name']
-
-    @property
-    def management_router_name(self):
-        return self.config['networking']['router']['name']
-
-    @property
-    def agent_key_path(self):
-        return self.config['compute']['agent_servers']['agents_keypair'][
-            'private_key_path']
-
-    @property
-    def management_user_name(self):
-        return self.config['compute']['management_server'][
-            'user_on_management']
-
-    @property
-    def management_key_path(self):
-        return self.config['compute']['management_server'][
-            'management_keypair']['private_key_path']
-
-    @property
-    def agent_keypair_name(self):
-        return self.config['compute']['agent_servers']['agents_keypair'][
-            'name']
-
-    @property
-    def management_keypair_name(self):
-        return self.config['compute']['management_server'][
-            'management_keypair']['name']
-
-    @property
-    def external_network_name(self):
-        return self.config['networking']['ext_network']['name']
-
-    @property
-    def agents_security_group(self):
-        return self.config['networking']['agents_security_group']['name']
-
-    @property
-    def management_security_group(self):
-        return self.config['networking']['management_security_group']['name']
-
-    @property
-    def keystone_username(self):
-        return self.config['keystone']['username']
-
-    @property
-    def keystone_password(self):
-        return self.config['keystone']['password']
-
-    @property
-    def keystone_tenant_name(self):
-        return self.config['keystone']['tenant_name']
-
-    @property
-    def keystone_url(self):
-        return self.config['keystone']['auth_url']
-
-    @property
-    def neutron_url(self):
-        return self.config['networking'].get('neutron_url', None)
 
 
 class CloudifyOpenstackInputsConfigReader(BaseCloudifyInputsConfigReader):
@@ -237,12 +148,9 @@ class OpenstackHandler(BaseHandler):
     CleanupContext = OpenstackCleanupContext
     CloudifyConfigReader = None
 
-    provider = 'openstack'
-
     def __init__(self, env):
         super(OpenstackHandler, self).__init__(env)
-        self.CloudifyConfigReader = CloudifyOpenstackProviderConfigReader if \
-            env.is_provider_bootstrap else CloudifyOpenstackInputsConfigReader
+        self.CloudifyConfigReader = CloudifyOpenstackInputsConfigReader
 
     def before_bootstrap(self):
         super(OpenstackHandler, self).before_bootstrap()

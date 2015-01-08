@@ -23,13 +23,18 @@ node_types:
     interfaces:
       cloudify.interfaces.lifecycle:
         create: openstack.nova_plugin.server.create
-        start: openstack.nova_plugin.server.start
+        start:
+          implementation: openstack.nova_plugin.server.start
+          inputs:
+            start_retry_interval:
+              description: Polling interval until the server is active in seconds
+              type: integer
+              default: 30
         stop: openstack.nova_plugin.server.stop
         delete: openstack.nova_plugin.server.delete
-      cloudify.interfaces.host:
-        get_state: openstack.nova_plugin.server.get_state
       cloudify.interfaces.validation:
         creation: openstack.nova_plugin.server.creation_validation
+
   cloudify.openstack.nodes.WindowsServer:
     derived_from: cloudify.openstack.nodes.Server
     interfaces:

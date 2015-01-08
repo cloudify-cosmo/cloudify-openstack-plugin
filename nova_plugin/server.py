@@ -316,8 +316,8 @@ def start(nova_client, start_retry_interval, **kwargs):
             retry_after=start_retry_interval)
 
     raise NonRecoverableError(
-        'Unhandled server state {0}:{1}'.format(server.status,
-                                                server_task_state))
+        'Unexpected server state {0}:{1}'.format(server.status,
+                                                 server_task_state))
 
 
 @operation

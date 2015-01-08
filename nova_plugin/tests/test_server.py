@@ -122,7 +122,7 @@ class TestServer(unittest.TestCase):
         with mock.patch('nova_plugin.server.get_server_by_context',
                         new=mock_get_server_by_context):
             self.assertRaisesRegexp(RuntimeError,
-                                    'Unhandled server state',
+                                    'Unexpected server state',
                                     self.env.execute,
                                     'install')
 

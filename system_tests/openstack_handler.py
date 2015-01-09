@@ -146,11 +146,7 @@ class CloudifyOpenstackInputsConfigReader(BaseCloudifyInputsConfigReader):
 class OpenstackHandler(BaseHandler):
 
     CleanupContext = OpenstackCleanupContext
-    CloudifyConfigReader = None
-
-    def __init__(self, env):
-        super(OpenstackHandler, self).__init__(env)
-        self.CloudifyConfigReader = CloudifyOpenstackInputsConfigReader
+    CloudifyConfigReader = CloudifyOpenstackInputsConfigReader
 
     def before_bootstrap(self):
         super(OpenstackHandler, self).before_bootstrap()

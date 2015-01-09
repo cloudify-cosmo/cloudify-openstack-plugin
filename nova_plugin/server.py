@@ -23,7 +23,7 @@ from cloudify import ctx
 from cloudify import context
 from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
-from cloudify.exceptions import NonRecoverableError
+from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 from cinder_plugin import volume
 from novaclient import exceptions as nova_exceptions
@@ -59,6 +59,9 @@ SERVER_OPENSTACK_TYPE = 'server'
 SERVER_STATUS_ACTIVE = 'ACTIVE'
 SERVER_STATUS_BUILD = 'BUILD'
 SERVER_STATUS_SHUTOFF = 'SHUTOFF'
+
+OS_EXT_STS_TASK_STATE = 'OS-EXT-STS:task_state'
+SERVER_TASK_STATE_POWERING_ON = 'powering-on'
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
 SERVER_DELETE_CHECK_SLEEP = 2
@@ -278,7 +281,7 @@ def _neutron_client():
 
 @operation
 @with_nova_client
-def start(nova_client, **kwargs):
+def start(nova_client, start_retry_interval, **kwargs):
     server = get_server_by_context(nova_client)
 
     if is_external_resource(ctx):
@@ -289,10 +292,32 @@ def start(nova_client, **kwargs):
                 '"{1}" status'.format(server.id, SERVER_STATUS_ACTIVE))
         return
 
-    if server.status not in (SERVER_STATUS_ACTIVE, SERVER_STATUS_BUILD):
+    if server.status == SERVER_STATUS_ACTIVE:
+        _set_network_and_ip_runtime_properties(server)
+        ctx.logger.info('Server is {0}'.format(server.status))
+        return
+
+    server_task_state = getattr(server, OS_EXT_STS_TASK_STATE)
+
+    if server.status == SERVER_STATUS_SHUTOFF and \
+            server_task_state != SERVER_TASK_STATE_POWERING_ON:
+        ctx.logger.info('Server is in {0} status - starting server...'.format(
+            SERVER_STATUS_SHUTOFF))
         server.start()
-    else:
-        ctx.logger.info('Server is already started')
+        server_task_state = SERVER_TASK_STATE_POWERING_ON
+
+    if server.status == SERVER_STATUS_BUILD or \
+            server_task_state == SERVER_TASK_STATE_POWERING_ON:
+        raise RecoverableError(
+            'Waiting for server to be in {0} state but is in {1}:{2} state. '
+            'Retrying...'.format(SERVER_STATUS_ACTIVE,
+                                 server.status,
+                                 server_task_state),
+            retry_after=start_retry_interval)
+
+    raise NonRecoverableError(
+        'Unexpected server state {0}:{1}'.format(server.status,
+                                                 server_task_state))
 
 
 @operation
@@ -369,16 +394,6 @@ def _set_network_and_ip_runtime_properties(server):
     ctx.instance.runtime_properties[NETWORKS_PROPERTY] = ips
     # The ip of this instance in the management network
     ctx.instance.runtime_properties[IP_PROPERTY] = manager_network_ip
-
-
-@operation
-@with_nova_client
-def get_state(nova_client, **kwargs):
-    server = get_server_by_context(nova_client)
-    if server.status == SERVER_STATUS_ACTIVE:
-        _set_network_and_ip_runtime_properties(server)
-        return True
-    return False
 
 
 @operation

@@ -46,8 +46,8 @@ from openstack_plugin_common import (
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
-    COMMON_RUNTIME_PROPERTIES_KEYS
-)
+    COMMON_RUNTIME_PROPERTIES_KEYS,
+    with_neutron_client)
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
@@ -75,7 +75,8 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
 
 @operation
 @with_nova_client
-def create(nova_client, **kwargs):
+@with_neutron_client
+def create(nova_client, neutron_client, **kwargs):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
@@ -215,6 +216,16 @@ def create(nova_client, **kwargs):
     # Multi-NIC by ports - start
     nics = [{'port-id': port_id} for port_id in port_ids]
     if nics:
+        port_network_ids = get_port_network_ids_(neutron_client, port_ids)
+        if management_network_id in port_network_ids:
+            # de-duplicating the management network id in case it appears in
+            # port_ids. There has to be a management network if a
+            # network is connected to the server.
+            # note: if the management network appears more than once in
+            # network_ids it won't get de-duplicated and the server creation
+            # will fail.
+            server['nics'].remove({'net-id': management_network_id})
+
         server['nics'] = server.get('nics', []) + nics
     # Multi-NIC by ports - end
 
@@ -267,6 +278,15 @@ def create(nova_client, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         SERVER_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = server['name']
+
+
+def get_port_network_ids_(neutron_client, port_ids):
+
+    def get_network(port_id):
+        port = neutron_client.show_port(port_id)
+        return port['port']['network_id']
+
+    return map(get_network, port_ids)
 
 
 def _neutron_client():

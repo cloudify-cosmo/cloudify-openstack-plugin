@@ -284,7 +284,6 @@ def get_port_network_ids_(neutron_client, port_ids):
 
     def get_network(port_id):
         port = neutron_client.show_port(port_id)
-        ctx.logger.info('port: {0}'.format(port))
         return port['port']['network_id']
 
     return map(get_network, port_ids)

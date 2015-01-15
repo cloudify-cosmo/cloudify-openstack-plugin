@@ -682,8 +682,16 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
 
     def cosmo_list(self, obj_type_single, **kw):
         obj_type_plural = self.cosmo_plural(obj_type_single)
-        for obj in getattr(self, obj_type_plural).list(search_opts=kw):
-            yield obj
+
+        # volumes does not provide filtering by id
+        # so we don't actually do list, but rather use get
+        # if we want a volume with a specific id
+        if 'id' in kw:
+            volume = getattr(self, obj_type_plural).get(kw['id'])
+            yield volume
+        else:
+            for obj in getattr(self, obj_type_plural).list(search_opts=kw):
+                yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
         obj_type_plural = self.cosmo_plural(obj_type_single)

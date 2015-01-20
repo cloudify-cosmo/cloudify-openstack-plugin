@@ -99,19 +99,6 @@ def delete(neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def attach(neutron_client, **kwargs):
-    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    port_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    change = {
-        'port': {
-            'device_id': server_id
-        }
-    }
-    neutron_client.update_port(port_id, change)
-
-
-@operation
-@with_neutron_client
 def detach(neutron_client, **kwargs):
     port_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     change = {

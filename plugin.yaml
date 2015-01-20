@@ -299,6 +299,13 @@ relationships:
   cloudify.openstack.server_connected_to_keypair:
     derived_from: cloudify.relationships.connected_to
 
+  cloudify.openstack.server_connected_to_port:
+    derived_from: cloudify.relationships.connected_to
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        establish: openstack.neutron_plugin.port.attach
+        unlink: openstack.neutron_plugin.port.detach
+
   cloudify.openstack.volume_attached_to_server:
     derived_from: cloudify.relationships.connected_to
     target_interfaces:

@@ -293,9 +293,6 @@ relationships:
         establish: openstack.nova_plugin.server.connect_security_group
         unlink: openstack.nova_plugin.server.disconnect_security_group
 
-  cloudify.openstack.server_connected_to_port:
-    derived_from: cloudify.relationships.connected_to
-
   cloudify.openstack.server_connected_to_keypair:
     derived_from: cloudify.relationships.connected_to
 

@@ -23,7 +23,7 @@ from cloudify import ctx
 from cloudify import context
 from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
-from cloudify.exceptions import NonRecoverableError, RecoverableError
+from cloudify.exceptions import NonRecoverableError
 
 from cinder_plugin import volume
 from novaclient import exceptions as nova_exceptions
@@ -328,11 +328,11 @@ def start(nova_client, start_retry_interval, **kwargs):
 
     if server.status == SERVER_STATUS_BUILD or \
             server_task_state == SERVER_TASK_STATE_POWERING_ON:
-        raise RecoverableError(
-            'Waiting for server to be in {0} state but is in {1}:{2} state. '
-            'Retrying...'.format(SERVER_STATUS_ACTIVE,
-                                 server.status,
-                                 server_task_state),
+        return ctx.operation.retry(
+            message='Waiting for server to be in {0} state but is in {1}:{2} '
+                    'state. Retrying...'.format(SERVER_STATUS_ACTIVE,
+                                                server.status,
+                                                server_task_state),
             retry_after=start_retry_interval)
 
     raise NonRecoverableError(

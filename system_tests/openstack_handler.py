@@ -306,7 +306,7 @@ class OpenstackHandler(BaseHandler):
         for volume in volumes:
             if volume.id in resources_to_remove['volumes']:
                 with self._handled_exception(volume.id, failed, 'volumes'):
-                    cinder.volumes.delete(volumes)
+                    cinder.volumes.delete(volume)
 
         return failed
 

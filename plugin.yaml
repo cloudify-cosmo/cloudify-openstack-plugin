@@ -39,7 +39,7 @@ node_types:
                 public key. Will be used to decrypt password in case
                 the "use_password" property is set to "true"
               type: string
-              default: null
+              default: ''
         stop: openstack.nova_plugin.server.stop
         delete: openstack.nova_plugin.server.delete
       cloudify.interfaces.validation:

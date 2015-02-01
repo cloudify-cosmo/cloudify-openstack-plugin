@@ -319,7 +319,7 @@ def start(nova_client, start_retry_interval, private_key_path, **kwargs):
 
         if ctx.node.properties['use_password']:
             private_key = _get_private_key(private_key_path)
-            password = nova_client.get_password(private_key)
+            password = server.get_password(private_key)
 
             if not password:
                 return ctx.operation.retry(

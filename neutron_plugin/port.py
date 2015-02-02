@@ -73,12 +73,12 @@ def create(neutron_client, **kwargs):
         'name': get_resource_id(ctx, PORT_OPENSTACK_TYPE),
         'network_id': net_id,
         'security_groups': [],
-    }
+        }
     port.update(ctx.node.properties['port'])
     transform_resource_name(ctx, port)
     p = neutron_client.create_port({'port': port})['port']
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         PORT_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = p['name']
 
@@ -95,6 +95,37 @@ def delete(neutron_client, **kwargs):
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
         else:
             raise
+
+
+@operation
+@with_neutron_client
+def detach(neutron_client, **kwargs):
+
+    if is_external_relationship(ctx):
+        ctx.logger.info('Not detaching port from server since '
+                        'external port and server are being used')
+        return
+
+    port_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+    server_floating_ip = _get_server_floating_ip(neutron_client, server_id)
+    if server_floating_ip:
+        return ctx.operation.retry(
+            message='Waiting for the floating ip {0} to '
+                    'detach from server {1}..'
+            .format(server_floating_ip['floating_ip_address'],
+                    server_id),
+            retry_after=10)
+    change = {
+        'port': {
+            'device_id': '',
+            'device_owner': ''
+        }
+    }
+    ctx.logger.info('Detaching port {0}...'.format(port_id))
+    neutron_client.update_port(port_id, change)
+    ctx.logger.info('Successfully detached port {0}'.format(port_id))
 
 
 @operation
@@ -127,3 +158,28 @@ def connect_security_group(neutron_client, **kwargs):
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, PORT_OPENSTACK_TYPE)
+
+
+def _get_server_floating_ip(neutron_client, server_id):
+
+    floating_ips = neutron_client.list_floatingips()
+
+    floating_ips = floating_ips.get('floatingips')
+    if not floating_ips:
+        return None
+
+    for floating_ip in floating_ips:
+        port_id = floating_ip.get('port_id')
+        if not port_id:
+            # this floating ip is not attached to any port
+            continue
+
+        port = neutron_client.show_port(port_id)['port']
+        device_id = port.get('device_id')
+        if not device_id:
+            # this port is not attached to any server
+            continue
+
+        if server_id == device_id:
+            return floating_ip
+    return None

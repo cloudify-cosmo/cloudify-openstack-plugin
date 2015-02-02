@@ -73,12 +73,12 @@ def create(neutron_client, **kwargs):
         'name': get_resource_id(ctx, PORT_OPENSTACK_TYPE),
         'network_id': net_id,
         'security_groups': [],
-        }
+    }
     port.update(ctx.node.properties['port'])
     transform_resource_name(ctx, port)
     p = neutron_client.create_port({'port': port})['port']
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
         PORT_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = p['name']
 

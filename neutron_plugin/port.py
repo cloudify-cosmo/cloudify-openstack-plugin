@@ -114,8 +114,8 @@ def detach(neutron_client, **kwargs):
         return ctx.operation.retry(
             message='Waiting for the floating ip {0} to '
                     'detach from server {1}..'
-            .format(server_floating_ip['floating_ip_address'],
-                    server_id),
+                    .format(server_floating_ip['floating_ip_address'],
+                            server_id),
             retry_after=10)
     change = {
         'port': {

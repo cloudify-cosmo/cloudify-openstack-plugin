@@ -318,11 +318,14 @@ def start(nova_client, start_retry_interval, private_key_path, **kwargs):
         ctx.logger.info('Server is {0}'.format(server.status))
 
         if ctx.node.properties['use_password']:
-            ctx.logger.info('retrieving private key for server')
             private_key = _get_private_key(private_key_path)
             ctx.logger.info('retrieving password for server')
-            password = server.get_password(private_key)
-            ctx.logger.info('retrieving password for server successfully')
+            password = None
+            try:
+                password = server.get_password(private_key)
+            except nova_exceptions.ClientException, e:
+                if e.code != 404:
+                    raise
 
             if not password:
                 return ctx.operation.retry(

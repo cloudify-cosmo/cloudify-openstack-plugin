@@ -71,7 +71,7 @@ SERVER_DELETE_CHECK_SLEEP = 2
 # Runtime properties
 NETWORKS_PROPERTY = 'networks'  # all of the server's ips
 IP_PROPERTY = 'ip'  # the server's private ip
-ADMIN_PASSWORD_PROPERTY = 'password'  # the server's Admin password
+ADMIN_PASSWORD_PROPERTY = 'password'  # the server's password
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
     [NETWORKS_PROPERTY, IP_PROPERTY, ADMIN_PASSWORD_PROPERTY]
 
@@ -325,12 +325,11 @@ def start(nova_client, start_retry_interval, private_key_path, **kwargs):
 
             if not password:
                 return ctx.operation.retry(
-                    message='Waiting for server to post generated Admin '
-                            'password',
+                    message='Waiting for server to post generated password',
                     retry_after=start_retry_interval)
 
             ctx.instance.runtime_properties[ADMIN_PASSWORD_PROPERTY] = password
-            ctx.logger.info('Server has been set with an Admin password')
+            ctx.logger.info('Server has been set with an password')
 
         _set_network_and_ip_runtime_properties(server)
         return

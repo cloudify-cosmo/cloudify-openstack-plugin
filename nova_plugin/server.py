@@ -37,6 +37,7 @@ from openstack_plugin_common import (
     with_nova_client,
     with_cinder_client,
     get_openstack_id_of_single_connected_node_by_openstack_type,
+    get_single_connected_node_by_openstack_type,
     is_external_resource,
     is_external_resource_by_properties,
     use_external_resource,
@@ -761,8 +762,21 @@ def creation_validation(nova_client, **kwargs):
 
 
 def _get_private_key(private_key_path):
-    key_path = \
-        private_key_path or ctx.bootstrap_context.cloudify_agent.agent_key_path
+    pk_path_by_rel = \
+        get_single_connected_node_by_openstack_type(
+            ctx, KEYPAIR_OPENSTACK_TYPE, True)
+
+    if private_key_path:
+        if pk_path_by_rel:
+            raise NonRecoverableError("server can't both have the "
+                                      '"private_key_path" property and be '
+                                      'connected to a keypair via a '
+                                      'relationship at the same time')
+        key_path = private_key_path
+    else:
+        key_path = \
+            pk_path_by_rel or \
+            ctx.bootstrap_context.cloudify_agent.agent_key_path
 
     if key_path:
         key_path = os.path.expanduser(key_path)

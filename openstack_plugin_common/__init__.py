@@ -100,10 +100,27 @@ def provider(ctx):
     return ProviderContext(ctx.provider_context)
 
 
+def get_connected_nodes_by_openstack_type(ctx, type_name):
+    return [rel.target.node for rel in ctx.instance.relationships
+            if rel.target.instance.runtime_properties.get(
+                OPENSTACK_TYPE_PROPERTY) == type_name]
+
+
 def get_openstack_ids_of_connected_nodes_by_openstack_type(ctx, type_name):
     type_caps = [caps for caps in ctx.capabilities.get_all().values() if
                  caps.get(OPENSTACK_TYPE_PROPERTY) == type_name]
     return [cap[OPENSTACK_ID_PROPERTY] for cap in type_caps]
+
+
+def get_single_connected_node_by_openstack_type(
+        ctx, type_name, if_exists=False):
+    nodes = get_connected_nodes_by_openstack_type(ctx, type_name)
+    check = len(nodes) > 1 if if_exists else len(nodes) != 1
+    if check:
+        raise NonRecoverableError(
+            'Expected {0} one {1} node. got {2}'.format(
+                'at most' if if_exists else 'exactly', type_name, len(nodes)))
+    return nodes[0] if nodes else None
 
 
 def get_openstack_id_of_single_connected_node_by_openstack_type(

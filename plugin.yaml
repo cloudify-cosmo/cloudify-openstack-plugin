@@ -18,6 +18,8 @@ node_types:
         default: ''
       management_network_name:
         default: ''
+      use_password:
+        default: false
       openstack_config:
         default: {}
     interfaces:
@@ -30,6 +32,13 @@ node_types:
               description: Polling interval until the server is active in seconds
               type: integer
               default: 30
+            private_key_path:
+              description: >
+                Path to private key which matches the server's
+                public key. Will be used to decrypt password in case
+                the "use_password" property is set to "true"
+              type: string
+              default: ''
         stop: openstack.nova_plugin.server.stop
         delete: openstack.nova_plugin.server.delete
       cloudify.interfaces.validation:
@@ -37,6 +46,9 @@ node_types:
 
   cloudify.openstack.nodes.WindowsServer:
     derived_from: cloudify.openstack.nodes.Server
+    properties:
+      use_password:
+        default: true
     interfaces:
       cloudify.interfaces.worker_installer:
         install: windows_agent_installer.windows_agent_installer.tasks.install

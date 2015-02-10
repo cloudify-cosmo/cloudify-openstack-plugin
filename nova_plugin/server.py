@@ -14,6 +14,7 @@
 #  * limitations under the License.
 
 
+import os
 import time
 import copy
 import inspect
@@ -36,6 +37,7 @@ from openstack_plugin_common import (
     with_nova_client,
     with_cinder_client,
     get_openstack_id_of_single_connected_node_by_openstack_type,
+    get_single_connected_node_by_openstack_type,
     is_external_resource,
     is_external_resource_by_properties,
     use_external_resource,
@@ -69,8 +71,9 @@ SERVER_DELETE_CHECK_SLEEP = 2
 # Runtime properties
 NETWORKS_PROPERTY = 'networks'  # all of the server's ips
 IP_PROPERTY = 'ip'  # the server's private ip
+ADMIN_PASSWORD_PROPERTY = 'password'  # the server's password
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
-    [NETWORKS_PROPERTY, IP_PROPERTY]
+    [NETWORKS_PROPERTY, IP_PROPERTY, ADMIN_PASSWORD_PROPERTY]
 
 
 @operation
@@ -301,7 +304,7 @@ def _neutron_client():
 
 @operation
 @with_nova_client
-def start(nova_client, start_retry_interval, **kwargs):
+def start(nova_client, start_retry_interval, private_key_path, **kwargs):
     server = get_server_by_context(nova_client)
 
     if is_external_resource(ctx):
@@ -313,8 +316,22 @@ def start(nova_client, start_retry_interval, **kwargs):
         return
 
     if server.status == SERVER_STATUS_ACTIVE:
-        _set_network_and_ip_runtime_properties(server)
         ctx.logger.info('Server is {0}'.format(server.status))
+
+        if ctx.node.properties['use_password']:
+            private_key = _get_private_key(private_key_path)
+            ctx.logger.debug('retrieving password for server')
+            password = server.get_password(private_key)
+
+            if not password:
+                return ctx.operation.retry(
+                    message='Waiting for server to post generated password',
+                    retry_after=start_retry_interval)
+
+            ctx.instance.runtime_properties[ADMIN_PASSWORD_PROPERTY] = password
+            ctx.logger.info('Server has been set with an password')
+
+        _set_network_and_ip_runtime_properties(server)
         return
 
     server_task_state = getattr(server, OS_EXT_STS_TASK_STATE)
@@ -741,3 +758,31 @@ def creation_validation(nova_client, **kwargs):
     server_props = ctx.node.properties['server']
     validate_server_property_value_exists(server_props, 'image')
     validate_server_property_value_exists(server_props, 'flavor')
+
+
+def _get_private_key(private_key_path):
+    pk_node_by_rel = \
+        get_single_connected_node_by_openstack_type(
+            ctx, KEYPAIR_OPENSTACK_TYPE, True)
+
+    if private_key_path:
+        if pk_node_by_rel:
+            raise NonRecoverableError("server can't both have a "
+                                      '"private_key_path" input and be '
+                                      'connected to a keypair via a '
+                                      'relationship at the same time')
+        key_path = private_key_path
+    else:
+        key_path = \
+            pk_node_by_rel.properties['private_key_path'] or \
+            ctx.bootstrap_context.cloudify_agent.agent_key_path
+
+    if key_path:
+        key_path = os.path.expanduser(key_path)
+        if os.path.isfile(key_path):
+            return key_path
+
+    err_message = 'Cannot find private key file'
+    if key_path:
+        err_message += '; expected file path was {0}'.format(key_path)
+    raise NonRecoverableError(err_message)

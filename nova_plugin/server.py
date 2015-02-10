@@ -762,12 +762,12 @@ def creation_validation(nova_client, **kwargs):
 
 
 def _get_private_key(private_key_path):
-    pk_path_by_rel = \
+    pk_node_by_rel = \
         get_single_connected_node_by_openstack_type(
             ctx, KEYPAIR_OPENSTACK_TYPE, True)
 
     if private_key_path:
-        if pk_path_by_rel:
+        if pk_node_by_rel:
             raise NonRecoverableError("server can't both have the "
                                       '"private_key_path" property and be '
                                       'connected to a keypair via a '
@@ -775,7 +775,7 @@ def _get_private_key(private_key_path):
         key_path = private_key_path
     else:
         key_path = \
-            pk_path_by_rel or \
+            pk_node_by_rel.properties['private_key_path'] or \
             ctx.bootstrap_context.cloudify_agent.agent_key_path
 
     if key_path:

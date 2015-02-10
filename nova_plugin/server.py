@@ -767,8 +767,8 @@ def _get_private_key(private_key_path):
 
     if private_key_path:
         if pk_node_by_rel:
-            raise NonRecoverableError("server can't both have the "
-                                      '"private_key_path" property and be '
+            raise NonRecoverableError("server can't both have a "
+                                      '"private_key_path" input and be '
                                       'connected to a keypair via a '
                                       'relationship at the same time')
         key_path = private_key_path

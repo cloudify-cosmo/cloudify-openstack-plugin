@@ -645,7 +645,7 @@ def _validate_external_server_nics(network_ids, port_ids):
              OPENSTACK_TYPE_PROPERTY) in (PORT_OPENSTACK_TYPE,
                                           NETWORK_OPENSTACK_TYPE) and
          not is_external_resource_by_properties(
-         _get_properties_by_node_instance_id(node_instance_id))]  # NOQA
+            _get_properties_by_node_instance_id(node_instance_id))]
     if new_nic_nodes:
         raise NonRecoverableError(
             "Can't connect new port and/or network nodes to a server node "

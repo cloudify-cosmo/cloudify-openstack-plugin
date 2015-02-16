@@ -643,8 +643,8 @@ def _validate_external_server_nics(network_ids, port_ids):
         [node_instance_id for node_instance_id, runtime_props in
          ctx.capabilities.get_all().iteritems() if runtime_props.get(
              OPENSTACK_TYPE_PROPERTY) in (PORT_OPENSTACK_TYPE,
-                                          NETWORK_OPENSTACK_TYPE)
-         and not is_external_resource_by_properties(
+                                          NETWORK_OPENSTACK_TYPE) and
+         not is_external_resource_by_properties(
          _get_properties_by_node_instance_id(node_instance_id))]  # NOQA
     if new_nic_nodes:
         raise NonRecoverableError(

@@ -24,7 +24,7 @@ from cloudify import ctx
 from cloudify import context
 from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
-from cloudify.exceptions import NonRecoverableError
+from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 from cinder_plugin import volume
 from novaclient import exceptions as nova_exceptions
@@ -495,6 +495,12 @@ def connect_security_group(nova_client, **kwargs):
     # by name (as connecting by id doesn't seem to work well for nova SGs)
     server.add_security_group(security_group_name)
 
+    _validate_security_group_and_server_connection_status(nova_client,
+                                                          server_id,
+                                                          security_group_id,
+                                                          security_group_name,
+                                                          is_connected=True)
+
 
 @operation
 @with_nova_client
@@ -505,11 +511,20 @@ def disconnect_security_group(nova_client, **kwargs):
         return
 
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    security_group_id = ctx.target.instance.runtime_properties[
+        OPENSTACK_ID_PROPERTY]
+    security_group_name = ctx.target.instance.runtime_properties[
+        OPENSTACK_NAME_PROPERTY]
     server = nova_client.servers.get(server_id)
     # to support nova security groups as well, we disconnect the security group
     # by name (as disconnecting by id doesn't seem to work well for nova SGs)
-    server.remove_security_group(ctx.target.instance.runtime_properties[
-        OPENSTACK_NAME_PROPERTY])
+    server.remove_security_group(security_group_name)
+
+    _validate_security_group_and_server_connection_status(nova_client,
+                                                          server_id,
+                                                          security_group_id,
+                                                          security_group_name,
+                                                          is_connected=False)
 
 
 @operation
@@ -628,9 +643,9 @@ def _validate_external_server_nics(network_ids, port_ids):
         [node_instance_id for node_instance_id, runtime_props in
          ctx.capabilities.get_all().iteritems() if runtime_props.get(
              OPENSTACK_TYPE_PROPERTY) in (PORT_OPENSTACK_TYPE,
-                                          NETWORK_OPENSTACK_TYPE)
-         and not is_external_resource_by_properties(
-         _get_properties_by_node_instance_id(node_instance_id))]  # NOQA
+                                          NETWORK_OPENSTACK_TYPE) and
+         not is_external_resource_by_properties(
+            _get_properties_by_node_instance_id(node_instance_id))]
     if new_nic_nodes:
         raise NonRecoverableError(
             "Can't connect new port and/or network nodes to a server node "
@@ -786,3 +801,23 @@ def _get_private_key(private_key_path):
     if key_path:
         err_message += '; expected file path was {0}'.format(key_path)
     raise NonRecoverableError(err_message)
+
+
+def _validate_security_group_and_server_connection_status(
+        nova_client, server_id, sg_id, sg_name, is_connected):
+
+    # verifying the security group got connected or disconnected
+    # successfully - this is due to Openstack concurrency issues that may
+    # take place when attempting to connect/disconnect multiple SGs to the
+    # same server at the same time
+    server = nova_client.servers.get(server_id)
+
+    if is_connected ^ any(sg for sg in server.list_security_group() if
+                          sg.id == sg_id):
+        raise RecoverableError(
+            message='Security group {0} did not get {2} server {1} '
+                    'properly'
+            .format(
+                sg_name,
+                server.name,
+                'connected to' if is_connected else 'disconnected from'))

@@ -23,7 +23,6 @@ from openstack_plugin_common import (
     get_resource_id,
     use_external_resource,
     delete_resource_and_runtime_properties,
-    delete_runtime_properties,
     validate_resource,
     validate_ip_or_range_syntax,
     OPENSTACK_ID_PROPERTY,
@@ -64,18 +63,9 @@ def process_rules(client, sgr_default_values, cidr_field_name,
     return security_group_rules
 
 
-def use_external_sg(client, existing_sg_equivalence_verifier):
-    external_sg = use_external_resource(ctx, client,
-                                        SECURITY_GROUP_OPENSTACK_TYPE)
-    if external_sg:
-        try:
-            existing_sg_equivalence_verifier(external_sg)
-            return True
-        except Exception:
-            delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
-            raise
-
-    return False
+def use_external_sg(client):
+    return use_external_resource(ctx, client,
+                                 SECURITY_GROUP_OPENSTACK_TYPE)
 
 
 def set_sg_runtime_properties(sg, client):
@@ -100,28 +90,6 @@ def sg_creation_validation(client, cidr_field_name, **kwargs):
     for rule in ctx.node.properties['rules']:
         if cidr_field_name in rule:
             validate_ip_or_range_syntax(ctx, rule[cidr_field_name])
-
-
-def test_sg_rules_equality(r1, r2, sg_rule_comparison_serializer):
-    s1 = set(sg_rule_comparison_serializer(rule) for rule in r1)
-    s2 = set(sg_rule_comparison_serializer(rule) for rule in r2)
-    return s1 == s2
-
-
-def raise_mismatching_descriptions_error(security_group_name):
-    raise NonRecoverableError(
-        "Descriptions of existing security group and the security group "
-        "to be created do not match while the names do match. Security "
-        "group name: {0}".format(security_group_name))
-
-
-def raise_mismatching_rules_error(security_group_name, existing_rules,
-                                  expected_rules):
-    raise NonRecoverableError(
-        "Rules of existing security group and the security group to be "
-        "created or used do not match while the names do match. Security "
-        "group name: '{0}'. Existing rules: {1}. Requested/expected rules:"
-        " {2} ".format(security_group_name, existing_rules, expected_rules))
 
 
 def _process_rule(rule, client, sgr_default_values, cidr_field_name,

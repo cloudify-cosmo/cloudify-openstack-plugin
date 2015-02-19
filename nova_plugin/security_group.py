@@ -13,10 +13,6 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
-import json
-import copy
-from functools import partial
-
 from cloudify import ctx
 from cloudify.decorators import operation
 from openstack_plugin_common import (
@@ -30,11 +26,7 @@ from openstack_plugin_common.security_group import (
     use_external_sg,
     set_sg_runtime_properties,
     delete_sg,
-    raise_mismatching_descriptions_error,
-    raise_mismatching_rules_error,
-    test_sg_rules_equality,
     sg_creation_validation,
-    SECURITY_GROUP_OPENSTACK_TYPE,
     RUNTIME_PROPERTIES_KEYS
 )
 
@@ -57,13 +49,7 @@ def create(nova_client, **kwargs):
     sg_rules = process_rules(nova_client, sgr_default_values,
                              'cidr', 'group_id', 'from_port', 'to_port')
 
-    existing_sg_equivalence_verifier = \
-        partial(_existing_sg_equivalence_verifier,
-                security_group=security_group,
-                sg_rules=sg_rules,
-                nova_client=nova_client)
-
-    if use_external_sg(nova_client, existing_sg_equivalence_verifier):
+    if use_external_sg(nova_client):
         return
 
     transform_resource_name(ctx, security_group)
@@ -93,40 +79,3 @@ def delete(nova_client, **kwargs):
 @with_nova_client
 def creation_validation(nova_client, **kwargs):
     sg_creation_validation(nova_client, 'cidr')
-
-
-def _existing_sg_equivalence_verifier(existing_sg, security_group, sg_rules,
-                                      nova_client):
-    if existing_sg.description != security_group['description']:
-        raise_mismatching_descriptions_error(security_group['name'])
-
-    r1 = existing_sg.rules
-    r2 = sg_rules
-    excluded_fields = ('id', 'parent_group_id')
-
-    def sg_rule_comparison_serializer(security_group_rule):
-        r = copy.deepcopy(security_group_rule)
-        for excluded_field in excluded_fields:
-            if excluded_field in r:
-                del r[excluded_field]
-
-        if 'ip_range' in r:
-            r['cidr'] = r['ip_range'].get('cidr')
-            del(r['ip_range'])
-
-        if 'group' in r:
-            # existing rules will have a 'group' field. if it's a cidr rule,
-            # it'll be empty, whereas a rule directed at a target SG will
-            # have under this field another dict containing the tenant id
-            # and target SG *name*.
-            # we're ignoring the tenant id (similar to Neutron SG
-            # implementation) and retrieving the SG id by name for comparison.
-            if r['group']:
-                r['group_id'] = nova_client.cosmo_get_named(
-                    SECURITY_GROUP_OPENSTACK_TYPE, r['group']['name']).id
-            del(r['group'])
-
-        return json.dumps(r, sort_keys=True)
-
-    if not test_sg_rules_equality(r1, r2, sg_rule_comparison_serializer):
-        raise_mismatching_rules_error(security_group['name'], r1, r2)

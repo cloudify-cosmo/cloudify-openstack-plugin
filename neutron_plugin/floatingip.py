@@ -19,6 +19,8 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     with_neutron_client,
     provider,
+    is_external_relationship,
+    OPENSTACK_ID_PROPERTY
 )
 from openstack_plugin_common.floatingip import (
     use_external_floatingip,
@@ -71,3 +73,30 @@ def delete(neutron_client, **kwargs):
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     floatingip_creation_validation(neutron_client, 'floating_ip_address')
+
+
+@operation
+@with_neutron_client
+def connect_port(neutron_client, **kwargs):
+    if is_external_relationship(ctx):
+        return
+
+    port_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    floating_ip_id = ctx.target.instance.runtime_properties[
+        OPENSTACK_ID_PROPERTY]
+    fip = {'port_id': port_id}
+    neutron_client.update_floatingip(floating_ip_id, {'floatingip': fip})
+
+
+@operation
+@with_neutron_client
+def disconnect_port(neutron_client, **kwargs):
+    if is_external_relationship(ctx):
+        ctx.logger.info('Not disassociating floatingip and port since '
+                        'external floatingip and port are being used')
+        return
+
+    floating_ip_id = ctx.target.instance.runtime_properties[
+        OPENSTACK_ID_PROPERTY]
+    fip = {'port_id': None}
+    neutron_client.update_floatingip(floating_ip_id, {'floatingip': fip})

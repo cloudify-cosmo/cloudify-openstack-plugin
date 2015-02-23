@@ -435,7 +435,7 @@ def _set_network_and_ip_runtime_properties(server):
 
 @operation
 @with_nova_client
-def connect_floatingip(nova_client, **kwargs):
+def connect_floatingip(nova_client, fixed_ip, **kwargs):
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     floating_ip_id = ctx.target.instance.runtime_properties[
         OPENSTACK_ID_PROPERTY]
@@ -453,7 +453,7 @@ def connect_floatingip(nova_client, **kwargs):
     floating_ip_address = ctx.target.instance.runtime_properties[
         IP_ADDRESS_PROPERTY]
     server = nova_client.servers.get(server_id)
-    server.add_floating_ip(floating_ip_address)
+    server.add_floating_ip(floating_ip_address, fixed_ip or None)
 
 
 @operation

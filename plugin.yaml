@@ -295,8 +295,23 @@ relationships:
     derived_from: cloudify.relationships.connected_to
     source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        establish: openstack.nova_plugin.server.connect_floatingip
+        establish:
+          implementation: openstack.nova_plugin.server.connect_floatingip
+          inputs:
+            fixed_ip:
+              description: >
+                The fixed IP to be associated with the floating IP.
+                If omitted, Openstack will choose which port to associate.
+              type: string
+              default: ''
         unlink: openstack.nova_plugin.server.disconnect_floatingip
+
+  cloudify.openstack.port_connected_to_floating_ip:
+    derived_from: cloudify.relationships.connected_to
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        establish: openstack.neutron_plugin.floatingip.connect_port
+        unlink: openstack.neutron_plugin.floatingip.disconnect_port
 
   cloudify.openstack.server_connected_to_security_group:
     derived_from: cloudify.relationships.connected_to

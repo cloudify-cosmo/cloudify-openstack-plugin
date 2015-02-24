@@ -413,12 +413,17 @@ class OpenStackClient(object):
                 Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH))
 
 
-# Clients acquireres
+# Clients procurers
 class KeystoneClient(OpenStackClient):
 
     def connect(self, cfg):
-        args = {field: cfg[field] for field in self.REQUIRED_CONFIG_PARAMS}
-        return keystone_client.Client(**args)
+        client_kwargs = {field: cfg[field] for field in
+                         self.REQUIRED_CONFIG_PARAMS}
+
+        client_kwargs.update(
+            cfg.get('custom_configuration', {}).get('keystone_client', {}))
+
+        return keystone_client.Client(**client_kwargs)
 
 
 class NovaClient(OpenStackClient):
@@ -438,17 +443,27 @@ class NovaClient(OpenStackClient):
         if cfg.get('nova_url'):
             client_kwargs['bypass_url'] = cfg['nova_url']
 
+        client_kwargs.update(
+            cfg.get('custom_configuration', {}).get('nova_client', {}))
+
         return NovaClientWithSugar(**client_kwargs)
 
 
 class CinderClient(OpenStackClient):
 
     def connect(self, cfg):
-        return CinderClientWithSugar(username=cfg['username'],
-                                     api_key=cfg['password'],
-                                     project_id=cfg['tenant_name'],
-                                     auth_url=cfg['auth_url'],
-                                     region_name=cfg.get('region', ''))
+        client_kwargs = dict(
+            username=cfg['username'],
+            api_key=cfg['password'],
+            project_id=cfg['tenant_name'],
+            auth_url=cfg['auth_url'],
+            region_name=cfg.get('region', '')
+        )
+
+        client_kwargs.update(
+            cfg.get('custom_configuration', {}).get('cinder_client', {}))
+
+        return CinderClientWithSugar(**client_kwargs)
 
 
 class NeutronClient(OpenStackClient):
@@ -465,6 +480,9 @@ class NeutronClient(OpenStackClient):
             client_kwargs['endpoint_url'] = cfg['neutron_url']
         else:
             client_kwargs['region_name'] = cfg.get('region', '')
+
+        client_kwargs.update(
+            cfg.get('custom_configuration', {}).get('neutron_client', {}))
 
         return NeutronClientWithSugar(**client_kwargs)
 

@@ -11,7 +11,8 @@ node_types:
   cloudify.openstack.nodes.Server:
     derived_from: cloudify.nodes.Compute
     properties:
-      server: {}
+      server:
+        default: {}
       use_external_resource:
         default: false
       resource_id:

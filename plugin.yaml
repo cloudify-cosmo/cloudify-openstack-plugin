@@ -16,6 +16,10 @@ node_types:
         default: false
       resource_id:
         default: ''
+      image:
+        default: ''
+      flavor:
+        default: ''
       management_network_name:
         default: ''
       use_password:

@@ -51,12 +51,12 @@ class OpenstackClientsTests(unittest.TestCase):
         inputs_cfg = {
             'username': 'inputs-username',
             'custom_configuration': {
-                'nova_client': {'project_id': 'inputs-custom-tenant-name'},
                 'neutron_client': {'password': 'inputs-custom-password'},
                 'cinder_client': {'api_key': 'inputs-custom-password',
                                   'auth_url': 'inputs-custom-auth-url',
                                   'extra_key': 'extra-value'},
-                'keystone_client': {'username': 'inputs-custom-username'}
+                'keystone_client': {'username': 'inputs-custom-username',
+                                    'tenant_name': 'inputs-custom-tenant-name'}
             }
         }
 
@@ -67,8 +67,7 @@ class OpenstackClientsTests(unittest.TestCase):
         # completely overrides file custom-configuration
         self.assertEquals('inputs-username', nova_params['username'])
         self.assertEquals('file-password', nova_params['api_key'])
-        self.assertEquals('inputs-custom-tenant-name',
-                          nova_params['project_id'])
+        self.assertEquals('file-tenant-name', nova_params['project_id'])
         self.assertEquals('envar-auth-url', nova_params['auth_url'])
 
         self.assertEquals('inputs-username', neut_params['username'])
@@ -84,7 +83,8 @@ class OpenstackClientsTests(unittest.TestCase):
 
         self.assertEquals('inputs-custom-username', keys_params['username'])
         self.assertEquals('file-password', keys_params['password'])
-        self.assertEquals('file-tenant-name', keys_params['tenant_name'])
+        self.assertEquals('inputs-custom-tenant-name',
+                          keys_params['tenant_name'])
         self.assertEquals('envar-auth-url', keys_params['auth_url'])
 
     def test_clients_custom_configuration_from_file(self):

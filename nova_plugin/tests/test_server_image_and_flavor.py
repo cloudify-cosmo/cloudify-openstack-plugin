@@ -197,25 +197,29 @@ class TestServerImageAndFlavor(unittest.TestCase):
     def _get_mocked_nova_client():
         nova_client = mock.MagicMock()
 
-        def mock_get_if_exists(**kwargs):
+        def mock_get_if_exists(prop_name, **kwargs):
+            is_image = prop_name == 'image'
             searched_name = kwargs.get('name')
-            if searched_name in ('some-image-name', 'some-flavor-name'):
+            if (is_image and searched_name == 'some-image-name') or \
+                    (not is_image and searched_name == 'some-flavor-name'):
                 result = mock.MagicMock()
                 result.id = 'some-image-id' if \
-                    searched_name == 'some-image-name' else 'some-flavor-id'
+                    is_image else 'some-flavor-id'
                 return result
             return []
 
-        def mock_find(**kwargs):
-            result = mock_get_if_exists(**kwargs)
-            if not result:
-                raise nova_exceptions.NotFound(404)
-            return result
+        def mock_find_generator(prop_name):
+            def mock_find(**kwargs):
+                result = mock_get_if_exists(prop_name, **kwargs)
+                if not result:
+                    raise nova_exceptions.NotFound(404)
+                return result
+            return mock_find
 
         nova_client.cosmo_plural = lambda x: '{0}s'.format(x)
         nova_client.cosmo_get_if_exists = mock_get_if_exists
-        nova_client.images.find = mock_find
-        nova_client.flavors.find = mock_find
+        nova_client.images.find = mock_find_generator('image')
+        nova_client.flavors.find = mock_find_generator('flavor')
         return nova_client
 
     @staticmethod

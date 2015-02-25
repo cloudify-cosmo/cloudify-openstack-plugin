@@ -20,14 +20,14 @@ import copy
 import inspect
 import itertools
 
+from novaclient import exceptions as nova_exceptions
+
 from cloudify import ctx
 from cloudify import context
 from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError, RecoverableError
-
 from cinder_plugin import volume
-from novaclient import exceptions as nova_exceptions
 from openstack_plugin_common import (
     NeutronClient,
     provider,
@@ -150,15 +150,8 @@ def create(nova_client, neutron_client, **kwargs):
         server['nics'] = \
             server.get('nics', []) + [{'net-id': management_network_id}]
 
-    # Sugar
-    if 'image_name' in server:
-        server['image'] = nova_client.images.find(
-            name=server['image_name']).id
-        del server['image_name']
-    if 'flavor_name' in server:
-        server['flavor'] = nova_client.flavors.find(
-            name=server['flavor_name']).id
-        del server['flavor_name']
+    _handle_image_or_flavor(server, nova_client, 'image')
+    _handle_image_or_flavor(server, nova_client, 'flavor')
 
     if provider_context.agents_security_group:
         security_groups = server.get('security_groups', [])
@@ -435,7 +428,7 @@ def _set_network_and_ip_runtime_properties(server):
 
 @operation
 @with_nova_client
-def connect_floatingip(nova_client, **kwargs):
+def connect_floatingip(nova_client, fixed_ip, **kwargs):
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     floating_ip_id = ctx.target.instance.runtime_properties[
         OPENSTACK_ID_PROPERTY]
@@ -453,7 +446,7 @@ def connect_floatingip(nova_client, **kwargs):
     floating_ip_address = ctx.target.instance.runtime_properties[
         IP_ADDRESS_PROPERTY]
     server = nova_client.servers.get(server_id)
-    server.add_floating_ip(floating_ip_address)
+    server.add_floating_ip(floating_ip_address, fixed_ip or None)
 
 
 @operation
@@ -736,28 +729,27 @@ def ud_http(params):
 def creation_validation(nova_client, **kwargs):
 
     def validate_server_property_value_exists(server_props, property_name):
-        is_property_name = False
-        prop_val = server_props.get(property_name)
-        if not prop_val:
-            prop_val = server_props.get('{0}_name'.format(property_name))
-            if not prop_val:
-                err = 'must have a "{0}" or "{0}_name" field under ' \
-                      '"server" property'.format(property_name)
-                ctx.logger.error('VALIDATION ERROR: ' + err)
-            is_property_name = True
-
-        prop_val = str(prop_val)
         ctx.logger.debug(
-            'checking whether {0} {1} exists...'.format(property_name,
-                                                        prop_val))
+            'checking whether {0} exists...'.format(property_name))
+
+        serv_props_copy = server_props.copy()
+        try:
+            _handle_image_or_flavor(serv_props_copy, nova_client,
+                                    property_name)
+        except (NonRecoverableError, nova_exceptions.NotFound) as e:
+            # temporary error - once image/flavor_name get removed, these
+            # errors won't be relevant anymore
+            err = str(e)
+            ctx.logger.error('VALIDATION ERROR: ' + err)
+            raise NonRecoverableError(err)
+
+        prop_value_id = str(serv_props_copy[property_name])
         prop_values = list(nova_client.cosmo_list(property_name))
         for f in prop_values:
-            if (is_property_name and prop_val == f.name) or \
-                    (not is_property_name and prop_val == f.id):
-                ctx.logger.debug('OK: {0} {1} exists'.format(
-                    property_name, prop_val))
+            if prop_value_id == f.id:
+                ctx.logger.debug('OK: {0} exists'.format(property_name))
                 return
-        err = '{0} {1} does not exist'.format(property_name, prop_val)
+        err = '{0} {1} does not exist'.format(property_name, prop_value_id)
         ctx.logger.error('VALIDATION ERROR: ' + err)
         if prop_values:
             ctx.logger.info('list of available {0}s:'.format(property_name))
@@ -821,3 +813,30 @@ def _validate_security_group_and_server_connection_status(
                 sg_name,
                 server.name,
                 'connected to' if is_connected else 'disconnected from'))
+
+
+def _handle_image_or_flavor(server, nova_client, prop_name):
+    if prop_name not in server and '{0}_name'.format(prop_name) not in server:
+        # setting image or flavor - looking it up by name; if not found, then
+        # the value is assumed to be the id
+        server[prop_name] = ctx.node.properties[prop_name]
+
+        # temporary error message: once the 'image' and 'flavor' properties
+        # become mandatory, this will become less relevant
+        if not server[prop_name]:
+            raise NonRecoverableError(
+                'must set {0} by either setting a "{0}" property or by setting'
+                ' a "{0}" or "{0}_name" (deprecated) field under the "server" '
+                'property'.format(prop_name))
+
+        image_or_flavor = \
+            nova_client.cosmo_get_if_exists(prop_name, name=server[prop_name])
+        if image_or_flavor:
+            server[prop_name] = image_or_flavor.id
+    else:  # Deprecated sugar
+        if '{0}_name'.format(prop_name) in server:
+            prop_name_plural = nova_client.cosmo_plural(prop_name)
+            server[prop_name] = \
+                getattr(nova_client, prop_name_plural).find(
+                    name=server['{0}_name'.format(prop_name)]).id
+            del server['{0}_name'.format(prop_name)]

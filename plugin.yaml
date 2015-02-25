@@ -173,6 +173,8 @@ node_types:
     properties:
       port:
         default: {}
+      fixed_ip:
+        default: ''
       use_external_resource:
         default: false
       resource_id:
@@ -331,6 +333,9 @@ relationships:
         unlink: openstack.neutron_plugin.port.detach
 
   cloudify.openstack.server_connected_to_keypair:
+    derived_from: cloudify.relationships.connected_to
+
+  cloudify.openstack.port_connected_to_subnet:
     derived_from: cloudify.relationships.connected_to
 
   cloudify.openstack.volume_attached_to_server:

@@ -193,7 +193,8 @@ class TestServerImageAndFlavor(unittest.TestCase):
         self.assertEquals('some-flavor-id', serv.get('flavor'))
         self.assertNotIn('flavor_name', serv)
 
-    def _get_mocked_nova_client(self):
+    @staticmethod
+    def _get_mocked_nova_client():
         nova_client = mock.MagicMock()
 
         def mock_get_if_exists(**kwargs):
@@ -217,6 +218,7 @@ class TestServerImageAndFlavor(unittest.TestCase):
         nova_client.flavors.find = mock_find
         return nova_client
 
-    def _get_mock_ctx_with_node_properties(self, properties):
+    @staticmethod
+    def _get_mock_ctx_with_node_properties(properties):
         return MockCloudifyContext(node_id='test_node_id',
                                    properties=properties)

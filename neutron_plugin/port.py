@@ -36,6 +36,7 @@ from openstack_plugin_common import (
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
+from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
 
 PORT_OPENSTACK_TYPE = 'port'
 
@@ -75,13 +76,17 @@ def create(neutron_client, **kwargs):
 
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
+
     port = {
         'name': get_resource_id(ctx, PORT_OPENSTACK_TYPE),
         'network_id': net_id,
         'security_groups': [],
     }
+
+    _handle_fixed_ips(port)
     port.update(ctx.node.properties['port'])
     transform_resource_name(ctx, port)
+
     p = neutron_client.create_port({'port': port})['port']
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
@@ -196,3 +201,21 @@ def _get_server_floating_ip(neutron_client, server_id):
 def _get_fixed_ip(port):
     # a port may have no fixed IP if it's set on a network without subnets
     return port['fixed_ips'][0]['ip_address'] if port['fixed_ips'] else None
+
+
+def _handle_fixed_ips(port):
+    fixed_ips_element = {}
+
+    # checking for fixed ip property
+    if ctx.node.properties['fixed_ip']:
+        fixed_ips_element['ip_address'] = ctx.node.properties['fixed_ip']
+
+    # checking for a connected subnet
+    subnet_id = get_openstack_id_of_single_connected_node_by_openstack_type(
+        ctx, SUBNET_OPENSTACK_TYPE, if_exists=True)
+    if subnet_id:
+        fixed_ips_element['subnet_id'] = subnet_id
+
+    # applying fixed ip parameter, if available
+    if fixed_ips_element:
+        port['fixed_ips'] = [fixed_ips_element]

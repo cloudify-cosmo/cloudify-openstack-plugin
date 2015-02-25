@@ -830,7 +830,7 @@ def _handle_image_or_flavor(server, nova_client, prop_name):
                 'property'.format(prop_name))
 
         image_or_flavor = \
-            nova_client.cosmo_get_if_exists(name=server[prop_name])
+            nova_client.cosmo_get_if_exists(prop_name, name=server[prop_name])
         if image_or_flavor:
             server[prop_name] = image_or_flavor.id
     else:  # Deprecated sugar

@@ -62,6 +62,35 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
         return self.env.handler.openstack_infra_state_delta(
             before=self.before_run, after=current_state)
 
+    def update_server_id(self, server_name):
+
+        # retrieve the id of the new server
+        nova, _, _ = self.env.handler.openstack_clients()
+        servers = nova.servers.list(
+            search_opts={'name': server_name})
+        if len(servers) > 1:
+            raise RuntimeError(
+                'Expected 1 server with name {0}, but found {1}'
+                .format(server_name, len(servers)))
+
+        new_server_id = servers[0].id
+
+        # retrieve the id of the old server
+        old_server_id = None
+        servers = self.before_run['servers']
+        for server_id, name in servers.iteritems():
+            if server_name == name:
+                old_server_id = server_id
+                break
+        if old_server_id is None:
+            raise RuntimeError(
+                'Could not find a server with name {0} '
+                'in the internal cleanup context state'
+                .format(server_name))
+
+        # replace the id in the internal state
+        servers[new_server_id] = servers.pop(old_server_id)
+
 
 class CloudifyOpenstackInputsConfigReader(BaseCloudifyInputsConfigReader):
 

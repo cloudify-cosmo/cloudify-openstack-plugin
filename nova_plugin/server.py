@@ -322,7 +322,7 @@ def start(nova_client, start_retry_interval, private_key_path, **kwargs):
                     retry_after=start_retry_interval)
 
             ctx.instance.runtime_properties[ADMIN_PASSWORD_PROPERTY] = password
-            ctx.logger.info('Server has been set with an password')
+            ctx.logger.info('Server has been set with a password')
 
         _set_network_and_ip_runtime_properties(server)
         return

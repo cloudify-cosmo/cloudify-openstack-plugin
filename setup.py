@@ -19,7 +19,7 @@ from setuptools import setup
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='1.2a6',
+    version='1.2a7',
     author='idanmo',
     author_email='idan@gigaspaces.com',
     packages=[
@@ -31,7 +31,7 @@ setup(
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
     install_requires=[
-        'cloudify-plugins-common>=3.2a6',
+        'cloudify-plugins-common>=3.2a7',
         'python-novaclient==2.17.0',
         'python-keystoneclient==0.7.1',
         'python-neutronclient==2.3.9',

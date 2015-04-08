@@ -181,9 +181,7 @@ class OpenstackHandler(BaseHandler):
         super(OpenstackHandler, self).before_bootstrap()
         with self.update_cloudify_config() as patch:
             suffix = '-%06x' % random.randrange(16 ** 6)
-            server_name_prop_path = \
-                'compute.management_server.instance.name' if \
-                self.env.is_provider_bootstrap else 'manager_server_name'
+            server_name_prop_path = 'manager_server_name'
             patch.append_value(server_name_prop_path, suffix)
 
     def after_bootstrap(self, provider_context):

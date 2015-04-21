@@ -18,6 +18,7 @@ import mock
 import unittest
 
 from cloudify import mocks as cfy_mocks
+from cloudify import exceptions as cfy_exc
 
 from cinder_plugin import volume
 from nova_plugin import server
@@ -176,7 +177,7 @@ class TestCinderVolume(unittest.TestCase):
                                   mock.Mock(return_value=novaclient_m)),
                 mock.patch.object(CinderClient, 'get',
                                   mock.Mock(return_value=cinderclient_m)),
-                mock.patch.object(volume, 'wait_until_status', mock.Mock())):
+                mock.patch.object(volume, 'wait_until_status', mock.Mock(return_value=(None,True)))):
 
             server.attach_volume(ctx=ctx_m)
 
@@ -186,6 +187,100 @@ class TestCinderVolume(unittest.TestCase):
                 cinder_client=cinderclient_m,
                 volume_id=volume_id,
                 status=volume.VOLUME_STATUS_IN_USE)
+
+    def _test_cleanup_after_attach_fails(self, volume_ctx_mgr):
+        volume_id = '00000000-0000-0000-0000-000000000000'
+        server_id = '11111111-1111-1111-1111-111111111111'
+        attachment_id = '22222222-2222-2222-2222-222222222222'
+        device_name = '/dev/fake'
+
+        attachment = {'id': attachment_id,
+                      'server_id': server_id,
+                      'volume_id': volume_id}
+
+        volume_ctx = cfy_mocks.MockContext({
+            'node': cfy_mocks.MockContext({
+                'properties': {volume.DEVICE_NAME_PROPERTY: device_name}
+            }),
+            'instance': cfy_mocks.MockContext({
+                'runtime_properties': {
+                    OPENSTACK_ID_PROPERTY: volume_id,
+                }
+            })
+        })
+        server_ctx = cfy_mocks.MockContext({
+            'node': cfy_mocks.MockContext({
+                'properties': {}
+            }),
+            'instance': cfy_mocks.MockContext({
+                'runtime_properties': {
+                    server.OPENSTACK_ID_PROPERTY: server_id
+                }
+            })
+        })
+
+        ctx_m = cfy_mocks.MockCloudifyContext(node_id='a',
+                                              target=server_ctx,
+                                              source=volume_ctx)
+
+        attached_volume_m = mock.Mock()
+        attached_volume_m.id = volume_id
+        attached_volume_m.status = volume.VOLUME_STATUS_IN_USE
+        attached_volume_m.attachments = [attachment]
+        cinderclient_m = mock.Mock()
+        cinderclient_m.volumes = mock.Mock()
+        cinderclient_m.volumes.get = mock.Mock(
+            return_value=attached_volume_m)
+        novaclient_m = mock.Mock()
+        novaclient_m.volumes = mock.Mock()
+        novaclient_m.volumes.create_server_volume = mock.Mock()
+
+        with contextlib.nested(
+                mock.patch.object(NovaClient, 'get',
+                                  mock.Mock(return_value=novaclient_m)),
+                mock.patch.object(CinderClient, 'get',
+                                  mock.Mock(return_value=cinderclient_m)),
+                volume_ctx_mgr):
+
+            server.attach_volume(ctx=ctx_m)
+
+            novaclient_m.volumes.create_server_volume.assert_called_once_with(
+                server_id, volume_id, device_name)
+            volume.wait_until_status.assert_any_call(
+                cinder_client=cinderclient_m,
+                volume_id=volume_id,
+                status=volume.VOLUME_STATUS_IN_USE)
+            self.assertEqual(2, volume.wait_until_status.call_count)
+            # Cleanup expectations
+            novaclient_m.volumes.delete_server_volume.assert_called_once_with(
+                server_id, attachment_id)
+            volume.wait_until_status.assert_called_with(
+                cinder_client=cinderclient_m,
+                volume_id=volume_id,
+                status=volume.VOLUME_STATUS_AVAILABLE)
+
+    def test_cleanup_after_waituntilstatus_times_out(self):
+        self._test_cleanup_after_attach_fails(
+            volume_ctx_mgr = mock.patch.object(
+                volume,
+                'wait_until_status',
+                mock.Mock(return_value=(None,False))
+            )
+        )
+
+    def test_cleanup_after_waituntilstatus_throws_error(self):
+        nonRecovErr = cfy_exc.NonRecoverableError('An error state')
+        try:
+            self._test_cleanup_after_attach_fails(
+                volume_ctx_mgr = mock.patch.object(
+                    volume,
+                    'wait_until_status',
+                    mock.Mock(side_effect=nonRecovErr)
+                )
+            )
+            self.fail("Expected to catch the %s exception" % (nonRecovErr,))
+        except type(nonRecovErr) as e:
+            self.assertEquals(nonRecovErr, e)
 
     def test_detach(self):
         volume_id = '00000000-0000-0000-0000-000000000000'

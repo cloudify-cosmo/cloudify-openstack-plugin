@@ -548,11 +548,19 @@ def attach_volume(nova_client, cinder_client, **kwargs):
         server_id,
         volume_id,
         device if device != 'auto' else None)
-    volume.wait_until_status(cinder_client=cinder_client,
-                             volume_id=volume_id,
-                             status=volume.VOLUME_STATUS_IN_USE)
-    if device == 'auto':
+    try:
+        vol, wait_succeeded = volume.wait_until_status(
+            cinder_client=cinder_client,
+            volume_id=volume_id,
+            status=volume.VOLUME_STATUS_IN_USE
+        )
+        if not wait_succeeded:
+            return _detach_volume(nova_client, cinder_client, server_id, volume_id)
+    except:
+        _detach_volume(nova_client, cinder_client, server_id, volume_id)
+        raise
 
+    if device == 'auto':
         # The device name was assigned automatically so we
         # query the actual device name
         attachment = volume.get_attachment(
@@ -568,6 +576,17 @@ def attach_volume(nova_client, cinder_client, **kwargs):
             volume.DEVICE_NAME_PROPERTY] = device_name
 
 
+def _detach_volume(nova_client, cinder_client, server_id, volume_id):
+    attachment = volume.get_attachment(cinder_client=cinder_client,
+                                       volume_id=volume_id,
+                                       server_id=server_id)
+    if attachment:
+        nova_client.volumes.delete_server_volume(server_id, attachment['id'])
+        volume.wait_until_status(cinder_client=cinder_client,
+                                 volume_id=volume_id,
+                                 status=volume.VOLUME_STATUS_AVAILABLE)
+
+
 @operation
 @with_nova_client
 @with_cinder_client
@@ -580,14 +599,7 @@ def detach_volume(nova_client, cinder_client, **kwargs):
     server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    attachment = volume.get_attachment(cinder_client=cinder_client,
-                                       volume_id=volume_id,
-                                       server_id=server_id)
-    if attachment:
-        nova_client.volumes.delete_server_volume(server_id, attachment['id'])
-        volume.wait_until_status(cinder_client=cinder_client,
-                                 volume_id=volume_id,
-                                 status=volume.VOLUME_STATUS_AVAILABLE)
+    _detach_volume(nova_client, cinder_client, server_id, volume_id)
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

@@ -534,8 +534,10 @@ def attach_volume(nova_client, cinder_client, **kwargs):
             status=volume.VOLUME_STATUS_IN_USE
         )
         if not wait_succeeded:
-            return _detach_volume(nova_client, cinder_client, server_id, volume_id)
-    except:
+            raise RecoverableError(
+                'Waiting for volume status {0} failed - detaching volume and '
+                'retrying..'.format(volume.VOLUME_STATUS_IN_USE))
+    except RecoverableError:
         _detach_volume(nova_client, cinder_client, server_id, volume_id)
         raise
 

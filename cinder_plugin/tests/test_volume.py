@@ -177,7 +177,9 @@ class TestCinderVolume(unittest.TestCase):
                                   mock.Mock(return_value=novaclient_m)),
                 mock.patch.object(CinderClient, 'get',
                                   mock.Mock(return_value=cinderclient_m)),
-                mock.patch.object(volume, 'wait_until_status', mock.Mock(return_value=(None,True)))):
+                mock.patch.object(volume,
+                                  'wait_until_status',
+                                  mock.Mock(return_value=(None, True)))):
 
             server.attach_volume(ctx=ctx_m)
 
@@ -188,7 +190,8 @@ class TestCinderVolume(unittest.TestCase):
                 volume_id=volume_id,
                 status=volume.VOLUME_STATUS_IN_USE)
 
-    def _test_cleanup_after_attach_fails(self, volume_ctx_mgr):
+    def _test_cleanup__after_attach_fails(
+            self, volume_ctx_mgr, expected_err_cls, expect_cleanup=True):
         volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
         attachment_id = '22222222-2222-2222-2222-222222222222'
@@ -232,8 +235,8 @@ class TestCinderVolume(unittest.TestCase):
         cinderclient_m.volumes.get = mock.Mock(
             return_value=attached_volume_m)
         novaclient_m = mock.Mock()
-        novaclient_m.volumes = mock.Mock()
-        novaclient_m.volumes.create_server_volume = mock.Mock()
+        novacl_vols_m = novaclient_m.volumes = mock.Mock()
+        novacl_vols_m.create_server_volume = mock.Mock()
 
         with contextlib.nested(
                 mock.patch.object(NovaClient, 'get',
@@ -241,46 +244,56 @@ class TestCinderVolume(unittest.TestCase):
                 mock.patch.object(CinderClient, 'get',
                                   mock.Mock(return_value=cinderclient_m)),
                 volume_ctx_mgr):
+            with self.assertRaises(expected_err_cls):
+                server.attach_volume(ctx=ctx_m)
 
-            server.attach_volume(ctx=ctx_m)
-
-            novaclient_m.volumes.create_server_volume.assert_called_once_with(
+            novacl_vols_m.create_server_volume.assert_called_once_with(
                 server_id, volume_id, device_name)
             volume.wait_until_status.assert_any_call(
                 cinder_client=cinderclient_m,
                 volume_id=volume_id,
                 status=volume.VOLUME_STATUS_IN_USE)
-            self.assertEqual(2, volume.wait_until_status.call_count)
-            # Cleanup expectations
-            novaclient_m.volumes.delete_server_volume.assert_called_once_with(
-                server_id, attachment_id)
-            volume.wait_until_status.assert_called_with(
-                cinder_client=cinderclient_m,
-                volume_id=volume_id,
-                status=volume.VOLUME_STATUS_AVAILABLE)
+            if expect_cleanup:
+                novacl_vols_m.delete_server_volume.assert_called_once_with(
+                    server_id, attachment_id)
+                self.assertEqual(2, volume.wait_until_status.call_count)
+                volume.wait_until_status.assert_called_with(
+                    cinder_client=cinderclient_m,
+                    volume_id=volume_id,
+                    status=volume.VOLUME_STATUS_AVAILABLE)
 
     def test_cleanup_after_waituntilstatus_times_out(self):
-        self._test_cleanup_after_attach_fails(
-            volume_ctx_mgr = mock.patch.object(
+        self._test_cleanup__after_attach_fails(
+            volume_ctx_mgr=mock.patch.object(
                 volume,
                 'wait_until_status',
-                mock.Mock(return_value=(None,False))
-            )
+                mock.Mock(return_value=(None, False))
+            ),
+            expected_err_cls=cfy_exc.RecoverableError
         )
 
-    def test_cleanup_after_waituntilstatus_throws_error(self):
-        nonRecovErr = cfy_exc.NonRecoverableError('An error state')
-        try:
-            self._test_cleanup_after_attach_fails(
-                volume_ctx_mgr = mock.patch.object(
-                    volume,
-                    'wait_until_status',
-                    mock.Mock(side_effect=nonRecovErr)
-                )
-            )
-            self.fail("Expected to catch the %s exception" % (nonRecovErr,))
-        except type(nonRecovErr) as e:
-            self.assertEquals(nonRecovErr, e)
+    def test_cleanup_after_waituntilstatus_throws_recoverable_error(self):
+        err = cfy_exc.RecoverableError("Some recoverable error")
+        self._test_cleanup__after_attach_fails(
+            volume_ctx_mgr=mock.patch.object(
+                volume,
+                'wait_until_status',
+                mock.Mock(side_effect=err)
+            ),
+            expected_err_cls=cfy_exc.RecoverableError
+        )
+
+    def test_cleanup_after_waituntilstatus_lets_nonrecov_errors_pass(self):
+        err = cfy_exc.NonRecoverableError("Some non recoverable error")
+        self._test_cleanup__after_attach_fails(
+            volume_ctx_mgr=mock.patch.object(
+                volume,
+                'wait_until_status',
+                mock.Mock(side_effect=err)
+            ),
+            expected_err_cls=cfy_exc.NonRecoverableError,
+            expect_cleanup=False
+        )
 
     def test_detach(self):
         volume_id = '00000000-0000-0000-0000-000000000000'

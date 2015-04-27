@@ -262,6 +262,29 @@ class TestCinderVolume(unittest.TestCase):
                     volume_id=volume_id,
                     status=volume.VOLUME_STATUS_AVAILABLE)
 
+    def _test_cleanup_after_waituntilstatus_throws(self, err, expect_cleanup):
+        self._test_cleanup__after_attach_fails(
+            volume_ctx_mgr=mock.patch.object(
+                volume,
+                'wait_until_status',
+                mock.Mock(side_effect=err)
+            ),
+            expected_err_cls=type(err),
+            expect_cleanup=expect_cleanup
+        )
+
+    def test_cleanup_after_waituntilstatus_throws_any_not_nonrecov_error(self):
+        err = cfy_exc.RecoverableError("Some recoverable error")
+        self._test_cleanup_after_waituntilstatus_throws(err, True)
+
+    def test_cleanup_after_waituntilstatus_throws_recoverable_error(self):
+        err = Exception("Arbitrary not non-recoverable exception")
+        self._test_cleanup_after_waituntilstatus_throws(err, True)
+
+    def test_cleanup_after_waituntilstatus_lets_nonrecov_errors_pass(self):
+        err = cfy_exc.NonRecoverableError("Some non recoverable error")
+        self._test_cleanup_after_waituntilstatus_throws(err, False)
+
     def test_cleanup_after_waituntilstatus_times_out(self):
         self._test_cleanup__after_attach_fails(
             volume_ctx_mgr=mock.patch.object(
@@ -270,29 +293,6 @@ class TestCinderVolume(unittest.TestCase):
                 mock.Mock(return_value=(None, False))
             ),
             expected_err_cls=cfy_exc.RecoverableError
-        )
-
-    def test_cleanup_after_waituntilstatus_throws_recoverable_error(self):
-        err = cfy_exc.RecoverableError("Some recoverable error")
-        self._test_cleanup__after_attach_fails(
-            volume_ctx_mgr=mock.patch.object(
-                volume,
-                'wait_until_status',
-                mock.Mock(side_effect=err)
-            ),
-            expected_err_cls=cfy_exc.RecoverableError
-        )
-
-    def test_cleanup_after_waituntilstatus_lets_nonrecov_errors_pass(self):
-        err = cfy_exc.NonRecoverableError("Some non recoverable error")
-        self._test_cleanup__after_attach_fails(
-            volume_ctx_mgr=mock.patch.object(
-                volume,
-                'wait_until_status',
-                mock.Mock(side_effect=err)
-            ),
-            expected_err_cls=cfy_exc.NonRecoverableError,
-            expect_cleanup=False
         )
 
     def test_detach(self):

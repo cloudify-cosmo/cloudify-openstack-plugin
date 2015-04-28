@@ -263,26 +263,36 @@ class TestCinderVolume(unittest.TestCase):
                     status=volume.VOLUME_STATUS_AVAILABLE)
 
     def _test_cleanup_after_waituntilstatus_throws(self, err, expect_cleanup):
+        def raise_once(*args, **kwargs):
+            if raise_once.first_call:
+                raise_once.first_call = False
+                raise err
+            else:
+                return None, True
+        raise_once.first_call = True
+
         self._test_cleanup__after_attach_fails(
             volume_ctx_mgr=mock.patch.object(
                 volume,
                 'wait_until_status',
-                mock.Mock(side_effect=err)
+                mock.Mock(side_effect=raise_once)
             ),
             expected_err_cls=type(err),
             expect_cleanup=expect_cleanup
         )
 
-    def test_cleanup_after_waituntilstatus_throws_any_not_nonrecov_error(self):
-        err = cfy_exc.RecoverableError("Some recoverable error")
+    def test_cleanup_after_waituntilstatus_throws_recoverable_error(self):
+        err = cfy_exc.RecoverableError('Some recoverable error')
         self._test_cleanup_after_waituntilstatus_throws(err, True)
 
-    def test_cleanup_after_waituntilstatus_throws_recoverable_error(self):
-        err = Exception("Arbitrary not non-recoverable exception")
+    def test_cleanup_after_waituntilstatus_throws_any_not_nonrecov_error(self):
+        class ArbitraryNonRecoverableException(Exception):
+            pass
+        err = ArbitraryNonRecoverableException('An exception')
         self._test_cleanup_after_waituntilstatus_throws(err, True)
 
     def test_cleanup_after_waituntilstatus_lets_nonrecov_errors_pass(self):
-        err = cfy_exc.NonRecoverableError("Some non recoverable error")
+        err = cfy_exc.NonRecoverableError('Some non recoverable error')
         self._test_cleanup_after_waituntilstatus_throws(err, False)
 
     def test_cleanup_after_waituntilstatus_times_out(self):

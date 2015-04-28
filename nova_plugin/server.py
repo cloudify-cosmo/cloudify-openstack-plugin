@@ -558,25 +558,37 @@ def attach_volume(nova_client, cinder_client, **kwargs):
             raise RecoverableError(
                 'Waiting for volume status {0} failed - detaching volume and '
                 'retrying..'.format(volume.VOLUME_STATUS_IN_USE))
+        if device == 'auto':
+            # The device name was assigned automatically so we
+            # query the actual device name
+            attachment = volume.get_attachment(
+                cinder_client=cinder_client,
+                volume_id=volume_id,
+                server_id=server_id
+            )
+            device_name = attachment['device']
+            ctx.logger.info('Detected device name for attachment of volume '
+                            '{0} to server {1}: {2}'
+                            .format(volume_id, server_id, device_name))
+            ctx.source.instance.runtime_properties[
+                volume.DEVICE_NAME_PROPERTY] = device_name
     except Exception, e:
         if not isinstance(e, NonRecoverableError):
-            _detach_volume(nova_client, cinder_client, server_id, volume_id)
+            __prepare_attach_volume_to_be_repeated(
+                nova_client, cinder_client, server_id, volume_id)
         raise
 
-    if device == 'auto':
-        # The device name was assigned automatically so we
-        # query the actual device name
-        attachment = volume.get_attachment(
-            cinder_client=cinder_client,
-            volume_id=volume_id,
-            server_id=server_id
-        )
-        device_name = attachment['device']
-        ctx.logger.info('Detected device name for attachment of volume '
-                        '{0} to server {1}: {2}'
-                        .format(volume_id, server_id, device_name))
-        ctx.source.instance.runtime_properties[
-            volume.DEVICE_NAME_PROPERTY] = device_name
+
+def __prepare_attach_volume_to_be_repeated(
+        nova_client, cinder_client, server_id, volume_id):
+
+    ctx.logger.info('Cleaning after a failed attach_volume() call')
+    try:
+        _detach_volume(nova_client, cinder_client, server_id, volume_id)
+    except Exception, e:
+        ctx.logger.error('Cleaning after a failed attach_volume() call failed '
+                         'raising a \'{0}\' exception.'.format(e))
+        raise NonRecoverableError(e)
 
 
 def _detach_volume(nova_client, cinder_client, server_id, volume_id):

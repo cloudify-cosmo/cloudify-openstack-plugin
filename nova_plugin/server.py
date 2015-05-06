@@ -23,13 +23,11 @@ import itertools
 from novaclient import exceptions as nova_exceptions
 
 from cloudify import ctx
-from cloudify import context
 from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 from cinder_plugin import volume
 from openstack_plugin_common import (
-    NeutronClient,
     provider,
     transform_resource_name,
     get_resource_id,
@@ -104,7 +102,11 @@ def create(nova_client, neutron_client, server_properties=None, **kwargs):
                                             SERVER_OPENSTACK_TYPE)
     if external_server:
         try:
-            _validate_external_server_nics(network_ids, port_ids)
+            _validate_external_server_nics(
+                neutron_client,
+                network_ids,
+                port_ids
+            )
             _validate_external_server_keypair(nova_client)
             _set_network_and_ip_runtime_properties(external_server)
             return
@@ -141,8 +143,7 @@ def create(nova_client, neutron_client, server_properties=None, **kwargs):
         management_network_name = \
             ctx.node.properties['management_network_name']
         management_network_name = rename(management_network_name)
-        nc = _neutron_client()
-        management_network_id = nc.cosmo_get_named(
+        management_network_id = neutron_client.cosmo_get_named(
             'network', management_network_name)['id']
     else:
         int_network = provider_context.int_network
@@ -286,16 +287,6 @@ def get_port_network_ids_(neutron_client, port_ids):
         return port['port']['network_id']
 
     return map(get_network, port_ids)
-
-
-def _neutron_client():
-    if ctx.type == context.NODE_INSTANCE:
-        config = ctx.node.properties.get('openstack_config')
-    else:
-        config = ctx.source.node.properties.get('openstack_config')
-        if not config:
-            config = ctx.target.node.properties.get('openstack_config')
-    return NeutronClient().get(config=config)
 
 
 @operation
@@ -632,7 +623,7 @@ def _get_keypair_name_by_id(nova_client, key_name):
     return keypair.id
 
 
-def _validate_external_server_nics(network_ids, port_ids):
+def _validate_external_server_nics(neutron_client, network_ids, port_ids):
     # validate no new nics are being assigned to an existing server (which
     # isn't possible on Openstack)
     new_nic_nodes = \
@@ -653,9 +644,8 @@ def _validate_external_server_nics(network_ids, port_ids):
     if not network_ids and not port_ids:
         return
 
-    nc = _neutron_client()
     server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    connected_ports = nc.list_ports(device_id=server_id)['ports']
+    connected_ports = neutron_client.list_ports(device_id=server_id)['ports']
 
     # not counting networks connected by a connected port since allegedly
     # the connection should be on a separate port

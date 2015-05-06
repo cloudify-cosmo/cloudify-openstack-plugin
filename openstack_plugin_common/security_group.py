@@ -39,13 +39,17 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
 
 
-def build_sg_data():
+def build_sg_data(security_group_properties=None):
     security_group = {
         'description': None,
         'name': get_resource_id(ctx, SECURITY_GROUP_OPENSTACK_TYPE),
     }
 
-    security_group.update(ctx.node.properties['security_group'])
+    security_group.update(
+        security_group_properties or
+        ctx.node.properties['security_group']
+    )
+
     return security_group
 
 

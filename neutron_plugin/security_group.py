@@ -43,9 +43,9 @@ DEFAULT_RULE_VALUES = {
 
 @operation
 @with_neutron_client
-def create(neutron_client, **kwargs):
+def create(neutron_client, security_group_properties=None, **kwargs):
 
-    security_group = build_sg_data()
+    security_group = build_sg_data(security_group_properties)
 
     sg_rules = process_rules(neutron_client, DEFAULT_RULE_VALUES,
                              'remote_ip_prefix', 'remote_group_id',

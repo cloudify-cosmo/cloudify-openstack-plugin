@@ -34,6 +34,8 @@ node_types:
           inputs:
             server_properties:
               default: {}
+            openstack_config:
+              default: {}
         start:
           implementation: openstack.nova_plugin.server.start
           inputs:
@@ -48,13 +50,25 @@ node_types:
                 the "use_password" property is set to "true"
               type: string
               default: ''
-        stop: openstack.nova_plugin.server.stop
-        delete: openstack.nova_plugin.server.delete
+            openstack_config:
+              default: {}
+        stop:
+          implementation: openstack.nova_plugin.server.stop
+          inputs:
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.nova_plugin.server.delete
+          inputs:
+            openstack_config:
+              default: {}
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.nova_plugin.server.creation_validation
           inputs:
             server_properties:
+              default: {}
+            openstack_config:
               default: {}
 
   cloudify.openstack.nodes.WindowsServer:

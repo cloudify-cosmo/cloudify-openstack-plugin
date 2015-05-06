@@ -32,7 +32,7 @@ from openstack_plugin_common.floatingip import (
 
 @operation
 @with_neutron_client
-def create(neutron_client, **kwargs):
+def create(neutron_client, floatingip_properties=None, **kwargs):
 
     if use_external_floatingip(neutron_client, 'floating_ip_address',
                                lambda ext_fip: ext_fip['floating_ip_address']):
@@ -41,7 +41,10 @@ def create(neutron_client, **kwargs):
     floatingip = {
         # No defaults
     }
-    floatingip.update(ctx.node.properties['floatingip'])
+    floatingip.update(
+        floatingip_properties or
+        ctx.node.properties['floatingip']
+    )
 
     # Sugar: floating_network_name -> (resolve) -> floating_network_id
     if 'floating_network_name' in floatingip:

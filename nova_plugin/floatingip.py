@@ -33,7 +33,7 @@ from openstack_plugin_common.floatingip import (
 
 @operation
 @with_nova_client
-def create(nova_client, floatingip_properties=None, **kwargs):
+def create(nova_client, args, **kwargs):
 
     if use_external_floatingip(nova_client, 'ip',
                                lambda ext_fip: ext_fip.ip):
@@ -42,10 +42,7 @@ def create(nova_client, floatingip_properties=None, **kwargs):
     floatingip = {
         'pool': None
     }
-    floatingip.update(
-        floatingip_properties or
-        ctx.node.properties['floatingip']
-    )
+    floatingip.update(ctx.node.properties['floatingip'], **args)
 
     fip = nova_client.floating_ips.create(floatingip['pool'])
     set_floatingip_runtime_properties(fip.id, fip.ip)

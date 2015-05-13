@@ -70,7 +70,7 @@ def create(neutron_client, args, **kwargs):
         'name': get_resource_id(ctx, SUBNET_OPENSTACK_TYPE),
         'network_id': net_id,
     }
-    subnet.update(args or ctx.node.properties['subnet'])
+    subnet.update(ctx.node.properties['subnet'], **args)
     transform_resource_name(ctx, subnet)
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
@@ -91,7 +91,7 @@ def delete(neutron_client, **kwargs):
 @with_neutron_client
 def creation_validation(neutron_client, args, **kwargs):
     validate_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE)
-    subnet = args or ctx.node.properties['subnet']
+    subnet = dict(ctx.node.properties['subnet'], **args)
 
     if 'cidr' not in subnet:
         err = '"cidr" property must appear under the "subnet" property of a ' \

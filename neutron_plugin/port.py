@@ -84,10 +84,7 @@ def create(neutron_client, args, **kwargs):
     }
 
     _handle_fixed_ips(port)
-    port.update(
-        args or
-        ctx.node.properties['port']
-    )
+    port.update(ctx.node.properties['port'], **args)
     transform_resource_name(ctx, port)
 
     p = neutron_client.create_port({'port': port})['port']

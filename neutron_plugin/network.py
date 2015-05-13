@@ -47,10 +47,7 @@ def create(neutron_client, args, **kwargs):
         'admin_state_up': True,
         'name': get_resource_id(ctx, NETWORK_OPENSTACK_TYPE),
     }
-    network.update(
-        args or
-        ctx.node.properties['network']
-    )
+    network.update(ctx.node.properties['network'], **args)
     transform_resource_name(ctx, network)
 
     net = neutron_client.create_network({'network': network})['network']

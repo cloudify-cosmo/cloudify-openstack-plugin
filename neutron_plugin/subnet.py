@@ -42,7 +42,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 @operation
 @with_neutron_client
-def create(neutron_client, subnet_properties=None, **kwargs):
+def create(neutron_client, args, **kwargs):
 
     if use_external_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE):
         try:
@@ -70,7 +70,7 @@ def create(neutron_client, subnet_properties=None, **kwargs):
         'name': get_resource_id(ctx, SUBNET_OPENSTACK_TYPE),
         'network_id': net_id,
     }
-    subnet.update(subnet_properties or ctx.node.properties['subnet'])
+    subnet.update(args or ctx.node.properties['subnet'])
     transform_resource_name(ctx, subnet)
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
@@ -89,9 +89,9 @@ def delete(neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def creation_validation(neutron_client, subnet_properties=None, **kwargs):
+def creation_validation(neutron_client, args, **kwargs):
     validate_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE)
-    subnet = subnet_properties or ctx.node.properties['subnet']
+    subnet = args or ctx.node.properties['subnet']
 
     if 'cidr' not in subnet:
         err = '"cidr" property must appear under the "subnet" property of a ' \

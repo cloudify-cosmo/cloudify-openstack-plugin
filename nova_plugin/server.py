@@ -77,7 +77,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
 @operation
 @with_nova_client
 @with_neutron_client
-def create(nova_client, neutron_client, server_properties=None, **kwargs):
+def create(nova_client, neutron_client, args, **kwargs):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
@@ -125,7 +125,7 @@ def create(nova_client, neutron_client, server_properties=None, **kwargs):
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
     server.update(copy.deepcopy(
-        server_properties or
+        args or
         ctx.node.properties['server']
     ))
     transform_resource_name(ctx, server)
@@ -719,7 +719,7 @@ def ud_http(params):
 
 @operation
 @with_nova_client
-def creation_validation(nova_client, server_properties=None, **kwargs):
+def creation_validation(nova_client, args, **kwargs):
 
     def validate_server_property_value_exists(server_props, property_name):
         ctx.logger.debug(
@@ -755,7 +755,7 @@ def creation_validation(nova_client, server_properties=None, **kwargs):
 
     validate_resource(ctx, nova_client, SERVER_OPENSTACK_TYPE)
 
-    server_props = server_properties or ctx.node.properties['server']
+    server_props = args or ctx.node.properties['server']
     validate_server_property_value_exists(server_props, 'image')
     validate_server_property_value_exists(server_props, 'flavor')
 

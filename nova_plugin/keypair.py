@@ -44,7 +44,7 @@ PRIVATE_KEY_PATH_PROP = 'private_key_path'
 
 @operation
 @with_nova_client
-def create(nova_client, keypair_properties=None, **kwargs):
+def create(nova_client, args, **kwargs):
 
     private_key_path = _get_private_key_path()
     pk_exists = _check_private_key_exists(private_key_path)
@@ -68,7 +68,7 @@ def create(nova_client, keypair_properties=None, **kwargs):
     keypair = {
         'name': get_resource_id(ctx, KEYPAIR_OPENSTACK_TYPE),
     }
-    keypair.update(keypair_properties or ctx.node.properties['keypair'])
+    keypair.update(args or ctx.node.properties['keypair'])
     transform_resource_name(ctx, keypair)
 
     keypair = nova_client.keypairs.create(keypair['name'],

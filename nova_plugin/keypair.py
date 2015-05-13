@@ -68,7 +68,7 @@ def create(nova_client, args, **kwargs):
     keypair = {
         'name': get_resource_id(ctx, KEYPAIR_OPENSTACK_TYPE),
     }
-    keypair.update(args or ctx.node.properties['keypair'])
+    keypair.update(ctx.node.properties['keypair'], **args)
     transform_resource_name(ctx, keypair)
 
     keypair = nova_client.keypairs.create(keypair['name'],

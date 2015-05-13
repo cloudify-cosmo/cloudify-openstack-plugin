@@ -16,7 +16,6 @@
 
 import os
 import time
-import copy
 import inspect
 import itertools
 
@@ -124,10 +123,7 @@ def create(nova_client, neutron_client, args, **kwargs):
     server = {
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
-    server.update(copy.deepcopy(
-        args or
-        ctx.node.properties['server']
-    ))
+    server.update(ctx.node.properties['server'], **args)
     transform_resource_name(ctx, server)
 
     ctx.logger.debug(
@@ -755,7 +751,7 @@ def creation_validation(nova_client, args, **kwargs):
 
     validate_resource(ctx, nova_client, SERVER_OPENSTACK_TYPE)
 
-    server_props = args or ctx.node.properties['server']
+    server_props = dict(ctx.node.properties['server'], **args)
     validate_server_property_value_exists(server_props, 'image')
     validate_server_property_value_exists(server_props, 'flavor')
 

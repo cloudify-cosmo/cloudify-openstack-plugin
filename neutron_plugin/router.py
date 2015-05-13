@@ -75,10 +75,7 @@ def create(neutron_client, args, **kwargs):
     router = {
         'name': get_resource_id(ctx, ROUTER_OPENSTACK_TYPE),
     }
-    router.update(
-        args or
-        ctx.node.properties['router']
-    )
+    router.update(ctx.node.properties['router'], **args)
     transform_resource_name(ctx, router)
 
     _handle_external_network_config(router, neutron_client)

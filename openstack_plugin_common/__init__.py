@@ -563,7 +563,7 @@ def _put_client_in_kw(client_name, client_class, kw):
             config = ctx.target.node.properties.get('openstack_config')
     else:
         config = None
-    config.update(kw.get('openstack_config'))
+    config.update(kw.get('openstack_config', {}))
     kw[client_name] = client_class().get(config=config)
 
 

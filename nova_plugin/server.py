@@ -14,6 +14,7 @@
 #  * limitations under the License.
 
 
+import copy
 import os
 import time
 import inspect
@@ -123,7 +124,8 @@ def create(nova_client, neutron_client, args, **kwargs):
     server = {
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
-    server.update(ctx.node.properties['server'], **args)
+    server.update(copy.deepcopy(ctx.node.properties['server']))
+    server.update(copy.deepcopy(args))
     transform_resource_name(ctx, server)
 
     ctx.logger.debug(

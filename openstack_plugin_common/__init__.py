@@ -264,7 +264,8 @@ def validate_resource(ctx, sugared_client, openstack_type,
         resource_amount = len(resource_list)
 
         resource_quota = sugared_client.get_quota(openstack_type)
-        if resource_amount < resource_quota or resource_quota == INFINITE_RESOURCE_QUOTA:
+        if resource_amount < resource_quota \
+                or resource_quota == INFINITE_RESOURCE_QUOTA:
             ctx.logger.debug(
                 'OK: {0} (node {1}) can be created. provisioned {2}: {3}, '
                 'quota: {4}'

@@ -20,6 +20,7 @@ import json
 
 from mock import MagicMock
 
+from cloudify.mocks import MockCloudifyContext
 import openstack_plugin_common as common
 
 
@@ -139,6 +140,41 @@ class OpenstackClientsTests(unittest.TestCase):
         self.assertEquals('file-password', keys_params['password'])
         self.assertEquals('file-tenant-name', keys_params['tenant_name'])
         self.assertEquals('envar-auth-url', keys_params['auth_url'])
+
+    def test_input_config_override(self):
+
+        def perform_test(ctx, openstack_args, key, expected):
+            class ClientClassMock(common.OpenStackClient):
+                result_config = None
+
+                def get(self, config, **kwargs):
+                    ClientClassMock.result_config = config
+                    return MagicMock()
+
+            kwargs = {'ctx': ctx}
+            if openstack_args:
+                kwargs['openstack_config'] = openstack_args
+            common._put_client_in_kw('mock_client', ClientClassMock, kwargs)
+            self.assertEquals(expected,
+                              ClientClassMock.result_config.get(key, None))
+
+        node_context = MockCloudifyContext(node_id='a20846', properties={})
+
+        perform_test(node_context, {'ignored_prop': 'ignored-prop'},
+                     'prop', None)
+        perform_test(node_context, {'prop': 'input-property'},
+                     'prop', 'input-property')
+
+        node_context = MockCloudifyContext(node_id='a20847',
+                                           properties={
+                                               'openstack_config': {
+                                                   'prop': 'context-property'
+                                               }
+                                           }
+                                           )
+        perform_test(node_context, None, 'prop', 'context-property')
+        perform_test(node_context, {'prop': 'input-property'},
+                     'prop', 'input-property')
 
     def _create_clients(self, envars_cfg, file_cfg, inputs_cfg):
         client_init_args = []

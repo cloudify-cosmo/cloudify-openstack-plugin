@@ -19,6 +19,9 @@ import tempfile
 import json
 
 from mock import MagicMock
+import mock
+from cloudify.exceptions import NonRecoverableError
+from cloudify.mocks import MockCloudifyContext
 
 import openstack_plugin_common as common
 
@@ -179,3 +182,39 @@ class OpenstackClientsTests(unittest.TestCase):
             common.NeutronClientWithSugar = orig_neut_client
             common.CinderClientWithSugar = orig_cind_client
             common.keystone_client.Client = orig_keys_client
+
+
+class ResourceQuotaTests(unittest.TestCase):
+
+    def _test_quota_validation(self, amount, quota, failure_expected):
+        ctx = MockCloudifyContext(node_id='node_id', properties={})
+        client = mock.MagicMock()
+
+        def mock_cosmo_list(_):
+            return [x for x in range(0, amount)]
+        client.cosmo_list = mock_cosmo_list
+
+        def mock_get_quota(_):
+            return quota
+        client.get_quota = mock_get_quota
+
+        if failure_expected:
+            self.assertRaisesRegexp(
+                NonRecoverableError,
+                'cannot be created due to quota limitations',
+                common.validate_resource,
+                ctx=ctx, sugared_client=client,
+                openstack_type='openstack_type')
+        else:
+            common.validate_resource(
+                ctx=ctx, sugared_client=client,
+                openstack_type='openstack_type')
+
+    def test_equals_quotas(self):
+        self._test_quota_validation(3, 3, True)
+
+    def test_exceeded_quota(self):
+        self._test_quota_validation(5, 3, True)
+
+    def test_infinite_quota(self):
+        self._test_quota_validation(5, -1, False)

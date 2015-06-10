@@ -179,6 +179,12 @@ class OpenstackClientsTests(unittest.TestCase):
         perform_test(node_context, {'prop': 'input-property'},
                      'prop', 'input-property')
 
+        # Making sure that _put_client_in_kw will not modify
+        # 'openstack_config' property of a node.
+        self.assertEquals('context-property',
+                          node_context.node.properties.get(
+                              'openstack_config').get('prop'))
+
     def _create_clients(self, envars_cfg, file_cfg, inputs_cfg):
         client_init_args = []
 

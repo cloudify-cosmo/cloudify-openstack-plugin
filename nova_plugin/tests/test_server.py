@@ -132,7 +132,7 @@ class TestServer(unittest.TestCase):
     @mock.patch(
         'openstack_plugin_common.get_single_connected_node_by_openstack_type',
         lambda: None)
-    @mock.patch('ctx.bootstrap_context.cloudify_agent.agent_key_path',
+    @mock.patch('cloudify.ctx.bootstrap_context.cloudify_agent.agent_key_path',
                 'mockKeyPath')
     def test_s(self, *_):
         self.assertEqual(self.server._get_private_key(), 'mockKeyPath')

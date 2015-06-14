@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,7 +33,6 @@ IGNORED_LOCAL_WORKFLOW_MODULES = (
 
 
 class TestServer(unittest.TestCase):
-
     def setUp(self):
         self.counter = 0
         self.server = mock.MagicMock()
@@ -130,7 +129,9 @@ class TestServer(unittest.TestCase):
         self.assertEqual(1, self.counter)
 
     @mock.patch('os.path.isfile', lambda: True)
-    @mock.patch('get_single_connected_node_by_openstack_type', lambda: None)
+    @mock.patch(
+        'openstack_plugin_common.get_single_connected_node_by_openstack_type',
+        lambda: None)
     @mock.patch('ctx.bootstrap_context.cloudify_agent.agent_key_path',
                 'mockKeyPath')
     def test_s(self, *_):

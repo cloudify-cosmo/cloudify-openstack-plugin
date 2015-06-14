@@ -131,8 +131,15 @@ class TestServer(unittest.TestCase):
     @mock.patch('os.path.isfile', lambda: True)
     @mock.patch(
         'openstack_plugin_common.get_single_connected_node_by_openstack_type',
-        lambda: None)
+        lambda x, y, z: None)
     @mock.patch('cloudify.ctx.bootstrap_context.cloudify_agent.agent_key_path',
                 'mockKeyPath')
+    @mock.patch('cloudify.ctx', None)
     def test_s(self, *_):
-        self.assertEqual(self.server._get_private_key(), 'mockKeyPath')
+        class mock_ctx:
+            class bootstrap_context:
+                class cloudify_agent:
+                    def agent_key_path(self):
+                        return 'mockKeyPath'
+        with mock.patch('cloudify.ctx', mock_ctx):
+            self.assertEqual(self.server._get_private_key(), 'mockKeyPath')

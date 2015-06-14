@@ -781,7 +781,7 @@ def _get_private_key(private_key_path):
         key_path = private_key_path
     else:
         key_path = \
-            pk_node_by_rel.properties['private_key_path'] or \
+            (pk_node_by_rel and pk_node_by_rel.properties['private_key_path']) or \
             ctx.bootstrap_context.cloudify_agent.agent_key_path
 
     if key_path:

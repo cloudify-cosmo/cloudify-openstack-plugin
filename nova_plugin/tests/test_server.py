@@ -5,13 +5,13 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#       http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# * See the License for the specific language governing permissions and
-# * limitations under the License.
+#  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  * See the License for the specific language governing permissions and
+#  * limitations under the License.
 
 
 import shutil
@@ -33,6 +33,7 @@ IGNORED_LOCAL_WORKFLOW_MODULES = (
 
 
 class TestServer(unittest.TestCase):
+
     def setUp(self):
         self.counter = 0
         self.server = mock.MagicMock()
@@ -127,6 +128,13 @@ class TestServer(unittest.TestCase):
 
         self.assertEqual(0, self.server.start.call_count)
         self.assertEqual(1, self.counter)
+
+    @mock.patch('os_path_isfile_mock', lambda: True)
+    @mock.patch('get_single_connected_node_by_openstack_type_mock', lambda: None)
+    @mock.patch('ctx.bootstrap_context.cloudify_agent.agent_key_path', 'mockKeyPath')
+    def test_s(self, *_):
+        self.assertEqual(self.server._get_private_key(), 'mockKeyPath')
+
 
 
 class TestServerUsePassword(unittest.TestCase):

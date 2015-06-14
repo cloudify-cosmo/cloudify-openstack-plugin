@@ -22,6 +22,7 @@ from os import path
 import mock
 
 from cloudify.workflows import local
+from nova_plugin import server
 
 import nova_plugin
 
@@ -137,4 +138,4 @@ class TestServer(unittest.TestCase):
         ctx_mock.boostrap_context.cloudify_agent.agent_key_path = \
             'mockKeyPath'
         with mock.patch('cloudify.ctx', ctx_mock):
-            self.assertEqual(self.server._get_private_key(), 'mockKeyPath')
+            self.assertEqual(server._get_private_key(True), 'mockKeyPath')

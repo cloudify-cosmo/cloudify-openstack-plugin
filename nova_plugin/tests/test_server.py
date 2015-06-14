@@ -9,9 +9,9 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-#  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  * See the License for the specific language governing permissions and
-#  * limitations under the License.
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# * See the License for the specific language governing permissions and
+# * limitations under the License.
 
 
 import shutil
@@ -132,14 +132,11 @@ class TestServer(unittest.TestCase):
     @mock.patch(
         'openstack_plugin_common.get_single_connected_node_by_openstack_type',
         lambda x, y, z: None)
-    @mock.patch('cloudify.ctx.bootstrap_context.cloudify_agent.agent_key_path',
-                'mockKeyPath')
-    @mock.patch('cloudify.ctx', None)
     def test_s(self, *_):
-        class mock_ctx:
-            class bootstrap_context:
-                class cloudify_agent:
-                    def agent_key_path(self):
-                        return 'mockKeyPath'
-        with mock.patch('cloudify.ctx', mock_ctx):
+        ctx_mock = mock.MagicMock()
+        ctx_mock.boostrap_context.cloudify_agent.agent_key_path.return_value = \
+            'mockKeyPath'
+        with mock.patch(
+                'cloudify.ctx.bootstrap_context.cloudify_agent.agent_key_path',
+                ctx_mock):
             self.assertEqual(self.server._get_private_key(), 'mockKeyPath')

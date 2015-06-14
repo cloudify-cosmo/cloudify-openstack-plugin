@@ -134,7 +134,7 @@ class TestServer(unittest.TestCase):
         lambda x, y, z: None)
     def test_s(self, *_):
         ctx_mock = mock.MagicMock()
-        ctx_mock.boostrap_context.cloudify_agent.agent_key_path.return_value = \
+        ctx_mock.boostrap_context.cloudify_agent.agent_key_path = \
             'mockKeyPath'
         with mock.patch('cloudify.ctx', ctx_mock):
             self.assertEqual(self.server._get_private_key(), 'mockKeyPath')

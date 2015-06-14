@@ -129,9 +129,9 @@ class TestServer(unittest.TestCase):
         self.assertEqual(0, self.server.start.call_count)
         self.assertEqual(1, self.counter)
 
-    @mock.patch('os_path_isfile_mock', lambda: True)
-    @mock.patch('get_single_connected_node_by_openstack_type_mock', lambda: None)
-    @mock.patch('ctx.bootstrap_context.cloudify_agent.agent_key_path', 'mockKeyPath')
+    @mock.patch('os_path_isfile', lambda: True)
+    @mock.patch('get_single_connected_node_by_openstack_type', lambda: None)
+    @mock.patch('ctx.bootstrap_context.cloudify_agent.agent_key_path',
+                'mockKeyPath')
     def test_s(self, *_):
         self.assertEqual(self.server._get_private_key(), 'mockKeyPath')
-

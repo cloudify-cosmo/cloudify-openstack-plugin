@@ -129,7 +129,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(0, self.server.start.call_count)
         self.assertEqual(1, self.counter)
 
-    @mock.patch('os_path_isfile', lambda: True)
+    @mock.patch('os.path.isfile', lambda: True)
     @mock.patch('get_single_connected_node_by_openstack_type', lambda: None)
     @mock.patch('ctx.bootstrap_context.cloudify_agent.agent_key_path',
                 'mockKeyPath')

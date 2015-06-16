@@ -18,7 +18,6 @@ import os
 import time
 import copy
 import inspect
-import itertools
 
 from novaclient import exceptions as nova_exceptions
 
@@ -228,12 +227,10 @@ def create(nova_client, neutron_client, **kwargs):
     ctx.logger.debug(
         "server.create() server after transformations: {0}".format(server))
 
-    # First parameter is 'self', skipping
-    params_names = inspect.getargspec(nova_client.servers.create).args[1:]
-
-    params_default_values = inspect.getargspec(
-        nova_client.servers.create).defaults
-    params = dict(itertools.izip(params_names, params_default_values))
+    # Get the 'create' method parameters and default values
+    args, varargs, keywords, defaults = inspect.getargspec(
+        nova_client.servers.create)
+    params = dict(zip(args, defaults))
 
     # Fail on unsupported parameters
     for k in server:

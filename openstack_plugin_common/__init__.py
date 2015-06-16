@@ -24,7 +24,7 @@ from cinderclient import exceptions as cinder_exceptions
 import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
-import novaclient.client as nova_client
+import novaclient.v2.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
 import cloudify

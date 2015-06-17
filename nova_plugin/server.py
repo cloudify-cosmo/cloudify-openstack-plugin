@@ -17,7 +17,6 @@
 import os
 import time
 import copy
-import inspect
 
 from novaclient import exceptions as nova_exceptions
 

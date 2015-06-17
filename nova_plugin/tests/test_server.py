@@ -134,11 +134,11 @@ class TestServer(unittest.TestCase):
     @mock.patch('nova_plugin.server._fail_on_missing_required_parameters')
     def test_nova_server_creation_param_integrity(self, *_):
         class MyDict(dict):
-            pass
+            id = 'uid'
 
-        def mock_create_server(_, **kwargs):
+        def mock_create_server(*args, **kwargs):
             key_args = MyDict(kwargs)
-            key_args.id = 'uid'
+            self.assertTrue('scheduler_hints' in key_args)
             self.assertEqual(key_args['scheduler_hints'],
                              {'group': 'affinity-group-id'},
                              'expecting \'scheduler_hints\' value to exist')

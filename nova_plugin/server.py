@@ -226,25 +226,11 @@ def create(nova_client, neutron_client, **kwargs):
 
     ctx.logger.debug(
         "server.create() server after transformations: {0}".format(server))
-
-    # Get the 'create' method parameters and default values
-    args, varargs, keywords, defaults = inspect.getargspec(
-        nova_client.servers.create)
-    params = dict(zip(args, defaults))
-
-    # Fail on unsupported parameters
+    params = {}
     for k in server:
-        if k not in params:
-            raise NonRecoverableError(
-                "Parameter with name '{0}' must not be passed to"
-                " openstack provisioner (under host's "
-                "properties.nova.instance)".format(k))
+        params[k] = server[k]
 
-    for k in params:
-        if k in server:
-            params[k] = server[k]
-
-    if not params['meta']:
+    if 'meta' not in params:
         params['meta'] = dict({})
     if management_network_id is not None:
         params['meta']['cloudify_management_network_id'] = \

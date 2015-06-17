@@ -10,7 +10,10 @@ node_templates:
     type: cloudify.openstack.nodes.Server
     properties:
       install_agent: false
-      server: {}
+      server:
+        key_name: key
+        scheduler_hints:
+          group: affinity-group-id
       openstack_config:
         username: aaa
         password: aaa

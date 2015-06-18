@@ -25,6 +25,7 @@ from cloudify.workflows import local
 from nova_plugin import server
 
 import nova_plugin
+from system_tests.openstack_handler import CloudifyOpenstackInputsConfigReader
 
 
 IGNORED_LOCAL_WORKFLOW_MODULES = (
@@ -129,13 +130,64 @@ class TestServer(unittest.TestCase):
         self.assertEqual(0, self.server.start.call_count)
         self.assertEqual(1, self.counter)
 
+
+class TestServerUsePassword(unittest.TestCase):
+    def setUp(self):
+        self.counter = 0
+        self.server = mock.MagicMock()
+        blueprint_filename = 'test-use-password-blueprint.yaml'
+        blueprint_path = path.join(path.dirname(__file__),
+                                   'resources',
+                                   blueprint_filename)
+        plugin_yaml_filename = 'plugin.yaml'
+
+        plugin_yaml_path = path.realpath(
+            path.join(path.dirname(nova_plugin.__file__),
+                      '../{0}'.format(plugin_yaml_filename)))
+
+        self.tempdir = tempfile.mkdtemp(prefix='openstack-plugin-unit-tests-')
+
+        temp_blueprint_path = path.join(self.tempdir, blueprint_filename)
+        temp_plugin_yaml_path = path.join(self.tempdir, plugin_yaml_filename)
+
+        shutil.copyfile(blueprint_path, temp_blueprint_path)
+        shutil.copyfile(plugin_yaml_path, temp_plugin_yaml_path)
+
+        # setup local workflow execution environment
+        self.env = local.init_env(
+            temp_blueprint_path,
+            name=self._testMethodName,
+            ignored_modules=IGNORED_LOCAL_WORKFLOW_MODULES)
+
+    def tearDown(self):
+        if path.exists(self.tempdir):
+            shutil.rmtree(self.tempdir)
+
+    @mock.patch('nova_plugin.server.create')
+    @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
+    @mock.patch('os.path.isfile', lambda x: True)
     @mock.patch(
-        'openstack_plugin_common.get_single_connected_node_by_openstack_type',
+        'nova_plugin.server.get_single_connected_node_by_openstack_type',
         lambda x, y, z: None)
-    @mock.patch('cloudify.ctx', mock.MagicMock())
-    @mock.patch('os.path.isfile', lambda: True)
-    def test_s(self):
-        mock_key = mock.Mock(return_value='mockKeyPath')
-        with mock.patch('ctx.bootstrap_context.cloudify_agent.agent_key_path',
-                        mock_key):
-            self.assertEqual(server._get_private_key(True), 'mockKeyPath')
+    def test_s(self, *_):
+        def mock_get_server_by_context(_):
+            s = self.server
+            if self.counter == 0:
+                s.status = nova_plugin.server.SERVER_STATUS_BUILD
+            else:
+                s.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+            self.counter += 1
+            return s
+
+        class CloudifyOpenstackInputsConfigReaderMock(
+            CloudifyOpenstackInputsConfigReader):
+            @property
+            def agent_key_path(self):
+                return 'aaa'
+
+        with mock.patch('nova_plugin.server.get_server_by_context',
+                        mock_get_server_by_context):
+            with mock.patch(
+                    'system_tests.openstack_handler.CloudifyOpenstackInputsConfigReader',
+                    CloudifyOpenstackInputsConfigReaderMock):
+                self.env.execute('install', task_retries=5)

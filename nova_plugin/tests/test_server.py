@@ -22,10 +22,8 @@ from os import path
 import mock
 
 from cloudify.workflows import local
-from nova_plugin import server
 
 import nova_plugin
-from cloudify import ctx
 
 
 IGNORED_LOCAL_WORKFLOW_MODULES = (
@@ -182,7 +180,6 @@ class TestServerUsePassword(unittest.TestCase):
             self.counter += 1
 
             def check_agent_key_path(private_key):
-                self.assertIsNotNone(private_key)
                 self.assertEqual(private_key, key_path)
                 return private_key
 

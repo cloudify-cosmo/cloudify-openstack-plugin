@@ -25,7 +25,7 @@ from cloudify.workflows import local
 from nova_plugin import server
 
 import nova_plugin
-from system_tests.openstack_handler import CloudifyOpenstackInputsConfigReader
+from cloudify import ctx
 
 
 IGNORED_LOCAL_WORKFLOW_MODULES = (
@@ -165,11 +165,15 @@ class TestServerUsePassword(unittest.TestCase):
 
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
-    @mock.patch('os.path.isfile', lambda x: True)
+    @mock.patch('os.path.isfile', autospec=True, return_value=True)
     @mock.patch(
         'nova_plugin.server.get_single_connected_node_by_openstack_type',
-        lambda x, y, z: None)
-    def test_s(self, *_):
+        autospec=True, return_value=None)
+    @mock.patch(
+        'cloudify.context.BootstrapContext.CloudifyAgent.agent_key_path',
+        new_callable=mock.PropertyMock, return_value='some_private_key')
+    def test_nova_server_with_use_password(self, *_):
+
         def mock_get_server_by_context(_):
             s = self.server
             if self.counter == 0:
@@ -177,17 +181,15 @@ class TestServerUsePassword(unittest.TestCase):
             else:
                 s.status = nova_plugin.server.SERVER_STATUS_ACTIVE
             self.counter += 1
-            return s
 
-        class CloudifyOpenstackInputsConfigReaderMock(
-            CloudifyOpenstackInputsConfigReader):
-            @property
-            def agent_key_path(self):
-                return 'aaa'
+            def check_agent_key_path(private_key):
+                self.assertIsNotNone(private_key)
+                self.assertEqual(private_key, 'some_private_key22')
+                return private_key
+
+            s.get_password = check_agent_key_path
+            return s
 
         with mock.patch('nova_plugin.server.get_server_by_context',
                         mock_get_server_by_context):
-            with mock.patch(
-                    'system_tests.openstack_handler.CloudifyOpenstackInputsConfigReader',
-                    CloudifyOpenstackInputsConfigReaderMock):
-                self.env.execute('install', task_retries=5)
+            self.env.execute('install', task_retries=5)

@@ -227,7 +227,7 @@ def create(nova_client, neutron_client, **kwargs):
         "server.create() server after transformations: {0}".format(server))
 
     if 'meta' not in server:
-        server['meta'] = dict({})
+        server['meta'] = dict()
     if management_network_id is not None:
         server['meta']['cloudify_management_network_id'] = \
             management_network_id

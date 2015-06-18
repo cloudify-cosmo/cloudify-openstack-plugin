@@ -138,7 +138,7 @@ class TestServer(unittest.TestCase):
 
         def mock_create_server(*args, **kwargs):
             key_args = MyDict(kwargs)
-            self.assertTrue('scheduler_hints' in key_args)
+            self.assertIn('scheduler_hints', key_args)
             self.assertEqual(key_args['scheduler_hints'],
                              {'group': 'affinity-group-id'},
                              'expecting \'scheduler_hints\' value to exist')

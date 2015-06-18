@@ -169,10 +169,9 @@ class TestServerUsePassword(unittest.TestCase):
     @mock.patch(
         'nova_plugin.server.get_single_connected_node_by_openstack_type',
         autospec=True, return_value=None)
-    @mock.patch(
-        'cloudify.context.BootstrapContext.CloudifyAgent.agent_key_path',
-        new_callable=mock.PropertyMock, return_value='some_private_key')
     def test_nova_server_with_use_password(self, *_):
+
+        key_path = 'some_private_key_path'
 
         def mock_get_server_by_context(_):
             s = self.server
@@ -184,7 +183,7 @@ class TestServerUsePassword(unittest.TestCase):
 
             def check_agent_key_path(private_key):
                 self.assertIsNotNone(private_key)
-                self.assertEqual(private_key, 'some_private_key22')
+                self.assertEqual(private_key, key_path)
                 return private_key
 
             s.get_password = check_agent_key_path
@@ -192,4 +191,7 @@ class TestServerUsePassword(unittest.TestCase):
 
         with mock.patch('nova_plugin.server.get_server_by_context',
                         mock_get_server_by_context):
-            self.env.execute('install', task_retries=5)
+            with mock.patch(
+                    'cloudify.context.BootstrapContext.CloudifyAgent.agent_key_path',  # NOQA
+                    new_callable=mock.PropertyMock, return_value=key_path):
+                self.env.execute('install', task_retries=5)

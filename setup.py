@@ -31,7 +31,7 @@ setup(
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
     install_requires=[
-        'cloudify-plugins-common>=3.3a2',
+        'cloudify-plugins-common>=3.2',
         'python-novaclient==2.17.0',
         'python-keystoneclient==0.7.1',
         'python-neutronclient==2.3.9',

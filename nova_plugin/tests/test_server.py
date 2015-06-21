@@ -5,13 +5,13 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-#  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  * See the License for the specific language governing permissions and
-#  * limitations under the License.
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# * See the License for the specific language governing permissions and
+# * limitations under the License.
 
 
 import shutil
@@ -22,6 +22,7 @@ from os import path
 import mock
 
 from cloudify.workflows import local
+from functools import wraps
 
 import nova_plugin
 
@@ -32,43 +33,69 @@ IGNORED_LOCAL_WORKFLOW_MODULES = (
 )
 
 
-class TestServer(unittest.TestCase):
+class set_env(object):
+    def __init__(self, **kwargs):
+        # blueprint to run
+        self.blueprint_filename = kwargs.get('blueprint_filename')
+        self.blueprint_path = path.join(path.dirname(__file__),
+                                        'resources',
+                                        self.blueprint_filename)
+        # Plugin path and name
+        plugin_yaml_path = kwargs.get('plugin_yaml_path')
+        if plugin_yaml_path:
+            self.plugin_yaml_filename = path.basename(plugin_yaml_path)
+            self.plugin_yaml_path = path.dirname(plugin_yaml_path)
+        else:
+            self.plugin_yaml_filename = 'plugin.yaml'
+            self.plugin_yaml_path = path.abspath(
+                path.join(path.dirname(nova_plugin.__file__), '../plugin.yaml'))
 
-    def setUp(self):
-        self.counter = 0
-        self.server = mock.MagicMock()
-        blueprint_filename = 'test-start-operation-retry-blueprint.yaml'
-        blueprint_path = path.join(path.dirname(__file__),
-                                   'resources',
-                                   blueprint_filename)
-        plugin_yaml_filename = 'plugin.yaml'
+        # Set prefix for resources
+        self.prefix = kwargs['prefix'] if hasattr(kwargs, 'prefix') \
+            else "{}-unit-tests-".format(__name__[:__name__.index('.')])
 
-        plugin_yaml_path = path.realpath(
-            path.join(path.dirname(nova_plugin.__file__),
-                      '../{0}'.format(plugin_yaml_filename)))
+        # Setting inputs file
+        self.inputs = kwargs.get('inputs')
 
-        self.tempdir = tempfile.mkdtemp(prefix='openstack-plugin-unit-tests-')
+    def setUp(self, func):
+        func.counter = 0
+        func.server = mock.MagicMock()
+        func.tempdir = tempfile.mkdtemp(self.prefix)
 
-        temp_blueprint_path = path.join(self.tempdir, blueprint_filename)
-        temp_plugin_yaml_path = path.join(self.tempdir, plugin_yaml_filename)
+        temp_blueprint_path = path.join(func.tempdir, self.blueprint_filename)
+        temp_plugin_yaml_path = path.join(func.tempdir,
+                                          self.plugin_yaml_filename)
 
-        shutil.copyfile(blueprint_path, temp_blueprint_path)
-        shutil.copyfile(plugin_yaml_path, temp_plugin_yaml_path)
+        shutil.copyfile(self.blueprint_path, temp_blueprint_path)
+        shutil.copyfile(self.plugin_yaml_path, temp_plugin_yaml_path)
 
         # setup local workflow execution environment
-        self.env = local.init_env(
+        func.env = local.init_env(
             temp_blueprint_path,
-            name=self._testMethodName,
-            ignored_modules=IGNORED_LOCAL_WORKFLOW_MODULES)
+            name=func._testMethodName,
+            ignored_modules=IGNORED_LOCAL_WORKFLOW_MODULES,
+            inputs=self.inputs)
 
-    def tearDown(self):
-        if path.exists(self.tempdir):
-            shutil.rmtree(self.tempdir)
+    def tearDown(self, func):
+        if path.exists(func.tempdir):
+            shutil.rmtree(func.tempdir)
 
+    def __call__(self, test):
+        @wraps(test)
+        def wrapped_test(func, *args, **kwargs):
+            self.setUp(func)
+            test(func, *args, **kwargs)
+            self.tearDown(func)
+
+        return wrapped_test
+
+
+class TestServer(unittest.TestCase):
+    @set_env(blueprint_filename='test-start-operation-retry-blueprint.yaml')
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
     def test_nova_server_lifecycle_start(self, *_):
-        def mock_get_server_by_context(_):
+        def mock_get_server_by_context(*_):
             s = self.server
             if self.counter == 0:
                 s.status = nova_plugin.server.SERVER_STATUS_BUILD
@@ -84,6 +111,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(2, self.counter)
         self.assertEqual(0, self.server.start.call_count)
 
+    @set_env(blueprint_filename='test-start-operation-retry-blueprint.yaml')
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
     def test_nova_server_lifecycle_start_after_stop(self, *_):
@@ -108,6 +136,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(1, self.server.start.call_count)
         self.assertEqual(3, self.counter)
 
+    @set_env(blueprint_filename='test-start-operation-retry-blueprint.yaml')
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
     def test_nova_server_lifecycle_start_unknown_status(self, *_):
@@ -129,6 +158,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(0, self.server.start.call_count)
         self.assertEqual(1, self.counter)
 
+    @set_env(blueprint_filename='test-start-operation-retry-blueprint.yaml')
     @mock.patch('nova_plugin.server.start')
     @mock.patch('nova_plugin.server._handle_image_or_flavor')
     @mock.patch('nova_plugin.server._fail_on_missing_required_parameters')
@@ -148,52 +178,14 @@ class TestServer(unittest.TestCase):
                         'ServerManager.create', new=mock_create_server):
             self.env.execute('install', task_retries=0)
 
-    @mock.patch('os_path_isfile_mock', lambda: True)
-    @mock.patch('get_single_connected_node_by_openstack_type_mock', lambda: None)
-    @mock.patch('ctx.bootstrap_context.cloudify_agent.agent_key_path', 'mockKeyPath')
-    def test_s(self, *_):
-        self.assertEqual(self.server._get_private_key(), 'mockKeyPath')
-
-
-
-class TestServerUsePassword(unittest.TestCase):
-    def setUp(self):
-        self.counter = 0
-        self.server = mock.MagicMock()
-        blueprint_filename = 'test-use-password-blueprint.yaml'
-        blueprint_path = path.join(path.dirname(__file__),
-                                   'resources',
-                                   blueprint_filename)
-        plugin_yaml_filename = 'plugin.yaml'
-
-        plugin_yaml_path = path.realpath(
-            path.join(path.dirname(nova_plugin.__file__),
-                      '../{0}'.format(plugin_yaml_filename)))
-
-        self.tempdir = tempfile.mkdtemp(prefix='openstack-plugin-unit-tests-')
-
-        temp_blueprint_path = path.join(self.tempdir, blueprint_filename)
-        temp_plugin_yaml_path = path.join(self.tempdir, plugin_yaml_filename)
-
-        shutil.copyfile(blueprint_path, temp_blueprint_path)
-        shutil.copyfile(plugin_yaml_path, temp_plugin_yaml_path)
-
-        # setup local workflow execution environment
-        self.env = local.init_env(
-            temp_blueprint_path,
-            name=self._testMethodName,
-            ignored_modules=IGNORED_LOCAL_WORKFLOW_MODULES)
-
-    def tearDown(self):
-        if path.exists(self.tempdir):
-            shutil.rmtree(self.tempdir)
-
+    @set_env(blueprint_filename='test-start-operation-retry-blueprint.yaml',
+             inputs={'use_password': True})
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
-    @mock.patch('os.path.isfile', autospec=True, return_value=True)
     @mock.patch(
         'nova_plugin.server.get_single_connected_node_by_openstack_type',
         autospec=True, return_value=None)
+    @mock.patch('os.path.isfile', autospec=True, return_value=True)
     def test_nova_server_with_use_password(self, *_):
 
         key_path = 'some_private_key_path'
@@ -216,6 +208,6 @@ class TestServerUsePassword(unittest.TestCase):
         with mock.patch('nova_plugin.server.get_server_by_context',
                         mock_get_server_by_context):
             with mock.patch(
-                    'cloudify.context.BootstrapContext.CloudifyAgent.agent_key_path',  # NOQA
+                    'cloudify.context.BootstrapContext.CloudifyAgent.agent_key_path',  #NOQA
                     new_callable=mock.PropertyMock, return_value=key_path):
                 self.env.execute('install', task_retries=5)

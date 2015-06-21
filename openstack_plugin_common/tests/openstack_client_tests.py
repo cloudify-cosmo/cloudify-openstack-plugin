@@ -18,7 +18,6 @@ import unittest
 import tempfile
 import json
 
-from mock import MagicMock
 import mock
 from cloudify.exceptions import NonRecoverableError
 from cloudify.mocks import MockCloudifyContext
@@ -148,7 +147,7 @@ class OpenstackClientsTests(unittest.TestCase):
 
         def client_mock(**kwargs):
             client_init_args.append(kwargs)
-            return MagicMock()
+            return mock.MagicMock()
 
         orig_nova_client = common.NovaClientWithSugar
         orig_neut_client = common.NeutronClientWithSugar

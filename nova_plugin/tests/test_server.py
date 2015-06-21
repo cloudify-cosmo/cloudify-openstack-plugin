@@ -48,7 +48,8 @@ class set_env(object):
         else:
             self.plugin_yaml_filename = 'plugin.yaml'
             self.plugin_yaml_path = path.abspath(
-                path.join(path.dirname(nova_plugin.__file__), '../plugin.yaml'))
+                path.join(path.dirname(nova_plugin.__file__),
+                          '../plugin.yaml'))
 
         # Set prefix for resources
         self.prefix = kwargs['prefix'] if hasattr(kwargs, 'prefix') \
@@ -208,6 +209,7 @@ class TestServer(unittest.TestCase):
         with mock.patch('nova_plugin.server.get_server_by_context',
                         mock_get_server_by_context):
             with mock.patch(
-                    'cloudify.context.BootstrapContext.CloudifyAgent.agent_key_path',  #NOQA
+                    'cloudify.context.BootstrapContext.'
+                    'CloudifyAgent.agent_key_path',
                     new_callable=mock.PropertyMock, return_value=key_path):
                 self.env.execute('install', task_retries=5)

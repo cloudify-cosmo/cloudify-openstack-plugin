@@ -20,7 +20,7 @@ import time
 import copy
 from contextlib import contextmanager
 
-from cinderclient.v2 import client as cinderclient
+from cinderclient.v1 import client as cinderclient
 import novaclient.v2.client as nvclient
 import neutronclient.v2_0.client as neclient
 from retrying import retry

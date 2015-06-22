@@ -17,8 +17,6 @@
 import os
 import time
 import copy
-import inspect
-import itertools
 
 from novaclient import exceptions as nova_exceptions
 
@@ -228,41 +226,22 @@ def create(nova_client, neutron_client, **kwargs):
     ctx.logger.debug(
         "server.create() server after transformations: {0}".format(server))
 
-    # First parameter is 'self', skipping
-    params_names = inspect.getargspec(nova_client.servers.create).args[1:]
-
-    params_default_values = inspect.getargspec(
-        nova_client.servers.create).defaults
-    params = dict(itertools.izip(params_names, params_default_values))
-
-    # Fail on unsupported parameters
-    for k in server:
-        if k not in params:
-            raise NonRecoverableError(
-                "Parameter with name '{0}' must not be passed to"
-                " openstack provisioner (under host's "
-                "properties.nova.instance)".format(k))
-
-    for k in params:
-        if k in server:
-            params[k] = server[k]
-
-    if not params['meta']:
-        params['meta'] = dict({})
+    if 'meta' not in server:
+        server['meta'] = dict()
     if management_network_id is not None:
-        params['meta']['cloudify_management_network_id'] = \
+        server['meta']['cloudify_management_network_id'] = \
             management_network_id
     if management_network_name is not None:
-        params['meta']['cloudify_management_network_name'] = \
+        server['meta']['cloudify_management_network_name'] = \
             management_network_name
 
-    ctx.logger.info("Creating VM with parameters: {0}".format(str(params)))
+    ctx.logger.info("Creating VM with parameters: {0}".format(str(server)))
     ctx.logger.debug(
         "Asking Nova to create server. All possible parameters are: {0})"
-        .format(','.join(params.keys())))
+        .format(','.join(server.keys())))
 
     try:
-        s = nova_client.servers.create(**params)
+        s = nova_client.servers.create(**server)
     except nova_exceptions.BadRequest as e:
         if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
             raise NonRecoverableError(

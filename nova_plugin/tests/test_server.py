@@ -128,3 +128,22 @@ class TestServer(unittest.TestCase):
 
         self.assertEqual(0, self.server.start.call_count)
         self.assertEqual(1, self.counter)
+
+    @mock.patch('nova_plugin.server.start')
+    @mock.patch('nova_plugin.server._handle_image_or_flavor')
+    @mock.patch('nova_plugin.server._fail_on_missing_required_parameters')
+    def test_nova_server_creation_param_integrity(self, *_):
+        class MyDict(dict):
+            id = 'uid'
+
+        def mock_create_server(*args, **kwargs):
+            key_args = MyDict(kwargs)
+            self.assertIn('scheduler_hints', key_args)
+            self.assertEqual(key_args['scheduler_hints'],
+                             {'group': 'affinity-group-id'},
+                             'expecting \'scheduler_hints\' value to exist')
+            return key_args
+
+        with mock.patch('openstack_plugin_common.nova_client.servers.'
+                        'ServerManager.create', new=mock_create_server):
+            self.env.execute('install', task_retries=0)

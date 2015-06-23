@@ -21,7 +21,7 @@ import copy
 from contextlib import contextmanager
 
 from cinderclient.v1 import client as cinderclient
-import novaclient.v1_1.client as nvclient
+import novaclient.v2.client as nvclient
 import neutronclient.v2_0.client as neclient
 from retrying import retry
 

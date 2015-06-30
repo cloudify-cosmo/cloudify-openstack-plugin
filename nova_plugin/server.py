@@ -519,24 +519,58 @@ def attach_volume(nova_client, cinder_client, **kwargs):
         server_id,
         volume_id,
         device if device != 'auto' else None)
-    volume.wait_until_status(cinder_client=cinder_client,
-                             volume_id=volume_id,
-                             status=volume.VOLUME_STATUS_IN_USE)
-    if device == 'auto':
-
-        # The device name was assigned automatically so we
-        # query the actual device name
-        attachment = volume.get_attachment(
+    try:
+        vol, wait_succeeded = volume.wait_until_status(
             cinder_client=cinder_client,
             volume_id=volume_id,
-            server_id=server_id
+            status=volume.VOLUME_STATUS_IN_USE
         )
-        device_name = attachment['device']
-        ctx.logger.info('Detected device name for attachment of volume '
-                        '{0} to server {1}: {2}'
-                        .format(volume_id, server_id, device_name))
-        ctx.source.instance.runtime_properties[
-            volume.DEVICE_NAME_PROPERTY] = device_name
+        if not wait_succeeded:
+            raise RecoverableError(
+                'Waiting for volume status {0} failed - detaching volume and '
+                'retrying..'.format(volume.VOLUME_STATUS_IN_USE))
+        if device == 'auto':
+            # The device name was assigned automatically so we
+            # query the actual device name
+            attachment = volume.get_attachment(
+                cinder_client=cinder_client,
+                volume_id=volume_id,
+                server_id=server_id
+            )
+            device_name = attachment['device']
+            ctx.logger.info('Detected device name for attachment of volume '
+                            '{0} to server {1}: {2}'
+                            .format(volume_id, server_id, device_name))
+            ctx.source.instance.runtime_properties[
+                volume.DEVICE_NAME_PROPERTY] = device_name
+    except Exception, e:
+        if not isinstance(e, NonRecoverableError):
+            __prepare_attach_volume_to_be_repeated(
+                nova_client, cinder_client, server_id, volume_id)
+        raise
+
+
+def __prepare_attach_volume_to_be_repeated(
+        nova_client, cinder_client, server_id, volume_id):
+
+    ctx.logger.info('Cleaning after a failed attach_volume() call')
+    try:
+        _detach_volume(nova_client, cinder_client, server_id, volume_id)
+    except Exception, e:
+        ctx.logger.error('Cleaning after a failed attach_volume() call failed '
+                         'raising a \'{0}\' exception.'.format(e))
+        raise NonRecoverableError(e)
+
+
+def _detach_volume(nova_client, cinder_client, server_id, volume_id):
+    attachment = volume.get_attachment(cinder_client=cinder_client,
+                                       volume_id=volume_id,
+                                       server_id=server_id)
+    if attachment:
+        nova_client.volumes.delete_server_volume(server_id, attachment['id'])
+        volume.wait_until_status(cinder_client=cinder_client,
+                                 volume_id=volume_id,
+                                 status=volume.VOLUME_STATUS_AVAILABLE)
 
 
 @operation
@@ -551,14 +585,7 @@ def detach_volume(nova_client, cinder_client, **kwargs):
     server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    attachment = volume.get_attachment(cinder_client=cinder_client,
-                                       volume_id=volume_id,
-                                       server_id=server_id)
-    if attachment:
-        nova_client.volumes.delete_server_volume(server_id, attachment['id'])
-        volume.wait_until_status(cinder_client=cinder_client,
-                                 volume_id=volume_id,
-                                 status=volume.VOLUME_STATUS_AVAILABLE)
+    _detach_volume(nova_client, cinder_client, server_id, volume_id)
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

@@ -50,7 +50,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 @operation
 @with_cinder_client
-def create(cinder_client, **kwargs):
+def create(cinder_client, args, **kwargs):
 
     if use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
                              'display_name'):
@@ -58,7 +58,7 @@ def create(cinder_client, **kwargs):
 
     name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)
     volume_dict = {'display_name': name}
-    volume_dict.update(ctx.node.properties['volume'])
+    volume_dict.update(ctx.node.properties['volume'], **args)
     volume_dict['display_name'] = transform_resource_name(
         ctx, volume_dict['display_name'])
 

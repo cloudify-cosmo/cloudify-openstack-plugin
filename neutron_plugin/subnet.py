@@ -42,7 +42,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 @operation
 @with_neutron_client
-def create(neutron_client, **kwargs):
+def create(neutron_client, args, **kwargs):
 
     if use_external_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE):
         try:
@@ -70,7 +70,7 @@ def create(neutron_client, **kwargs):
         'name': get_resource_id(ctx, SUBNET_OPENSTACK_TYPE),
         'network_id': net_id,
     }
-    subnet.update(ctx.node.properties['subnet'])
+    subnet.update(ctx.node.properties['subnet'], **args)
     transform_resource_name(ctx, subnet)
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
@@ -89,12 +89,13 @@ def delete(neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def creation_validation(neutron_client, **kwargs):
+def creation_validation(neutron_client, args, **kwargs):
     validate_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE)
+    subnet = dict(ctx.node.properties['subnet'], **args)
 
-    if 'cidr' not in ctx.node.properties['subnet']:
+    if 'cidr' not in subnet:
         err = '"cidr" property must appear under the "subnet" property of a ' \
               'subnet node'
         ctx.logger.error('VALIDATION ERROR: ' + err)
         raise NonRecoverableError(err)
-    validate_ip_or_range_syntax(ctx, ctx.node.properties['subnet']['cidr'])
+    validate_ip_or_range_syntax(ctx, subnet['cidr'])

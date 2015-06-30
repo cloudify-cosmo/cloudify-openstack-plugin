@@ -21,15 +21,17 @@ import sys
 from IPy import IP
 from cinderclient.v1 import client as cinder_client
 from cinderclient import exceptions as cinder_exceptions
-import keystoneclient.v2_0.client as keystone_client
+import keystoneclient.v3.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
-import novaclient.v1_1.client as nova_client
+import novaclient.v2.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
 import cloudify
 from cloudify import context
 from cloudify.exceptions import NonRecoverableError, RecoverableError
+
+INFINITE_RESOURCE_QUOTA = -1
 
 # properties
 USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
@@ -262,7 +264,8 @@ def validate_resource(ctx, sugared_client, openstack_type,
         resource_amount = len(resource_list)
 
         resource_quota = sugared_client.get_quota(openstack_type)
-        if resource_amount < resource_quota:
+        if resource_amount < resource_quota \
+                or resource_quota == INFINITE_RESOURCE_QUOTA:
             ctx.logger.debug(
                 'OK: {0} (node {1}) can be created. provisioned {2}: {3}, '
                 'quota: {4}'

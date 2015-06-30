@@ -1,16 +1,25 @@
 
-tosca_definitions_version: cloudify_dsl_1_0
+tosca_definitions_version: cloudify_dsl_1_1
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/3.2rc1/types.yaml
+  - http://www.getcloudify.org/spec/cloudify/3.3m2/types.yaml
   - plugin.yaml
+
+inputs:
+  use_password:
+    type: boolean
+    default: false
 
 node_templates:
   server:
     type: cloudify.openstack.nodes.Server
     properties:
       install_agent: false
-      server: {}
+      use_password: { get_input: use_password }
+      server:
+        key_name: key
+        scheduler_hints:
+          group: affinity-group-id
       openstack_config:
         username: aaa
         password: aaa

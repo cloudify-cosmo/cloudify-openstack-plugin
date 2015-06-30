@@ -48,7 +48,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 @operation
 @with_neutron_client
-def create(neutron_client, **kwargs):
+def create(neutron_client, args, **kwargs):
 
     if use_external_resource(ctx, neutron_client, ROUTER_OPENSTACK_TYPE):
         try:
@@ -75,7 +75,7 @@ def create(neutron_client, **kwargs):
     router = {
         'name': get_resource_id(ctx, ROUTER_OPENSTACK_TYPE),
     }
-    router.update(ctx.node.properties['router'])
+    router.update(ctx.node.properties['router'], **args)
     transform_resource_name(ctx, router)
 
     _handle_external_network_config(router, neutron_client)

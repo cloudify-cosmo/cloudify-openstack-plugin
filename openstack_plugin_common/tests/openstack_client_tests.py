@@ -18,8 +18,10 @@ import unittest
 import tempfile
 import json
 
-from mock import MagicMock
+import mock
+from cloudify.exceptions import NonRecoverableError
 
+from cloudify.mocks import MockCloudifyContext
 import openstack_plugin_common as common
 
 
@@ -140,12 +142,53 @@ class OpenstackClientsTests(unittest.TestCase):
         self.assertEquals('file-tenant-name', keys_params['tenant_name'])
         self.assertEquals('envar-auth-url', keys_params['auth_url'])
 
+    def test_input_config_override(self):
+
+        def perform_test(ctx, openstack_args, key, expected):
+            class ClientClassMock(common.OpenStackClient):
+                result_config = None
+
+                def get(self, config, **kwargs):
+                    ClientClassMock.result_config = config
+                    return mock.MagicMock()
+
+            kwargs = {'ctx': ctx}
+            if openstack_args:
+                kwargs['openstack_config'] = openstack_args
+            common._put_client_in_kw('mock_client', ClientClassMock, kwargs)
+            self.assertEquals(expected,
+                              ClientClassMock.result_config.get(key, None))
+
+        node_context = MockCloudifyContext(node_id='a20846', properties={})
+
+        perform_test(node_context, {'ignored_prop': 'ignored-prop'},
+                     'prop', None)
+        perform_test(node_context, {'prop': 'input-property'},
+                     'prop', 'input-property')
+
+        node_context = MockCloudifyContext(node_id='a20847',
+                                           properties={
+                                               'openstack_config': {
+                                                   'prop': 'context-property'
+                                               }
+                                           }
+                                           )
+        perform_test(node_context, None, 'prop', 'context-property')
+        perform_test(node_context, {'prop': 'input-property'},
+                     'prop', 'input-property')
+
+        # Making sure that _put_client_in_kw will not modify
+        # 'openstack_config' property of a node.
+        self.assertEquals('context-property',
+                          node_context.node.properties.get(
+                              'openstack_config').get('prop'))
+
     def _create_clients(self, envars_cfg, file_cfg, inputs_cfg):
         client_init_args = []
 
         def client_mock(**kwargs):
             client_init_args.append(kwargs)
-            return MagicMock()
+            return mock.MagicMock()
 
         orig_nova_client = common.NovaClientWithSugar
         orig_neut_client = common.NeutronClientWithSugar
@@ -179,3 +222,39 @@ class OpenstackClientsTests(unittest.TestCase):
             common.NeutronClientWithSugar = orig_neut_client
             common.CinderClientWithSugar = orig_cind_client
             common.keystone_client.Client = orig_keys_client
+
+
+class ResourceQuotaTests(unittest.TestCase):
+
+    def _test_quota_validation(self, amount, quota, failure_expected):
+        ctx = MockCloudifyContext(node_id='node_id', properties={})
+        client = mock.MagicMock()
+
+        def mock_cosmo_list(_):
+            return [x for x in range(0, amount)]
+        client.cosmo_list = mock_cosmo_list
+
+        def mock_get_quota(_):
+            return quota
+        client.get_quota = mock_get_quota
+
+        if failure_expected:
+            self.assertRaisesRegexp(
+                NonRecoverableError,
+                'cannot be created due to quota limitations',
+                common.validate_resource,
+                ctx=ctx, sugared_client=client,
+                openstack_type='openstack_type')
+        else:
+            common.validate_resource(
+                ctx=ctx, sugared_client=client,
+                openstack_type='openstack_type')
+
+    def test_equals_quotas(self):
+        self._test_quota_validation(3, 3, True)
+
+    def test_exceeded_quota(self):
+        self._test_quota_validation(5, 3, True)
+
+    def test_infinite_quota(self):
+        self._test_quota_validation(5, -1, False)

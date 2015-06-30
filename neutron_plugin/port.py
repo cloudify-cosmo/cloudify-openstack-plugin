@@ -48,7 +48,7 @@ RUNTIME_PROPERTIES_KEYS = \
 
 @operation
 @with_neutron_client
-def create(neutron_client, **kwargs):
+def create(neutron_client, args, **kwargs):
 
     ext_port = use_external_resource(ctx, neutron_client, PORT_OPENSTACK_TYPE)
     if ext_port:
@@ -84,7 +84,7 @@ def create(neutron_client, **kwargs):
     }
 
     _handle_fixed_ips(port)
-    port.update(ctx.node.properties['port'])
+    port.update(ctx.node.properties['port'], **args)
     transform_resource_name(ctx, port)
 
     p = neutron_client.create_port({'port': port})['port']

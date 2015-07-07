@@ -17,7 +17,6 @@ from functools import wraps
 import json
 import os
 import sys
-import warnings
 
 from IPy import IP
 from cinderclient.v1 import client as cinder_client
@@ -31,8 +30,6 @@ import novaclient.exceptions as nova_exceptions
 import cloudify
 from cloudify import context
 from cloudify.exceptions import NonRecoverableError, RecoverableError
-
-warnings.simplefilter('once')
 
 INFINITE_RESOURCE_QUOTA = -1
 

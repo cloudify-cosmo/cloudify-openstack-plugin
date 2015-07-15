@@ -31,6 +31,8 @@ from cosmo_tester.framework.handlers import (
 from cosmo_tester.framework.util import get_actual_keypath
 
 DEFAULT_SECURITY_GROUP_NAME = 'default'
+DEFAULT_EXTERNAL_NETWORK_NAME = 'Ext-Net'
+DEFAULT_SYSTEM_KEYPAIR_NAME = 'shared-systemt-tests-key'
 
 logging.getLogger('neutronclient.client').setLevel(logging.INFO)
 logging.getLogger('novaclient.client').setLevel(logging.INFO)
@@ -62,26 +64,31 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
 
     @classmethod
     def clean_all(cls, env):
-        # TODO: is this call to super method really required?
         super(OpenstackCleanupContext, cls).clean_all(env)
         resources_to_teardown = cls.get_resources_to_teardown(env)
         cls.logger.info('Openstack handler performing clean_all: will try '
-                        'removing these  resources: {0}'
+                        'removing these resources: {0}'
                         .format(resources_to_teardown))
-        leftovers = env.handler.remove_openstack_resources(
+        failed_to_remove = env.handler.remove_openstack_resources(
             resources_to_teardown)
-        cls.logger.info('[Openstack handler Leftover resources after '
-                        'clean_all: {0}'
-                        .format(leftovers))
+        if failed_to_remove:
+            trimmed_dict = {key: value for key, value in
+                            failed_to_remove.iteritems()
+                            if value}
+            if len(trimmed_dict) > 0:
+                msg = 'Openstack handler failed to remove some resources during ' \
+                      'clean_all: {0}'.format(trimmed_dict)
+                cls.logger.error(msg)
+                raise RuntimeError(msg)
 
-    @staticmethod
-    def get_resources_to_teardown(env, resources_to_keep=None):
+    @classmethod
+    def get_resources_to_teardown(cls, env, resources_to_keep=None):
         existing_resources = env.handler.openstack_infra_state()
-        return OpenstackCleanupContext.filter_out_resources(
+        return cls.filter_out_resources(
             existing_resources, resources_to_keep)
 
-    @staticmethod
-    def filter_out_resources(resources_by_type, resources_to_filter):
+    @classmethod
+    def filter_out_resources(cls, resources_by_type, resources_to_filter):
         if not resources_to_filter:
             return resources_by_type
 
@@ -313,7 +320,6 @@ class OpenstackHandler(BaseHandler):
         return resources_to_remove
 
     def _remove_openstack_resources_impl(self, resources_to_remove):
-        config = self.env._config_reader
         nova, neutron, cinder = self.openstack_clients()
 
         servers = nova.servers.list()
@@ -359,20 +365,27 @@ class OpenstackHandler(BaseHandler):
             if subnet['id'] in resources_to_remove['subnets']:
                 with self._handled_exception(subnet['id'], failed, 'subnets'):
                     neutron.delete_subnet(subnet['id'])
+
+        external_network_name = self.env.external_network_name or DEFAULT_EXTERNAL_NETWORK_NAME
         for network in networks:
-            if network['name'] == self.env.external_network_name:
+            if network['name'] == external_network_name:
                 continue
             if network['id'] in resources_to_remove['networks']:
                 with self._handled_exception(network['id'], failed,
                                              'networks'):
                     neutron.delete_network(network['id'])
+
+        agent_keypair_name = self.env.agent_keypair_name or \
+            DEFAULT_SYSTEM_KEYPAIR_NAME
+        management_keypair_name = self.env.management_keypair_name or \
+            DEFAULT_SYSTEM_KEYPAIR_NAME
         for key_pair in keypairs:
-            if key_pair.name == config.agent_keypair_name and \
-                    config.use_existing_agent_keypair:
+            if key_pair.name == agent_keypair_name and \
+                    self.env.use_existing_agent_keypair:
                     # this is a pre-existing agent key-pair, do not remove
                     continue
-            elif key_pair.name == config.management_keypair_name and \
-                    config.use_existing_manager_keypair:
+            elif key_pair.name == management_keypair_name and \
+                    self.env.use_existing_manager_keypair:
                     # this is a pre-existing manager key-pair, do not remove
                     continue
             elif key_pair.id in resources_to_remove['key_pairs']:

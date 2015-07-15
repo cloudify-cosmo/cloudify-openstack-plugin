@@ -30,10 +30,6 @@ from cosmo_tester.framework.handlers import (
     BaseCloudifyInputsConfigReader)
 from cosmo_tester.framework.util import get_actual_keypath
 
-DEFAULT_SECURITY_GROUP_NAME = 'default'
-DEFAULT_EXTERNAL_NETWORK_NAME = 'Ext-Net'
-DEFAULT_SYSTEM_KEYPAIR_NAME = 'shared-systemt-tests-key'
-
 logging.getLogger('neutronclient.client').setLevel(logging.INFO)
 logging.getLogger('novaclient.client').setLevel(logging.INFO)
 
@@ -57,10 +53,17 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
         self.logger.info('[{0}] Performing cleanup: will try removing these '
                          'resources: {1}'
                          .format(self.context_name, resources_to_teardown))
-        leftovers = self.env.handler.remove_openstack_resources(
+        failed_to_remove = self.env.handler.remove_openstack_resources(
             resources_to_teardown)
-        self.logger.info('[{0}] Leftover resources after cleanup: {1}'
-                         .format(self.context_name, leftovers))
+        if failed_to_remove:
+            trimmed_dict = {key: value for key, value in
+                            failed_to_remove.iteritems()
+                            if value}
+            if len(trimmed_dict) > 0:
+                msg = '[{0}] Leftover resources after cleanup: {1}'\
+                    .format(self.context_name, failed_to_remove)
+                self.logger.error(msg)
+                raise RuntimeError(msg)
 
     @classmethod
     def clean_all(cls, env):
@@ -83,34 +86,12 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
 
     @classmethod
     def get_resources_to_teardown(cls, env, resources_to_keep=None):
-        existing_resources = env.handler.openstack_infra_state()
-        return cls.filter_out_resources(
-            existing_resources, resources_to_keep)
-
-    @classmethod
-    def filter_out_resources(cls, resources_by_type, resources_to_filter):
-        if not resources_to_filter:
-            return resources_by_type
-
-        for resource_type, resources_to_filter_of_type in \
-                resources_to_filter.iteritems():
-            existing_resources_of_type = resources_by_type.get(resource_type)
-            if existing_resources_of_type:
-                # remove by key (resource id) or by value (resource name)
-                for resource_id, resource_name in \
-                        resources_to_filter_of_type.iteritems():
-                    if resource_id and resource_id in \
-                            existing_resources_of_type.keys():
-                        del existing_resources_of_type[resource_id]
-                    elif resource_name and resource_name in \
-                            existing_resources_of_type.values():
-                        # didn't remove by key (resource id), try to remove
-                        # by value (resource name)
-                        for k, v in existing_resources_of_type.iteritems():
-                            if v == resource_name:
-                                del existing_resources_of_type[k]
-
-        return resources_by_type
+        all_existing_resources = env.handler.openstack_infra_state()
+        if resources_to_keep:
+            return env.handler.openstack_infra_state_delta(
+                before=resources_to_keep, after=all_existing_resources)
+        else:
+            return all_existing_resources
 
     def update_server_id(self, server_name):
 
@@ -302,7 +283,7 @@ class OpenstackHandler(BaseHandler):
         after = copy.deepcopy(after)
         return {
             prop: self._remove_keys(after[prop], before[prop].keys())
-            for prop in before.keys()
+            for prop in before
         }
 
     def remove_openstack_resources(self, resources_to_remove):
@@ -366,26 +347,20 @@ class OpenstackHandler(BaseHandler):
                 with self._handled_exception(subnet['id'], failed, 'subnets'):
                     neutron.delete_subnet(subnet['id'])
 
-        external_network_name = self.env.external_network_name or \
-            DEFAULT_EXTERNAL_NETWORK_NAME
         for network in networks:
-            if network['name'] == external_network_name:
+            if network['name'] == self.env.external_network_name:
                 continue
             if network['id'] in resources_to_remove['networks']:
                 with self._handled_exception(network['id'], failed,
                                              'networks'):
                     neutron.delete_network(network['id'])
 
-        agent_keypair_name = self.env.agent_keypair_name or \
-            DEFAULT_SYSTEM_KEYPAIR_NAME
-        management_keypair_name = self.env.management_keypair_name or \
-            DEFAULT_SYSTEM_KEYPAIR_NAME
         for key_pair in keypairs:
-            if key_pair.name == agent_keypair_name and \
+            if key_pair.name == self.env.agent_keypair_name and \
                     self.env.use_existing_agent_keypair:
                     # this is a pre-existing agent key-pair, do not remove
                     continue
-            elif key_pair.name == management_keypair_name and \
+            elif key_pair.name == self.env.management_keypair_name and \
                     self.env.use_existing_manager_keypair:
                     # this is a pre-existing manager key-pair, do not remove
                     continue
@@ -398,7 +373,7 @@ class OpenstackHandler(BaseHandler):
                                              'floatingips'):
                     neutron.delete_floatingip(floatingip['id'])
         for security_group in security_groups:
-            if security_group['name'] == DEFAULT_SECURITY_GROUP_NAME:
+            if security_group['name'] == 'default':
                 continue
             if security_group['id'] in resources_to_remove['security_groups']:
                 with self._handled_exception(security_group['id'],

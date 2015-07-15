@@ -76,8 +76,8 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
                             failed_to_remove.iteritems()
                             if value}
             if len(trimmed_dict) > 0:
-                msg = 'Openstack handler failed to remove some resources during ' \
-                      'clean_all: {0}'.format(trimmed_dict)
+                msg = 'Openstack handler failed to remove some resources' \
+                      ' during clean_all: {0}'.format(trimmed_dict)
                 cls.logger.error(msg)
                 raise RuntimeError(msg)
 
@@ -366,7 +366,8 @@ class OpenstackHandler(BaseHandler):
                 with self._handled_exception(subnet['id'], failed, 'subnets'):
                     neutron.delete_subnet(subnet['id'])
 
-        external_network_name = self.env.external_network_name or DEFAULT_EXTERNAL_NETWORK_NAME
+        external_network_name = self.env.external_network_name or \
+            DEFAULT_EXTERNAL_NETWORK_NAME
         for network in networks:
             if network['name'] == external_network_name:
                 continue

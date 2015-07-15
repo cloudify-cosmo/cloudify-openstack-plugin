@@ -90,11 +90,15 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
             existing_resources_of_type = resources_by_type.get(resource_type)
             if existing_resources_of_type:
                 # remove by key (resource id) or by value (resource name)
-                for resource_id, resource_name in resources_to_filter_of_type.iteritems():
-                    if resource_id and resource_id in existing_resources_of_type.keys():
+                for resource_id, resource_name in \
+                        resources_to_filter_of_type.iteritems():
+                    if resource_id and resource_id in \
+                            existing_resources_of_type.keys():
                         del existing_resources_of_type[resource_id]
-                    elif resource_name and resource_name in existing_resources_of_type.values():
-                        # didn't remove by key (resource id), try to remove by value (resource name)
+                    elif resource_name and resource_name in \
+                            existing_resources_of_type.values():
+                        # didn't remove by key (resource id), try to remove
+                        # by value (resource name)
                         for k, v in existing_resources_of_type.iteritems():
                             if v == resource_name:
                                 del existing_resources_of_type[k]

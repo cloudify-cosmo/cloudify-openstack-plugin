@@ -30,7 +30,6 @@ from cosmo_tester.framework.handlers import (
     BaseCloudifyInputsConfigReader)
 from cosmo_tester.framework.util import get_actual_keypath
 
-
 logging.getLogger('neutronclient.client').setLevel(logging.INFO)
 logging.getLogger('novaclient.client').setLevel(logging.INFO)
 
@@ -43,24 +42,57 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
 
     def cleanup(self):
         super(OpenstackCleanupContext, self).cleanup()
-        resources_to_teardown = self.get_resources_to_teardown()
+        resources_to_teardown = self.get_resources_to_teardown(
+            self.env, resources_to_keep=self.before_run)
+
         if self.skip_cleanup:
             self.logger.warn('[{0}] SKIPPING cleanup: of the resources: {1}'
                              .format(self.context_name, resources_to_teardown))
             return
+
         self.logger.info('[{0}] Performing cleanup: will try removing these '
                          'resources: {1}'
                          .format(self.context_name, resources_to_teardown))
-
-        leftovers = self.env.handler.remove_openstack_resources(
+        failed_to_remove = self.env.handler.remove_openstack_resources(
             resources_to_teardown)
-        self.logger.info('[{0}] Leftover resources after cleanup: {1}'
-                         .format(self.context_name, leftovers))
+        if failed_to_remove:
+            trimmed_dict = {key: value for key, value in
+                            failed_to_remove.iteritems()
+                            if value}
+            if len(trimmed_dict) > 0:
+                msg = '[{0}] failed to remove some resources during ' \
+                      'cleanup: {1}'\
+                    .format(self.context_name, failed_to_remove)
+                self.logger.error(msg)
+                raise RuntimeError(msg)
 
-    def get_resources_to_teardown(self):
-        current_state = self.env.handler.openstack_infra_state()
-        return self.env.handler.openstack_infra_state_delta(
-            before=self.before_run, after=current_state)
+    @classmethod
+    def clean_all(cls, env):
+        super(OpenstackCleanupContext, cls).clean_all(env)
+        resources_to_teardown = cls.get_resources_to_teardown(env)
+        cls.logger.info('Openstack handler performing clean_all: will try '
+                        'removing these resources: {0}'
+                        .format(resources_to_teardown))
+        failed_to_remove = env.handler.remove_openstack_resources(
+            resources_to_teardown)
+        if failed_to_remove:
+            trimmed_dict = {key: value for key, value in
+                            failed_to_remove.iteritems()
+                            if value}
+            if len(trimmed_dict) > 0:
+                msg = 'Openstack handler failed to remove some resources' \
+                      ' during clean_all: {0}'.format(trimmed_dict)
+                cls.logger.error(msg)
+                raise RuntimeError(msg)
+
+    @classmethod
+    def get_resources_to_teardown(cls, env, resources_to_keep=None):
+        all_existing_resources = env.handler.openstack_infra_state()
+        if resources_to_keep:
+            return env.handler.openstack_infra_state_delta(
+                before=resources_to_keep, after=all_existing_resources)
+        else:
+            return all_existing_resources
 
     def update_server_id(self, server_name):
 
@@ -126,6 +158,14 @@ class CloudifyOpenstackInputsConfigReader(BaseCloudifyInputsConfigReader):
     @property
     def management_keypair_name(self):
         return self.config['manager_public_key_name']
+
+    @property
+    def use_existing_agent_keypair(self):
+        return self.config['use_existing_agent_keypair']
+
+    @property
+    def use_existing_manager_keypair(self):
+        return self.config['use_existing_manager_keypair']
 
     @property
     def external_network_name(self):
@@ -244,7 +284,7 @@ class OpenstackHandler(BaseHandler):
         after = copy.deepcopy(after)
         return {
             prop: self._remove_keys(after[prop], before[prop].keys())
-            for prop in before.keys()
+            for prop in before
         }
 
     def remove_openstack_resources(self, resources_to_remove):
@@ -307,6 +347,7 @@ class OpenstackHandler(BaseHandler):
             if subnet['id'] in resources_to_remove['subnets']:
                 with self._handled_exception(subnet['id'], failed, 'subnets'):
                     neutron.delete_subnet(subnet['id'])
+
         for network in networks:
             if network['name'] == self.env.external_network_name:
                 continue
@@ -314,8 +355,17 @@ class OpenstackHandler(BaseHandler):
                 with self._handled_exception(network['id'], failed,
                                              'networks'):
                     neutron.delete_network(network['id'])
+
         for key_pair in keypairs:
-            if key_pair.id in resources_to_remove['key_pairs']:
+            if key_pair.name == self.env.agent_keypair_name and \
+                    self.env.use_existing_agent_keypair:
+                    # this is a pre-existing agent key-pair, do not remove
+                    continue
+            elif key_pair.name == self.env.management_keypair_name and \
+                    self.env.use_existing_manager_keypair:
+                    # this is a pre-existing manager key-pair, do not remove
+                    continue
+            elif key_pair.id in resources_to_remove['key_pairs']:
                 with self._handled_exception(key_pair.id, failed, 'key_pairs'):
                     nova.keypairs.delete(key_pair)
         for floatingip in floatingips:

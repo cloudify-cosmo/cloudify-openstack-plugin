@@ -13,7 +13,7 @@
 #    * See the License for the specific language governing permissions and
 #    * limitations under the License.
 
-import novaclient.v1_1.client as nvclient
+import novaclient.v2.client as nvclient
 
 from system_tests.openstack_handler import OpenstackHandler
 

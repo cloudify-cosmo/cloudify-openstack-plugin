@@ -60,7 +60,8 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
                             failed_to_remove.iteritems()
                             if value}
             if len(trimmed_dict) > 0:
-                msg = '[{0}] Leftover resources after cleanup: {1}'\
+                msg = '[{0}] failed to remove some resources during ' \
+                      'cleanup: {1}'\
                     .format(self.context_name, failed_to_remove)
                 self.logger.error(msg)
                 raise RuntimeError(msg)

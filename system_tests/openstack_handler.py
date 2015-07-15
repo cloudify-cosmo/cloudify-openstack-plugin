@@ -30,6 +30,7 @@ from cosmo_tester.framework.handlers import (
     BaseCloudifyInputsConfigReader)
 from cosmo_tester.framework.util import get_actual_keypath
 
+DEFAULT_SECURITY_GROUP_NAME = 'default'
 
 logging.getLogger('neutronclient.client').setLevel(logging.INFO)
 logging.getLogger('novaclient.client').setLevel(logging.INFO)
@@ -43,24 +44,62 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
 
     def cleanup(self):
         super(OpenstackCleanupContext, self).cleanup()
-        resources_to_teardown = self.get_resources_to_teardown()
+        resources_to_teardown = self.get_resources_to_teardown(
+            self.env, resources_to_keep=self.before_run)
+
         if self.skip_cleanup:
             self.logger.warn('[{0}] SKIPPING cleanup: of the resources: {1}'
                              .format(self.context_name, resources_to_teardown))
             return
+
         self.logger.info('[{0}] Performing cleanup: will try removing these '
                          'resources: {1}'
                          .format(self.context_name, resources_to_teardown))
-
         leftovers = self.env.handler.remove_openstack_resources(
             resources_to_teardown)
         self.logger.info('[{0}] Leftover resources after cleanup: {1}'
                          .format(self.context_name, leftovers))
 
-    def get_resources_to_teardown(self):
-        current_state = self.env.handler.openstack_infra_state()
-        return self.env.handler.openstack_infra_state_delta(
-            before=self.before_run, after=current_state)
+    @classmethod
+    def clean_all(cls, env):
+        # TODO: is this call to super method really required?
+        super(OpenstackCleanupContext, cls).clean_all(env)
+        resources_to_teardown = cls.get_resources_to_teardown(env)
+        cls.logger.info('Openstack handler performing clean_all: will try '
+                        'removing these  resources: {0}'
+                        .format(resources_to_teardown))
+        leftovers = env.handler.remove_openstack_resources(
+            resources_to_teardown)
+        cls.logger.info('[Openstack handler Leftover resources after '
+                        'clean_all: {0}'
+                        .format(leftovers))
+
+    @staticmethod
+    def get_resources_to_teardown(env, resources_to_keep=None):
+        existing_resources = env.handler.openstack_infra_state()
+        return OpenstackCleanupContext.filter_out_resources(
+            existing_resources, resources_to_keep)
+
+    @staticmethod
+    def filter_out_resources(resources_by_type, resources_to_filter):
+        if not resources_to_filter:
+            return resources_by_type
+
+        for resource_type, resources_to_filter_of_type in \
+                resources_to_filter.iteritems():
+            existing_resources_of_type = resources_by_type.get(resource_type)
+            if existing_resources_of_type:
+                # remove by key (resource id) or by value (resource name)
+                for resource_id, resource_name in resources_to_filter_of_type.iteritems():
+                    if resource_id and resource_id in existing_resources_of_type.keys():
+                        del existing_resources_of_type[resource_id]
+                    elif resource_name and resource_name in existing_resources_of_type.values():
+                        # didn't remove by key (resource id), try to remove by value (resource name)
+                        for k, v in existing_resources_of_type.iteritems():
+                            if v == resource_name:
+                                del existing_resources_of_type[k]
+
+        return resources_by_type
 
     def update_server_id(self, server_name):
 
@@ -126,6 +165,14 @@ class CloudifyOpenstackInputsConfigReader(BaseCloudifyInputsConfigReader):
     @property
     def management_keypair_name(self):
         return self.config['manager_public_key_name']
+
+    @property
+    def use_existing_agent_keypair(self):
+        return self.config['use_existing_agent_keypair']
+
+    @property
+    def use_existing_manager_keypair(self):
+        return self.config['use_existing_manager_keypair']
 
     @property
     def external_network_name(self):
@@ -262,6 +309,7 @@ class OpenstackHandler(BaseHandler):
         return resources_to_remove
 
     def _remove_openstack_resources_impl(self, resources_to_remove):
+        config = self.env._config_reader
         nova, neutron, cinder = self.openstack_clients()
 
         servers = nova.servers.list()
@@ -315,7 +363,15 @@ class OpenstackHandler(BaseHandler):
                                              'networks'):
                     neutron.delete_network(network['id'])
         for key_pair in keypairs:
-            if key_pair.id in resources_to_remove['key_pairs']:
+            if key_pair.name == config.agent_keypair_name and \
+                    config.use_existing_agent_keypair:
+                    # this is a pre-existing agent key-pair, do not remove
+                    continue
+            elif key_pair.name == config.management_keypair_name and \
+                    config.use_existing_manager_keypair:
+                    # this is a pre-existing manager key-pair, do not remove
+                    continue
+            elif key_pair.id in resources_to_remove['key_pairs']:
                 with self._handled_exception(key_pair.id, failed, 'key_pairs'):
                     nova.keypairs.delete(key_pair)
         for floatingip in floatingips:
@@ -324,7 +380,7 @@ class OpenstackHandler(BaseHandler):
                                              'floatingips'):
                     neutron.delete_floatingip(floatingip['id'])
         for security_group in security_groups:
-            if security_group['name'] == 'default':
+            if security_group['name'] == DEFAULT_SECURITY_GROUP_NAME:
                 continue
             if security_group['id'] in resources_to_remove['security_groups']:
                 with self._handled_exception(security_group['id'],

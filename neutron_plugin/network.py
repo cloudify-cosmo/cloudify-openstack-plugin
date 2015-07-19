@@ -38,7 +38,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 @operation
 @with_neutron_client
-def create(neutron_client, **kwargs):
+def create(neutron_client, args, **kwargs):
 
     if use_external_resource(ctx, neutron_client, NETWORK_OPENSTACK_TYPE):
         return
@@ -47,7 +47,7 @@ def create(neutron_client, **kwargs):
         'admin_state_up': True,
         'name': get_resource_id(ctx, NETWORK_OPENSTACK_TYPE),
     }
-    network.update(ctx.node.properties['network'])
+    network.update(ctx.node.properties['network'], **args)
     transform_resource_name(ctx, network)
 
     net = neutron_client.create_network({'network': network})['network']

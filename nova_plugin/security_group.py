@@ -33,9 +33,9 @@ from openstack_plugin_common.security_group import (
 
 @operation
 @with_nova_client
-def create(nova_client, **kwargs):
+def create(nova_client, args, **kwargs):
 
-    security_group = build_sg_data()
+    security_group = build_sg_data(args)
     security_group['description'] = ctx.node.properties['description']
 
     sgr_default_values = {

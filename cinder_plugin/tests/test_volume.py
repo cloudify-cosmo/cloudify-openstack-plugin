@@ -61,7 +61,7 @@ class TestCinderVolume(unittest.TestCase):
         ctx_m = cfy_mocks.MockCloudifyContext(node_id='a',
                                               properties=volume_properties)
 
-        volume.create(cinder_client=cinder_client_m, ctx=ctx_m)
+        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m)
 
         cinder_client_m.volumes.create.assert_called_once_with(
             size=volume_size,
@@ -96,7 +96,7 @@ class TestCinderVolume(unittest.TestCase):
         ctx_m = cfy_mocks.MockCloudifyContext(node_id='a',
                                               properties=volume_properties)
 
-        volume.create(cinder_client=cinder_client_m, ctx=ctx_m)
+        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m)
 
         self.assertFalse(cinder_client_m.volumes.create.called)
         self.assertEqual(

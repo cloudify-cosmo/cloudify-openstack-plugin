@@ -19,11 +19,10 @@ import tempfile
 import json
 
 import mock
+
+import openstack_plugin_common as common
 from cloudify.exceptions import NonRecoverableError
 from cloudify.mocks import MockCloudifyContext
-
-from cloudify.mocks import MockCloudifyContext
-import openstack_plugin_common as common
 
 
 class OpenstackClientsTests(unittest.TestCase):
@@ -151,7 +150,7 @@ class OpenstackClientsTests(unittest.TestCase):
 
                 def get(self, config, **kwargs):
                     ClientClassMock.result_config = config
-                    return MagicMock()
+                    return mock.MagicMock()
 
             kwargs = {'ctx': ctx}
             if openstack_args:

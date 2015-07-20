@@ -56,13 +56,13 @@ node_types:
         default: true
     interfaces:
       cloudify.interfaces.worker_installer:
-        install: windows_agent_installer.windows_agent_installer.tasks.install
-        start: windows_agent_installer.windows_agent_installer.tasks.start
-        stop: windows_agent_installer.windows_agent_installer.tasks.stop
-        uninstall: windows_agent_installer.windows_agent_installer.tasks.uninstall
-        restart: windows_agent_installer.windows_agent_installer.tasks.restart
+        install: agent.windows_agent_installer.tasks.install
+        start: agent.windows_agent_installer.tasks.start
+        stop: agent.windows_agent_installer.tasks.stop
+        uninstall: agent.windows_agent_installer.tasks.uninstall
+        restart: agent.windows_agent_installer.tasks.restart
       cloudify.interfaces.plugin_installer:
-        install: windows_plugin_installer.windows_plugin_installer.tasks.install
+        install: agent.windows_plugin_installer.tasks.install
 
   cloudify.openstack.nodes.KeyPair:
     derived_from: cloudify.nodes.Root

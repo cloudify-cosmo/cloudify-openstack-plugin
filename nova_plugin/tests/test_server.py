@@ -29,7 +29,9 @@ import nova_plugin
 
 IGNORED_LOCAL_WORKFLOW_MODULES = (
     'worker_installer.tasks',
-    'plugin_installer.tasks'
+    'plugin_installer.tasks',
+    'cloudify_agent.operations',
+    'cloudify_agent.installer.operations',
 )
 
 

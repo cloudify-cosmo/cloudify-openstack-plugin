@@ -7,16 +7,16 @@ imports:
 
 inputs:
   use_password:
-    default: false
     type: boolean
+    default: false
 
 node_templates:
   server:
     type: cloudify.openstack.nodes.Server
     properties:
       install_agent: false
+      use_password: { get_input: use_password }
       server:
-        use_password: { get_input: use_password}
         key_name: key
         scheduler_hints:
           group: affinity-group-id

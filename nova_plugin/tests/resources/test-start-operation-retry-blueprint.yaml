@@ -5,12 +5,18 @@ imports:
   - http://www.getcloudify.org/spec/cloudify/3.3m2/types.yaml
   - plugin.yaml
 
+inputs:
+  use_password:
+    default: false
+    type: boolean
+
 node_templates:
   server:
     type: cloudify.openstack.nodes.Server
     properties:
       install_agent: false
       server:
+        use_password: { get_input: use_password}
         key_name: key
         scheduler_hints:
           group: affinity-group-id

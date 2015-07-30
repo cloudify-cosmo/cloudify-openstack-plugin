@@ -75,6 +75,8 @@ ADMIN_PASSWORD_PROPERTY = 'password'  # the server's password
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
     [NETWORKS_PROPERTY, IP_PROPERTY, ADMIN_PASSWORD_PROPERTY]
 
+BOOT_VOLUME = 'boot_volume'
+
 
 @operation
 @with_nova_client
@@ -122,6 +124,7 @@ def create(nova_client, neutron_client, **kwargs):
     server = {
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
+
     server.update(copy.deepcopy(ctx.node.properties['server']))
     transform_resource_name(ctx, server)
 
@@ -150,7 +153,7 @@ def create(nova_client, neutron_client, **kwargs):
         server['nics'] = \
             server.get('nics', []) + [{'net-id': management_network_id}]
 
-    _handle_image_or_flavor(server, nova_client, 'image')
+    #_handle_image_or_flavor(server, nova_client, 'image')
     _handle_image_or_flavor(server, nova_client, 'flavor')
 
     if provider_context.agents_security_group:
@@ -255,7 +258,9 @@ def create(nova_client, neutron_client, **kwargs):
     if management_network_name is not None:
         params['meta']['cloudify_management_network_name'] = \
             management_network_name
-
+    boot_volume = ctx.instance.runtime_properties.get(BOOT_VOLUME)
+    if boot_volume:
+        params['block_device_mapping'] = {'vda': '{0}:::0'.format(boot_volume)}
     ctx.logger.info("Creating VM with parameters: {0}".format(str(params)))
     ctx.logger.debug(
         "Asking Nova to create server. All possible parameters are: {0})"
@@ -518,6 +523,12 @@ def disconnect_security_group(nova_client, **kwargs):
                                                           security_group_id,
                                                           security_group_name,
                                                           is_connected=False)
+
+
+@operation
+def add_bootable_volume(**kwargs):
+    volume_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    ctx.source.instance.runtime_properties[BOOT_VOLUME] = volume_id
 
 
 @operation

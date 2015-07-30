@@ -61,7 +61,8 @@ def create(cinder_client, **kwargs):
     volume_dict.update(ctx.node.properties['volume'])
     volume_dict['display_name'] = transform_resource_name(
         ctx, volume_dict['display_name'])
-
+    ctx.logger.info('Volume created with parameters: {0}'
+                    .format(str(volume_dict)))
     v = cinder_client.volumes.create(**volume_dict)
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = v.id

@@ -29,7 +29,7 @@ class TestServer(unittest.TestCase):
 
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
-    @workflow_test(blueprint_path, plugin_auto_copy=True)
+    @workflow_test(blueprint_path, copy_plugin_yaml=True)
     def test_nova_server_lifecycle_start(self, cfy_local, *_):
 
         test_vars = {
@@ -53,7 +53,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(2, test_vars['counter'])
         self.assertEqual(0, test_vars['server'].start.call_count)
 
-    @workflow_test(blueprint_path, plugin_auto_copy=True)
+    @workflow_test(blueprint_path, copy_plugin_yaml=True)
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
     def test_nova_server_lifecycle_start_after_stop(self, cfy_local, *_):
@@ -84,7 +84,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(1, test_vars['server'].start.call_count)
         self.assertEqual(3, test_vars['counter'])
 
-    @workflow_test(blueprint_path, plugin_auto_copy=True)
+    @workflow_test(blueprint_path, copy_plugin_yaml=True)
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
     def test_nova_server_lifecycle_start_unknown_status(self, cfy_local, *_):
@@ -111,7 +111,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(0, test_vars['server'].start.call_count)
         self.assertEqual(1, test_vars['counter'])
 
-    @workflow_test(blueprint_path, plugin_auto_copy=True)
+    @workflow_test(blueprint_path, copy_plugin_yaml=True)
     @mock.patch('nova_plugin.server.start')
     @mock.patch('nova_plugin.server._handle_image_or_flavor')
     @mock.patch('nova_plugin.server._fail_on_missing_required_parameters')
@@ -131,7 +131,7 @@ class TestServer(unittest.TestCase):
                         'ServerManager.create', new=mock_create_server):
             cfy_local.execute('install', task_retries=0)
 
-    @workflow_test(blueprint_path, plugin_auto_copy=True,
+    @workflow_test(blueprint_path, copy_plugin_yaml=True,
                    inputs={'use_password': True})
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')

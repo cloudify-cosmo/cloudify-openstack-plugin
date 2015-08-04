@@ -131,14 +131,13 @@ class TestServer(unittest.TestCase):
                         'ServerManager.create', new=mock_create_server):
             cfy_local.execute('install', task_retries=0)
 
-
     @workflow_test(blueprint_path, plugin_auto_copy=True,
                    init_args={
                        'inputs': {
                            'use_password': True
                        }
                    }
-    )
+                   )
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
     @mock.patch(

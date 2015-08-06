@@ -14,6 +14,7 @@
 #  * limitations under the License.
 
 from os import path
+import tempfile
 
 import unittest
 import mock
@@ -138,7 +139,6 @@ class TestServer(unittest.TestCase):
     @mock.patch(
         'nova_plugin.server.get_single_connected_node_by_openstack_type',
         autospec=True, return_value=None)
-    @mock.patch('os.path.isfile', autospec=True, return_value=True)
     def test_nova_server_with_use_password(self, cfy_local, *_):
 
         test_vars = {
@@ -146,7 +146,8 @@ class TestServer(unittest.TestCase):
             'server': mock.MagicMock()
         }
 
-        key_path = 'some_private_key_path'
+        tmp_path = tempfile.NamedTemporaryFile(prefix='key_name')
+        key_path = tmp_path.name
 
         def mock_get_server_by_context(_):
             s = test_vars['server']

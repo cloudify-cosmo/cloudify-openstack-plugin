@@ -422,8 +422,8 @@ class OpenstackHandler(BaseHandler):
                                          format(volume_name, volume_id))
                         existing_volumes.remove(volume)
                     else:
-                        self.logger.warning('failed to remove volume {0} ({1}),'
-                                            ' exception: {2}'.
+                        self.logger.warning('failed to remove volume {0} '
+                                            '({1}), exception: {2}'.
                                             format(vol.display_name,
                                                    vol.id, e))
                         existing_volumes.remove(volume)
@@ -432,8 +432,6 @@ class OpenstackHandler(BaseHandler):
             for vol in existing_volumes:
                 self.logger.warning('timed out while removing volume {0} '
                                     '({1})'.format(vol.display_name, vol.id))
-
-
 
     def _client_creds(self):
         return {

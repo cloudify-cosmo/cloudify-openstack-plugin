@@ -407,14 +407,15 @@ class OpenstackHandler(BaseHandler):
                 volume_name = volume.display_name
                 try:
                     vol = self.cinder.volumes.get(volume_id)
-                    if vol:
-                        if vol.status != 'deleting':
-                            self.logger.warning('volume {0} ({1}) is in '
-                                                'unexpected status: {0}'.
-                                                format(vol.display_name,
-                                                       vol.id, vol.status))
+                    if vol.status == 'deleting':
+                        self.logger.debug('volume {0} ({1}) is being '
+                                          'delete...'.format(volume_name,
+                                                             volume_id))
                     else:
-                        self.logger.warning('vol {0} not found'.format(vol))
+                        self.logger.warning('volume {0} ({1}) is in '
+                                            'unexpected status: {2}'.
+                                            format(volume_name, volume_id,
+                                                   vol.status))
                 except Exception as e:
                     # the volume wasn't found, it was deleted
                     if e.code == 404:

@@ -70,7 +70,7 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
 
     @classmethod
     def _clean(cls, env, resources_to_teardown):
-        cls.logger.info('Openstack handler will try removing these resources:'
+        cls.logger.info('Openstack handler will try to remove these resources:'
                         ' {0}'.format(resources_to_teardown))
         failed_to_remove = env.handler.remove_openstack_resources(
             resources_to_teardown)

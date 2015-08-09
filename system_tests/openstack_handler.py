@@ -405,7 +405,7 @@ class OpenstackHandler(BaseHandler):
                     vol = self.cinder.volumes.get(volume_id)
                     if vol.status == 'deleting':
                         self.logger.debug('volume {0} ({1}) is being '
-                                          'delete...'.format(volume_name,
+                                          'deleted...'.format(volume_name,
                                                              volume_id))
                     else:
                         self.logger.warning('volume {0} ({1}) is in '

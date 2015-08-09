@@ -34,6 +34,9 @@ logging.getLogger('neutronclient.client').setLevel(logging.INFO)
 logging.getLogger('novaclient.client').setLevel(logging.INFO)
 
 
+VOLUME_TERMINATION_TIMEOUT_SECS = 300
+
+
 class OpenstackCleanupContext(BaseHandler.CleanupContext):
 
     def __init__(self, context_name, env):
@@ -41,47 +44,43 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
         self.before_run = self.env.handler.openstack_infra_state()
 
     def cleanup(self):
+        """
+        Cleans resources created by the test.
+        Resource that existed before the test will not be removed
+        """
         super(OpenstackCleanupContext, self).cleanup()
         resources_to_teardown = self.get_resources_to_teardown(
             self.env, resources_to_keep=self.before_run)
 
         if self.skip_cleanup:
-            self.logger.warn('[{0}] SKIPPING cleanup: of the resources: {1}'
+            self.logger.warn('[{0}] SKIPPING cleanup of resources: {1}'
                              .format(self.context_name, resources_to_teardown))
-            return
-
-        self.logger.info('[{0}] Performing cleanup: will try removing these '
-                         'resources: {1}'
-                         .format(self.context_name, resources_to_teardown))
-        failed_to_remove = self.env.handler.remove_openstack_resources(
-            resources_to_teardown)
-        if failed_to_remove:
-            trimmed_dict = {key: value for key, value in
-                            failed_to_remove.iteritems()
-                            if value}
-            if len(trimmed_dict) > 0:
-                msg = '[{0}] failed to remove some resources during ' \
-                      'cleanup: {1}'\
-                    .format(self.context_name, failed_to_remove)
-                self.logger.error(msg)
-                raise RuntimeError(msg)
+        else:
+            self._clean(self.env, resources_to_teardown)
 
     @classmethod
     def clean_all(cls, env):
+        """
+        Cleans *all* resources, including resources that were not
+        created by the test
+        """
         super(OpenstackCleanupContext, cls).clean_all(env)
         resources_to_teardown = cls.get_resources_to_teardown(env)
-        cls.logger.info('Openstack handler performing clean_all: will try '
-                        'removing these resources: {0}'
-                        .format(resources_to_teardown))
+        cls._clean(env, resources_to_teardown)
+
+    @classmethod
+    def _clean(cls, env, resources_to_teardown):
+        cls.logger.info('Openstack handler will try to remove these resources:'
+                        ' {0}'.format(resources_to_teardown))
         failed_to_remove = env.handler.remove_openstack_resources(
             resources_to_teardown)
         if failed_to_remove:
-            trimmed_dict = {key: value for key, value in
-                            failed_to_remove.iteritems()
-                            if value}
-            if len(trimmed_dict) > 0:
-                msg = 'Openstack handler failed to remove some resources' \
-                      ' during clean_all: {0}'.format(trimmed_dict)
+            trimmed_failed_to_remove = {key: value for key, value in
+                                        failed_to_remove.iteritems()
+                                        if value}
+            if len(trimmed_failed_to_remove) > 0:
+                msg = 'Openstack handler failed to remove some resources:' \
+                      ' {0}'.format(trimmed_failed_to_remove)
                 cls.logger.error(msg)
                 raise RuntimeError(msg)
 
@@ -380,12 +379,64 @@ class OpenstackHandler(BaseHandler):
                 with self._handled_exception(security_group['id'],
                                              failed, 'security_groups'):
                     neutron.delete_security_group(security_group['id'])
-        for volume in volumes:
-            if volume.id in resources_to_remove['volumes']:
-                with self._handled_exception(volume.id, failed, 'volumes'):
-                    cinder.volumes.delete(volume)
+
+        left_volumes = self._delete_volumes(volumes)
+        for volume_id, ex in left_volumes.iteritems():
+            failed['volumes'][volume_id] = ex
 
         return failed
+
+    def _delete_volumes(self, existing_volumes):
+        unremovables = {}
+        end_time = time.time() + VOLUME_TERMINATION_TIMEOUT_SECS
+        for volume in existing_volumes:
+            # detach and delete if possible
+            if volume.status in ['available', 'error']:
+                self.logger.debug('Deleting volume {0} ({1})...'.
+                                  format(volume.display_name, volume.id))
+                self.cinder.volumes.delete(volume)
+
+        while existing_volumes and time.time() < end_time:
+            time.sleep(3)
+            for volume in existing_volumes:
+                volume_id = volume.id
+                volume_name = volume.display_name
+                try:
+                    vol = self.cinder.volumes.get(volume_id)
+                    if vol.status == 'deleting':
+                        self.logger.debug('volume {0} ({1}) is being '
+                                          'deleted...'.format(volume_name,
+                                                             volume_id))
+                    else:
+                        self.logger.warning('volume {0} ({1}) is in '
+                                            'unexpected status: {2}'.
+                                            format(volume_name, volume_id,
+                                                   vol.status))
+                except Exception as e:
+                    # the volume wasn't found, it was deleted
+                    if e.code == 404:
+                        self.logger.info('deleted volume {0} ({1})'.
+                                         format(volume_name, volume_id))
+                        existing_volumes.remove(volume)
+                    else:
+                        self.logger.warning('failed to remove volume {0} '
+                                            '({1}), exception: {2}'.
+                                            format(volume_name,
+                                                   volume_id, e))
+                        unremovables[volume_id] = e
+                        existing_volumes.remove(volume)
+
+        if existing_volumes:
+            for volume in existing_volumes:
+                unremovables[volume.id] = 'timed out while removing volume ' \
+                                          '{0} ({1})'.\
+                    format(volume.display_name, volume.id)
+
+        if unremovables:
+            self.logger.warning('failed to remove volumes: {0}'.format(
+                unremovables))
+
+        return unremovables
 
     def _client_creds(self):
         return {

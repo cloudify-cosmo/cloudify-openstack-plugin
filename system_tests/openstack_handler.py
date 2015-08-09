@@ -34,7 +34,7 @@ logging.getLogger('neutronclient.client').setLevel(logging.INFO)
 logging.getLogger('novaclient.client').setLevel(logging.INFO)
 
 
-TIMEOUT_SECONDS = 100
+VOLUME_TERMINATION_TIMEOUT_SECS = 300
 
 
 class OpenstackCleanupContext(BaseHandler.CleanupContext):
@@ -380,22 +380,18 @@ class OpenstackHandler(BaseHandler):
                                              failed, 'security_groups'):
                     neutron.delete_security_group(security_group['id'])
 
-        self._delete_volumes(volumes)
+        left_volumes = self._delete_volumes(volumes)
+        for volume_id, ex in left_volumes.iteritems():
+            failed['volumes'][volume_id] = ex
 
         return failed
 
     def _delete_volumes(self, existing_volumes):
-        end_time = time.time() + TIMEOUT_SECONDS
+        unremovables = {}
+        end_time = time.time() + VOLUME_TERMINATION_TIMEOUT_SECS
         for volume in existing_volumes:
             # detach and delete if possible
             if volume.status in ['available', 'error']:
-                for attachment in volume.attachments:
-                    self.logger.debug('Detaching volume {0} ({1}) from '
-                                      'server...'.format(volume.display_name,
-                                                         volume.id))
-                    self.nova.volumes.delete_server_volume(
-                        server_id=attachment['server_id'],
-                        attachment_id=attachment['id'])
                 self.logger.debug('Deleting volume {0} ({1})...'.
                                   format(volume.display_name, volume.id))
                 self.cinder.volumes.delete(volume)
@@ -425,14 +421,22 @@ class OpenstackHandler(BaseHandler):
                     else:
                         self.logger.warning('failed to remove volume {0} '
                                             '({1}), exception: {2}'.
-                                            format(vol.display_name,
-                                                   vol.id, e))
+                                            format(volume_name,
+                                                   volume_id, e))
+                        unremovables[volume_id] = e
                         existing_volumes.remove(volume)
 
         if existing_volumes:
-            for vol in existing_volumes:
-                self.logger.warning('timed out while removing volume {0} '
-                                    '({1})'.format(vol.display_name, vol.id))
+            for volume in existing_volumes:
+                unremovables[volume.id] = 'timed out while removing volume ' \
+                                          '{0} ({1})'.\
+                    format(volume.display_name, volume.id)
+
+        if unremovables:
+            self.logger.warning('failed to remove volumes: {0}'.format(
+                unremovables))
+
+        return unremovables
 
     def _client_creds(self):
         return {

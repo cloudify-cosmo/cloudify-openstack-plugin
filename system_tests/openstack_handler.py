@@ -406,7 +406,7 @@ class OpenstackHandler(BaseHandler):
                     if vol.status == 'deleting':
                         self.logger.debug('volume {0} ({1}) is being '
                                           'deleted...'.format(volume_name,
-                                                             volume_id))
+                                                              volume_id))
                     else:
                         self.logger.warning('volume {0} ({1}) is in '
                                             'unexpected status: {2}'.

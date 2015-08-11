@@ -76,6 +76,8 @@ node_types:
     properties:
       use_password:
         default: true
+      os_family:
+        default: Windows
     interfaces:
       cloudify.interfaces.worker_installer:
         install: agent.windows_agent_installer.tasks.install

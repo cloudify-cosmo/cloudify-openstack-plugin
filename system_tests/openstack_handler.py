@@ -380,13 +380,13 @@ class OpenstackHandler(BaseHandler):
                                              failed, 'security_groups'):
                     neutron.delete_security_group(security_group['id'])
 
-        left_volumes = self._delete_volumes(volumes)
+        left_volumes = self._delete_volumes(cinder, volumes)
         for volume_id, ex in left_volumes.iteritems():
             failed['volumes'][volume_id] = ex
 
         return failed
 
-    def _delete_volumes(self, existing_volumes):
+    def _delete_volumes(self, cinder, existing_volumes):
         unremovables = {}
         end_time = time.time() + VOLUME_TERMINATION_TIMEOUT_SECS
         for volume in existing_volumes:
@@ -394,7 +394,7 @@ class OpenstackHandler(BaseHandler):
             if volume.status in ['available', 'error']:
                 self.logger.debug('Deleting volume {0} ({1})...'.
                                   format(volume.display_name, volume.id))
-                self.cinder.volumes.delete(volume)
+                cinder.volumes.delete(volume)
 
         while existing_volumes and time.time() < end_time:
             time.sleep(3)
@@ -402,7 +402,7 @@ class OpenstackHandler(BaseHandler):
                 volume_id = volume.id
                 volume_name = volume.display_name
                 try:
-                    vol = self.cinder.volumes.get(volume_id)
+                    vol = cinder.volumes.get(volume_id)
                     if vol.status == 'deleting':
                         self.logger.debug('volume {0} ({1}) is being '
                                           'deleted...'.format(volume_name,
@@ -414,7 +414,7 @@ class OpenstackHandler(BaseHandler):
                                                    vol.status))
                 except Exception as e:
                     # the volume wasn't found, it was deleted
-                    if e.code == 404:
+                    if hasattr(e, 'code') and e.code == 404:
                         self.logger.info('deleted volume {0} ({1})'.
                                          format(volume_name, volume_id))
                         existing_volumes.remove(volume)

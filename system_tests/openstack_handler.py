@@ -405,13 +405,6 @@ class OpenstackHandler(BaseHandler):
                                                e))
                     unremovables[volume.id] = e
                     existing_volumes.remove(volume)
-            else:
-                err_msg = 'Volume {0} ({1}) is in unexpected status: {2}; ' \
-                          'Cloudify will not attempt to delete it'.\
-                    format(volume.display_name, volume.id, volume.status)
-                self.logger.warning(err_msg)
-                unremovables[volume.id] = err_msg
-                existing_volumes.remove(volume)
 
         while existing_volumes and time.time() < end_time:
             time.sleep(3)

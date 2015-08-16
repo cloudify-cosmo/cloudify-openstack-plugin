@@ -391,10 +391,20 @@ class OpenstackHandler(BaseHandler):
         end_time = time.time() + VOLUME_TERMINATION_TIMEOUT_SECS
         for volume in existing_volumes:
             # detach and delete if possible
-            if volume.status in ['available', 'error']:
-                self.logger.debug('Deleting volume {0} ({1})...'.
-                                  format(volume.display_name, volume.id))
-                cinder.volumes.delete(volume)
+            if volume.status in ['available', 'error', 'in-use']:
+                try:
+                    self.logger.info('Deleting volume {0} ({1}), currently in'
+                                     ' status {2} ...'.
+                                     format(volume.display_name, volume.id,
+                                            volume.status))
+                    cinder.volumes.delete(volume)
+                except Exception as e:
+                    self.logger.warning('Attempt to delete volume {0} ({1})'
+                                        ' yielded exception: "{2}"'.
+                                        format(volume.display_name, volume.id,
+                                               e))
+                    unremovables[volume.id] = e
+                    existing_volumes.remove(volume)
 
         while existing_volumes and time.time() < end_time:
             time.sleep(3)
@@ -428,9 +438,18 @@ class OpenstackHandler(BaseHandler):
 
         if existing_volumes:
             for volume in existing_volumes:
-                unremovables[volume.id] = 'timed out while removing volume ' \
-                                          '{0} ({1})'.\
-                    format(volume.display_name, volume.id)
+                # try to get the volumes' status
+                try:
+                    vol = cinder.volumes.get(volume.id)
+                    vol_status = vol.status
+                except:
+                    # failed to get volume... status is unknown
+                    vol_status = 'unknown'
+
+                unremovables[volume.id] = 'timed out while removing volume {0}' \
+                                          ' ({1}), current volume status is ' \
+                                          '{2}'.format(volume.display_name,
+                                                       volume.id, vol_status)
 
         if unremovables:
             self.logger.warning('failed to remove volumes: {0}'.format(

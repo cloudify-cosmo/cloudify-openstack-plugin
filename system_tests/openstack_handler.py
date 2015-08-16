@@ -308,7 +308,7 @@ class OpenstackHandler(BaseHandler):
         routers = neutron.list_routers()['routers']
         subnets = neutron.list_subnets()['subnets']
         networks = neutron.list_networks()['networks']
-        keypairs = nova.keypairs.list()
+        # keypairs = nova.keypairs.list()
         floatingips = neutron.list_floatingips()['floatingips']
         security_groups = neutron.list_security_groups()['security_groups']
         volumes = cinder.volumes.list()
@@ -329,6 +329,7 @@ class OpenstackHandler(BaseHandler):
             if server.id in resources_to_remove['servers']:
                 with self._handled_exception(server.id, failed, 'servers'):
                     nova.servers.delete(server)
+
         for router in routers:
             if router['id'] in resources_to_remove['routers']:
                 with self._handled_exception(router['id'], failed, 'routers'):
@@ -342,6 +343,7 @@ class OpenstackHandler(BaseHandler):
             if port['id'] in resources_to_remove['ports']:
                 with self._handled_exception(port['id'], failed, 'ports'):
                     neutron.delete_port(port['id'])
+
         for subnet in subnets:
             if subnet['id'] in resources_to_remove['subnets']:
                 with self._handled_exception(subnet['id'], failed, 'subnets'):
@@ -355,23 +357,31 @@ class OpenstackHandler(BaseHandler):
                                              'networks'):
                     neutron.delete_network(network['id'])
 
-        for key_pair in keypairs:
-            if key_pair.name == self.env.agent_keypair_name and \
-                    self.env.use_existing_agent_keypair:
-                    # this is a pre-existing agent key-pair, do not remove
-                    continue
-            elif key_pair.name == self.env.management_keypair_name and \
-                    self.env.use_existing_manager_keypair:
-                    # this is a pre-existing manager key-pair, do not remove
-                    continue
-            elif key_pair.id in resources_to_remove['key_pairs']:
-                with self._handled_exception(key_pair.id, failed, 'key_pairs'):
-                    nova.keypairs.delete(key_pair)
+        # TODO: implement key-pair creation and cleanup per tenant
+        #
+        # IMPORTANT: Do not remove key-pairs, they might be used
+        # by another tenant (of the same user)
+        #
+        # for key_pair in keypairs:
+        #     if key_pair.name == self.env.agent_keypair_name and \
+        #             self.env.use_existing_agent_keypair:
+        #             # this is a pre-existing agent key-pair, do not remove
+        #             continue
+        #     elif key_pair.name == self.env.management_keypair_name and \
+        #             self.env.use_existing_manager_keypair:
+        #             # this is a pre-existing manager key-pair, do not remove
+        #             continue
+        #     elif key_pair.id in resources_to_remove['key_pairs']:
+        #         with self._handled_exception(key_pair.id, failed,
+        #           'key_pairs'):
+        #             nova.keypairs.delete(key_pair)
+
         for floatingip in floatingips:
             if floatingip['id'] in resources_to_remove['floatingips']:
                 with self._handled_exception(floatingip['id'], failed,
                                              'floatingips'):
                     neutron.delete_floatingip(floatingip['id'])
+
         for security_group in security_groups:
             if security_group['name'] == 'default':
                 continue
@@ -380,21 +390,31 @@ class OpenstackHandler(BaseHandler):
                                              failed, 'security_groups'):
                     neutron.delete_security_group(security_group['id'])
 
-        left_volumes = self._delete_volumes(volumes)
+        left_volumes = self._delete_volumes(cinder, volumes)
         for volume_id, ex in left_volumes.iteritems():
             failed['volumes'][volume_id] = ex
 
         return failed
 
-    def _delete_volumes(self, existing_volumes):
+    def _delete_volumes(self, cinder, existing_volumes):
         unremovables = {}
         end_time = time.time() + VOLUME_TERMINATION_TIMEOUT_SECS
         for volume in existing_volumes:
             # detach and delete if possible
-            if volume.status in ['available', 'error']:
-                self.logger.debug('Deleting volume {0} ({1})...'.
-                                  format(volume.display_name, volume.id))
-                self.cinder.volumes.delete(volume)
+            if volume.status in ['available', 'error', 'in-use']:
+                try:
+                    self.logger.info('Deleting volume {0} ({1}), currently in'
+                                     ' status {2} ...'.
+                                     format(volume.display_name, volume.id,
+                                            volume.status))
+                    cinder.volumes.delete(volume)
+                except Exception as e:
+                    self.logger.warning('Attempt to delete volume {0} ({1})'
+                                        ' yielded exception: "{2}"'.
+                                        format(volume.display_name, volume.id,
+                                               e))
+                    unremovables[volume.id] = e
+                    existing_volumes.remove(volume)
 
         while existing_volumes and time.time() < end_time:
             time.sleep(3)
@@ -402,7 +422,7 @@ class OpenstackHandler(BaseHandler):
                 volume_id = volume.id
                 volume_name = volume.display_name
                 try:
-                    vol = self.cinder.volumes.get(volume_id)
+                    vol = cinder.volumes.get(volume_id)
                     if vol.status == 'deleting':
                         self.logger.debug('volume {0} ({1}) is being '
                                           'deleted...'.format(volume_name,
@@ -414,7 +434,7 @@ class OpenstackHandler(BaseHandler):
                                                    vol.status))
                 except Exception as e:
                     # the volume wasn't found, it was deleted
-                    if e.code == 404:
+                    if hasattr(e, 'code') and e.code == 404:
                         self.logger.info('deleted volume {0} ({1})'.
                                          format(volume_name, volume_id))
                         existing_volumes.remove(volume)
@@ -428,9 +448,18 @@ class OpenstackHandler(BaseHandler):
 
         if existing_volumes:
             for volume in existing_volumes:
-                unremovables[volume.id] = 'timed out while removing volume ' \
-                                          '{0} ({1})'. \
-                    format(volume.display_name, volume.id)
+                # try to get the volume's status
+                try:
+                    vol = cinder.volumes.get(volume.id)
+                    vol_status = vol.status
+                except:
+                    # failed to get volume... status is unknown
+                    vol_status = 'unknown'
+
+                unremovables[volume.id] = 'timed out while removing volume {0}' \
+                                          ' ({1}), current volume status is ' \
+                                          '{2}'.format(volume.display_name,
+                                                       volume.id, vol_status)
 
         if unremovables:
             self.logger.warning('failed to remove volumes: {0}'.format(

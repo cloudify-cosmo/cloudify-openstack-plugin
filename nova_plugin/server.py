@@ -734,6 +734,17 @@ def ud_http(params):
         ('url',),
         "server.userdata when using type 'http'")
     return requests.get(params['url']).text
+
+
+@userdata_handler('file')
+def ud_file(params):
+    """ Fetches userdata from file """
+    _fail_on_missing_required_parameters(
+        params,
+        ('path',),
+        "server.userdata when using type 'file'")
+    return ctx.get_resource(params['path'])
+
 # *** userdata handling - end ***
 
 

@@ -51,7 +51,6 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
         super(OpenstackCleanupContext, self).cleanup()
         resources_to_teardown = self.get_resources_to_teardown(
             self.env, resources_to_keep=self.before_run)
-
         if self.skip_cleanup:
             self.logger.warn('[{0}] SKIPPING cleanup of resources: {1}'
                              .format(self.context_name, resources_to_teardown))
@@ -325,6 +324,15 @@ class OpenstackHandler(BaseHandler):
             'volumes': {}
         }
 
+        volumes_to_remove = []
+        for volume in volumes:
+            if volume.id in resources_to_remove['volumes']:
+                volumes_to_remove.append(volume)
+
+        left_volumes = self._delete_volumes(nova, cinder, volumes_to_remove)
+        for volume_id, ex in left_volumes.iteritems():
+            failed['volumes'][volume_id] = ex
+
         for server in servers:
             if server.id in resources_to_remove['servers']:
                 with self._handled_exception(server.id, failed, 'servers'):
@@ -339,6 +347,7 @@ class OpenstackHandler(BaseHandler):
                             'port_id': p['id']
                         })
                     neutron.delete_router(router['id'])
+
         for port in ports:
             if port['id'] in resources_to_remove['ports']:
                 with self._handled_exception(port['id'], failed, 'ports'):
@@ -390,17 +399,35 @@ class OpenstackHandler(BaseHandler):
                                              failed, 'security_groups'):
                     neutron.delete_security_group(security_group['id'])
 
-        left_volumes = self._delete_volumes(cinder, volumes)
-        for volume_id, ex in left_volumes.iteritems():
-            failed['volumes'][volume_id] = ex
-
         return failed
 
-    def _delete_volumes(self, cinder, existing_volumes):
+    def _delete_volumes(self, nova, cinder, existing_volumes):
         unremovables = {}
         end_time = time.time() + VOLUME_TERMINATION_TIMEOUT_SECS
+
         for volume in existing_volumes:
-            # detach and delete if possible
+            # detach the volume
+            if volume.status in ['available', 'error', 'in-use']:
+                try:
+                    self.logger.info('Detaching volume {0} ({1}), currently in'
+                                     ' status {2} ...'.
+                                     format(volume.display_name, volume.id,
+                                            volume.status))
+                    for attachment in volume.attachments:
+                        nova.volumes.delete_server_volume(
+                            server_id=attachment['server_id'],
+                            attachment_id=attachment['id'])
+                except Exception as e:
+                    self.logger.warning('Attempt to detach volume {0} ({1})'
+                                        ' yielded exception: "{2}"'.
+                                        format(volume.display_name, volume.id,
+                                               e))
+                    unremovables[volume.id] = e
+                    existing_volumes.remove(volume)
+
+        time.sleep(3)
+        for volume in existing_volumes:
+            # delete the volume
             if volume.status in ['available', 'error', 'in-use']:
                 try:
                     self.logger.info('Deleting volume {0} ({1}), currently in'
@@ -416,6 +443,7 @@ class OpenstackHandler(BaseHandler):
                     unremovables[volume.id] = e
                     existing_volumes.remove(volume)
 
+        # wait for all volumes deletion until completed or timeout is reached
         while existing_volumes and time.time() < end_time:
             time.sleep(3)
             for volume in existing_volumes:

@@ -73,7 +73,7 @@ def create(neutron_client, **kwargs):
         except Exception:
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
             raise
-
+    ctx.logger.info('[all connected nodes]INFO: {0}'.format(str(ctx.capabilities.get_all().values())))
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
 

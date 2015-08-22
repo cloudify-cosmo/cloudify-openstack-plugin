@@ -270,7 +270,9 @@ def create(nova_client, neutron_client, **kwargs):
         s = nova_client.servers.create(**params)
     except nova_exceptions.BadRequest as e:
         if 'Block Device Mapping is Invalid' in str(e):
-            raise RecoverableError('Block Device Mapping is not created yet')
+            return ctx.operation.retry(
+                message='Block Device Mapping is not created yet',
+                retry_after=30)
         if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
             raise NonRecoverableError(
                 "Can not provision server: management_network_name or id"

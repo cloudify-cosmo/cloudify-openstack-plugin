@@ -265,7 +265,10 @@ class OpenstackHandler(BaseHandler):
         attempts reached
         """
         nova, neutron, cinder = self.openstack_clients()
-        prefix = self.env.resources_prefix
+        try:
+            prefix = self.env.resources_prefix
+        except (AttributeError, KeyError):
+            prefix = ''
         return {
             'networks': dict(self._networks(neutron, prefix)),
             'subnets': dict(self._subnets(neutron, prefix)),

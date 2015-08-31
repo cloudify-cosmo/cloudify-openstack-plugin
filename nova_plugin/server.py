@@ -745,13 +745,16 @@ def ud_file(params):
         params,
         ('path',),
         "server.userdata when using type 'file'")
-    cloudinit_script = ctx.get_resource(params['path'])
-    domain_name = ctx.node.properties['resource_id']
-    host_name = domain_name.split('.')[0]
-    cloudinit_script = cloudinit_script.replace('HOSTNAME', host_name)
-    cloudinit_script = cloudinit_script.replace('DOMAINNAME', domain_name)
-    return cloudinit_script
+    return ctx.get_resource(params['path'])
 
+@userdata_handler('string')
+def ud_file(params):
+    """ Fetches userdata from file """
+    _fail_on_missing_required_parameters(
+        params,
+        ('script',),
+        "server.userdata when using type 'string'")
+    return params['script']
 # *** userdata handling - end ***
 
 

@@ -747,14 +747,17 @@ def ud_file(params):
         "server.userdata when using type 'file'")
     return ctx.get_resource(params['path'])
 
+
 @userdata_handler('string')
 def ud_file(params):
-    """ Fetches userdata from file """
-    _fail_on_missing_required_parameters(
-        params,
-        ('script',),
-        "server.userdata when using type 'string'")
-    return params['script']
+    """ Fetches userdata from string """
+    script = params.get('script') or ctx.instance.runtime_properties.get('script')
+    if not script:
+        _fail_on_missing_required_parameters(
+            params,
+            ('script',),
+            "server.userdata when using type 'string'")
+    return script
 # *** userdata handling - end ***
 
 

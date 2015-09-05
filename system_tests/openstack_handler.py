@@ -147,7 +147,7 @@ class CloudifyOpenstackInputsConfigReader(BaseCloudifyInputsConfigReader):
 
     @property
     def management_key_path(self):
-        return self.config['manager_private_key_path']
+        return self.config['ssh_key_filename']
 
     @property
     def agent_keypair_name(self):

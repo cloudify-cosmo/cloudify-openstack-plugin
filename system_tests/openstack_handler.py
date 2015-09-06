@@ -143,7 +143,7 @@ class CloudifyOpenstackInputsConfigReader(BaseCloudifyInputsConfigReader):
 
     @property
     def management_user_name(self):
-        return self.config['manager_server_user']
+        return self.config['ssh_user']
 
     @property
     def management_key_path(self):

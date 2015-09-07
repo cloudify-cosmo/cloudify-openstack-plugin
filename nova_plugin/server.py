@@ -178,7 +178,7 @@ def create(nova_client, neutron_client, args, **kwargs):
     else:
         raise NonRecoverableError(
             'server must have a keypair, yet no keypair was connected to the '
-            'server node, the "key_name" nested property'
+            'server node, the "key_name" nested property '
             "wasn't used, and there is no agent keypair in the provider "
             "context")
 

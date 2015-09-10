@@ -227,6 +227,11 @@ def create(nova_client, neutron_client, **kwargs):
             # will fail.
             server['nics'].remove({'net-id': management_network_id})
 
+            # make management network the first interface
+            idx = port_network_ids.index(management_network_id)
+            server['nics'] = server.get('nics', [])
+            server['nics'].insert(0, {'port-id': port_ids[idx]})
+            nics.pop(idx)
         server['nics'] = server.get('nics', []) + nics
     # Multi-NIC by ports - end
 

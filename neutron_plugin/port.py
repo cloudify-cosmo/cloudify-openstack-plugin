@@ -45,6 +45,8 @@ FIXED_IP_ADDRESS_PROPERTY = 'fixed_ip_address'  # the fixed ip address
 RUNTIME_PROPERTIES_KEYS = \
     COMMON_RUNTIME_PROPERTIES_KEYS + [FIXED_IP_ADDRESS_PROPERTY]
 
+NO_SG_PORT_CONNECTION_RETRY_INTERVAL = 3
+
 
 @operation
 @with_neutron_client
@@ -165,6 +167,18 @@ def connect_security_group(neutron_client, **kwargs):
             port_id, ctx.target.instance.runtime_properties))
     sgs = port['security_groups'] + [security_group_id]
     neutron_client.update_port(port_id, {'port': {'security_groups': sgs}})
+
+    # Double check if SG has been actually updated (a race-condition
+    # in OpenStack):
+    port_info = neutron_client.show_port(port_id)['port']
+    port_security_groups = port_info.get('security_groups', [])
+    if security_group_id not in port_security_groups:
+        return ctx.operation.retry(
+            message='Security group connection (`{0}\' -> `{1}\')'
+                    ' has not been established!'.format(port_id,
+                                                        security_group_id),
+            retry_after=NO_SG_PORT_CONNECTION_RETRY_INTERVAL
+        )
 
 
 @operation

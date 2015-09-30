@@ -14,6 +14,7 @@ node_types:
       server:
         default: {}
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -97,6 +98,7 @@ node_types:
           use_external_resource is set to "true", the existing
           private key is expected to be at this path.
       use_external_resource:
+        type: boolean
         default: false
         description: >
           a boolean describing whether this resource should be
@@ -143,6 +145,7 @@ node_types:
       subnet:
         default: {}
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -177,6 +180,7 @@ node_types:
       security_group:
         default: {}
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -217,6 +221,7 @@ node_types:
       default_to_managers_external_network:
         default: true
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -251,6 +256,7 @@ node_types:
       fixed_ip:
         default: ''
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -283,6 +289,7 @@ node_types:
       network:
         default: {}
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -315,6 +322,7 @@ node_types:
       floatingip:
         default: {}
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -347,6 +355,7 @@ node_types:
       volume:
         default: {}
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -381,6 +390,7 @@ node_types:
       floatingip:
         default: {}
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''
@@ -413,6 +423,7 @@ node_types:
       security_group:
         default: {}
       use_external_resource:
+        type: boolean
         default: false
       resource_id:
         default: ''

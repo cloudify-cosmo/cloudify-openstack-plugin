@@ -78,7 +78,10 @@ node_types:
       use_password:
         default: true
       os_family:
-        default: Windows
+        default: windows
+      agent_config:
+        default:
+          port: 5985
 
   cloudify.openstack.nodes.KeyPair:
     derived_from: cloudify.nodes.Root

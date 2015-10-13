@@ -47,6 +47,7 @@ from openstack_plugin_common import (
     COMMON_RUNTIME_PROPERTIES_KEYS,
     with_neutron_client)
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
+from nova_plugin import userdata
 from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
@@ -80,15 +81,6 @@ def create(nova_client, neutron_client, args, **kwargs):
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
     .servers.html#novaclient.v1_1.servers.ServerManager.create
-    Userdata:
-
-    In all cases, note that userdata should not be base64 encoded,
-    novaclient expects it raw.
-    The 'userdata' argument under nova.instance can be one of
-    the following:
-
-    - A string
-    - A hash with 'type: http' and 'url: ...'
     """
 
     network_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
@@ -117,8 +109,6 @@ def create(nova_client, neutron_client, args, **kwargs):
     def rename(name):
         return transform_resource_name(ctx, name)
 
-    # For possible changes by _maybe_transform_userdata()
-
     server = {
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
@@ -128,8 +118,6 @@ def create(nova_client, neutron_client, args, **kwargs):
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
-
-    _maybe_transform_userdata(server)
 
     management_network_id = None
     management_network_name = None
@@ -236,6 +224,8 @@ def create(nova_client, neutron_client, args, **kwargs):
     if management_network_name is not None:
         server['meta']['cloudify_management_network_name'] = \
             management_network_name
+
+    userdata.handle_userdata(server)
 
     ctx.logger.info("Creating VM with parameters: {0}".format(str(server)))
     ctx.logger.debug(
@@ -674,51 +664,6 @@ def _get_properties_by_node_instance_id(node_instance_id):
     node_instance = client.node_instances.get(node_instance_id)
     node = client.nodes.get(ctx.deployment.id, node_instance.node_id)
     return node.properties
-
-
-# *** userdata handling - start ***
-userdata_handlers = {}
-
-
-def userdata_handler(type_):
-    def f(x):
-        userdata_handlers[type_] = x
-        return x
-    return f
-
-
-def _maybe_transform_userdata(nova_config_instance):
-    """Allows userdata to be read from a file, etc, not just be a string"""
-    if 'userdata' not in nova_config_instance:
-        return
-    if not isinstance(nova_config_instance['userdata'], dict):
-        return
-    ud = nova_config_instance['userdata']
-
-    _fail_on_missing_required_parameters(
-        ud,
-        ('type',),
-        'server.userdata')
-
-    if ud['type'] not in userdata_handlers:
-        raise NonRecoverableError(
-            "Invalid type '{0}' (under host's "
-            "properties.nova_config.instance.userdata)"
-            .format(ud['type']))
-
-    nova_config_instance['userdata'] = userdata_handlers[ud['type']](ud)
-
-
-@userdata_handler('http')
-def ud_http(params):
-    """ Fetches userdata using HTTP """
-    import requests
-    _fail_on_missing_required_parameters(
-        params,
-        ('url',),
-        "server.userdata when using type 'http'")
-    return requests.get(params['url']).text
-# *** userdata handling - end ***
 
 
 @operation

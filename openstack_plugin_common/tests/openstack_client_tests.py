@@ -193,13 +193,13 @@ class OpenstackClientsTests(unittest.TestCase):
         orig_nova_client = common.NovaClientWithSugar
         orig_neut_client = common.NeutronClientWithSugar
         orig_cind_client = common.CinderClientWithSugar
-        orig_keys_client = common.keystone_client.Client
+        orig_keys_client = common.KeystoneClientWithSugar
 
         try:
             common.NovaClientWithSugar = client_mock
             common.NeutronClientWithSugar = client_mock
             common.CinderClientWithSugar = client_mock
-            common.keystone_client.Client = client_mock
+            common.KeystoneClientWithSugar = client_mock
 
             # envars config
             os.environ.update(envars_cfg)
@@ -221,7 +221,7 @@ class OpenstackClientsTests(unittest.TestCase):
             common.NovaClientWithSugar = orig_nova_client
             common.NeutronClientWithSugar = orig_neut_client
             common.CinderClientWithSugar = orig_cind_client
-            common.keystone_client.Client = orig_keys_client
+            common.KeystoneClientWithSugar = orig_keys_client
 
 
 class ResourceQuotaTests(unittest.TestCase):

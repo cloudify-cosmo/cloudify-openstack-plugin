@@ -27,7 +27,8 @@ setup(
         'nova_plugin',
         'neutron_plugin',
         'cinder_plugin',
-        'glance_plugin'
+        'glance_plugin',
+        'keystone_plugin'
     ],
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',

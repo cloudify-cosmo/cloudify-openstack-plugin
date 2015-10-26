@@ -295,6 +295,8 @@ node_types:
     properties:
       project:
         default: {}
+      quota:
+        default: {}
       use_external_resource:
         default: false
       resource_id:

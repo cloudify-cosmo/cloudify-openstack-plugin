@@ -17,6 +17,8 @@ from cloudify import ctx
 from cloudify.decorators import operation
 
 from openstack_plugin_common import (with_keystone_client,
+                                     with_nova_client,
+                                     with_cinder_client,
                                      get_resource_id,
                                      use_external_resource,
                                      delete_resource_and_runtime_properties,
@@ -34,7 +36,9 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 @operation
 @with_keystone_client
-def create(keystone_client, **kwargs):
+@with_nova_client
+@with_cinder_client
+def create(keystone_client, nova_client, cinder_client, **kwargs):
     if use_external_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE):
         return
 
@@ -44,6 +48,9 @@ def create(keystone_client, **kwargs):
     project_dict.update(ctx.node.properties['project'])
 
     project = keystone_client.tenants.create(**project_dict)
+
+    quotas = ctx.node.properties['quota']
+    update_quota(project.id, quotas, nova_client, cinder_client)
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = project.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
@@ -61,3 +68,19 @@ def delete(keystone_client, **kwargs):
 @with_keystone_client
 def creation_validation(keystone_client, **kwargs):
     validate_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE)
+
+
+def update_quota(tenant_id, quotas, nova_client, cinder_client):
+    nova_quota = quotas.get('nova')
+    if nova_quota:
+        new_nova_quota = nova_client.quotas.update(tenant_id=tenant_id,
+                                                   **nova_quota)
+        ctx.logger.info(
+            'Updated nova quota is {0}'.format(new_nova_quota.to_dict()))
+
+    cinder_quota = quotas.get('cinder')
+    if cinder_quota:
+        cinder_client.quotas.update(tenant_id=tenant_id,
+                                    **cinder_quota)
+        new_cinder_quota = cinder_client.quotas.get(tenant_id=tenant_id)
+        ctx.logger.info('Updated cinder quota is {0}'.format(new_cinder_quota))

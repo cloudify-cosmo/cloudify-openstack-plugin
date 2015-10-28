@@ -19,6 +19,7 @@ from cloudify.decorators import operation
 from openstack_plugin_common import (with_keystone_client,
                                      with_nova_client,
                                      with_cinder_client,
+                                     with_neutron_client,
                                      get_resource_id,
                                      use_external_resource,
                                      delete_resource_and_runtime_properties,
@@ -31,6 +32,8 @@ from openstack_plugin_common import (with_keystone_client,
 
 PROJECT_OPENSTACK_TYPE = 'tenant'
 
+QUOTA = 'quota'
+
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
@@ -38,7 +41,9 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 @with_keystone_client
 @with_nova_client
 @with_cinder_client
-def create(keystone_client, nova_client, cinder_client, **kwargs):
+@with_neutron_client
+def create(keystone_client, nova_client, cinder_client,
+           neutron_client, **kwargs):
     if use_external_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE):
         return
 
@@ -49,8 +54,8 @@ def create(keystone_client, nova_client, cinder_client, **kwargs):
 
     project = keystone_client.tenants.create(**project_dict)
 
-    quotas = ctx.node.properties['quota']
-    update_quota(project.id, quotas, nova_client, cinder_client)
+    quota = ctx.node.properties[QUOTA]
+    update_quota(project.id, quota, nova_client, cinder_client, neutron_client)
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = project.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
@@ -60,7 +65,14 @@ def create(keystone_client, nova_client, cinder_client, **kwargs):
 
 @operation
 @with_keystone_client
-def delete(keystone_client, **kwargs):
+@with_nova_client
+@with_cinder_client
+@with_neutron_client
+def delete(keystone_client, nova_client, cinder_client,
+           neutron_client, **kwargs):
+    tenant_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    quota = ctx.node.properties[QUOTA]
+    delete_quota(tenant_id, quota, nova_client, cinder_client, neutron_client)
     delete_resource_and_runtime_properties(ctx, keystone_client,
                                            RUNTIME_PROPERTIES_KEYS) 
 
@@ -70,17 +82,40 @@ def creation_validation(keystone_client, **kwargs):
     validate_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE)
 
 
-def update_quota(tenant_id, quotas, nova_client, cinder_client):
-    nova_quota = quotas.get('nova')
+def update_quota(tenant_id, quota, nova_client, cinder_client, neutron_client):
+    nova_quota = quota.get('nova')
     if nova_quota:
         new_nova_quota = nova_client.quotas.update(tenant_id=tenant_id,
                                                    **nova_quota)
         ctx.logger.info(
-            'Updated nova quota is {0}'.format(new_nova_quota.to_dict()))
+            'Updated nova quota: {0}'.format(new_nova_quota.to_dict()))
 
-    cinder_quota = quotas.get('cinder')
+    cinder_quota = quota.get('cinder')
     if cinder_quota:
         cinder_client.quotas.update(tenant_id=tenant_id,
-                                    **cinder_quota)
+                                   **cinder_quota)
         new_cinder_quota = cinder_client.quotas.get(tenant_id=tenant_id)
-        ctx.logger.info('Updated cinder quota is {0}'.format(new_cinder_quota))
+        ctx.logger.info('Updated cinder quota: {0}'.format(new_cinder_quota))
+
+    neutron_quota = quota.get('neutron')
+    if neutron_quota:
+        quota_dict = {
+            'quota': neutron_quota
+        }
+        new_neutron_quota = neutron_client.update_quota(tenant_id=tenant_id,
+                                                        body=quota_dict)
+        ctx.logger.info('Updated neutron quota: {0}'.format(new_neutron_quota))
+
+
+def delete_quota(tenant_id, quota, nova_client, cinder_client, neutron_client):
+    nova_quota = quota.get('nova')
+    if nova_quota:
+        nova_client.quotas.delete(tenant_id=tenant_id)
+
+    cinder_quota = quota.get('cinder')
+    if cinder_quota:
+        cinder_client.quotas.delete(tenant_id=tenant_id)
+
+    neutron_quota = quota.get('neutron')
+    if neutron_quota:
+        neutron_client.delete_quota(tenant_id=tenant_id)

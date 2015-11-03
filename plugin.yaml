@@ -29,7 +29,13 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        configure: openstack.nova_plugin.server.create
+        configure: 
+          implementation: openstack.nova_plugin.server.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
         start:
           implementation: openstack.nova_plugin.server.start
           inputs:

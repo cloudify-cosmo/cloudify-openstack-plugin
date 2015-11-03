@@ -81,7 +81,7 @@ BOOT_VOLUME = 'boot_volume'
 @operation
 @with_nova_client
 @with_neutron_client
-def create(nova_client, neutron_client, **kwargs):
+def create(nova_client, neutron_client, args, **kwargs):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
@@ -126,8 +126,7 @@ def create(nova_client, neutron_client, **kwargs):
     }
 
     server.update(copy.deepcopy(ctx.node.properties['server']))
-    if kwargs.get('server'):
-        server.update(copy.deepcopy(kwargs['server']))
+    server.update(copy.deepcopy(args))
     transform_resource_name(ctx, server)
 
     ctx.logger.info(

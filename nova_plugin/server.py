@@ -130,8 +130,8 @@ def create(nova_client, neutron_client, **kwargs):
         server.update(copy.deepcopy(kwargs['server']))
     transform_resource_name(ctx, server)
 
-    ctx.logger.debug(
-        "server.create() server before transformations: {0}".format(server))
+    ctx.logger.info(
+        "server.create() server before transformations: {0}, kwargs: {1}".format(server, str(kwargs)))
 
     _maybe_transform_userdata(server)
 

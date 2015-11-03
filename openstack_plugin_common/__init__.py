@@ -19,6 +19,7 @@ import os
 import sys
 
 from IPy import IP
+from keystoneauth1 import loading, session
 from cinderclient.v1 import client as cinder_client
 from cinderclient import exceptions as cinder_exceptions
 import keystoneclient.v3.client as keystone_client
@@ -26,6 +27,8 @@ import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v2.client as nova_client
 import novaclient.exceptions as nova_exceptions
+import glanceclient.v2.client as glance_client
+import glanceclient.exc as glance_exceptions
 
 import cloudify
 from cloudify import context
@@ -495,6 +498,30 @@ class NeutronClient(OpenStackClient):
         return NeutronClientWithSugar(**client_kwargs)
 
 
+class GlanceClient(OpenStackClient):
+
+    # Can't glance_url be figured out from keystone
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url']
+
+    def connect(self, cfg):
+        loader = loading.get_plugin_loader('password')
+        auth = loader.load_from_options(
+            auth_url=cfg['auth_url'],
+            username=cfg['username'],
+            password=cfg['password'],
+            tenant_name=cfg['tenant_name'])
+        sess = session.Session(auth=auth)
+
+        client_kwargs = dict(
+            session=sess,
+        )
+        if cfg.get('glance_url'):
+            client_kwargs['endpoint'] = cfg['glance_url']
+
+        return GlanceClientWithSugar(**client_kwargs)
+
+
 # Decorators
 def _find_instanceof_in_kw(cls, kw):
     ret = [v for v in kw.values() if isinstance(v, cls)]
@@ -551,6 +578,21 @@ def with_cinder_client(f):
         try:
             return f(*args, **kw)
         except cinder_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.code)
+            else:
+                raise
+    return wrapper
+
+
+def with_glance_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('glance_client', GlanceClient, kw)
+
+        try:
+            return f(*args, **kw)
+        except glance_exceptions.ClientException, e:
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -732,7 +774,7 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
     def cosmo_list(self, obj_type_single, **kw):
         obj_type_plural = self.cosmo_plural(obj_type_single)
         for obj in getattr(self, obj_type_plural).findall(**kw):
-                yield obj
+            yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
         obj_type_plural = self.cosmo_plural(obj_type_single)
@@ -754,3 +796,24 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
         tenant_id = self.client.service_catalog.get_token()['tenant_id']
         quotas = self.quotas.get(tenant_id)
         return getattr(quotas, self.cosmo_plural(obj_type_single))
+
+
+class GlanceClientWithSugar(glance_client.Client, ClientWithSugar):
+    GLANCE_INIFINITE_RESOURCE_QUOTA = 10**9
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        return getattr(self, obj_type_plural).list(filters=kw)
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.name
+
+    def get_quota(self, obj_type_single):
+        return self.GLANCE_INIFINITE_RESOURCE_QUOTA

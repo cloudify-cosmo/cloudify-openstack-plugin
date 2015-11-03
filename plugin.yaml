@@ -466,6 +466,52 @@ node_types:
             openstack_config:
               default: {}
 
+  cloudify.openstack.nodes.Image:
+    derived_from: cloudify.nodes.Root
+    properties:
+      image:
+        description: >
+          Required parameters are (container_format, disk_format). Accepted
+          types are available on
+          http://docs.openstack.org/developer/glance/formats.html
+          To create an image from the local file its path should be added
+          in data parameter.
+        default: {}
+      image_url:
+        default: ''
+      use_external_resource:
+        default: false
+      resource_id:
+        default: ''
+      openstack_config:
+        default: {}
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.glance_plugin.image.create
+          inputs:
+            openstack_config:
+              default: {}
+        start:
+          implementation: openstack.glance_plugin.image.start
+          inputs:
+            start_retry_interval:
+              default: 30
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.glance_plugin.image.delete
+          inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.validation:
+        creation:
+          implementation: openstack.glance_plugin.image.creation_validation
+          inputs:
+            openstack_config:
+              default: {}
+
+
 relationships:
   cloudify.openstack.port_connected_to_security_group:
     derived_from: cloudify.relationships.connected_to

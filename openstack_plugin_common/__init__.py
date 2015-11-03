@@ -27,6 +27,8 @@ import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v1_1.client as nova_client
 import novaclient.exceptions as nova_exceptions
+import glanceclient.v2.client as glance_client
+import glanceclient.exc as glance_exceptions
 
 import cloudify
 from cloudify import context
@@ -488,6 +490,29 @@ class NeutronClient(OpenStackClient):
         return NeutronClientWithSugar(**client_kwargs)
 
 
+class GlanceClient(OpenStackClient):
+
+    # Can't glance_url be figured out from keystone
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url', 'glance_url']
+
+    def connect(self, cfg):
+        token = self._get_token(cfg)
+        client_kwargs = dict(
+            endpoint=cfg['glance_url'],
+            token=token,
+        )
+
+        return GlanceClientWithSugar(**client_kwargs)
+
+    def _get_token(self, cfg):
+        keystone = keystone_client.Client(username=cfg['username'],
+                                          password=cfg['password'],
+                                          tenant_name=cfg['tenant_name'],
+                                          auth_url=cfg['auth_url'])
+        return keystone.auth_token
+
+
 # Decorators
 def _find_instanceof_in_kw(cls, kw):
     ret = [v for v in kw.values() if isinstance(v, cls)]
@@ -563,13 +588,21 @@ def with_keystone_client(f):
                 _re_raise(e, recoverable=False, status_code=e.http_status)
             else:
                 raise
-        except keystone_exceptions.ClientException, e:
-            _re_raise(e, recoverable=False)
     return wrapper
 
 
-        return f(*args, **kw)
+def with_glance_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('glance_client', GlanceClient, kw)
 
+        try:
+            return f(*args, **kw)
+        except glance_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.code)
+            else:
+                raise
     return wrapper
 
 
@@ -786,3 +819,24 @@ class KeystoneClientWithSugar(keystone_client.Client, ClientWithSugar):
 
     def get_quota(self, obj_type_single):
         return self.KEYSTONE_INFINITE_RESOURCE_QUOTA
+
+
+class GlanceClientWithSugar(glance_client.Client, ClientWithSugar):
+    GLANCE_INIFINITE_RESOURCE_QUOTA = 10**9
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        return getattr(self, obj_type_plural).list(filters=kw)
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.name
+
+    def get_quota(self, obj_type_single):
+        return self.GLANCE_INIFINITE_RESOURCE_QUOTA

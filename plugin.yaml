@@ -290,6 +290,25 @@ node_types:
       cloudify.interfaces.validation:
         creation: openstack.nova_plugin.security_group.creation_validation
 
+  cloudify.openstack.nodes.Image:
+    derived_from: cloudify.nodes.Root
+    properties:
+      image:
+        default: {}
+      use_external_resource:
+        default: false
+      resource_id:
+        default: ''
+      openstack_config:
+        default: {}
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: openstack.glance_plugin.image.create
+        delete: openstack.glance_plugin.image.delete
+      cloudify.interfaces.validation:
+        creation: openstack.glance_plugin.image.creation_validation
+
+
   cloudify.openstack.nodes.Project:
     derived_from: cloudify.nodes.Root
     properties:

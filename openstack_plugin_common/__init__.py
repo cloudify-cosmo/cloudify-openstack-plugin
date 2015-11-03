@@ -22,6 +22,7 @@ from IPy import IP
 from cinderclient.v1 import client as cinder_client
 from cinderclient import exceptions as cinder_exceptions
 import keystoneclient.v2_0.client as keystone_client
+import keystoneclient.apiclient.exceptions as keystone_exceptions
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v1_1.client as nova_client
@@ -554,6 +555,19 @@ def with_keystone_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _put_client_in_kw('keystone_client', KeystoneClient, kw)
+
+        try:
+            return f(*args, **kw)
+        except keystone_exceptions.HTTPError, e:
+            if e.http_status in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.http_status)
+            else:
+                raise
+        except keystone_exceptions.ClientException, e:
+            _re_raise(e, recoverable=False)
+    return wrapper
+
+
         return f(*args, **kw)
 
     return wrapper

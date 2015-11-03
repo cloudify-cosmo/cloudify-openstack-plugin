@@ -126,6 +126,7 @@ def create(nova_client, neutron_client, args, **kwargs):
     }
 
     server.update(copy.deepcopy(ctx.node.properties['server']))
+    server.update(copy.deepcopy(ctx.instance.runtime_properties.get('server', {})))
     server.update(copy.deepcopy(args))
     transform_resource_name(ctx, server)
 

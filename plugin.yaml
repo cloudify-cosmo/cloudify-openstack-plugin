@@ -314,6 +314,11 @@ node_types:
     properties:
       project:
         default: {}
+      users:
+        default: []
+        description: >
+          List of users assigned to this project in the following format:
+            { name: string, roles: [string] }
       quota:
         default: {}
       use_external_resource:

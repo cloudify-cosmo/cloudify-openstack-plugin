@@ -15,6 +15,7 @@
 
 from cloudify import ctx
 from cloudify.decorators import operation
+from cloudify.exceptions import NonRecoverableError
 
 from openstack_plugin_common import (with_keystone_client,
                                      with_nova_client,
@@ -47,6 +48,9 @@ def create(keystone_client, nova_client, cinder_client,
     if use_external_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE):
         return
 
+    users = ctx.node.properties['users']
+    validate_users(users, keystone_client)
+
     project_dict = {
         'tenant_name': get_resource_id(ctx, PROJECT_OPENSTACK_TYPE)
     }
@@ -54,13 +58,15 @@ def create(keystone_client, nova_client, cinder_client,
 
     project = keystone_client.tenants.create(**project_dict)
 
-    quota = ctx.node.properties[QUOTA]
-    update_quota(project.id, quota, nova_client, cinder_client, neutron_client)
-
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = project.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         PROJECT_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = project.name
+
+    assign_users(project, users, keystone_client)
+
+    quota = ctx.node.properties[QUOTA]
+    update_quota(project.id, quota, nova_client, cinder_client, neutron_client)
 
 
 @operation
@@ -80,6 +86,33 @@ def delete(keystone_client, nova_client, cinder_client,
 @with_keystone_client
 def creation_validation(keystone_client, **kwargs):
     validate_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE)
+
+
+def assign_users(tenant, users, keystone_client):
+    for user in users:
+        roles = user['roles']
+        openstack_user = keystone_client.users.find(name=user['name'])
+        for role in roles:
+            openstack_role = keystone_client.roles.find(name=role)
+            tenant.add_user(openstack_user, openstack_role)
+
+
+def validate_users(users, keystone_client):
+    user_names = [user['name'] for user in users]
+    if len(user_names) > len(set(user_names)):
+        raise NonRecoverableError('Users are not unique')
+
+    for user_name in user_names:
+        keystone_client.users.find(name=user_name)
+
+    for user in users:
+        if len(user['roles']) > len(set(user['roles'])):
+            msg = 'Roles for user {} are not unique'
+            raise NonRecoverableError(msg.format(user['name']))
+
+    role_names = {role for user in users for role in user['roles']}
+    for role_name in role_names:
+        keystone_client.roles.find(name=role_name)
 
 
 def update_quota(tenant_id, quota, nova_client, cinder_client, neutron_client):

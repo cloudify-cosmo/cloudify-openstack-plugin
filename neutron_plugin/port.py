@@ -34,6 +34,7 @@ from openstack_plugin_common import (
     OPENSTACK_NAME_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
+from openstack_plugin_common import cfy_one2one_simulation
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
@@ -46,6 +47,9 @@ RUNTIME_PROPERTIES_KEYS = \
     COMMON_RUNTIME_PROPERTIES_KEYS + [FIXED_IP_ADDRESS_PROPERTY]
 
 _NO_SG_PORT_CONNECTION_RETRY_INTERVAL = 3
+
+_SUBNET_TYPE = 'cloudify.openstack.nodes.Subnet'
+_NETWORK_TYPE = 'cloudify.openstack.nodes.Network'
 
 
 @operation
@@ -76,8 +80,23 @@ def create(neutron_client, **kwargs):
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
             raise
     ctx.logger.info('[all connected nodes]INFO: {0}'.format(str(ctx.capabilities.get_all().values())))
-    net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
-        ctx, NETWORK_OPENSTACK_TYPE)
+
+    subnet_nis = cfy_one2one_simulation.retreive_related_node_instances(
+        _SUBNET_TYPE
+    )
+    if len(subnet_nis) == 0:
+        raise NonRecoverableError('No subnets connected')
+    elif len(subnet_nis) > 1:
+        raise NonRecoverableError('Multiple subnets connected')
+    net_nis = cfy_one2one_simulation.retreive_related_node_instances(
+        _NETWORK_TYPE,
+        subnet_nis[0]
+    )
+    if len(net_nis) == 0:
+        raise NonRecoverableError('No networks connected')
+    elif len(net_nis) > 1:
+        raise NonRecoverableError('Multiple networks connected')
+    net_id = net_nis[0].runtime_properties['external_id']
 
     port = {
         'name': get_resource_id(ctx, PORT_OPENSTACK_TYPE),

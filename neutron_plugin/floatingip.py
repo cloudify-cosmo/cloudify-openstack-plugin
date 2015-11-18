@@ -28,7 +28,6 @@ from openstack_plugin_common.floatingip import (
     delete_floatingip,
     floatingip_creation_validation
 )
-from openstack_plugin_common import cfy_one2one_simulation
 
 
 @operation
@@ -80,13 +79,6 @@ def creation_validation(neutron_client, **kwargs):
 @with_neutron_client
 def connect_port(neutron_client, **kwargs):
     if is_external_relationship(ctx):
-        return
-
-    retry, result = \
-        cfy_one2one_simulation.simulate_relationship_one2one_or_retry()
-    if retry is not None:
-        return retry
-    if not result:
         return
 
     port_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]

@@ -5,7 +5,7 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/1.2.zip
+    source: https://github.com/szpotona/cloudify-openstack-plugin/archive/1.2-build.zip
 
 node_types:
   cloudify.openstack.nodes.Server:
@@ -29,7 +29,13 @@ node_types:
         default: {}
     interfaces:
       cloudify.interfaces.lifecycle:
-        create: openstack.nova_plugin.server.create
+        configure: 
+          implementation: openstack.nova_plugin.server.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
         start:
           implementation: openstack.nova_plugin.server.start
           inputs:
@@ -345,3 +351,9 @@ relationships:
       cloudify.interfaces.relationship_lifecycle:
         establish: openstack.nova_plugin.server.attach_volume
         unlink: openstack.nova_plugin.server.detach_volume
+
+  cloudify.openstack.server_boot_from_volume:
+    derived_from: cloudify.relationships.connected_to
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure: openstack.nova_plugin.server.add_bootable_volume

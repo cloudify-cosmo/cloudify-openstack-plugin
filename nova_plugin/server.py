@@ -50,6 +50,7 @@ from openstack_plugin_common import (
     OPENSTACK_NAME_PROPERTY,
     COMMON_RUNTIME_PROPERTIES_KEYS,
     with_neutron_client)
+from openstack_plugin_common import cfy_one2one_simulation
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
@@ -75,11 +76,15 @@ ADMIN_PASSWORD_PROPERTY = 'password'  # the server's password
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
     [NETWORKS_PROPERTY, IP_PROPERTY, ADMIN_PASSWORD_PROPERTY]
 
+BOOT_VOLUME = 'boot_volume'
+
+_PORT_TYPE = 'cloudify.openstack.nodes.Port'
+
 
 @operation
 @with_nova_client
 @with_neutron_client
-def create(nova_client, neutron_client, **kwargs):
+def create(nova_client, neutron_client, args, **kwargs):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
@@ -97,8 +102,21 @@ def create(nova_client, neutron_client, **kwargs):
 
     network_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
-    port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
-        ctx, PORT_OPENSTACK_TYPE)
+
+    connected_ports = \
+        cfy_one2one_simulation.retreive_grouped_related_node_instances(
+            _PORT_TYPE
+        )
+    if connected_ports:
+        retry, port_instances = \
+            cfy_one2one_simulation.simulate_node_one2one_or_retry(
+                connected_ports
+            )
+        if retry is not None:
+            return retry
+        port_ids = cfy_one2one_simulation.cfyid2osid(port_instances)
+    else:
+        port_ids = []
 
     external_server = use_external_resource(ctx, nova_client,
                                             SERVER_OPENSTACK_TYPE)
@@ -122,11 +140,14 @@ def create(nova_client, neutron_client, **kwargs):
     server = {
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
     }
+
     server.update(copy.deepcopy(ctx.node.properties['server']))
+    server.update(copy.deepcopy(ctx.instance.runtime_properties.get('server', {})))
+    server.update(copy.deepcopy(args))
     transform_resource_name(ctx, server)
 
-    ctx.logger.debug(
-        "server.create() server before transformations: {0}".format(server))
+    ctx.logger.info(
+        "server.create() server before transformations: {0}, kwargs: {1}".format(server, str(kwargs)))
 
     _maybe_transform_userdata(server)
 
@@ -150,7 +171,7 @@ def create(nova_client, neutron_client, **kwargs):
         server['nics'] = \
             server.get('nics', []) + [{'net-id': management_network_id}]
 
-    _handle_image_or_flavor(server, nova_client, 'image')
+    #_handle_image_or_flavor(server, nova_client, 'image')
     _handle_image_or_flavor(server, nova_client, 'flavor')
 
     if provider_context.agents_security_group:
@@ -222,6 +243,11 @@ def create(nova_client, neutron_client, **kwargs):
             # will fail.
             server['nics'].remove({'net-id': management_network_id})
 
+            # make management network the first interface
+            idx = port_network_ids.index(management_network_id)
+            server['nics'] = server.get('nics', [])
+            server['nics'].insert(0, {'port-id': port_ids[idx]})
+            nics.pop(idx)
         server['nics'] = server.get('nics', []) + nics
     # Multi-NIC by ports - end
 
@@ -255,7 +281,9 @@ def create(nova_client, neutron_client, **kwargs):
     if management_network_name is not None:
         params['meta']['cloudify_management_network_name'] = \
             management_network_name
-
+    boot_volume = ctx.instance.runtime_properties.get(BOOT_VOLUME)
+    if boot_volume:
+        params['block_device_mapping'] = {'vda': '{0}:::0'.format(boot_volume)}
     ctx.logger.info("Creating VM with parameters: {0}".format(str(params)))
     ctx.logger.debug(
         "Asking Nova to create server. All possible parameters are: {0})"
@@ -264,6 +292,10 @@ def create(nova_client, neutron_client, **kwargs):
     try:
         s = nova_client.servers.create(**params)
     except nova_exceptions.BadRequest as e:
+        if 'Block Device Mapping is Invalid' in str(e):
+            return ctx.operation.retry(
+                message='Block Device Mapping is not created yet',
+                retry_after=30)
         if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
             raise NonRecoverableError(
                 "Can not provision server: management_network_name or id"
@@ -521,6 +553,18 @@ def disconnect_security_group(nova_client, **kwargs):
 
 
 @operation
+def add_bootable_volume(**kwargs):
+    retry, result = \
+        cfy_one2one_simulation.simulate_relationship_one2one_or_retry()
+    if retry is not None:
+        return retry
+    if not result:
+        return
+    volume_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    ctx.source.instance.runtime_properties[BOOT_VOLUME] = volume_id
+
+
+@operation
 @with_nova_client
 @with_cinder_client
 def attach_volume(nova_client, cinder_client, **kwargs):
@@ -721,6 +765,28 @@ def ud_http(params):
         ('url',),
         "server.userdata when using type 'http'")
     return requests.get(params['url']).text
+
+
+@userdata_handler('file')
+def ud_file(params):
+    """ Fetches userdata from file """
+    _fail_on_missing_required_parameters(
+        params,
+        ('path',),
+        "server.userdata when using type 'file'")
+    return ctx.get_resource(params['path'])
+
+
+@userdata_handler('string')
+def ud_file(params):
+    """ Fetches userdata from string """
+    script = params.get('script') or ctx.instance.runtime_properties.get('script')
+    if not script:
+        _fail_on_missing_required_parameters(
+            params,
+            ('script',),
+            "server.userdata when using type 'string'")
+    return script
 # *** userdata handling - end ***
 
 

@@ -5,7 +5,7 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/szpotona/cloudify-openstack-plugin/archive/1.2-build.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/b3.1.zip
 
 node_types:
   cloudify.openstack.nodes.Server:

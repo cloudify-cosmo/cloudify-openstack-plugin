@@ -423,7 +423,7 @@ class KeystoneClient(OpenStackClient):
         client_kwargs.update(
             cfg.get('custom_configuration', {}).get('keystone_client', {}))
 
-        return keystone_client.Client(**client_kwargs)
+        return KeystoneClientWithSugar(**client_kwargs)
 
 
 class NovaClient(OpenStackClient):
@@ -547,6 +547,15 @@ def with_cinder_client(f):
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
+    return wrapper
+
+
+def with_keystone_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('keystone_client', KeystoneClient, kw)
+        return f(*args, **kw)
+
     return wrapper
 
 
@@ -718,7 +727,7 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
     def cosmo_list(self, obj_type_single, **kw):
         obj_type_plural = self.cosmo_plural(obj_type_single)
         for obj in getattr(self, obj_type_plural).findall(**kw):
-                yield obj
+            yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
         obj_type_plural = self.cosmo_plural(obj_type_single)
@@ -740,3 +749,26 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
         tenant_id = self.client.service_catalog.get_token()['tenant_id']
         quotas = self.quotas.get(tenant_id)
         return getattr(quotas, self.cosmo_plural(obj_type_single))
+
+
+class KeystoneClientWithSugar(keystone_client.Client, ClientWithSugar):
+    # keystone does not have resource quota
+    KEYSTONE_INFINITE_RESOURCE_QUOTA = 10**9
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        for obj in getattr(self, obj_type_plural).findall(**kw):
+            yield obj
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.name
+
+    def get_quota(self, obj_type_single):
+        return self.KEYSTONE_INFINITE_RESOURCE_QUOTA

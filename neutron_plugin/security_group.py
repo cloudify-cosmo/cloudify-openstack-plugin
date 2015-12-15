@@ -46,6 +46,8 @@ DEFAULT_RULE_VALUES = {
 def create(neutron_client, args, **kwargs):
 
     security_group = build_sg_data(args)
+    if not security_group['description']:
+        security_group['description'] = ctx.node.properties['description']
 
     sg_rules = process_rules(neutron_client, DEFAULT_RULE_VALUES,
                              'remote_ip_prefix', 'remote_group_id',

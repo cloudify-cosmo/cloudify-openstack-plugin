@@ -185,6 +185,9 @@ node_types:
     properties:
       security_group:
         default: {}
+      description:
+        type: string
+        default: ''
       use_external_resource:
         type: boolean
         default: false

@@ -15,6 +15,7 @@
 
 
 import os
+import re
 import time
 import copy
 import inspect
@@ -292,6 +293,13 @@ def create(nova_client, neutron_client, args, **kwargs):
     try:
         s = nova_client.servers.create(**params)
     except nova_exceptions.BadRequest as e:
+        up = '[A-Za-z0-9]{8}(-[A-Za-z0-9]{4}){3}-[A-Za-z0-9]{12}'
+        p = 'Invalid volume: volume \'{0}\'' \
+            ' status must be \'available\'\.' \
+            ' Currently in \'downloading\'' \
+            ' \(HTTP 400\) \(Request-ID: req-{0}\)'.format(up)
+        if re.match(p, str(e)):
+            return ctx.operation.retry(message=str(e), retry_after=30)
         if 'Block Device Mapping is Invalid' in str(e):
             return ctx.operation.retry(
                 message='Block Device Mapping is not created yet',

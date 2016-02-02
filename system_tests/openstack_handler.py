@@ -487,10 +487,11 @@ class OpenstackHandler(BaseHandler):
                     # failed to get volume... status is unknown
                     vol_status = 'unknown'
 
-                unremovables[volume.id] = 'timed out while removing volume {0}' \
-                                          ' ({1}), current volume status is ' \
-                                          '{2}'.format(volume.display_name,
-                                                       volume.id, vol_status)
+                unremovables[volume.id] = 'timed out while removing volume '\
+                                          '{0} ({1}), current volume status '\
+                                          'is {2}'.format(volume.display_name,
+                                                          volume.id,
+                                                          vol_status)
 
         if unremovables:
             self.logger.warning('failed to remove volumes: {0}'.format(

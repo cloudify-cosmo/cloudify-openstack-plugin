@@ -249,6 +249,9 @@ class OpenstackHandler(BaseHandler):
 
     def openstack_clients(self):
         creds = self._client_creds()
+
+        self.logger.info('Creating a Nova/Cinder client with the following '
+                         'arguments: {0}'.format(creds))
         return (nvclient.Client(**creds),
                 neclient.Client(username=creds['username'],
                                 password=creds['api_key'],

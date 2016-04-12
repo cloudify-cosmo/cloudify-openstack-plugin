@@ -102,16 +102,21 @@ def provider(ctx):
     return ProviderContext(ctx.provider_context)
 
 
-def get_connected_nodes_by_openstack_type(ctx, type_name):
-    return [rel.target.node for rel in ctx.instance.relationships
+def get_relationships_by_openstack_type(ctx, type_name):
+    return [rel for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(
                 OPENSTACK_TYPE_PROPERTY) == type_name]
 
 
+def get_connected_nodes_by_openstack_type(ctx, type_name):
+    return [rel.target.node
+            for rel in get_relationships_by_openstack_type(ctx, type_name)]
+
+
 def get_openstack_ids_of_connected_nodes_by_openstack_type(ctx, type_name):
-    type_caps = [caps for caps in ctx.capabilities.get_all().values() if
-                 caps.get(OPENSTACK_TYPE_PROPERTY) == type_name]
-    return [cap[OPENSTACK_ID_PROPERTY] for cap in type_caps]
+    return [rel.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+            for rel in get_relationships_by_openstack_type(ctx, type_name)
+            ]
 
 
 def get_single_connected_node_by_openstack_type(

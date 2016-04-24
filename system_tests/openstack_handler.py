@@ -291,6 +291,81 @@ class OpenstackHandler(BaseHandler):
             for prop in before
         }
 
+    def _find_keypairs_to_delete(self, nodes, node_instances):
+        """Filter the nodes only returning the names of keypair nodes
+
+        Examine node_instances and nodes, return the external_name of
+        those node_instances, which correspond to a node that has a
+        type == KeyPair
+
+        To filter by deployment_id, simply make sure that the nodes and
+        node_instances this method receives, are pre-filtered
+        (ie. filter the nodes while fetching them from the manager)
+        """
+        keypairs = set()  # a set of (deployment_id, node_id) tuples
+
+        for node in nodes:
+            if node.get('type') != 'cloudify.openstack.nodes.KeyPair':
+                continue
+            # deployment_id isnt always present in local_env runs
+            key = (node.get('deployment_id'), node['id'])
+            keypairs.add(key)
+
+        for node_instance in node_instances:
+            key = (node_instance.get('deployment_id'),
+                   node_instance['node_id'])
+            if key not in keypairs:
+                continue
+
+            runtime_properties = node_instance['runtime_properties']
+            if not runtime_properties:
+                continue
+            name = runtime_properties.get('external_name')
+            if name:
+                yield name
+
+    def _delete_keypairs_by_name(self, keypair_names):
+        nova, neutron, cinder = self.openstack_clients()
+        existing_keypairs = nova.keypairs.list()
+
+        for name in keypair_names:
+            for keypair in existing_keypairs:
+                if keypair.name == name:
+                    nova.keypairs.delete(keypair)
+
+    def remove_keypairs_from_local_env(self, local_env):
+        """Query the local_env for nodes which are keypairs, remove them
+
+        Similar to querying the manager, we can look up nodes in the local_env
+        which is used for tests.
+        """
+        nodes = local_env.storage.get_nodes()
+        node_instances = local_env.storage.get_node_instances()
+        names = self._find_keypairs_to_delete(nodes, node_instances)
+        self._delete_keypairs_by_name(names)
+
+    def remove_keypairs_from_manager(self, deployment_id=None,
+                                     rest_client=None):
+        """Query the manager for nodes by deployment_id, delete keypairs
+
+        Fetch nodes and node_instances from the manager by deployment_id
+        (or all if not given), find which ones represent openstack keypairs,
+        remove them.
+        """
+        if rest_client is None:
+            rest_client = self.env.rest_client
+
+        nodes = rest_client.nodes.list(deployment_id=deployment_id)
+        node_instances = rest_client.node_instances.list(
+            deployment_id=deployment_id)
+        keypairs = self._find_keypairs_to_delete(nodes, node_instances)
+        self._delete_keypairs_by_name(keypairs)
+
+    def remove_keypair(self, name):
+        """Delete an openstack keypair by name. If it doesnt exist, do nothing.
+        """
+        self._delete_keypairs_by_name([name])
+
     def remove_openstack_resources(self, resources_to_remove):
         # basically sort of a workaround, but if we get the order wrong
         # the first time, there is a chance things would better next time

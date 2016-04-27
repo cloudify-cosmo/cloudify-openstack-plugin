@@ -630,7 +630,9 @@ class OpenstackHandler(BaseHandler):
                 if self._check_prefix(v.display_name, prefix)]
 
     def _check_prefix(self, name, prefix):
-        return name.startswith(prefix)
+        # some openstack resources (eg. volumes) can have no display_name,
+        # in which case it's None
+        return name is None or name.startswith(prefix)
 
     def _remove_keys(self, dct, keys):
         for key in keys:

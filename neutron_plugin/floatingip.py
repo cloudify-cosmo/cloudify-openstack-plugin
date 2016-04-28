@@ -53,8 +53,9 @@ def create(neutron_client, args, **kwargs):
         ext_network = provider_context.ext_network
         if ext_network:
             floatingip['floating_network_id'] = ext_network['id']
-    else:
-        raise NonRecoverableError('Missing floating network id or name')
+        else:
+            raise NonRecoverableError(
+                'Missing floating network id, name or external network')
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']

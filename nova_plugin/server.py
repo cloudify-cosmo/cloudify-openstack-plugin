@@ -73,6 +73,87 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
     [NETWORKS_PROPERTY, IP_PROPERTY, ADMIN_PASSWORD_PROPERTY]
 
 
+def _get_management_network_id_and_name(neutron_client, ctx):
+    """Examine the context to find the management network id and name."""
+    management_network_id = None
+    management_network_name = None
+    provider_context = provider(ctx)
+
+    if ('management_network_name' in ctx.node.properties) and \
+            ctx.node.properties['management_network_name']:
+        management_network_name = \
+            ctx.node.properties['management_network_name']
+        management_network_name = transform_resource_name(
+            ctx, management_network_name)
+        management_network_id = neutron_client.cosmo_get_named(
+            'network', management_network_name)
+        management_network_id = management_network_id['id']
+    else:
+        int_network = provider_context.int_network
+        if int_network:
+            management_network_id = int_network['id']
+            management_network_name = int_network['name']  # Already transform.
+
+    return management_network_id, management_network_name
+
+
+def _merge_nics(management_network_id, *nics_sources):
+    """Merge nics_sources into a single nics list, insert mgmt network if needed.
+
+    nics_sources are lists of networks received from several sources
+    (server properties, relationships to networks, relationships to ports).
+    Merge them into a single list, and if the management network isn't present
+    there, prepend it as the first network.
+    """
+    merged = []
+    for nics in nics_sources:
+        merged.extend(nics)
+    if management_network_id is not None and \
+            not any(nic['net-id'] == management_network_id for nic in merged):
+        merged.insert(0, {'net-id': management_network_id})
+    return merged
+
+
+def _prepare_server_nics(neutron_client, ctx, server):
+    """Update server['nics'] based on declared relationships.
+
+    server['nics'] should contain the pre-declared nics, then the networks
+    that the server has a declared relationship to, then the networks
+    of the ports the server has a relationship to.
+
+    If that doesn't include the management network, it should be prepended
+    as the first network.
+
+    The management network id and name are stored in the server meta properties
+    """
+    network_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
+        ctx, NETWORK_OPENSTACK_TYPE)
+    port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
+        ctx, PORT_OPENSTACK_TYPE)
+    management_network_id, management_network_name = \
+        _get_management_network_id_and_name(neutron_client, ctx)
+    if management_network_id is None and (network_ids or port_ids):
+        # Known limitation
+        raise NonRecoverableError(
+            "Nova server with NICs requires "
+            "'management_network_name' in properties or id "
+            "from provider context, which was not supplied")
+
+    server['nics'] = _merge_nics(
+        management_network_id,
+        server.get('nics', []),
+        [{'net-id': net_id} for net_id in network_ids],
+        [{'net-id': net_id} for net_id in
+            get_port_network_ids_(neutron_client, port_ids)])
+
+    if management_network_id is not None:
+        server['meta']['cloudify_management_network_id'] = \
+            management_network_id
+    if management_network_name is not None:
+        server['meta']['cloudify_management_network_name'] = \
+            management_network_name
+
+
 @operation
 @with_nova_client
 @with_neutron_client
@@ -82,15 +163,13 @@ def create(nova_client, neutron_client, args, **kwargs):
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
     .servers.html#novaclient.v1_1.servers.ServerManager.create
     """
-
-    network_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
-        ctx, NETWORK_OPENSTACK_TYPE)
-    port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
-        ctx, PORT_OPENSTACK_TYPE)
-
     external_server = use_external_resource(ctx, nova_client,
                                             SERVER_OPENSTACK_TYPE)
     if external_server:
+        network_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
+            ctx, NETWORK_OPENSTACK_TYPE)
+        port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
+            ctx, PORT_OPENSTACK_TYPE)
         try:
             _validate_external_server_nics(
                 neutron_client,
@@ -114,29 +193,14 @@ def create(nova_client, neutron_client, args, **kwargs):
     }
     server.update(copy.deepcopy(ctx.node.properties['server']))
     server.update(copy.deepcopy(args))
+
+    if 'meta' not in server:
+        server['meta'] = dict()
+
     transform_resource_name(ctx, server)
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
-
-    management_network_id = None
-    management_network_name = None
-
-    if ('management_network_name' in ctx.node.properties) and \
-            ctx.node.properties['management_network_name']:
-        management_network_name = \
-            ctx.node.properties['management_network_name']
-        management_network_name = rename(management_network_name)
-        management_network_id = neutron_client.cosmo_get_named(
-            'network', management_network_name)['id']
-    else:
-        int_network = provider_context.int_network
-        if int_network:
-            management_network_id = int_network['id']
-            management_network_name = int_network['name']  # Already transform.
-    if management_network_id is not None:
-        server['nics'] = \
-            server.get('nics', []) + [{'net-id': management_network_id}]
 
     _handle_image_or_flavor(server, nova_client, 'image')
     _handle_image_or_flavor(server, nova_client, 'flavor')
@@ -175,55 +239,10 @@ def create(nova_client, neutron_client, args, **kwargs):
         ('name', 'flavor', 'image', 'key_name'),
         'server')
 
-    if management_network_id is None and (network_ids or port_ids):
-        # Known limitation
-        raise NonRecoverableError(
-            "Nova server with NICs requires "
-            "'management_network_name' in properties or id "
-            "from provider context, which was not supplied")
-
-    # Multi-NIC by networks - start
-    nics = [{'net-id': net_id} for net_id in network_ids]
-    if nics:
-        if management_network_id in network_ids:
-            # de-duplicating the management network id in case it appears in
-            # network_ids. There has to be a management network if a
-            # network is connected to the server.
-            # note: if the management network appears more than once in
-            # network_ids it won't get de-duplicated and the server creation
-            # will fail.
-            nics.remove({'net-id': management_network_id})
-
-        server['nics'] = server.get('nics', []) + nics
-    # Multi-NIC by networks - end
-
-    # Multi-NIC by ports - start
-    nics = [{'port-id': port_id} for port_id in port_ids]
-    if nics:
-        port_network_ids = get_port_network_ids_(neutron_client, port_ids)
-        if management_network_id in port_network_ids:
-            # de-duplicating the management network id in case it appears in
-            # port_ids. There has to be a management network if a
-            # network is connected to the server.
-            # note: if the management network appears more than once in
-            # network_ids it won't get de-duplicated and the server creation
-            # will fail.
-            server['nics'].remove({'net-id': management_network_id})
-
-        server['nics'] = server.get('nics', []) + nics
-    # Multi-NIC by ports - end
+    _prepare_server_nics(neutron_client, ctx, server)
 
     ctx.logger.debug(
         "server.create() server after transformations: {0}".format(server))
-
-    if 'meta' not in server:
-        server['meta'] = dict()
-    if management_network_id is not None:
-        server['meta']['cloudify_management_network_id'] = \
-            management_network_id
-    if management_network_name is not None:
-        server['meta']['cloudify_management_network_name'] = \
-            management_network_name
 
     userdata.handle_userdata(server)
 
@@ -535,12 +554,12 @@ def attach_volume(nova_client, cinder_client, **kwargs):
                 volume.DEVICE_NAME_PROPERTY] = device_name
     except Exception, e:
         if not isinstance(e, NonRecoverableError):
-            __prepare_attach_volume_to_be_repeated(
+            _prepare_attach_volume_to_be_repeated(
                 nova_client, cinder_client, server_id, volume_id)
         raise
 
 
-def __prepare_attach_volume_to_be_repeated(
+def _prepare_attach_volume_to_be_repeated(
         nova_client, cinder_client, server_id, volume_id):
 
     ctx.logger.info('Cleaning after a failed attach_volume() call')

@@ -114,6 +114,20 @@ def _merge_nics(management_network_id, *nics_sources):
     return merged
 
 
+def _normalize_nics(nics):
+    """Transform the NICs passed to the form expected by openstack.
+
+    If both net-id and port-id are provided, remove net-id: it is ignored
+    by openstack anyway.
+    """
+    def _normalize(nic):
+        if 'port-id' in nic and 'net-id' in nic:
+            nic = nic.copy()
+            del nic['net-id']
+        return nic
+    return [_normalize(nic) for nic in nics]
+
+
 def _prepare_server_nics(neutron_client, ctx, server):
     """Update server['nics'] based on declared relationships.
 
@@ -139,13 +153,15 @@ def _prepare_server_nics(neutron_client, ctx, server):
             "'management_network_name' in properties or id "
             "from provider context, which was not supplied")
 
-    server['nics'] = _merge_nics(
+    nics = _merge_nics(
         management_network_id,
         server.get('nics', []),
         [{'net-id': net_id} for net_id in network_ids],
-        [{'net-id': net_id} for net_id in
-            get_port_network_ids_(neutron_client, port_ids)])
+        get_port_networks(neutron_client, port_ids))
 
+    nics = _normalize_nics(nics)
+
+    server['nics'] = nics
     if management_network_id is not None:
         server['meta']['cloudify_management_network_id'] = \
             management_network_id
@@ -266,11 +282,14 @@ def create(nova_client, neutron_client, args, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = server['name']
 
 
-def get_port_network_ids_(neutron_client, port_ids):
+def get_port_networks(neutron_client, port_ids):
 
     def get_network(port_id):
         port = neutron_client.show_port(port_id)
-        return port['port']['network_id']
+        return {
+            'net-id': port['port']['network_id'],
+            'port-id': port['port']['id']
+        }
 
     return map(get_network, port_ids)
 

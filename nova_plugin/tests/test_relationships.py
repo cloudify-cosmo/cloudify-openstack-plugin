@@ -47,7 +47,7 @@ from openstack_plugin_common import (
 
 
 class RelationshipsTestBase(TestCase):
-    def _make_vm_ctx_with_relationships(self, rel_specs):
+    def _make_vm_ctx_with_relationships(self, rel_specs, properties=None):
         """Prepare a mock CloudifyContext from the given relationship spec.
 
         rel_specs is an ordered collection of relationship specs - dicts
@@ -66,6 +66,8 @@ class RelationshipsTestBase(TestCase):
             }
         ]
         """
+        if properties is None:
+            properties = {}
         relationships = []
         for rel_spec in rel_specs:
             node = rel_spec.get('node', {})
@@ -74,7 +76,8 @@ class RelationshipsTestBase(TestCase):
             instance = rel_spec.get('instance', {})
             instance_id = instance.pop('id', '{0}_{1}'.format(
                 node_id, uuid.uuid4().hex))
-
+            if 'properties' not in node:
+                node['properties'] = {}
             node_ctx = MockNodeContext(id=node_id, **node)
             instance_ctx = MockNodeInstanceContext(id=instance_id, **instance)
 
@@ -84,7 +87,8 @@ class RelationshipsTestBase(TestCase):
             rel_ctx = MockRelationshipContext(target=rel_subject_ctx,
                                               type=rel_type)
             relationships.append(rel_ctx)
-        return MockCloudifyContext(node_id='vm', relationships=relationships)
+        return MockCloudifyContext(node_id='vm', properties=properties,
+                                   relationships=relationships)
 
 
 class TestGettingRelatedResources(RelationshipsTestBase):

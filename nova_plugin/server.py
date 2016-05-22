@@ -17,6 +17,7 @@
 import os
 import time
 import copy
+import operator
 
 from novaclient import exceptions as nova_exceptions
 
@@ -427,6 +428,13 @@ def connect_floatingip(nova_client, fixed_ip, **kwargs):
         IP_ADDRESS_PROPERTY]
     server = nova_client.servers.get(server_id)
     server.add_floating_ip(floating_ip_address, fixed_ip or None)
+
+    server = nova_client.servers.get(server_id)
+    all_server_ips = reduce(operator.add, server.networks.values())
+    if floating_ip_address not in all_server_ips:
+        return ctx.operation.retry(
+                message='Failed to assign floating ip {0} to machine {1}.'
+                        .format(floating_ip_address, server_id))
 
 
 @operation

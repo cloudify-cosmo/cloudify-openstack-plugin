@@ -115,9 +115,9 @@ def creation_validation(nova_client, **kwargs):
     def validate_private_key_permissions(private_key_path):
         ctx.logger.debug('checking whether private key file {0} has the '
                          'correct permissions'.format(private_key_path))
-        if not os.access(private_key_path, os.R_OK | os.W_OK):
-            err = 'private key file {0} is not readable and/or ' \
-                  'writeable'.format(private_key_path)
+        if not os.access(private_key_path, os.R_OK):
+            err = 'private key file {0} is not readable'\
+                .format(private_key_path)
             ctx.logger.error('VALIDATION ERROR: ' + err)
             raise NonRecoverableError(err)
         ctx.logger.debug('OK: private key file {0} has the correct '
@@ -136,8 +136,8 @@ def creation_validation(nova_client, **kwargs):
         if not current_user_id == owner_id:
             err = '{0} is not owned by the current user (it is owned by {1})'\
                   .format(path, owner)
-            ctx.logger.error('VALIDATION ERROR: ' + err)
-            raise NonRecoverableError(err)
+            ctx.logger.warning('VALIDATION WARNING: {0}'.format(err))
+            return
         ctx.logger.debug('OK: {0} is owned by the current user'.format(path))
 
     validate_resource(ctx, nova_client, KEYPAIR_OPENSTACK_TYPE)
@@ -155,14 +155,23 @@ def creation_validation(nova_client, **kwargs):
                   "available on Openstack, but the private key could not be " \
                   "found at {1}".format(ctx.node.properties['resource_id'],
                                         private_key_path)
-            ctx.logger.error('VALIDATION ERROR: ' + err)
+            ctx.logger.error('VALIDATION ERROR: {0}'.format(err))
             raise NonRecoverableError(err)
     else:
         if pk_exists:
             err = 'private key path already exists: {0}'.format(
                 private_key_path)
-            ctx.logger.error('VALIDATION ERROR: ' + err)
+            ctx.logger.error('VALIDATION ERROR: {0}'.format(err))
             raise NonRecoverableError(err)
+        else:
+            err = 'private key directory {0} is not writable'
+            while private_key_path:
+                if os.path.isdir(private_key_path):
+                    if not os.access(private_key_path, os.W_OK | os.X_OK):
+                        raise NonRecoverableError(err.format(private_key_path))
+                    else:
+                        break
+                private_key_path, _ = os.path.split(private_key_path)
 
     ctx.logger.debug('OK: keypair configuration is valid')
 

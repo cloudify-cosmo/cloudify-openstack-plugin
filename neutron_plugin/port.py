@@ -42,8 +42,10 @@ PORT_OPENSTACK_TYPE = 'port'
 
 # Runtime properties
 FIXED_IP_ADDRESS_PROPERTY = 'fixed_ip_address'  # the fixed ip address
+MAC_ADDRESS_PROPERTY = 'mac_address'  # the mac address
 RUNTIME_PROPERTIES_KEYS = \
-    COMMON_RUNTIME_PROPERTIES_KEYS + [FIXED_IP_ADDRESS_PROPERTY]
+    COMMON_RUNTIME_PROPERTIES_KEYS + [FIXED_IP_ADDRESS_PROPERTY,
+                                      MAC_ADDRESS_PROPERTY]
 
 
 @operation
@@ -69,6 +71,8 @@ def create(neutron_client, args, **kwargs):
 
             ctx.instance.runtime_properties[FIXED_IP_ADDRESS_PROPERTY] = \
                 _get_fixed_ip(ext_port)
+            ctx.instance.runtime_properties[MAC_ADDRESS_PROPERTY] = \
+                ext_port['mac_address']
             return
         except Exception:
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
@@ -94,6 +98,7 @@ def create(neutron_client, args, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = p['name']
     ctx.instance.runtime_properties[FIXED_IP_ADDRESS_PROPERTY] = \
         _get_fixed_ip(p)
+    ctx.instance.runtime_properties[MAC_ADDRESS_PROPERTY] = p['mac_address']
 
 
 @operation

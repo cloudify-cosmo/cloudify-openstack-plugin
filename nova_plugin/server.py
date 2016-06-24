@@ -15,6 +15,7 @@
 
 
 import os
+import re
 import time
 import copy
 import operator
@@ -52,6 +53,7 @@ from nova_plugin import userdata
 from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
+from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
 
 SERVER_OPENSTACK_TYPE = 'server'
 
@@ -171,6 +173,26 @@ def _prepare_server_nics(neutron_client, ctx, server):
             management_network_name
 
 
+def _get_boot_volume_relationships(type_name, ctx):
+    ctx.logger.debug('Instance relationship target instances: {0}'.format(str([
+        rel.target.instance.runtime_properties
+        for rel in ctx.instance.relationships])))
+    return [rel.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+            for rel in ctx.instance.relationships
+            if rel.target.instance.runtime_properties.get(
+            OPENSTACK_TYPE_PROPERTY) == type_name and
+            rel.target.node.properties.get('boot', False)]
+
+
+def _handle_boot_volume(server, ctx):
+    boot_volume = _get_boot_volume_relationships(VOLUME_OPENSTACK_TYPE, ctx)
+    if boot_volume:
+        boot_volume_id = boot_volume[0]
+        ctx.logger.info('boot_volume_id: {0}'.format(boot_volume_id))
+        server['block_device_mapping'] = {
+            'vda': '{0}:::0'.format(boot_volume_id)}
+
+
 @operation
 @with_nova_client
 @with_neutron_client
@@ -210,6 +232,8 @@ def create(nova_client, neutron_client, args, **kwargs):
     }
     server.update(copy.deepcopy(ctx.node.properties['server']))
     server.update(copy.deepcopy(args))
+
+    _handle_boot_volume(server, ctx)
 
     if 'meta' not in server:
         server['meta'] = dict()
@@ -271,6 +295,16 @@ def create(nova_client, neutron_client, args, **kwargs):
     try:
         s = nova_client.servers.create(**server)
     except nova_exceptions.BadRequest as e:
+        up = '[A-Za-z0-9]{8}(-[A-Za-z0-9]{4}){3}-[A-Za-z0-9]{12}'
+        p = 'Invalid volume: volume \'{0}\' status must be \'available\'\. ' \
+            'Currently in \'downloading\' \(HTTP 400\) ' \
+            '\(Request-ID: req-{0}\)'.format(up)
+        if re.match(p, str(e)):
+            return ctx.operation.retry(message=str(e), retry_after=30)
+        if 'Block Device Mapping is Invalid' in str(e):
+            return ctx.operation.retry(
+                message='Block Device Mapping is not created yet',
+                retry_after=30)
         if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
             raise NonRecoverableError(
                 "Can not provision server: management_network_name or id"
@@ -451,9 +485,9 @@ def connect_floatingip(nova_client, fixed_ip, **kwargs):
     server = nova_client.servers.get(server_id)
     all_server_ips = reduce(operator.add, server.networks.values())
     if floating_ip_address not in all_server_ips:
-        return ctx.operation.retry(
-                message='Failed to assign floating ip {0} to machine {1}.'
-                        .format(floating_ip_address, server_id))
+        return ctx.operation.retry(message='Failed to assign floating ip {0}'
+                                           ' to machine {1}.'
+                                   .format(floating_ip_address, server_id))
 
 
 @operation

@@ -28,6 +28,16 @@ from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from nova_plugin.tests.test_relationships import RelationshipsTestBase
 from nova_plugin.server import _prepare_server_nics
+from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+
+from cloudify.utils import setup_logger
+
+from cloudify.mocks import (
+    MockNodeContext,
+    MockNodeInstanceContext,
+    MockRelationshipContext,
+    MockRelationshipSubjectContext
+)
 
 
 class TestServer(unittest.TestCase):
@@ -401,3 +411,53 @@ class TestServerPortNICs(NICTestBase):
             {'port-id': '1'}
         ]
         self.assertEqual(expected, server['nics'])
+
+
+class TestBootFromVolume(unittest.TestCase):
+
+    @mock.patch('nova_plugin.server._get_boot_volume_relationships',
+                autospec=True, return_value=['test-id'])
+    def test_handle_boot_volume(self, *_):
+        server = {}
+        ctx = mock.MagicMock()
+        nova_plugin.server._handle_boot_volume(server, ctx)
+        self.assertEqual({'vda': 'test-id:::0'},
+                         server['block_device_mapping'])
+
+    @mock.patch('nova_plugin.server._get_boot_volume_relationships',
+                autospec=True, return_value=[])
+    def test_handle_boot_volume_no_boot_volume(self, *_):
+        server = {}
+        ctx = mock.MagicMock()
+        nova_plugin.server._handle_boot_volume(server, ctx)
+        self.assertNotIn('block_device_mapping', server)
+
+
+class TestServerRelationships(unittest.TestCase):
+
+    def _get_ctx_mock(self, instance_id, boot):
+        rel_specs = [MockRelationshipContext(
+            target=MockRelationshipSubjectContext(node=MockNodeContext(
+                properties={'boot': boot}), instance=MockNodeInstanceContext(
+                runtime_properties={
+                    OPENSTACK_TYPE_PROPERTY: VOLUME_OPENSTACK_TYPE,
+                    OPENSTACK_ID_PROPERTY: instance_id
+                })))]
+        ctx = mock.MagicMock()
+        ctx.instance = MockNodeInstanceContext(relationships=rel_specs)
+        ctx.logger = setup_logger('mock-logger')
+        return ctx
+
+    def test_boot_volume_relationship(self):
+        instance_id = 'test-id'
+        ctx = self._get_ctx_mock(instance_id, True)
+        result = nova_plugin.server._get_boot_volume_relationships(
+            VOLUME_OPENSTACK_TYPE, ctx)
+        self.assertEqual([instance_id], result)
+
+    def test_no_boot_volume_relationship(self):
+        instance_id = 'test-id'
+        ctx = self._get_ctx_mock(instance_id, False)
+        result = nova_plugin.server._get_boot_volume_relationships(
+            VOLUME_OPENSTACK_TYPE, ctx)
+        self.assertFalse(result)

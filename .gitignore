@@ -58,3 +58,6 @@ docs/_build/
 
 # QuickBuild
 .qbcache/
+
+.idea/
+

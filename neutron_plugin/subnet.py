@@ -36,6 +36,9 @@ from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 
 SUBNET_OPENSTACK_TYPE = 'subnet'
 
+SUBNET_GATEWAY_IP = 'gateway_ip'
+SUBNET_GATEWAY_IP_AUTO = 'auto'
+
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
@@ -72,6 +75,10 @@ def create(neutron_client, args, **kwargs):
     }
     subnet.update(ctx.node.properties['subnet'], **args)
     transform_resource_name(ctx, subnet)
+
+    # Sugaring: if gateway_ip is "auto", then it's removed from the request.
+    if getattr(subnet, SUBNET_GATEWAY_IP) == SUBNET_GATEWAY_IP_AUTO:
+        del subnet[SUBNET_GATEWAY_IP]
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = s['id']

@@ -77,7 +77,7 @@ def create(neutron_client, args, **kwargs):
     transform_resource_name(ctx, subnet)
 
     # Sugaring: if gateway_ip is "auto", then it's removed from the request.
-    if getattr(subnet, SUBNET_GATEWAY_IP) == SUBNET_GATEWAY_IP_AUTO:
+    if getattr(subnet, SUBNET_GATEWAY_IP, '') == SUBNET_GATEWAY_IP_AUTO:
         del subnet[SUBNET_GATEWAY_IP]
 
     s = neutron_client.create_subnet({'subnet': subnet})['subnet']

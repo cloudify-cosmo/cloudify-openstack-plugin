@@ -32,8 +32,8 @@ from openstack_plugin_common import (
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
-    COMMON_RUNTIME_PROPERTIES_KEYS
-)
+    COMMON_RUNTIME_PROPERTIES_KEYS,
+    is_external_relationship_not_conditionally_created)
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
@@ -153,7 +153,7 @@ def connect_security_group(neutron_client, **kwargs):
     security_group_id = ctx.target.instance.runtime_properties[
         OPENSTACK_ID_PROPERTY]
 
-    if is_external_relationship(ctx):
+    if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external port and security-group are '
                         'connected')
         if any(sg for sg in neutron_client.show_port(port_id)['port'].get(

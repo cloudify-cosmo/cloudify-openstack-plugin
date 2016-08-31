@@ -27,6 +27,7 @@ from openstack_plugin_common import (
     use_external_resource,
     transform_resource_name,
     is_external_resource,
+    is_external_resource_not_conditionally_created,
     delete_runtime_properties,
     get_resource_id,
     delete_resource_and_runtime_properties,
@@ -145,7 +146,7 @@ def creation_validation(nova_client, **kwargs):
     private_key_path = _get_private_key_path()
     pk_exists = _check_private_key_exists(private_key_path)
 
-    if is_external_resource(ctx):
+    if is_external_resource_not_conditionally_created(ctx):
         if pk_exists:
             if platform.system() == 'Linux':
                 validate_private_key_permissions(private_key_path)

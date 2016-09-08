@@ -29,6 +29,7 @@ from openstack_plugin_common import (delete_resource_and_runtime_properties,
                                      OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY,
                                      OPENSTACK_NAME_PROPERTY)
+from glance_plugin.image import handle_image_from_relationship
 
 VOLUME_STATUS_CREATING = 'creating'
 VOLUME_STATUS_DELETING = 'deleting'
@@ -59,6 +60,7 @@ def create(cinder_client, args, **kwargs):
     name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)
     volume_dict = {'display_name': name}
     volume_dict.update(ctx.node.properties['volume'], **args)
+    handle_image_from_relationship(volume_dict, 'imageRef', ctx)
     volume_dict['display_name'] = transform_resource_name(
         ctx, volume_dict['display_name'])
 

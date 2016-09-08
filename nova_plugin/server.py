@@ -54,6 +54,7 @@ from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+from glance_plugin.image import handle_image_from_relationship
 
 SERVER_OPENSTACK_TYPE = 'server'
 
@@ -234,6 +235,7 @@ def create(nova_client, neutron_client, args, **kwargs):
     server.update(copy.deepcopy(args))
 
     _handle_boot_volume(server, ctx)
+    handle_image_from_relationship(server, 'image', ctx)
 
     if 'meta' not in server:
         server['meta'] = dict()
@@ -756,6 +758,7 @@ def creation_validation(nova_client, args, **kwargs):
 
         serv_props_copy = server_props.copy()
         try:
+            handle_image_from_relationship(serv_props_copy, 'image', ctx)
             _handle_image_or_flavor(serv_props_copy, nova_client,
                                     property_name)
         except (NonRecoverableError, nova_exceptions.NotFound) as e:

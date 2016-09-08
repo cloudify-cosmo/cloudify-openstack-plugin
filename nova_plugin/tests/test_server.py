@@ -433,6 +433,27 @@ class TestBootFromVolume(unittest.TestCase):
         self.assertNotIn('block_device_mapping', server)
 
 
+class TestImageFromRelationships(unittest.TestCase):
+
+    @mock.patch('glance_plugin.image.'
+                'get_openstack_ids_of_connected_nodes_by_openstack_type',
+                autospec=True, return_value=['test-id'])
+    def test_handle_boot_image(self, *_):
+        server = {}
+        ctx = mock.MagicMock()
+        nova_plugin.server.handle_image_from_relationship(server, 'image', ctx)
+        self.assertEqual({'image': 'test-id'}, server)
+
+    @mock.patch('glance_plugin.image.'
+                'get_openstack_ids_of_connected_nodes_by_openstack_type',
+                autospec=True, return_value=[])
+    def test_handle_boot_image_no_image(self, *_):
+        server = {}
+        ctx = mock.MagicMock()
+        nova_plugin.server.handle_image_from_relationship(server, 'image', ctx)
+        self.assertNotIn('image', server)
+
+
 class TestServerRelationships(unittest.TestCase):
 
     def _get_ctx_mock(self, instance_id, boot):

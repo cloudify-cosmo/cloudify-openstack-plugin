@@ -18,7 +18,12 @@ import unittest
 import mock
 
 import neutron_plugin.port
-from cloudify.mocks import MockCloudifyContext
+from cloudify.mocks import (MockCloudifyContext,
+                            MockNodeInstanceContext,
+                            MockRelationshipSubjectContext)
+from openstack_plugin_common import (NeutronClientWithSugar,
+                                     OPENSTACK_ID_PROPERTY)
+from cloudify.exceptions import OperationRetry
 
 
 class TestPort(unittest.TestCase):
@@ -99,3 +104,53 @@ class TestPort(unittest.TestCase):
     def _get_mock_ctx_with_node_properties(properties):
         return MockCloudifyContext(node_id='test_node_id',
                                    properties=properties)
+
+
+class MockNeutronClient(NeutronClientWithSugar):
+    """A fake neutron client with hard-coded test data."""
+    def __init__(self, update):
+        self.update = update
+        self.body = {'port': {'id': 'test-id', 'security_groups': []}}
+
+    def show_port(self, *_):
+        return self.body
+
+    def update_port(self, _, b, **__):
+        if self.update:
+            self.body.update(b)
+        return
+
+    def cosmo_get(self, *_, **__):
+        return self.body['port']
+
+
+class TestPortSG(unittest.TestCase):
+    @mock.patch('openstack_plugin_common._put_client_in_kw')
+    def test_connect_sg_to_port(self, *_):
+        mock_neutron = MockNeutronClient(update=True)
+        ctx = MockCloudifyContext(
+            source=MockRelationshipSubjectContext(node=mock.MagicMock(),
+                                                  instance=mock.MagicMock()),
+            target=MockRelationshipSubjectContext(node=mock.MagicMock(),
+                                                  instance=mock.MagicMock()))
+
+        with mock.patch('neutron_plugin.port.ctx', ctx):
+            neutron_plugin.port.connect_security_group(mock_neutron)
+            self.assertIsNone(ctx.operation._operation_retry)
+
+    @mock.patch('openstack_plugin_common._put_client_in_kw')
+    def test_connect_sg_to_port_race_condition(self, *_):
+        mock_neutron = MockNeutronClient(update=False)
+
+        ctx = MockCloudifyContext(
+            source=MockRelationshipSubjectContext(node=mock.MagicMock(),
+                                                  instance=mock.MagicMock()),
+            target=MockRelationshipSubjectContext(
+                node=mock.MagicMock(),
+                instance=MockNodeInstanceContext(
+                    runtime_properties={
+                        OPENSTACK_ID_PROPERTY: 'test-sg-id'})))
+        with mock.patch('neutron_plugin.port.ctx', ctx):
+            neutron_plugin.port.connect_security_group(mock_neutron, ctx=ctx)
+            self.assertIsInstance(ctx.operation._operation_retry,
+                                  OperationRetry)

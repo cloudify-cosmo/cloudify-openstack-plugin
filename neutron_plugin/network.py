@@ -21,6 +21,7 @@ from openstack_plugin_common import (
     with_neutron_client,
     get_resource_id,
     is_external_resource,
+    is_external_resource_not_conditionally_created,
     delete_resource_and_runtime_properties,
     use_external_resource,
     validate_resource,
@@ -62,7 +63,7 @@ def create(neutron_client, args, **kwargs):
 def start(neutron_client, **kwargs):
     network_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    if is_external_resource(ctx):
+    if is_external_resource_not_conditionally_created(ctx):
         ctx.logger.info('Validating external network is started')
         if not neutron_client.show_network(
                 network_id)['network']['admin_state_up']:
@@ -106,3 +107,4 @@ def delete(neutron_client, **kwargs):
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, NETWORK_OPENSTACK_TYPE)
+0

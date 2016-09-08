@@ -38,16 +38,23 @@ INFINITE_RESOURCE_QUOTA = -1
 
 # properties
 USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
+CREATE_IF_MISSING_PROPERTY = 'create_if_missing'
 
 # runtime properties
 OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
 OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
 OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name
+CONDITIONALLY_CREATED = 'conditionally_created'  # resource was
+# conditionally created
 
 # runtime properties which all types use
 COMMON_RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
                                   OPENSTACK_TYPE_PROPERTY,
-                                  OPENSTACK_NAME_PROPERTY]
+                                  OPENSTACK_NAME_PROPERTY,
+                                  CONDITIONALLY_CREATED]
+
+MISSING_RESOURCE_MESSAGE = "Couldn't find a resource of " \
+                           "type {0} with the name or id {1}"
 
 
 class ProviderContext(object):
@@ -205,8 +212,7 @@ def get_resource_by_name_or_id(
 
     if not resource and raise_if_not_found:
         raise NonRecoverableError(
-            "Couldn't find a resource of type {0} with the name or id {1}"
-            .format(openstack_type, resource_id))
+            MISSING_RESOURCE_MESSAGE.format(openstack_type, resource_id))
 
     return resource
 
@@ -215,9 +221,15 @@ def use_external_resource(ctx, sugared_client, openstack_type,
                           name_field_name='name'):
     if not is_external_resource(ctx):
         return None
-
-    resource = _get_resource_by_name_or_id_from_ctx(
-        ctx, name_field_name, openstack_type, sugared_client)
+    try:
+        resource = _get_resource_by_name_or_id_from_ctx(
+            ctx, name_field_name, openstack_type, sugared_client)
+    except NonRecoverableError:
+        if is_create_if_missing(ctx):
+            ctx.instance.runtime_properties[CONDITIONALLY_CREATED] = True
+            return None
+        else:
+            raise
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
@@ -241,28 +253,30 @@ def validate_resource(ctx, sugared_client, openstack_type,
         openstack_type, ctx.node.id))
 
     openstack_type_plural = sugared_client.cosmo_plural(openstack_type)
+    resource = None
+
     if is_external_resource(ctx):
-        # validate the resource truly exists
+
         try:
-            _get_resource_by_name_or_id_from_ctx(
+            # validate the resource truly exists
+            resource = _get_resource_by_name_or_id_from_ctx(
                 ctx, name_field_name, openstack_type, sugared_client)
-            ctx.logger.debug('OK: {0} {1} found in pool'.format(
-                openstack_type, ctx.node.properties['resource_id']))
         except NonRecoverableError as e:
-            ctx.logger.error('VALIDATION ERROR: ' + str(e))
-            resource_list = list(sugared_client.cosmo_list(openstack_type))
-            if resource_list:
-                ctx.logger.info('list of existing {0}: '.format(
-                    openstack_type_plural))
-                for resource in resource_list:
-                    ctx.logger.info('    {0:>10} - {1}'.format(
-                        sugared_client.get_id_from_resource(resource),
-                        sugared_client.get_name_from_resource(resource)))
-            else:
-                ctx.logger.info('there are no existing {0}'.format(
-                    openstack_type_plural))
-            raise
-    else:
+            if not is_create_if_missing(ctx):
+                ctx.logger.error('VALIDATION ERROR: ' + str(e))
+                resource_list = list(sugared_client.cosmo_list(openstack_type))
+                if resource_list:
+                    ctx.logger.info('list of existing {0}: '.format(
+                        openstack_type_plural))
+                    for resource in resource_list:
+                        ctx.logger.info('    {0:>10} - {1}'.format(
+                            sugared_client.get_id_from_resource(resource),
+                            sugared_client.get_name_from_resource(resource)))
+                else:
+                    ctx.logger.info('there are no existing {0}'.format(
+                        openstack_type_plural))
+                raise
+    if not resource:
         if isinstance(sugared_client, NovaClientWithSugar):
             # not checking quota for Nova resources due to a bug in Nova client
             return
@@ -272,6 +286,7 @@ def validate_resource(ctx, sugared_client, openstack_type,
         resource_amount = len(resource_list)
 
         resource_quota = sugared_client.get_quota(openstack_type)
+
         if resource_amount < resource_quota \
                 or resource_quota == INFINITE_RESOURCE_QUOTA:
             ctx.logger.debug(
@@ -308,6 +323,23 @@ def is_external_resource(ctx):
     return is_external_resource_by_properties(ctx.node.properties)
 
 
+def is_external_resource_not_conditionally_created(ctx):
+    return is_external_resource_by_properties(ctx.node.properties) and \
+        not ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+
+def is_external_relationship_not_conditionally_created(ctx):
+    return is_external_resource_by_properties(ctx.source.node.properties) and \
+        is_external_resource_by_properties(ctx.target.node.properties) and \
+        not ctx.source.instance.runtime_properties.get(
+            CONDITIONALLY_CREATED) and not \
+        ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+
+def is_create_if_missing(ctx):
+    return is_create_if_missing_by_properties(ctx.node.properties)
+
+
 def is_external_relationship(ctx):
     return is_external_resource_by_properties(ctx.source.node.properties) and \
         is_external_resource_by_properties(ctx.target.node.properties)
@@ -316,6 +348,11 @@ def is_external_relationship(ctx):
 def is_external_resource_by_properties(properties):
     return USE_EXTERNAL_RESOURCE_PROPERTY in properties and \
         properties[USE_EXTERNAL_RESOURCE_PROPERTY]
+
+
+def is_create_if_missing_by_properties(properties):
+    return CREATE_IF_MISSING_PROPERTY in properties and \
+        properties[CREATE_IF_MISSING_PROPERTY]
 
 
 def delete_runtime_properties(ctx, runtime_properties_keys):

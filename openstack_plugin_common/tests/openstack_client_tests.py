@@ -258,3 +258,117 @@ class ResourceQuotaTests(unittest.TestCase):
 
     def test_infinite_quota(self):
         self._test_quota_validation(5, -1, False)
+
+
+class UseExternalResourceTests(unittest.TestCase):
+
+    def _test_use_external_resource(self,
+                                    is_external,
+                                    create_if_missing,
+                                    exists):
+        properties = {'create_if_missing': create_if_missing,
+                      'use_external_resource': is_external,
+                      'resource_id': 'resource_id'}
+        client_mock = mock.MagicMock()
+        os_type = 'test'
+
+        def _raise_error(*_):
+            raise NonRecoverableError('Error')
+
+        def _return_something(*_):
+            return mock.MagicMock()
+
+        return_value = _return_something if exists else _raise_error
+        if exists:
+            properties.update({'resource_id': 'rid'})
+
+        node_context = MockCloudifyContext(node_id='a20847',
+                                           properties=properties)
+        with mock.patch(
+                'openstack_plugin_common._get_resource_by_name_or_id_from_ctx',
+                new=return_value):
+            return common.use_external_resource(node_context,
+                                                client_mock, os_type)
+
+    def test_use_existing_resource(self):
+        self.assertIsNotNone(self._test_use_external_resource(True, True,
+                                                              True))
+        self.assertIsNotNone(self._test_use_external_resource(True, False,
+                                                              True))
+
+    def test_create_resource(self):
+        self.assertIsNone(self._test_use_external_resource(False, True, False))
+        self.assertIsNone(self._test_use_external_resource(False, False,
+                                                           False))
+        self.assertIsNone(self._test_use_external_resource(True, True, False))
+
+    def test_raise_error(self):
+        # If exists and shouldn't it is checked in resource
+        # validation so below scenario is not tested here
+        self.assertRaises(NonRecoverableError,
+                          self._test_use_external_resource,
+                          is_external=True,
+                          create_if_missing=False,
+                          exists=False)
+
+
+class ValidateResourceTests(unittest.TestCase):
+
+    def _test_validate_resource(self,
+                                is_external,
+                                create_if_missing,
+                                exists,
+                                client_mock_provided=None):
+        properties = {'create_if_missing': create_if_missing,
+                      'use_external_resource': is_external,
+                      'resource_id': 'resource_id'}
+        client_mock = client_mock_provided or mock.MagicMock()
+        os_type = 'test'
+
+        def _raise_error(*_):
+            raise NonRecoverableError('Error')
+
+        def _return_something(*_):
+            return mock.MagicMock()
+        return_value = _return_something if exists else _raise_error
+        if exists:
+            properties.update({'resource_id': 'rid'})
+
+        node_context = MockCloudifyContext(node_id='a20847',
+                                           properties=properties)
+        with mock.patch(
+                'openstack_plugin_common._get_resource_by_name_or_id_from_ctx',
+                new=return_value):
+            return common.validate_resource(node_context, client_mock, os_type)
+
+    def test_use_existing_resource(self):
+        self._test_validate_resource(True, True, True)
+        self._test_validate_resource(True, False, True)
+
+    def test_create_resource(self):
+        client_mock = mock.MagicMock()
+        client_mock.cosmo_list.return_value = ['a', 'b', 'c']
+        client_mock.get_quota.return_value = 5
+        self._test_validate_resource(False, True, False, client_mock)
+        self._test_validate_resource(False, False, False, client_mock)
+        self._test_validate_resource(True, True, False, client_mock)
+
+    def test_raise_error(self):
+        # If exists and shouldn't it is checked in resource
+        # validation so below scenario is not tested here
+        self.assertRaises(NonRecoverableError,
+                          self._test_validate_resource,
+                          is_external=True,
+                          create_if_missing=False,
+                          exists=False)
+
+    def test_raise_quota_error(self):
+        client_mock = mock.MagicMock()
+        client_mock.cosmo_list.return_value = ['a', 'b', 'c']
+        client_mock.get_quota.return_value = 3
+        self.assertRaises(NonRecoverableError,
+                          self._test_validate_resource,
+                          is_external=True,
+                          create_if_missing=True,
+                          exists=False,
+                          client_mock_provided=client_mock)

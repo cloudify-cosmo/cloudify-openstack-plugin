@@ -26,6 +26,7 @@ from openstack_plugin_common import (
     with_neutron_client,
     use_external_resource,
     is_external_relationship,
+    is_external_relationship_not_conditionally_created,
     delete_runtime_properties,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     delete_resource_and_runtime_properties,
@@ -94,7 +95,7 @@ def connect_subnet(neutron_client, **kwargs):
     router_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     subnet_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    if is_external_relationship(ctx):
+    if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external subnet and router '
                         'are associated')
         for port in neutron_client.list_ports(device_id=router_id)['ports']:

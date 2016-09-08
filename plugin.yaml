@@ -18,6 +18,8 @@ node_types:
       use_external_resource:
         type: boolean
         default: false
+      create_if_missing:
+        default: false
       resource_id:
         default: ''
       image:
@@ -110,6 +112,8 @@ node_types:
           a boolean describing whether this resource should be
           created or rather that it already exists on Openstack
           and should be used as-is.
+      create_if_missing:
+        default: false
       resource_id:
         default: ''
         description: >
@@ -153,6 +157,8 @@ node_types:
       use_external_resource:
         type: boolean
         default: false
+      create_if_missing:
+        default: false
       resource_id:
         default: ''
       openstack_config:
@@ -188,6 +194,8 @@ node_types:
       description:
         type: string
         default: ''
+      create_if_missing:
+        default: false
       use_external_resource:
         type: boolean
         default: false
@@ -232,6 +240,8 @@ node_types:
       use_external_resource:
         type: boolean
         default: false
+      create_if_missing:
+        default: false
       resource_id:
         default: ''
       openstack_config:
@@ -267,6 +277,8 @@ node_types:
       use_external_resource:
         type: boolean
         default: false
+      create_if_missing:
+        default: false
       resource_id:
         default: ''
       openstack_config:
@@ -299,6 +311,8 @@ node_types:
         default: {}
       use_external_resource:
         type: boolean
+        default: false
+      create_if_missing:
         default: false
       resource_id:
         default: ''
@@ -333,7 +347,10 @@ node_types:
       use_external_resource:
         type: boolean
         default: false
+      create_if_missing:
+        default: false
       resource_id:
+        description: IP address of the floating IP
         default: ''
       openstack_config:
         default: {}
@@ -365,6 +382,8 @@ node_types:
         default: {}
       use_external_resource:
         type: boolean
+        default: false
+      create_if_missing:
         default: false
       resource_id:
         default: ''
@@ -404,6 +423,8 @@ node_types:
       use_external_resource:
         type: boolean
         default: false
+      create_if_missing:
+        default: false
       resource_id:
         default: ''
       openstack_config:
@@ -436,6 +457,8 @@ node_types:
         default: {}
       use_external_resource:
         type: boolean
+        default: false
+      create_if_missing:
         default: false
       resource_id:
         default: ''

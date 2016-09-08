@@ -38,6 +38,8 @@ from openstack_plugin_common import (
     get_single_connected_node_by_openstack_type,
     is_external_resource,
     is_external_resource_by_properties,
+    is_external_resource_not_conditionally_created,
+    is_external_relationship_not_conditionally_created,
     use_external_resource,
     delete_runtime_properties,
     is_external_relationship,
@@ -102,8 +104,8 @@ def _get_management_network_id_and_name(neutron_client, ctx):
 
 
 def _merge_nics(management_network_id, *nics_sources):
-    """Merge nics_sources into a single nics list, insert mgmt network if needed.
-
+    """Merge nics_sources into a single nics list, insert mgmt network if
+    needed.
     nics_sources are lists of networks received from several sources
     (server properties, relationships to networks, relationships to ports).
     Merge them into a single list, and if the management network isn't present
@@ -181,7 +183,7 @@ def _get_boot_volume_relationships(type_name, ctx):
     return [rel.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
             for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(
-            OPENSTACK_TYPE_PROPERTY) == type_name and
+                OPENSTACK_TYPE_PROPERTY) == type_name and
             rel.target.node.properties.get('boot', False)]
 
 
@@ -203,25 +205,31 @@ def create(nova_client, neutron_client, args, **kwargs):
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
     .servers.html#novaclient.v1_1.servers.ServerManager.create
     """
+
     external_server = use_external_resource(ctx, nova_client,
                                             SERVER_OPENSTACK_TYPE)
+
     if external_server:
-        network_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
-            ctx, NETWORK_OPENSTACK_TYPE)
-        port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
-            ctx, PORT_OPENSTACK_TYPE)
-        try:
-            _validate_external_server_nics(
-                neutron_client,
-                network_ids,
-                port_ids
-            )
-            _validate_external_server_keypair(nova_client)
-            _set_network_and_ip_runtime_properties(external_server)
+        _set_network_and_ip_runtime_properties(external_server)
+        if ctx._local:
             return
-        except Exception:
-            delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
-            raise
+        else:
+            network_ids = \
+                get_openstack_ids_of_connected_nodes_by_openstack_type(
+                    ctx, NETWORK_OPENSTACK_TYPE)
+            port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
+                ctx, PORT_OPENSTACK_TYPE)
+            try:
+                _validate_external_server_nics(
+                    neutron_client,
+                    network_ids,
+                    port_ids
+                )
+                _validate_external_server_keypair(nova_client)
+                return
+            except Exception:
+                delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
+                raise
 
     provider_context = provider(ctx)
 
@@ -336,7 +344,7 @@ def get_port_networks(neutron_client, port_ids):
 def start(nova_client, start_retry_interval, private_key_path, **kwargs):
     server = get_server_by_context(nova_client)
 
-    if is_external_resource(ctx):
+    if is_external_resource_not_conditionally_created(ctx):
         ctx.logger.info('Validating external server is started')
         if server.status != SERVER_STATUS_ACTIVE:
             raise NonRecoverableError(
@@ -469,7 +477,7 @@ def connect_floatingip(nova_client, fixed_ip, **kwargs):
     floating_ip_id = ctx.target.instance.runtime_properties[
         OPENSTACK_ID_PROPERTY]
 
-    if is_external_relationship(ctx):
+    if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external floatingip and server '
                         'are associated')
         if nova_client.floating_ips.get(floating_ip_id).instance_id ==\
@@ -515,7 +523,7 @@ def connect_security_group(nova_client, **kwargs):
     security_group_name = ctx.target.instance.runtime_properties[
         OPENSTACK_NAME_PROPERTY]
 
-    if is_external_relationship(ctx):
+    if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external security group and server '
                         'are associated')
         server = nova_client.servers.get(server_id)
@@ -570,7 +578,7 @@ def attach_volume(nova_client, cinder_client, **kwargs):
     server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    if is_external_relationship(ctx):
+    if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external volume and server '
                         'are connected')
         attachment = volume.get_attachment(cinder_client=cinder_client,

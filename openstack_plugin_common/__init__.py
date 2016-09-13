@@ -23,6 +23,7 @@ from keystoneauth1 import loading, session
 from cinderclient.v1 import client as cinder_client
 from cinderclient import exceptions as cinder_exceptions
 import keystoneclient.v3.client as keystone_client
+import keystoneclient.exceptions as keystone_exceptions
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v2.client as nova_client
@@ -261,6 +262,8 @@ def validate_resource(ctx, sugared_client, openstack_type,
             # validate the resource truly exists
             resource = _get_resource_by_name_or_id_from_ctx(
                 ctx, name_field_name, openstack_type, sugared_client)
+            ctx.logger.debug('OK: {0} {1} found in pool'.format(
+                openstack_type, ctx.node.properties['resource_id']))
         except NonRecoverableError as e:
             if not is_create_if_missing(ctx):
                 ctx.logger.error('VALIDATION ERROR: ' + str(e))
@@ -468,10 +471,13 @@ class KeystoneClient(OpenStackClient):
         client_kwargs = {field: cfg[field] for field in
                          self.REQUIRED_CONFIG_PARAMS}
 
+        loader = loading.get_plugin_loader('password')
+        auth = loader.load_from_options(**client_kwargs)
+        sess = session.Session(auth=auth)
         client_kwargs.update(
             cfg.get('custom_configuration', {}).get('keystone_client', {}))
-
-        return keystone_client.Client(**client_kwargs)
+        client_kwargs['session'] = sess
+        return KeystoneClientWithSugar(**client_kwargs)
 
 
 class NovaClient(OpenStackClient):
@@ -634,6 +640,23 @@ def with_glance_client(f):
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
+    return wrapper
+
+
+def with_keystone_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('keystone_client', KeystoneClient, kw)
+
+        try:
+            return f(*args, **kw)
+        except keystone_exceptions.HTTPError, e:
+            if e.http_status in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.http_status)
+            else:
+                raise
+        except keystone_exceptions.ClientException, e:
+            _re_raise(e, recoverable=False)
     return wrapper
 
 
@@ -833,6 +856,29 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
         tenant_id = self.client.service_catalog.get_token()['tenant_id']
         quotas = self.quotas.get(tenant_id)
         return getattr(quotas, self.cosmo_plural(obj_type_single))
+
+
+class KeystoneClientWithSugar(keystone_client.Client, ClientWithSugar):
+    # keystone does not have resource quota
+    KEYSTONE_INFINITE_RESOURCE_QUOTA = 10**9
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        for obj in getattr(self, obj_type_plural).findall(**kw):
+            yield obj
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.name
+
+    def get_quota(self, obj_type_single):
+        return self.KEYSTONE_INFINITE_RESOURCE_QUOTA
 
 
 class GlanceClientWithSugar(glance_client.Client, ClientWithSugar):

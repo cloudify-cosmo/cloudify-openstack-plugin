@@ -504,6 +504,8 @@ node_types:
         default: ''
       use_external_resource:
         default: false
+      create_if_missing:
+        default: false
       resource_id:
         default: ''
       openstack_config:
@@ -534,6 +536,34 @@ node_types:
             openstack_config:
               default: {}
 
+
+  cloudify.openstack.nodes.Project:
+    derived_from: cloudify.nodes.Root
+    properties:
+      project:
+        default: {}
+      users:
+        default: []
+        description: >
+          List of users assigned to this project in the following format:
+            { name: string, roles: [string] }
+      quota:
+        default: {}
+      use_external_resource:
+        default: false
+      create_if_missing:
+        default: false
+      resource_id:
+        default: ''
+      openstack_config:
+        default: {}
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: openstack.keystone_plugin.project.create
+        start: openstack.keystone_plugin.project.start
+        delete: openstack.keystone_plugin.project.delete
+      cloudify.interfaces.validation:
+        creation: openstack.keystone_plugin.project.creation_validation
 
 relationships:
   cloudify.openstack.port_connected_to_security_group:

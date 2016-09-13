@@ -1,0 +1,11 @@
+1.5:
+    - Create project, assign existing users with roles and customize quotas.
+    - Create image from file (local workflow only) or url.
+    - Add conditional creation to all resources. Create a resource only if it doesn't already exist. Previously, could
+      either use an existing resource, or create it.
+    - Boot server from volume. Support boot from block storage and not only from image like in previous versions.
+    - Fix connect port to security group race-condition.
+    - Get mac address from port after creation.
+    - Raise error also when external network is missing in floating ip creation. Previously, an error was raised only
+      when floating network id or name was missing.
+

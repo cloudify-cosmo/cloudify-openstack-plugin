@@ -13,22 +13,22 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
-from functools import wraps
+from functools import wraps, partial
 import json
 import os
 import sys
 
 from IPy import IP
 from keystoneauth1 import loading, session
-from cinderclient.v1 import client as cinder_client
-from cinderclient import exceptions as cinder_exceptions
-import keystoneclient.v3.client as keystone_client
+import cinderclient.client as cinder_client
+import cinderclient.exceptions as cinder_exceptions
+import keystoneclient.client as keystone_client
 import keystoneclient.exceptions as keystone_exceptions
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
-import novaclient.v2.client as nova_client
+import novaclient.client as nova_client
 import novaclient.exceptions as nova_exceptions
-import glanceclient.v2.client as glance_client
+import glanceclient.client as glance_client
 import glanceclient.exc as glance_exceptions
 
 import cloudify
@@ -384,37 +384,31 @@ class Config(object):
 
     OPENSTACK_CONFIG_PATH_ENV_VAR = 'OPENSTACK_CONFIG_PATH'
     OPENSTACK_CONFIG_PATH_DEFAULT_PATH = '~/openstack_config.json'
+    OPENSTACK_ENV_VAR_PREFIX = 'OS_'
+    OPENSTACK_SUPPORTED_ENV_VARS = {
+        'OS_AUTH_URL', 'OS_USERNAME', 'OS_PASSWORD', 'OS_TENANT_NAME',
+        'OS_REGION_NAME', 'OS_PROJECT_ID', 'OS_PROJECT_NAME',
+        'OS_USER_DOMAIN_NAME', 'OS_PROJECT_DOMAIN_NAME'
+    }
 
-    def get(self):
-        static_config = self._build_config_from_env_variables()
-        env_name = self.OPENSTACK_CONFIG_PATH_ENV_VAR
-        default_location_tpl = self.OPENSTACK_CONFIG_PATH_DEFAULT_PATH
+    @classmethod
+    def get(cls):
+        static_config = cls._build_config_from_env_variables()
+        env_name = cls.OPENSTACK_CONFIG_PATH_ENV_VAR
+        default_location_tpl = cls.OPENSTACK_CONFIG_PATH_DEFAULT_PATH
         default_location = os.path.expanduser(default_location_tpl)
         config_path = os.getenv(env_name, default_location)
         try:
             with open(config_path) as f:
-                Config.update_config(static_config, json.loads(f.read()))
+                cls.update_config(static_config, json.loads(f.read()))
         except IOError:
             pass
         return static_config
 
-    @staticmethod
-    def _build_config_from_env_variables():
-        cfg = dict()
-
-        def take_env_var_if_exists(cfg_key, env_var):
-            if env_var in os.environ:
-                cfg[cfg_key] = os.environ[env_var]
-
-        take_env_var_if_exists('username', 'OS_USERNAME')
-        take_env_var_if_exists('password', 'OS_PASSWORD')
-        take_env_var_if_exists('tenant_name', 'OS_TENANT_NAME')
-        take_env_var_if_exists('auth_url', 'OS_AUTH_URL')
-        take_env_var_if_exists('region', 'OS_REGION_NAME')
-        take_env_var_if_exists('neutron_url', 'OS_URL')
-        take_env_var_if_exists('nova_url', 'NOVACLIENT_BYPASS_URL')
-
-        return cfg
+    @classmethod
+    def _build_config_from_env_variables(cls):
+        return {v.lstrip(cls.OPENSTACK_ENV_VAR_PREFIX).lower(): os.environ[v]
+                for v in cls.OPENSTACK_SUPPORTED_ENV_VARS if v in os.environ}
 
     @staticmethod
     def update_config(overridden_cfg, overriding_cfg):
@@ -427,118 +421,112 @@ class Config(object):
 
 class OpenStackClient(object):
 
-    REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url']
+    COMMON = {'username', 'password', 'auth_url'}
+    AUTH_SETS = [
+        COMMON | {'tenant_name'},
+        COMMON | {'project_id', 'user_domain_name'},
+        COMMON | {'project_id', 'project_name', 'user_domain_name'},
+        COMMON | {'project_name', 'user_domain_name', 'project_domain_name'},
+    ]
+    OPTIONAL_AUTH_PARAMS = {'insecure'}
 
-    def get(self, config=None, *args, **kw):
-        cfg = Config().get()
+    def __init__(self, client_name, client_class, config=None, *args, **kw):
+        cfg = Config.get()
         if config:
             Config.update_config(cfg, config)
+        cfg = self._merge_custom_configuration(cfg, client_name)
 
-        self._validate_config(cfg)
-        ret = self.connect(cfg, *args, **kw)
-        ret.format = 'json'
-        return ret
+        auth_params, client_params = OpenStackClient._split_config(cfg)
+        OpenStackClient._validate_auth_params(auth_params)
 
-    def _validate_config(self, cfg):
-        missing_config_params = self._get_missing_config_params(cfg)
-        if missing_config_params:
-            self._raise_missing_config_params_error(missing_config_params)
+        client_params['session'] = self._authenticate(auth_params)
+        self._client = client_class(**client_params)
 
-    def _get_missing_config_params(self, cfg):
-        missing_config_params = \
-            [param for param in self.REQUIRED_CONFIG_PARAMS if param not in
-             cfg or not cfg[param]]
-        return missing_config_params
+    @classmethod
+    def _validate_auth_params(cls, params):
+        if set(params.keys()) - cls.OPTIONAL_AUTH_PARAMS in cls.AUTH_SETS:
+            return
 
-    def _raise_missing_config_params_error(self, missing_config_params):
+        def set2str(s):
+            return '({})'.format(', '.join(sorted(s)))
+
+        received_params = set2str(params)
+        valid_auth_sets = map(set2str, cls.AUTH_SETS)
         raise NonRecoverableError(
-            "Missing Openstack configuration parameters: {0}; "
-            "Expected to find parameters either as environment "
-            "variables, in a JSON file (at either a path which is "
-            "set under the environment variable {1} or at the "
-            "default location {2}), or as nested properties under "
-            "a 'openstack_config' property".format(
-                ', '.join(missing_config_params),
-                Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
-                Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH))
+            "{} is not valid set of auth params. Expected to find parameters "
+            "either as environment variables, in a JSON file (at either a "
+            "path which is set under the environment variable {} or at the "
+            "default location {}), or as nested properties under an "
+            "'openstack_config' property. Valid auth param sets are: {}."
+            .format(received_params,
+                    Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
+                    Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH,
+                    ', '.join(valid_auth_sets)))
 
+    @staticmethod
+    def _merge_custom_configuration(cfg, client_name):
+        config = cfg.copy()
+        if 'custom_configuration' in cfg:
+            del config['custom_configuration']
+            config.update(cfg['custom_configuration'].get(client_name, {}))
+        return config
 
-# Clients procurers
-class KeystoneClient(OpenStackClient):
+    @classmethod
+    def _split_config(cls, cfg):
+        all = reduce(lambda x, y: x | y, cls.AUTH_SETS)
+        all |= cls.OPTIONAL_AUTH_PARAMS
 
-    def connect(self, cfg):
-        client_kwargs = {field: cfg[field] for field in
-                         self.REQUIRED_CONFIG_PARAMS}
+        auth, misc = {}, {}
+        for param, value in cfg.items():
+            if param in all:
+                auth[param] = value
+            else:
+                misc[param] = value
+        return auth, misc
 
-        loader = loading.get_plugin_loader('password')
-        auth = loader.load_from_options(**client_kwargs)
-        sess = session.Session(auth=auth)
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('keystone_client', {}))
-        client_kwargs['session'] = sess
-        return KeystoneClientWithSugar(**client_kwargs)
+    @staticmethod
+    def _authenticate(cfg):
+        verify = True
+        if 'insecure' in cfg:
+            cfg = cfg.copy()
+            # NOTE: Next line will evaluate to False only when insecure is set
+            # to True. Any other value (string etc.) will force verify to True.
+            # This is done on purpose, since we do not wish to use insecure
+            # connection by mistake.
+            verify = not (cfg['insecure'] is True)
+            del cfg['insecure']
+        loader = loading.get_plugin_loader("password")
+        auth = loader.load_from_options(**cfg)
+        sess = session.Session(auth=auth, verify=verify)
+        return sess
 
+    # Proxy any unknown call to base client
+    def __getattr__(self, attr):
+        return getattr(self._client, attr)
 
-class NovaClient(OpenStackClient):
+    # Sugar, common to all clients
+    def cosmo_plural(self, obj_type_single):
+        return obj_type_single + 's'
 
-    def connect(self, cfg):
-        # note: 'region_name' is required regardless of whether 'bypass_url'
-        # is used or not
-        client_kwargs = dict(
-            username=cfg['username'],
-            api_key=cfg['password'],
-            project_id=cfg['tenant_name'],
-            auth_url=cfg['auth_url'],
-            region_name=cfg.get('region', ''),
-            http_log_debug=False
-        )
+    def cosmo_get_named(self, obj_type_single, name, **kw):
+        return self.cosmo_get(obj_type_single, name=name, **kw)
 
-        if cfg.get('nova_url'):
-            client_kwargs['bypass_url'] = cfg['nova_url']
+    def cosmo_get(self, obj_type_single, **kw):
+        return self._cosmo_get(obj_type_single, False, **kw)
 
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('nova_client', {}))
+    def cosmo_get_if_exists(self, obj_type_single, **kw):
+        return self._cosmo_get(obj_type_single, True, **kw)
 
-        return NovaClientWithSugar(**client_kwargs)
-
-
-class CinderClient(OpenStackClient):
-
-    def connect(self, cfg):
-        client_kwargs = dict(
-            username=cfg['username'],
-            api_key=cfg['password'],
-            project_id=cfg['tenant_name'],
-            auth_url=cfg['auth_url'],
-            region_name=cfg.get('region', '')
-        )
-
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('cinder_client', {}))
-
-        return CinderClientWithSugar(**client_kwargs)
-
-
-class NeutronClient(OpenStackClient):
-
-    def connect(self, cfg):
-        client_kwargs = dict(
-            username=cfg['username'],
-            password=cfg['password'],
-            tenant_name=cfg['tenant_name'],
-            auth_url=cfg['auth_url'],
-        )
-
-        if cfg.get('neutron_url'):
-            client_kwargs['endpoint_url'] = cfg['neutron_url']
-        else:
-            client_kwargs['region_name'] = cfg.get('region', '')
-
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('neutron_client', {}))
-
-        return NeutronClientWithSugar(**client_kwargs)
+    def _cosmo_get(self, obj_type_single, if_exists, **kw):
+        ls = list(self.cosmo_list(obj_type_single, **kw))
+        check = len(ls) > 1 if if_exists else len(ls) != 1
+        if check:
+            raise NonRecoverableError(
+                "Expected {0} one object of type {1} "
+                "with match {2} but there are {3}".format(
+                    'at most' if if_exists else 'exactly',
+                    obj_type_single, kw, len(ls)))
+        return ls[0] if ls else None
 
 
 class GlanceClient(OpenStackClient):
@@ -584,7 +572,7 @@ def _find_context_in_kw(kw):
 def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('neutron_client', NeutronClient, kw)
+        _put_client_in_kw('neutron_client', NeutronClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -599,7 +587,7 @@ def with_neutron_client(f):
 def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('nova_client', NovaClient, kw)
+        _put_client_in_kw('nova_client', NovaClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -616,7 +604,7 @@ def with_nova_client(f):
 def with_cinder_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('cinder_client', CinderClient, kw)
+        _put_client_in_kw('cinder_client', CinderClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -631,7 +619,7 @@ def with_cinder_client(f):
 def with_glance_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('glance_client', GlanceClient, kw)
+        _put_client_in_kw('glance_client', GlanceClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -646,7 +634,7 @@ def with_glance_client(f):
 def with_keystone_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('keystone_client', KeystoneClient, kw)
+        _put_client_in_kw('keystone_client', KeystoneClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -679,7 +667,7 @@ def _put_client_in_kw(client_name, client_class, kw):
             config.update(kw['openstack_config'])
         else:
             config = kw['openstack_config']
-    kw[client_name] = client_class().get(config=config)
+    kw[client_name] = client_class(config=config)
 
 
 _non_recoverable_error_codes = [400, 401, 403, 404, 409]
@@ -702,33 +690,11 @@ def _re_raise(e, recoverable, retry_after=None, status_code=None):
 
 # Sugar for clients
 
-class ClientWithSugar(object):
+class NovaClientWithSugar(OpenStackClient):
 
-    def cosmo_plural(self, obj_type_single):
-        return obj_type_single + 's'
-
-    def cosmo_get_named(self, obj_type_single, name, **kw):
-        return self.cosmo_get(obj_type_single, name=name, **kw)
-
-    def cosmo_get(self, obj_type_single, **kw):
-        return self._cosmo_get(obj_type_single, False, **kw)
-
-    def cosmo_get_if_exists(self, obj_type_single, **kw):
-        return self._cosmo_get(obj_type_single, True, **kw)
-
-    def _cosmo_get(self, obj_type_single, if_exists, **kw):
-        ls = list(self.cosmo_list(obj_type_single, **kw))
-        check = len(ls) > 1 if if_exists else len(ls) != 1
-        if check:
-            raise NonRecoverableError(
-                "Expected {0} one object of type {1} "
-                "with match {2} but there are {3}".format(
-                    'at most' if if_exists else 'exactly',
-                    obj_type_single, kw, len(ls)))
-        return ls[0] if ls else None
-
-
-class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
+    def __init__(self, *args, **kw):
+        super(NovaClientWithSugar, self).__init__(
+            'nova_client', partial(nova_client.Client, '2'), *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for xxx.findall() - not using xxx.list() because findall
@@ -773,7 +739,11 @@ class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
         return self.cosmo_plural(obj_type_single)
 
 
-class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
+class NeutronClientWithSugar(OpenStackClient):
+
+    def __init__(self, *args, **kw):
+        super(NeutronClientWithSugar, self).__init__(
+            'neutron_client', neutron_client.Client, *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for list_XXXs()['XXXs'] """
@@ -829,7 +799,11 @@ class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
         return ls[0]
 
 
-class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
+class CinderClientWithSugar(OpenStackClient):
+
+    def __init__(self, *args, **kw):
+        super(CinderClientWithSugar, self).__init__(
+            'cinder_client', partial(cinder_client.Client, '2'), *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         obj_type_plural = self.cosmo_plural(obj_type_single)
@@ -858,9 +832,13 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
         return getattr(quotas, self.cosmo_plural(obj_type_single))
 
 
-class KeystoneClientWithSugar(keystone_client.Client, ClientWithSugar):
+class KeystoneClientWithSugar(OpenStackClient):
     # keystone does not have resource quota
     KEYSTONE_INFINITE_RESOURCE_QUOTA = 10**9
+
+    def __init__(self, *args, **kw):
+        super(KeystoneClientWithSugar, self).__init__(
+            'keystone_client', keystone_client.Client, *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         obj_type_plural = self.cosmo_plural(obj_type_single)
@@ -881,8 +859,12 @@ class KeystoneClientWithSugar(keystone_client.Client, ClientWithSugar):
         return self.KEYSTONE_INFINITE_RESOURCE_QUOTA
 
 
-class GlanceClientWithSugar(glance_client.Client, ClientWithSugar):
+class GlanceClientWithSugar(OpenStackClient):
     GLANCE_INIFINITE_RESOURCE_QUOTA = 10**9
+
+    def __init__(self, *args, **kw):
+        super(GlanceClientWithSugar, self).__init__(
+            'glance_client', partial(glance_client.Client, '2'), *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         obj_type_plural = self.cosmo_plural(obj_type_single)

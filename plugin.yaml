@@ -403,6 +403,10 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            status_attempts:
+              default: 10
+            status_timeout:
+              default: 2
         delete:
           implementation: openstack.cinder_plugin.volume.delete
           inputs:
@@ -667,8 +671,16 @@ relationships:
           inputs:
             openstack_config:
               default: {}
+            status_attempts:
+              default: 10
+            status_timeout:
+              default: 2
         unlink:
           implementation: openstack.nova_plugin.server.detach_volume
           inputs:
             openstack_config:
               default: {}
+            status_attempts:
+              default: 10
+            status_timeout:
+              default: 2

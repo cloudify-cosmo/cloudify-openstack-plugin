@@ -574,7 +574,8 @@ def disconnect_security_group(nova_client, **kwargs):
 @operation
 @with_nova_client
 @with_cinder_client
-def attach_volume(nova_client, cinder_client, **kwargs):
+def attach_volume(nova_client, cinder_client, status_attempts,
+                  status_timeout, **kwargs):
     server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
@@ -603,7 +604,9 @@ def attach_volume(nova_client, cinder_client, **kwargs):
         vol, wait_succeeded = volume.wait_until_status(
             cinder_client=cinder_client,
             volume_id=volume_id,
-            status=volume.VOLUME_STATUS_IN_USE
+            status=volume.VOLUME_STATUS_IN_USE,
+            num_tries=status_attempts,
+            timeout=status_timeout
         )
         if not wait_succeeded:
             raise RecoverableError(
@@ -626,23 +629,27 @@ def attach_volume(nova_client, cinder_client, **kwargs):
     except Exception, e:
         if not isinstance(e, NonRecoverableError):
             _prepare_attach_volume_to_be_repeated(
-                nova_client, cinder_client, server_id, volume_id)
+                nova_client, cinder_client, server_id, volume_id,
+                status_attempts, status_timeout)
         raise
 
 
 def _prepare_attach_volume_to_be_repeated(
-        nova_client, cinder_client, server_id, volume_id):
+        nova_client, cinder_client, server_id, volume_id,
+        status_attempts, status_timeout):
 
     ctx.logger.info('Cleaning after a failed attach_volume() call')
     try:
-        _detach_volume(nova_client, cinder_client, server_id, volume_id)
+        _detach_volume(nova_client, cinder_client, server_id, volume_id,
+                       status_attempts, status_timeout)
     except Exception, e:
         ctx.logger.error('Cleaning after a failed attach_volume() call failed '
                          'raising a \'{0}\' exception.'.format(e))
         raise NonRecoverableError(e)
 
 
-def _detach_volume(nova_client, cinder_client, server_id, volume_id):
+def _detach_volume(nova_client, cinder_client, server_id, volume_id,
+                   status_attempts, status_timeout):
     attachment = volume.get_attachment(cinder_client=cinder_client,
                                        volume_id=volume_id,
                                        server_id=server_id)
@@ -650,13 +657,16 @@ def _detach_volume(nova_client, cinder_client, server_id, volume_id):
         nova_client.volumes.delete_server_volume(server_id, attachment['id'])
         volume.wait_until_status(cinder_client=cinder_client,
                                  volume_id=volume_id,
-                                 status=volume.VOLUME_STATUS_AVAILABLE)
+                                 status=volume.VOLUME_STATUS_AVAILABLE,
+                                 num_tries=status_attempts,
+                                 timeout=status_timeout)
 
 
 @operation
 @with_nova_client
 @with_cinder_client
-def detach_volume(nova_client, cinder_client, **kwargs):
+def detach_volume(nova_client, cinder_client, status_attempts,
+                  status_timeout, **kwargs):
     if is_external_relationship(ctx):
         ctx.logger.info('Not detaching volume from server since '
                         'external volume and server are being used')
@@ -665,7 +675,8 @@ def detach_volume(nova_client, cinder_client, **kwargs):
     server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    _detach_volume(nova_client, cinder_client, server_id, volume_id)
+    _detach_volume(nova_client, cinder_client, server_id, volume_id,
+                   status_attempts, status_timeout)
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):

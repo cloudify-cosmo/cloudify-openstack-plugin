@@ -69,7 +69,8 @@ class TestCinderVolume(unittest.TestCase):
             return_value=available_volume_m)
         ctx_m = self._mock(node_id='a', properties=volume_properties)
 
-        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m)
+        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m,
+                      status_attempts=10, status_timeout=2)
 
         cinder_client_m.volumes.create.assert_called_once_with(
             size=volume_size,
@@ -103,7 +104,8 @@ class TestCinderVolume(unittest.TestCase):
             return_value=volume_id)
         ctx_m = self._mock(node_id='a', properties=volume_properties)
 
-        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m)
+        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m,
+                      status_attempts=10, status_timeout=2)
 
         self.assertFalse(cinder_client_m.volumes.create.called)
         self.assertEqual(
@@ -186,14 +188,17 @@ class TestCinderVolume(unittest.TestCase):
                                   'wait_until_status',
                                   mock.Mock(return_value=(None, True)))):
 
-            server.attach_volume(ctx=ctx_m)
+            server.attach_volume(ctx=ctx_m, status_attempts=10,
+                                 status_timeout=2)
 
             novaclient_m.volumes.create_server_volume.assert_called_once_with(
                 server_id, volume_id, device_name)
             volume.wait_until_status.assert_called_once_with(
                 cinder_client=cinderclient_m,
                 volume_id=volume_id,
-                status=volume.VOLUME_STATUS_IN_USE)
+                status=volume.VOLUME_STATUS_IN_USE,
+                num_tries=10,
+                timeout=2)
 
     def _test_cleanup__after_attach_fails(
             self, volume_ctx_mgr, expected_err_cls, expect_cleanup=True):
@@ -250,14 +255,17 @@ class TestCinderVolume(unittest.TestCase):
                                   mock.Mock(return_value=cinderclient_m)),
                 volume_ctx_mgr):
             with self.assertRaises(expected_err_cls):
-                server.attach_volume(ctx=ctx_m)
+                server.attach_volume(ctx=ctx_m, status_attempts=10,
+                                     status_timeout=2)
 
             novacl_vols_m.create_server_volume.assert_called_once_with(
                 server_id, volume_id, device_name)
             volume.wait_until_status.assert_any_call(
                 cinder_client=cinderclient_m,
                 volume_id=volume_id,
-                status=volume.VOLUME_STATUS_IN_USE)
+                status=volume.VOLUME_STATUS_IN_USE,
+                num_tries=10,
+                timeout=2)
             if expect_cleanup:
                 novacl_vols_m.delete_server_volume.assert_called_once_with(
                     server_id, attachment_id)
@@ -265,7 +273,9 @@ class TestCinderVolume(unittest.TestCase):
                 volume.wait_until_status.assert_called_with(
                     cinder_client=cinderclient_m,
                     volume_id=volume_id,
-                    status=volume.VOLUME_STATUS_AVAILABLE)
+                    status=volume.VOLUME_STATUS_AVAILABLE,
+                    num_tries=10,
+                    timeout=2)
 
     def _test_cleanup_after_waituntilstatus_throws(self, err, expect_cleanup):
         def raise_once(*args, **kwargs):
@@ -364,11 +374,14 @@ class TestCinderVolume(unittest.TestCase):
                                   mock.Mock(return_value=cinder_client_m)),
                 mock.patch.object(volume, 'wait_until_status', mock.Mock())):
 
-            server.detach_volume(ctx=ctx_m)
+            server.detach_volume(ctx=ctx_m, status_attempts=10,
+                                 status_timeout=2)
 
             novaclient_m.volumes.delete_server_volume.assert_called_once_with(
                 server_id, attachment_id)
             volume.wait_until_status.assert_called_once_with(
                 cinder_client=cinder_client_m,
                 volume_id=volume_id,
-                status=volume.VOLUME_STATUS_AVAILABLE)
+                status=volume.VOLUME_STATUS_AVAILABLE,
+                num_tries=10,
+                timeout=2)

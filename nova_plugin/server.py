@@ -87,13 +87,11 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
 def _get_management_network_id_and_name(neutron_client, ctx):
     """Examine the context to find the management network id and name."""
     management_network_id = None
-    management_network_name = None
+    management_network_name = \
+        ctx.node.properties.get('management_network_name')
     provider_context = provider(ctx)
 
-    if ('management_network_name' in ctx.node.properties) and \
-            ctx.node.properties['management_network_name']:
-        management_network_name = \
-            ctx.node.properties['management_network_name']
+    if management_network_name:
         management_network_name = transform_resource_name(
             ctx, management_network_name)
         management_network_id = neutron_client.cosmo_get_named(
@@ -157,18 +155,22 @@ def _prepare_server_nics(neutron_client, ctx, server):
         ctx, PORT_OPENSTACK_TYPE)
     management_network_id, management_network_name = \
         _get_management_network_id_and_name(neutron_client, ctx)
-    if management_network_id is None and (network_ids or port_ids):
-        # Known limitation
-        raise NonRecoverableError(
-            "Nova server with NICs requires "
-            "'management_network_name' in properties or id "
-            "from provider context, which was not supplied")
+
+    if management_network_id or management_network_name:
+        ctx.logger.debug('Management Network id deprecated and was provided.')
+
+    port_networks = get_port_networks(neutron_client, port_ids)
+
+    for port_network in port_networks:
+        for network_id in network_ids:
+            if network_id in port_network.get('net-id'):
+                network_ids.remove(network_id)
 
     nics = _merge_nics(
         management_network_id,
         server.get('nics', []),
         [{'net-id': net_id} for net_id in network_ids],
-        get_port_networks(neutron_client, port_ids))
+        port_networks)
 
     nics = _normalize_nics(nics)
 

@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/1.5.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/CFY-6033-Go-Away-Management-Network-Name.zip
     package_name: cloudify-openstack-plugin
-    package_version: '1.5'
+    package_version: '1.6.dev0'
 
 node_types:
   cloudify.openstack.nodes.Server:

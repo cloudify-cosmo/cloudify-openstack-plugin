@@ -3,53 +3,53 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to cloudify-openstack-plugin's documentation!
-=====================================================
+cloudify-openstack-plugin documentation
+=======================================
+
+The OpenStack plugin allows users to use an OpenStack based cloud infrastructure for deploying services and applications.
+For more information about OpenStack, please refer to: https://www.openstack.org/.
 
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-.. automodule:: neutron_plugin.floatingip
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    configuration
+    types
+    nova-net
+    examples
+    tips
+    operations
 
-.. automodule:: neutron_plugin.network
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
-.. automodule:: neutron_plugin.port
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Plugin Requirements
+-------------------
 
-.. automodule:: neutron_plugin.router
-   :members:
-   :undoc-members:
-   :show-inheritance:
+* Python versions:
+  * 2.7.x
+* If the plugin is installed from source,
+  then the following system dependencies are required:
 
-.. automodule:: neutron_plugin.security_group
-   :members:
-   :undoc-members:
-   :show-inheritance:
+  * ``gcc``
+  * ``gcc-c++``
+  * ``python-devel``
 
-.. automodule:: neutron_plugin.subnet
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
-.. automodule:: nova_plugin.server
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Compatibility
+-------------
 
-.. automodule:: openstack_plugin_common.__init__
-   :members:
-   :undoc-members:
-   :show-inheritance:
+The Openstack plugin has been officially tested with Openstack Kilo.
+It was also used to be tested against Icehouse and Juno.
+
+The Openstack plugin uses various Openstack clients packages. The versions used in Openstack Plugin are as follows:
+
+* `Nova client <https://github.com/openstack/python-novaclient>`_ - 2.26.0
+* `Neutron client <https://github.com/openstack/python-neutronclient>`_ - 2.6.0
+* `Cinder client <https://github.com/openstack/python-cinderclient>`_ - 1.2.2
+* `Keystone client <https://github.com/openstack/python-keystoneclient>`_ - 1.6.0
+
+
+
 
 Indices and tables
 ==================

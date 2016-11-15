@@ -15,23 +15,62 @@ node_types:
     properties:
       server:
         default: {}
+        description: >
+          key-value server configuration as described in OpenStack compute create server API. (DEPRECATED - Use the args input in create operation instead)
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: what is this
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       image:
         default: ''
+        description: >
+          The image for the server.
+          May receive either the ID or the name of the image.
+          note: This property is currently optional for backwards compatibility,
+          but will be modified to become a required property in future versions
+          (Default: '').
       flavor:
         default: ''
+        description: >
+          The flavor for the server.
+          May receive either the ID or the name of the flavor.
+          note: This property is currently optional for backwards compatibility,
+          but will be modified to become a required property in future versions
+          (Default: '').
       management_network_name:
         default: ''
+        description: >
+          Cloudify’s management network name.
+          Every server should be connected to the management network.
+          If the management network’s name information is available in the Provider Context,
+          this connection is made automatically and there’s no need to override this property
+          (See the Misc section for more information on the Openstack Provider Context).
+          Otherwise, it is required to set the value of this property to the management network name as it was set in the bootstrap process.
+          Note: When using Nova-net Openstack (see the Nova-net Support section),
+          don’t set this property. Defaults to '' (empty string).
       use_password:
         default: false
+        description: >
+          A boolean describing whether this server image supports user-password authentication.
+          Images that do should post the administrator user’s password to the Openstack metadata service (e.g. via cloudbase);
+          The password would then be retrieved by the plugin,
+          decrypted using the server’s keypair and then saved in the server’s runtime properties.
+          Defaults to false.
       openstack_config:
         default: {}
+        description: >
+          see Openstack Configuraion
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -81,12 +120,18 @@ node_types:
     properties:
       use_password:
         default: true
+        description: >
+          Windows needs use pasword for something or other (TODO)
       os_family:
         default: windows
+        description: >
+          (updates the os_family default as a convenience)
       agent_config:
         type: cloudify.datatypes.AgentConfig
         default:
           port: 5985
+        description: >
+          (updates the defaults for the agent_config for Windows)
 
   cloudify.openstack.nodes.KeyPair:
     derived_from: cloudify.nodes.Root
@@ -114,6 +159,8 @@ node_types:
           and should be used as-is.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
         description: >
@@ -154,15 +201,29 @@ node_types:
     properties:
       subnet:
         default: {}
+        description: >
+          key-value subnet configuration as described at http://developer.openstack.org/api-ref-networking-v2.html#subnets. (**DEPRECATED - Use the `args` input in create operation instead**)
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -191,22 +252,42 @@ node_types:
     properties:
       security_group:
         default: {}
+        description: >
+          key-value security_group configuration as described in http://developer.openstack.org/api-ref-networking-v2-ext.html#createSecGroup. (**DEPRECATED - Use the `args` input in create operation instead**)
       description:
         type: string
         default: ''
+        description: >
+          SecurityGroup description.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
       rules:
         default: []
+        description: >
+          key-value security_group_rule configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#security_groups
       disable_default_egress_rules:
         default: false
+        description: >
+          a flag for removing the default rules which https://wiki.openstack.org/wiki/Neutron/SecurityGroups#Behavior. If not set to `true`, these rules will remain, and exist alongside any additional rules passed using the `rules` property.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -233,19 +314,38 @@ node_types:
     properties:
       router:
         default: {}
+        description: >
+          key-value router configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3. (**DEPRECATED - Use the `args` input in create operation instead**)
       external_network:
         default: ''
+        description: >
+          An external network name or ID.
+          If given, the router will use this external network as a gateway.
       default_to_managers_external_network:
         default: true
+        description: >
+          A boolean which determines whether to use the Cloudify Manager's external network if no other external network was given (whether by a relationship, by the `external_network` property or by the nested `external_gateway_info` key in the `router` property). This is only relevant if the manager's external network appears in the Provider-context. Defaults to `true`.
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -272,17 +372,36 @@ node_types:
     properties:
       port:
         default: {}
+        description: >
+          key-value port configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#ports. (**DEPRECATED - Use the `args` input in create operation instead**)
       fixed_ip:
         default: ''
+        description: >
+          may be used to request a specific fixed IP for the port.
+          If the IP is unavailable
+          (either already taken or does not belong to a subnet the port is on)
+          an error will be raised.
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -309,15 +428,29 @@ node_types:
     properties:
       network:
         default: {}
+        description: >
+          key-value network configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#networks. (**DEPRECATED - Use the `args` input in create operation instead**)
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -344,16 +477,30 @@ node_types:
     properties:
       floatingip:
         default: {}
+        description: >
+          key-value floatingip configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3. (**DEPRECATED - Use the `args` input in create operation instead**)
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         description: IP address of the floating IP
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -380,20 +527,44 @@ node_types:
     properties:
       volume:
         default: {}
+        description: >
+          key-value volume configuration as described in http://developer.openstack.org/api-ref-blockstorage-v1.html#volumes-v1. (**DEPRECATED - Use the `args` input in create operation instead**)
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       device_name:
         default: auto
+        description: >
+          The device name this volume will be attached to.
+          Default value is *auto*,
+          which means openstack will auto-assign a device.
+          Note that if you do explicitly set a value,
+          this value may not be the actual device name assigned.
+          Sometimes the device requested will not be available and openstack will assign it to a different device,
+          this is why we recommend using *auto*.
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
       boot:
         type: boolean
         default: false
+        description: >
+          TODO: is this a bootable flag?
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -431,15 +602,29 @@ node_types:
     properties:
       floatingip:
         default: {}
+        description: >
+          key-value floatingip configuration as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-floating-ips. (**DEPRECATED - Use the `args` input in create operation instead**)
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -466,17 +651,33 @@ node_types:
     properties:
       security_group:
         default: {}
+        description: >
+          key-value security_group configuration as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-security-groups. (**DEPRECATED - Use the `args` input in create operation instead**)
       use_external_resource:
         type: boolean
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
       rules:
         default: []
+        description: >
+          key-value security group rule as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-security-group-default-rules.
       description:
         description: security group description
     interfaces:
@@ -513,14 +714,28 @@ node_types:
         default: {}
       image_url:
         default: ''
+        description: >
+          The openstack resource URL for the image.
       use_external_resource:
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -553,6 +768,8 @@ node_types:
     properties:
       project:
         default: {}
+        description: >
+          key-value project configuration.
       users:
         default: []
         description: >
@@ -560,14 +777,28 @@ node_types:
             { name: string, roles: [string] }
       quota:
         default: {}
+        description: >
+          TODO: what is dis
       use_external_resource:
         default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+          Defaults to false.
       create_if_missing:
         default: false
+        description: >
+          TODO: CREATE. THIS IS MISSING
       resource_id:
         default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
         create: openstack.keystone_plugin.project.create

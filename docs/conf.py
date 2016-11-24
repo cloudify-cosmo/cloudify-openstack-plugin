@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# cloudify-gcp-plugin documentation build configuration file, created by
+# cloudify-openstack-plugin documentation build configuration file, created by
 # sphinx-quickstart on Tue Nov  8 14:02:23 2016.
 #
 # This file is execfile()d with the current directory set to its
@@ -114,7 +114,7 @@ todo_include_todos = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'cloudify'
+html_theme = 'sphinxify'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -126,7 +126,7 @@ html_theme = 'cloudify'
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
-#html_title = u'cloudify-gcp-plugin v1.0a1'
+#html_title = u'cloudify-openstack-plugin v1.0a1'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -208,7 +208,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'cloudify-gcp-plugindoc'
+htmlhelp_basename = 'cloudify-openstack-plugindoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -230,7 +230,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'cloudify-gcp-plugin.tex', u'cloudify-gcp-plugin Documentation',
+    (master_doc, 'cloudify-openstack-plugin.tex', u'cloudify-openstack-plugin Documentation',
      u'GigaSpaces Technologies Ltd.', 'manual'),
 ]
 
@@ -260,7 +260,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'cloudify-gcp-plugin', u'cloudify-gcp-plugin Documentation',
+    (master_doc, 'cloudify-openstack-plugin', u'cloudify-openstack-plugin Documentation',
      [author], 1)
 ]
 
@@ -274,8 +274,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'cloudify-gcp-plugin', u'cloudify-gcp-plugin Documentation',
-     author, 'cloudify-gcp-plugin', 'One line description of project.',
+    (master_doc, 'cloudify-openstack-plugin', u'cloudify-openstack-plugin Documentation',
+     author, 'cloudify-openstack-plugin', 'One line description of project.',
      'Miscellaneous'),
 ]
 

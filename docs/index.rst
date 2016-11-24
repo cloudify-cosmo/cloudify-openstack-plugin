@@ -9,6 +9,7 @@ cloudify-openstack-plugin documentation
 The OpenStack plugin allows users to use an OpenStack based cloud infrastructure for deploying services and applications.
 For more information about OpenStack, please refer to: https://www.openstack.org/.
 
+
 Contents:
 
 .. toctree::

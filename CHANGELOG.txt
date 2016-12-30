@@ -1,3 +1,5 @@
+1.6:
+    - Use availability_zone from connected boot_volume if Server doesn't specify
 1.5:
     - Create project, assign existing users with roles and customize quotas.
     - Create image from file (local workflow only) or url.

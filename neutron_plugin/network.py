@@ -107,4 +107,3 @@ def delete(neutron_client, **kwargs):
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, NETWORK_OPENSTACK_TYPE)
-0

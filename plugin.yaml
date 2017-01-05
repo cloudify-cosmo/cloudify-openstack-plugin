@@ -672,8 +672,13 @@ relationships:
             openstack_config:
               default: {}
             status_attempts:
+              description: >
+                Number of times to check for the attachment's status before failing
               default: 10
             status_timeout:
+              description: >
+                Interval (in seconds) between subsequent inquiries of the attachment's
+                status
               default: 2
         unlink:
           implementation: openstack.nova_plugin.server.detach_volume
@@ -681,6 +686,11 @@ relationships:
             openstack_config:
               default: {}
             status_attempts:
+              description: >
+                Number of times to check for the detachment's status before failing
               default: 10
             status_timeout:
+              description: >
+                Interval (in seconds) between subsequent inquiries of the detachment's
+                status
               default: 2

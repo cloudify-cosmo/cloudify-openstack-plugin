@@ -644,4 +644,5 @@ class OpenstackHandler(BaseHandler):
         except BaseException, ex:
             failed[resource_group][resource_id] = ex
 
+
 handler = OpenstackHandler

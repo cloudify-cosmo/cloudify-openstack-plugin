@@ -44,6 +44,7 @@ def handle_userdata(server):
             [existing_userdata, install_agent_userdata])
     server['userdata'] = final_userdata
 
+
 userdata_handlers = {
     'http': lambda params: requests.get(params['url']).text
 }

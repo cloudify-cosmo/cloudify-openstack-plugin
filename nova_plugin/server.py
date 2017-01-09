@@ -45,6 +45,7 @@ from openstack_plugin_common import (
     is_external_relationship,
     validate_resource,
     USE_EXTERNAL_RESOURCE_PROPERTY,
+    OPENSTACK_AZ_PROPERTY,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
@@ -180,20 +181,34 @@ def _get_boot_volume_relationships(type_name, ctx):
     ctx.logger.debug('Instance relationship target instances: {0}'.format(str([
         rel.target.instance.runtime_properties
         for rel in ctx.instance.relationships])))
-    return [rel.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    targets = [
+            rel.target.instance
             for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(
                 OPENSTACK_TYPE_PROPERTY) == type_name and
             rel.target.node.properties.get('boot', False)]
 
+    if not targets:
+        return None
+    elif len(targets) > 1:
+        raise NonRecoverableError("2 boot volumes not supported")
+    return targets[0]
+
 
 def _handle_boot_volume(server, ctx):
     boot_volume = _get_boot_volume_relationships(VOLUME_OPENSTACK_TYPE, ctx)
     if boot_volume:
-        boot_volume_id = boot_volume[0]
+        boot_volume_id = boot_volume.runtime_properties[OPENSTACK_ID_PROPERTY]
         ctx.logger.info('boot_volume_id: {0}'.format(boot_volume_id))
-        server['block_device_mapping'] = {
-            'vda': '{0}:::0'.format(boot_volume_id)}
+        az = boot_volume.runtime_properties[OPENSTACK_AZ_PROPERTY]
+        # Some nova configurations allow cross-az server-volume connections, so
+        # we can't treat that as an error.
+        if not server.get('availability_zone'):
+            server.update({
+                'block_device_mapping': {
+                    'vda': '{0}:::0'.format(boot_volume_id)},
+                'availability_zone': az,
+                })
 
 
 @operation

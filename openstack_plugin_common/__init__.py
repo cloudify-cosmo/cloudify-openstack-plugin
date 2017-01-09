@@ -42,6 +42,7 @@ USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
 CREATE_IF_MISSING_PROPERTY = 'create_if_missing'
 
 # runtime properties
+OPENSTACK_AZ_PROPERTY = 'availability_zone'
 OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
 OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
 OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name

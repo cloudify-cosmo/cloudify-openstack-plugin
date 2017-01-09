@@ -417,13 +417,19 @@ class TestServerPortNICs(NICTestBase):
 class TestBootFromVolume(unittest.TestCase):
 
     @mock.patch('nova_plugin.server._get_boot_volume_relationships',
-                autospec=True, return_value=['test-id'])
-    def test_handle_boot_volume(self, *_):
+                autospec=True)
+    def test_handle_boot_volume(self, mock_get_rels):
+        mock_get_rels.return_value.runtime_properties = {
+                'external_id': 'test-id',
+                'availability_zone': 'test-az',
+                }
         server = {}
         ctx = mock.MagicMock()
         nova_plugin.server._handle_boot_volume(server, ctx)
         self.assertEqual({'vda': 'test-id:::0'},
                          server['block_device_mapping'])
+        self.assertEqual('test-az',
+                         server['availability_zone'])
 
     @mock.patch('nova_plugin.server._get_boot_volume_relationships',
                 autospec=True, return_value=[])
@@ -475,7 +481,9 @@ class TestServerRelationships(unittest.TestCase):
         ctx = self._get_ctx_mock(instance_id, True)
         result = nova_plugin.server._get_boot_volume_relationships(
             VOLUME_OPENSTACK_TYPE, ctx)
-        self.assertEqual([instance_id], result)
+        self.assertEqual(
+                instance_id,
+                result.runtime_properties['external_id'])
 
     def test_no_boot_volume_relationship(self):
         instance_id = 'test-id'

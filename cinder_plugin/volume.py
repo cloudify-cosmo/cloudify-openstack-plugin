@@ -26,6 +26,7 @@ from openstack_plugin_common import (delete_resource_and_runtime_properties,
                                      use_external_resource,
                                      validate_resource,
                                      COMMON_RUNTIME_PROPERTIES_KEYS,
+                                     OPENSTACK_AZ_PROPERTY,
                                      OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY,
                                      OPENSTACK_NAME_PROPERTY)
@@ -75,7 +76,10 @@ def create(cinder_client, status_attempts, status_timeout, args, **kwargs):
                       volume_id=v.id,
                       status=VOLUME_STATUS_AVAILABLE,
                       num_tries=status_attempts,
-                      timeout=status_timeout)
+                      timeout=status_timeout,
+                      )
+    ctx.instance.runtime_properties[OPENSTACK_AZ_PROPERTY] = \
+        v.availability_zone
 
 
 @operation

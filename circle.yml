@@ -21,10 +21,7 @@ test:
     - tox -e flake8
     - tox -e py27
 
-# Docs deployment
-deployment:
-  docs:
-    branch: sphinx-docs
-    commands:
-      - pip install git+https://github.com/cloudify-cosmo/sphinxify.git@initial-work
-      - sphinxify-gh-pages sphinx-docs
+# Docs artifacts
+general:
+  artifacts:
+    - .tox/docs/tmp/html

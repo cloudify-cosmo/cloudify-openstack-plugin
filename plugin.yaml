@@ -23,7 +23,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -60,13 +59,11 @@ node_types:
           Note: When using Nova-net Openstack (see the Nova-net Support section),
           don't set this property. Defaults to '' (empty string).
       use_password:
-        default: false
         description: >
           A boolean describing whether this server image supports user-password authentication.
           Images that do should post the administrator user's password to the Openstack metadata service (e.g. via cloudbase);
           The password would then be retrieved by the plugin,
           decrypted using the server's keypair and then saved in the server's runtime properties.
-          Defaults to false.
       openstack_config:
         default: {}
         description: >
@@ -209,7 +206,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -269,7 +265,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       resource_id:
         default: ''
         description: >
@@ -331,7 +326,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -387,7 +381,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -436,7 +429,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -485,7 +477,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -535,7 +526,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -610,7 +600,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -659,7 +648,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -721,7 +709,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >
@@ -784,7 +771,6 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
-          Defaults to false.
       create_if_missing:
         default: false
         description: >

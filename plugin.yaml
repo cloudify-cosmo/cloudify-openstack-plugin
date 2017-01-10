@@ -26,7 +26,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: what is this
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >
@@ -118,7 +119,8 @@ node_types:
       use_password:
         default: true
         description: >
-          Windows needs use pasword for something or other (TODO)
+          Default changed for derived type
+          because Windows instances need a password for agent installation
       os_family:
         default: windows
         description: >
@@ -157,7 +159,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >
@@ -209,7 +212,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >
@@ -258,7 +262,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       use_external_resource:
         type: boolean
         default: false
@@ -329,7 +334,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >
@@ -384,7 +390,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >
@@ -432,7 +439,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >
@@ -480,7 +488,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         description: IP address of the floating IP
         default: ''
@@ -529,7 +538,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >
@@ -554,7 +564,8 @@ node_types:
         type: boolean
         default: false
         description: >
-          TODO: is this a bootable flag?
+          If a Server instance is connected to this Volume by a relationship,
+          this volume will be used as the boot volume for that Server.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -712,7 +723,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >
@@ -764,8 +776,14 @@ node_types:
             { name: string, roles: [string] }
       quota:
         default: {}
-        description: >
-          TODO: what is dis
+        description: |
+          A dictionary mapping service names to quota definitions for a proejct
+
+          e.g::
+
+            quota:
+              neutron: <quota>
+              nova: <quota>
       use_external_resource:
         default: false
         description: >
@@ -774,7 +792,8 @@ node_types:
       create_if_missing:
         default: false
         description: >
-          TODO: CREATE. THIS IS MISSING
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
       resource_id:
         default: ''
         description: >

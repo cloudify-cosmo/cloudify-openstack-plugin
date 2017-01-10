@@ -27,6 +27,7 @@ Plugin Requirements
 -------------------
 
 * Python versions:
+
   * 2.7.x
 * If the plugin is installed from source,
   then the following system dependencies are required:
@@ -39,12 +40,14 @@ Plugin Requirements
 Compatibility
 -------------
 
-* *Mitaka* official support*
-* *Liberty* official support*
+* *Mitaka* official support
+* *Liberty* official support
 * *Kilo* official support
 * *Juno*, *Icehouse* previously supported, not currently tested.
 
-\* support on Mitaka and Liberty currently requires the Keystone URL in [Openstack Configuration](#openstack-configuration) to be explicitly set to `/v2.0`: eg `http://192.0.2.200:5000/v2.0` instead of just `http://192.0.2.200:5000`.
+.. attention:: New in 1.6
+
+    The full Keystone URL in :ref:`config` is now required in the ``openstack_config`` ``auth_url`` property: eg ``http://192.0.2.200:5000/v2.0`` or ``http://192.0.2.200:5000/v3``.
 
 The Openstack plugin uses various Openstack clients packages. The versions used in Openstack Plugin are as follows:
 

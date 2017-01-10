@@ -1,4 +1,4 @@
-
+.. _config:
 
 Openstack Configuration
 =======================
@@ -33,9 +33,14 @@ The structure of the JSON file in section (2), as well as of the ``openstack_con
 * ``password`` password for authentication with Openstack Keystone service.
 * ``tenant_name`` name of the tenant to be used.
 * ``auth_url`` URL of the Openstack Keystone service.
+
+    .. attention:: New in 1.6
+
+        ``auth_url`` must include the full keystone auth URL, including the version number.
+
 * ``region`` Openstack region to be used. This may be optional when there's but a single region.
-* ``nova_url`` (**DEPRECATED - instead, use ``custom_configuration`` to pass ``bypass_url`` directly to the Nova client**) explicit URL for the Openstack Nova service. This may be used to override the URL for the Nova service that is listed in the Keystone service.
-* ``neutron_url`` (**DEPRECATED - instead, use ``custom_configuration`` to pass ``endpoint_url`` directly to the Neutron client**) explicit URL for the Openstack Neutron service. This may be used to override the URL for the Neutron service that is listed in the Keystone service.
+* ``nova_url`` (**DEPRECATED** - instead, use ``custom_configuration`` to pass ``bypass_url`` directly to the Nova client) explicit URL for the Openstack Nova service. This may be used to override the URL for the Nova service that is listed in the Keystone service.
+* ``neutron_url`` (**DEPRECATED** - instead, use ``custom_configuration`` to pass ``endpoint_url`` directly to the Neutron client) explicit URL for the Openstack Neutron service. This may be used to override the URL for the Neutron service that is listed in the Keystone service.
 * ``custom_configuration`` a dictionary which allows overriding or directly passing custom configuration parameter to each of the Openstack clients, by using any of the relevant keys: ``keystone_client``, ``nova_client``, ``neutron_client`` or ``cinder_client``.
   * Parameters passed directly to Openstack clients using the ``custom_configuration`` mechanism will override other definitions (e.g. any of the common Openstack configuration parameters listed above, such as ``username`` and ``tenant_name``)
   * The following is an example for the usage of the ``custom_configuration`` section in a blueprint:

@@ -201,14 +201,14 @@ def _handle_boot_volume(server, ctx):
         boot_volume_id = boot_volume.runtime_properties[OPENSTACK_ID_PROPERTY]
         ctx.logger.info('boot_volume_id: {0}'.format(boot_volume_id))
         az = boot_volume.runtime_properties[OPENSTACK_AZ_PROPERTY]
+        # If a block device mapping already exists we shouldn't overwrite it
+        # completely
+        bdm = server.setdefault('block_device_mapping', {})
+        bdm['vda'] = '{0}:::0'.format(boot_volume_id)
         # Some nova configurations allow cross-az server-volume connections, so
         # we can't treat that as an error.
         if not server.get('availability_zone'):
-            server.update({
-                'block_device_mapping': {
-                    'vda': '{0}:::0'.format(boot_volume_id)},
-                'availability_zone': az,
-                })
+            server['availability_zone'] = az
 
 
 @operation

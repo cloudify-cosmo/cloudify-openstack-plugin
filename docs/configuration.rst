@@ -34,7 +34,7 @@ The structure of the JSON file in section (2), as well as of the ``openstack_con
 * ``tenant_name`` name of the tenant to be used.
 * ``auth_url`` URL of the Openstack Keystone service.
 
-    .. attention:: New in 1.6
+    .. attention:: New in 2.0
 
         ``auth_url`` must include the full keystone auth URL, including the version number.
 

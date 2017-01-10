@@ -19,209 +19,589 @@ import tempfile
 import json
 
 import mock
-
-import openstack_plugin_common as common
 from cloudify.exceptions import NonRecoverableError
+
 from cloudify.mocks import MockCloudifyContext
+import openstack_plugin_common as common
 
 
-class OpenstackClientsTests(unittest.TestCase):
+class ConfigTests(unittest.TestCase):
 
-    def test_clients_custom_configuration(self):
-        # tests for clients custom configuration, passed via properties/inputs
+    @mock.patch.dict('os.environ', clear=True)
+    def test__build_config_from_env_variables_empty(self):
+        cfg = common.Config._build_config_from_env_variables()
+        self.assertEqual({}, cfg)
 
-        envars_cfg = {
-            'OS_USERNAME': 'envar-username',
-            'OS_PASSWORD': 'envar-password',
-            'OS_TENANT_NAME': 'envar-tenant-name',
-            'OS_AUTH_URL': 'envar-auth-url'
+    @mock.patch.dict('os.environ', clear=True,
+                     OS_AUTH_URL='test_url')
+    def test__build_config_from_env_variables_single(self):
+        cfg = common.Config._build_config_from_env_variables()
+        self.assertEqual({'auth_url': 'test_url'}, cfg)
+
+    @mock.patch.dict('os.environ', clear=True,
+                     OS_AUTH_URL='test_url',
+                     OS_PASSWORD='pass',
+                     OS_REGION_NAME='region')
+    def test__build_config_from_env_variables_multiple(self):
+        cfg = common.Config._build_config_from_env_variables()
+        self.assertEqual({
+            'auth_url': 'test_url',
+            'password': 'pass',
+            'region_name': 'region',
+        }, cfg)
+
+    @mock.patch.dict('os.environ', clear=True,
+                     OS_INVALID='invalid',
+                     PASSWORD='pass',
+                     os_region_name='region')
+    def test__build_config_from_env_variables_all_ignored(self):
+        cfg = common.Config._build_config_from_env_variables()
+        self.assertEqual({}, cfg)
+
+    @mock.patch.dict('os.environ', clear=True,
+                     OS_AUTH_URL='test_url',
+                     OS_PASSWORD='pass',
+                     OS_REGION_NAME='region',
+                     OS_INVALID='invalid',
+                     PASSWORD='pass',
+                     os_region_name='region')
+    def test__build_config_from_env_variables_extract_valid(self):
+        cfg = common.Config._build_config_from_env_variables()
+        self.assertEqual({
+            'auth_url': 'test_url',
+            'password': 'pass',
+            'region_name': 'region',
+        }, cfg)
+
+    def test_update_config_empty_target(self):
+        target = {}
+        override = {'k1': 'u1'}
+        result = override.copy()
+
+        common.Config.update_config(target, override)
+        self.assertEqual(result, target)
+
+    def test_update_config_empty_override(self):
+        target = {'k1': 'v1'}
+        override = {}
+        result = target.copy()
+
+        common.Config.update_config(target, override)
+        self.assertEqual(result, target)
+
+    def test_update_config_disjoint_configs(self):
+        target = {'k1': 'v1'}
+        override = {'k2': 'u2'}
+        result = target.copy()
+        result.update(override)
+
+        common.Config.update_config(target, override)
+        self.assertEqual(result, target)
+
+    def test_update_config_do_not_remove_empty_from_target(self):
+        target = {'k1': ''}
+        override = {}
+        result = target.copy()
+
+        common.Config.update_config(target, override)
+        self.assertEqual(result, target)
+
+    def test_update_config_no_empty_in_override(self):
+        target = {'k1': 'v1', 'k2': 'v2'}
+        override = {'k1': 'u2'}
+        result = target.copy()
+        result.update(override)
+
+        common.Config.update_config(target, override)
+        self.assertEqual(result, target)
+
+    def test_update_config_all_empty_in_override(self):
+        target = {'k1': '', 'k2': 'v2'}
+        override = {'k1': '', 'k3': ''}
+        result = target.copy()
+
+        common.Config.update_config(target, override)
+        self.assertEqual(result, target)
+
+    def test_update_config_misc(self):
+        target = {'k1': 'v1', 'k2': 'v2'}
+        override = {'k1': '', 'k2': 'u2', 'k3': '', 'k4': 'u4'}
+        result = {'k1': 'v1', 'k2': 'u2', 'k4': 'u4'}
+
+        common.Config.update_config(target, override)
+        self.assertEqual(result, target)
+
+    @mock.patch.object(common.Config, 'update_config')
+    @mock.patch.object(common.Config, '_build_config_from_env_variables',
+                       return_value={})
+    @mock.patch.dict('os.environ', clear=True,
+                     values={common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR:
+                             '/this/should/not/exist.json'})
+    def test_get_missing_static_config_missing_file(self, from_env, update):
+        cfg = common.Config.get()
+        self.assertEqual({}, cfg)
+        from_env.assert_called_once_with()
+        update.assert_not_called()
+
+    @mock.patch.object(common.Config, 'update_config')
+    @mock.patch.object(common.Config, '_build_config_from_env_variables',
+                       return_value={})
+    def test_get_empty_static_config_present_file(self, from_env, update):
+        file_cfg = {'k1': 'v1', 'k2': 'v2'}
+        env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
+        file = tempfile.NamedTemporaryFile(delete=False)
+        json.dump(file_cfg, file)
+        file.close()
+
+        with mock.patch.dict('os.environ', {env_var: file.name}, clear=True):
+            common.Config.get()
+
+        os.unlink(file.name)
+        from_env.assert_called_once_with()
+        update.assert_called_once_with({}, file_cfg)
+
+    @mock.patch.object(common.Config, 'update_config')
+    @mock.patch.object(common.Config, '_build_config_from_env_variables',
+                       return_value={'k1': 'v1'})
+    def test_get_present_static_config_empty_file(self, from_env, update):
+        file_cfg = {}
+        env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
+        file = tempfile.NamedTemporaryFile(delete=False)
+        json.dump(file_cfg, file)
+        file.close()
+
+        with mock.patch.dict('os.environ', {env_var: file.name}, clear=True):
+            common.Config.get()
+
+        os.unlink(file.name)
+        from_env.assert_called_once_with()
+        update.assert_called_once_with({'k1': 'v1'}, file_cfg)
+
+    @mock.patch.object(common.Config, 'update_config')
+    @mock.patch.object(common.Config, '_build_config_from_env_variables',
+                       return_value={'k1': 'v1'})
+    @mock.patch.dict('os.environ', clear=True,
+                     values={common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR:
+                             '/this/should/not/exist.json'})
+    def test_get_present_static_config_missing_file(self, from_env, update):
+        cfg = common.Config.get()
+        self.assertEqual({'k1': 'v1'}, cfg)
+        from_env.assert_called_once_with()
+        update.assert_not_called()
+
+    @mock.patch.object(common.Config, 'update_config')
+    @mock.patch.object(common.Config, '_build_config_from_env_variables',
+                       return_value={'k1': 'v1'})
+    def test_get_all_present(self, from_env, update):
+        file_cfg = {'k2': 'u2'}
+        env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
+        file = tempfile.NamedTemporaryFile(delete=False)
+        json.dump(file_cfg, file)
+        file.close()
+
+        with mock.patch.dict('os.environ', {env_var: file.name}, clear=True):
+            common.Config.get()
+
+        os.unlink(file.name)
+        from_env.assert_called_once_with()
+        update.assert_called_once_with({'k1': 'v1'}, file_cfg)
+
+
+class OpenstackClientTests(unittest.TestCase):
+
+    def test__merge_custom_configuration_no_custom_cfg(self):
+        cfg = {'k1': 'v1'}
+        new = common.OpenStackClient._merge_custom_configuration(cfg, "dummy")
+        self.assertEqual(cfg, new)
+
+    def test__merge_custom_configuration_client_present(self):
+        cfg = {
+            'k1': 'v1',
+            'k2': 'v2',
+            'custom_configuration': {
+                'dummy': {
+                    'k2': 'u2',
+                    'k3': 'u3'
+                }
+            }
         }
+        result = {
+            'k1': 'v1',
+            'k2': 'u2',
+            'k3': 'u3'
+        }
+        bak = cfg.copy()
+        new = common.OpenStackClient._merge_custom_configuration(cfg, "dummy")
+        self.assertEqual(result, new)
+        self.assertEqual(cfg, bak)
 
-        # file config passes custom_configuration too, but it'll get overridden
-        # by the inputs custom_configuration
-        file_cfg = {
+    def test__merge_custom_configuration_client_missing(self):
+        cfg = {
+            'k1': 'v1',
+            'k2': 'v2',
+            'custom_configuration': {
+                'dummy': {
+                    'k2': 'u2',
+                    'k3': 'u3'
+                }
+            }
+        }
+        result = {
+            'k1': 'v1',
+            'k2': 'v2'
+        }
+        bak = cfg.copy()
+        new = common.OpenStackClient._merge_custom_configuration(cfg, "baddy")
+        self.assertEqual(result, new)
+        self.assertEqual(cfg, bak)
+
+    def test__merge_custom_configuration_multi_client(self):
+        cfg = {
+            'k1': 'v1',
+            'k2': 'v2',
+            'custom_configuration': {
+                'dummy': {
+                    'k2': 'u2',
+                    'k3': 'u3'
+                },
+                'bummy': {
+                    'k1': 'z1'
+                }
+            }
+        }
+        result = {
+            'k1': 'z1',
+            'k2': 'v2',
+        }
+        bak = cfg.copy()
+        new = common.OpenStackClient._merge_custom_configuration(cfg, "bummy")
+        self.assertEqual(result, new)
+        self.assertEqual(cfg, bak)
+
+    def test__validate_auth_params_missing(self):
+        with self.assertRaises(NonRecoverableError):
+            common.OpenStackClient._validate_auth_params({})
+
+    def test__validate_auth_params_too_much(self):
+        with self.assertRaises(NonRecoverableError):
+            common.OpenStackClient._validate_auth_params({
+                'auth_url': 'url',
+                'password': 'pass',
+                'username': 'user',
+                'tenant_name': 'tenant',
+                'project_id': 'project_test',
+            })
+
+    def test__validate_auth_params_v2(self):
+        common.OpenStackClient._validate_auth_params({
+            'auth_url': 'url',
+            'password': 'pass',
+            'username': 'user',
+            'tenant_name': 'tenant',
+        })
+
+    def test__validate_auth_params_v3(self):
+        common.OpenStackClient._validate_auth_params({
+            'auth_url': 'url',
+            'password': 'pass',
+            'username': 'user',
+            'project_id': 'project_test',
+            'user_domain_name': 'user_domain',
+        })
+
+    def test__validate_auth_params_v3_mod(self):
+        common.OpenStackClient._validate_auth_params({
+            'auth_url': 'url',
+            'password': 'pass',
+            'username': 'user',
+            'user_domain_name': 'user_domain',
+            'project_name': 'project_test_name',
+            'project_domain_name': 'project_domain',
+        })
+
+    def test__validate_auth_params_skip_insecure(self):
+        common.OpenStackClient._validate_auth_params({
+            'auth_url': 'url',
+            'password': 'pass',
+            'username': 'user',
+            'user_domain_name': 'user_domain',
+            'project_name': 'project_test_name',
+            'project_domain_name': 'project_domain',
+            'insecure': True
+        })
+
+    def test__split_config(self):
+        auth = {'auth_url': 'url', 'password': 'pass'}
+        misc = {'misc1': 'val1', 'misc2': 'val2'}
+        all = dict(auth)
+        all.update(misc)
+
+        a, m = common.OpenStackClient._split_config(all)
+
+        self.assertEqual(auth, a)
+        self.assertEqual(misc, m)
+
+    @mock.patch.object(common, 'loading')
+    @mock.patch.object(common, 'session')
+    def test__authenticate_secure(self, mock_session, mock_loading):
+        auth_params = {'k1': 'v1'}
+        common.OpenStackClient._authenticate(auth_params)
+        loader = mock_loading.get_plugin_loader.return_value
+        loader.load_from_options.assert_called_once_with(k1='v1')
+        auth = loader.load_from_options.return_value
+        mock_session.Session.assert_called_once_with(auth=auth, verify=True)
+
+    @mock.patch.object(common, 'loading')
+    @mock.patch.object(common, 'session')
+    def test__authenticate_secure_explicit(self, mock_session, mock_loading):
+        auth_params = {'k1': 'v1', 'insecure': False}
+        common.OpenStackClient._authenticate(auth_params)
+        loader = mock_loading.get_plugin_loader.return_value
+        loader.load_from_options.assert_called_once_with(k1='v1')
+        auth = loader.load_from_options.return_value
+        mock_session.Session.assert_called_once_with(auth=auth, verify=True)
+
+    @mock.patch.object(common, 'loading')
+    @mock.patch.object(common, 'session')
+    def test__authenticate_insecure(self, mock_session, mock_loading):
+        auth_params = {'k1': 'v1', 'insecure': True}
+        common.OpenStackClient._authenticate(auth_params)
+        loader = mock_loading.get_plugin_loader.return_value
+        loader.load_from_options.assert_called_once_with(k1='v1')
+        auth = loader.load_from_options.return_value
+        mock_session.Session.assert_called_once_with(auth=auth, verify=False)
+
+    @mock.patch.object(common, 'loading')
+    @mock.patch.object(common, 'session')
+    def test__authenticate_secure_misc(self, mock_session, mock_loading):
+        params = {'k1': 'v1'}
+        tests = ('', 'a', [], {}, set(), 4, 0, -1, 3.14, 0.0, None)
+        for test in tests:
+            auth_params = params.copy()
+            auth_params['insecure'] = test
+
+            common.OpenStackClient._authenticate(auth_params)
+            loader = mock_loading.get_plugin_loader.return_value
+            loader.load_from_options.assert_called_with(**params)
+            auth = loader.load_from_options.return_value
+            mock_session.Session.assert_called_with(auth=auth, verify=True)
+
+
+class ClientsConfigTest(unittest.TestCase):
+
+    def setUp(self):
+        file = tempfile.NamedTemporaryFile(delete=False)
+        json.dump(self.get_file_cfg(), file)
+        file.close()
+        self.addCleanup(os.unlink, file.name)
+
+        env_cfg = self.get_env_cfg()
+        env_cfg[common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR] = file.name
+        mock.patch.dict('os.environ', env_cfg, clear=True).start()
+
+        self.loading = mock.patch.object(common, 'loading').start()
+        self.session = mock.patch.object(common, 'session').start()
+        self.nova = mock.patch.object(common, 'nova_client').start()
+        self.neutron = mock.patch.object(common, 'neutron_client').start()
+        self.cinder = mock.patch.object(common, 'cinder_client').start()
+        self.addCleanup(mock.patch.stopall)
+
+        self.loader = self.loading.get_plugin_loader.return_value
+        self.auth = self.loader.load_from_options.return_value
+
+
+class CustomConfigFromInputs(ClientsConfigTest):
+
+    def get_file_cfg(self):
+        return {
             'username': 'file-username',
             'password': 'file-password',
             'tenant_name': 'file-tenant-name',
             'custom_configuration': {
-                'nova_client': {'username': 'custom-username',
-                                'api_key': 'custom-password',
-                                'project_id': 'custom-tenant-name'},
+                'nova_client': {
+                    'username': 'custom-username',
+                    'password': 'custom-password',
+                    'tenant_name': 'custom-tenant-name'
+                },
             }
         }
 
-        inputs_cfg = {
+    def get_inputs_cfg(self):
+        return {
+            'auth_url': 'envar-auth-url',
             'username': 'inputs-username',
             'custom_configuration': {
-                'neutron_client': {'password': 'inputs-custom-password'},
-                'cinder_client': {'api_key': 'inputs-custom-password',
-                                  'auth_url': 'inputs-custom-auth-url',
-                                  'extra_key': 'extra-value'},
-                'keystone_client': {'username': 'inputs-custom-username',
-                                    'tenant_name': 'inputs-custom-tenant-name'}
+                'neutron_client': {
+                    'password': 'inputs-custom-password'
+                },
+                'cinder_client': {
+                    'password': 'inputs-custom-password',
+                    'auth_url': 'inputs-custom-auth-url',
+                    'extra_key': 'extra-value'
+                },
             }
         }
 
-        nova_params, neut_params, cind_params, keys_params = \
-            self._create_clients(envars_cfg, file_cfg, inputs_cfg)
-
-        # the first three assertions also check inputs custom-configuration
-        # completely overrides file custom-configuration
-        self.assertEquals('inputs-username', nova_params['username'])
-        self.assertEquals('file-password', nova_params['api_key'])
-        self.assertEquals('file-tenant-name', nova_params['project_id'])
-        self.assertEquals('envar-auth-url', nova_params['auth_url'])
-
-        self.assertEquals('inputs-username', neut_params['username'])
-        self.assertEquals('inputs-custom-password', neut_params['password'])
-        self.assertEquals('file-tenant-name', neut_params['tenant_name'])
-        self.assertEquals('envar-auth-url', neut_params['auth_url'])
-
-        self.assertEquals('inputs-username', cind_params['username'])
-        self.assertEquals('inputs-custom-password', cind_params['api_key'])
-        self.assertEquals('file-tenant-name', cind_params['project_id'])
-        self.assertEquals('inputs-custom-auth-url', cind_params['auth_url'])
-        self.assertEquals('extra-value', cind_params['extra_key'])
-
-        self.assertEquals('inputs-custom-username', keys_params['username'])
-        self.assertEquals('file-password', keys_params['password'])
-        self.assertEquals('inputs-custom-tenant-name',
-                          keys_params['tenant_name'])
-        self.assertEquals('envar-auth-url', keys_params['auth_url'])
-
-    def test_clients_custom_configuration_from_file(self):
-        # tests for clients custom configuration loaded from file
-
-        envars_cfg = {
+    def get_env_cfg(self):
+        return {
             'OS_USERNAME': 'envar-username',
             'OS_PASSWORD': 'envar-password',
             'OS_TENANT_NAME': 'envar-tenant-name',
-            'OS_AUTH_URL': 'envar-auth-url'
+            'OS_AUTH_URL': 'envar-auth-url',
+            common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR: file.name
         }
 
-        file_cfg = {
+    def test_nova(self):
+        common.NovaClientWithSugar(config=self.get_inputs_cfg())
+        self.loader.load_from_options.assert_called_once_with(
+            username='inputs-username',
+            password='file-password',
+            tenant_name='file-tenant-name',
+            auth_url='envar-auth-url'
+        )
+        self.session.Session.assert_called_with(auth=self.auth, verify=True)
+        self.nova.Client.assert_called_once_with(
+            '2', session=self.session.Session.return_value)
+
+    def test_neutron(self):
+        common.NeutronClientWithSugar(config=self.get_inputs_cfg())
+        self.loader.load_from_options.assert_called_once_with(
+            username='inputs-username',
+            password='inputs-custom-password',
+            tenant_name='file-tenant-name',
+            auth_url='envar-auth-url'
+        )
+        self.session.Session.assert_called_with(auth=self.auth, verify=True)
+        self.neutron.Client.assert_called_once_with(
+            session=self.session.Session.return_value)
+
+    def test_cinder(self):
+        common.CinderClientWithSugar(config=self.get_inputs_cfg())
+        self.loader.load_from_options.assert_called_once_with(
+            username='inputs-username',
+            password='inputs-custom-password',
+            tenant_name='file-tenant-name',
+            auth_url='inputs-custom-auth-url'
+        )
+        self.session.Session.assert_called_with(auth=self.auth, verify=True)
+        self.cinder.Client.assert_called_once_with(
+            '2', session=self.session.Session.return_value,
+            extra_key='extra-value')
+
+
+class CustomConfigFromFile(ClientsConfigTest):
+
+    def get_file_cfg(self):
+        return {
             'username': 'file-username',
             'password': 'file-password',
             'tenant_name': 'file-tenant-name',
             'custom_configuration': {
-                'nova_client': {'project_id': 'inputs-custom-tenant-name'},
-                'neutron_client': {'password': 'inputs-custom-password'},
-                'cinder_client': {'api_key': 'inputs-custom-password',
-                                  'auth_url': 'inputs-custom-auth-url',
-                                  'extra_key': 'extra-value'},
-                'keystone_client': {'username': 'inputs-custom-username'}
+                'nova_client': {
+                    'username': 'custom-username',
+                    'password': 'custom-password',
+                    'tenant_name': 'custom-tenant-name'
+                },
             }
         }
 
-        inputs_cfg = {
-            'username': 'inputs-username'
+    def get_inputs_cfg(self):
+        return {
+            'auth_url': 'envar-auth-url',
+            'username': 'inputs-username',
         }
 
-        nova_params, neut_params, cind_params, keys_params = \
-            self._create_clients(envars_cfg, file_cfg, inputs_cfg)
+    def get_env_cfg(self):
+        return {
+            'OS_USERNAME': 'envar-username',
+            'OS_PASSWORD': 'envar-password',
+            'OS_TENANT_NAME': 'envar-tenant-name',
+            'OS_AUTH_URL': 'envar-auth-url',
+            common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR: file.name
+        }
 
-        self.assertEquals('inputs-username', nova_params['username'])
-        self.assertEquals('file-password', nova_params['api_key'])
-        self.assertEquals('inputs-custom-tenant-name',
-                          nova_params['project_id'])
-        self.assertEquals('envar-auth-url', nova_params['auth_url'])
+    def test_nova(self):
+        common.NovaClientWithSugar(config=self.get_inputs_cfg())
+        self.loader.load_from_options.assert_called_once_with(
+            username='custom-username',
+            password='custom-password',
+            tenant_name='custom-tenant-name',
+            auth_url='envar-auth-url'
+        )
+        self.session.Session.assert_called_with(auth=self.auth, verify=True)
+        self.nova.Client.assert_called_once_with(
+            '2', session=self.session.Session.return_value)
 
-        self.assertEquals('inputs-username', neut_params['username'])
-        self.assertEquals('inputs-custom-password', neut_params['password'])
-        self.assertEquals('file-tenant-name', neut_params['tenant_name'])
-        self.assertEquals('envar-auth-url', neut_params['auth_url'])
+    def test_neutron(self):
+        common.NeutronClientWithSugar(config=self.get_inputs_cfg())
+        self.loader.load_from_options.assert_called_once_with(
+            username='inputs-username',
+            password='file-password',
+            tenant_name='file-tenant-name',
+            auth_url='envar-auth-url'
+        )
+        self.session.Session.assert_called_with(auth=self.auth, verify=True)
+        self.neutron.Client.assert_called_once_with(
+            session=self.session.Session.return_value)
 
-        self.assertEquals('inputs-username', cind_params['username'])
-        self.assertEquals('inputs-custom-password', cind_params['api_key'])
-        self.assertEquals('file-tenant-name', cind_params['project_id'])
-        self.assertEquals('inputs-custom-auth-url', cind_params['auth_url'])
-        self.assertEquals('extra-value', cind_params['extra_key'])
+    def test_cinder(self):
+        common.CinderClientWithSugar(config=self.get_inputs_cfg())
+        self.loader.load_from_options.assert_called_once_with(
+            username='inputs-username',
+            password='file-password',
+            tenant_name='file-tenant-name',
+            auth_url='envar-auth-url'
+        )
+        self.session.Session.assert_called_with(auth=self.auth, verify=True)
+        self.cinder.Client.assert_called_once_with(
+            '2', session=self.session.Session.return_value)
 
-        self.assertEquals('inputs-custom-username', keys_params['username'])
-        self.assertEquals('file-password', keys_params['password'])
-        self.assertEquals('file-tenant-name', keys_params['tenant_name'])
-        self.assertEquals('envar-auth-url', keys_params['auth_url'])
 
-    def test_input_config_override(self):
+class PutClientInKwTests(unittest.TestCase):
 
-        def perform_test(ctx, openstack_args, key, expected):
-            class ClientClassMock(common.OpenStackClient):
-                result_config = None
+    def test_override_prop_empty_ctx(self):
+        props = {}
+        ctx = MockCloudifyContext(node_id='a20846', properties=props)
+        kwargs = {
+            'ctx': ctx,
+            'openstack_config': {
+                'p1': 'v1'
+            }
+        }
+        expected_cfg = kwargs['openstack_config']
 
-                def get(self, config, **kwargs):
-                    ClientClassMock.result_config = config
-                    return mock.MagicMock()
+        client_class = mock.MagicMock()
+        common._put_client_in_kw('mock_client', client_class, kwargs)
+        client_class.assert_called_once_with(config=expected_cfg)
 
-            kwargs = {'ctx': ctx}
-            if openstack_args:
-                kwargs['openstack_config'] = openstack_args
-            common._put_client_in_kw('mock_client', ClientClassMock, kwargs)
-            self.assertEquals(expected,
-                              ClientClassMock.result_config.get(key, None))
+    def test_override_prop_nonempty_ctx(self):
+        props = {
+            'openstack_config': {
+                'p1': 'u1',
+                'p2': 'u2'
+            }
+        }
+        props_copy = props.copy()
+        ctx = MockCloudifyContext(node_id='a20846', properties=props)
+        kwargs = {
+            'ctx': ctx,
+            'openstack_config': {
+                'p1': 'v1',
+                'p3': 'v3'
+            }
+        }
+        expected_cfg = {
+            'p1': 'v1',
+            'p2': 'u2',
+            'p3': 'v3'
+        }
 
-        node_context = MockCloudifyContext(node_id='a20846', properties={})
-
-        perform_test(node_context, {'ignored_prop': 'ignored-prop'},
-                     'prop', None)
-        perform_test(node_context, {'prop': 'input-property'},
-                     'prop', 'input-property')
-
-        node_context = MockCloudifyContext(node_id='a20847',
-                                           properties={
-                                               'openstack_config': {
-                                                   'prop': 'context-property'
-                                               }
-                                           }
-                                           )
-        perform_test(node_context, None, 'prop', 'context-property')
-        perform_test(node_context, {'prop': 'input-property'},
-                     'prop', 'input-property')
-
+        client_class = mock.MagicMock()
+        common._put_client_in_kw('mock_client', client_class, kwargs)
+        client_class.assert_called_once_with(config=expected_cfg)
         # Making sure that _put_client_in_kw will not modify
         # 'openstack_config' property of a node.
-        self.assertEquals('context-property',
-                          node_context.node.properties.get(
-                              'openstack_config').get('prop'))
-
-    def _create_clients(self, envars_cfg, file_cfg, inputs_cfg):
-        client_init_args = []
-
-        def client_mock(**kwargs):
-            client_init_args.append(kwargs)
-            return mock.MagicMock()
-
-        orig_nova_client = common.NovaClientWithSugar
-        orig_neut_client = common.NeutronClientWithSugar
-        orig_cind_client = common.CinderClientWithSugar
-        orig_keys_client = common.keystone_client.Client
-
-        try:
-            common.NovaClientWithSugar = client_mock
-            common.NeutronClientWithSugar = client_mock
-            common.CinderClientWithSugar = client_mock
-            common.keystone_client.Client = client_mock
-
-            # envars config
-            os.environ.update(envars_cfg)
-
-            # file config
-            conf_file_path = tempfile.mkstemp()[1]
-            os.environ[common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR] = \
-                conf_file_path
-            with open(conf_file_path, 'w') as f:
-                json.dump(file_cfg, f)
-
-            common.NovaClient().get(config=inputs_cfg)
-            common.NeutronClient().get(config=inputs_cfg)
-            common.CinderClient().get(config=inputs_cfg)
-            common.KeystoneClient().get(config=inputs_cfg)
-
-            return client_init_args  # nova, neut, cind, keys
-        finally:
-            common.NovaClientWithSugar = orig_nova_client
-            common.NeutronClientWithSugar = orig_neut_client
-            common.CinderClientWithSugar = orig_cind_client
-            common.keystone_client.Client = orig_keys_client
+        self.assertEqual(props_copy, ctx.node.properties)
 
 
 class ResourceQuotaTests(unittest.TestCase):
@@ -258,3 +638,117 @@ class ResourceQuotaTests(unittest.TestCase):
 
     def test_infinite_quota(self):
         self._test_quota_validation(5, -1, False)
+
+
+class UseExternalResourceTests(unittest.TestCase):
+
+    def _test_use_external_resource(self,
+                                    is_external,
+                                    create_if_missing,
+                                    exists):
+        properties = {'create_if_missing': create_if_missing,
+                      'use_external_resource': is_external,
+                      'resource_id': 'resource_id'}
+        client_mock = mock.MagicMock()
+        os_type = 'test'
+
+        def _raise_error(*_):
+            raise NonRecoverableError('Error')
+
+        def _return_something(*_):
+            return mock.MagicMock()
+
+        return_value = _return_something if exists else _raise_error
+        if exists:
+            properties.update({'resource_id': 'rid'})
+
+        node_context = MockCloudifyContext(node_id='a20847',
+                                           properties=properties)
+        with mock.patch(
+                'openstack_plugin_common._get_resource_by_name_or_id_from_ctx',
+                new=return_value):
+            return common.use_external_resource(node_context,
+                                                client_mock, os_type)
+
+    def test_use_existing_resource(self):
+        self.assertIsNotNone(self._test_use_external_resource(True, True,
+                                                              True))
+        self.assertIsNotNone(self._test_use_external_resource(True, False,
+                                                              True))
+
+    def test_create_resource(self):
+        self.assertIsNone(self._test_use_external_resource(False, True, False))
+        self.assertIsNone(self._test_use_external_resource(False, False,
+                                                           False))
+        self.assertIsNone(self._test_use_external_resource(True, True, False))
+
+    def test_raise_error(self):
+        # If exists and shouldn't it is checked in resource
+        # validation so below scenario is not tested here
+        self.assertRaises(NonRecoverableError,
+                          self._test_use_external_resource,
+                          is_external=True,
+                          create_if_missing=False,
+                          exists=False)
+
+
+class ValidateResourceTests(unittest.TestCase):
+
+    def _test_validate_resource(self,
+                                is_external,
+                                create_if_missing,
+                                exists,
+                                client_mock_provided=None):
+        properties = {'create_if_missing': create_if_missing,
+                      'use_external_resource': is_external,
+                      'resource_id': 'resource_id'}
+        client_mock = client_mock_provided or mock.MagicMock()
+        os_type = 'test'
+
+        def _raise_error(*_):
+            raise NonRecoverableError('Error')
+
+        def _return_something(*_):
+            return mock.MagicMock()
+        return_value = _return_something if exists else _raise_error
+        if exists:
+            properties.update({'resource_id': 'rid'})
+
+        node_context = MockCloudifyContext(node_id='a20847',
+                                           properties=properties)
+        with mock.patch(
+                'openstack_plugin_common._get_resource_by_name_or_id_from_ctx',
+                new=return_value):
+            return common.validate_resource(node_context, client_mock, os_type)
+
+    def test_use_existing_resource(self):
+        self._test_validate_resource(True, True, True)
+        self._test_validate_resource(True, False, True)
+
+    def test_create_resource(self):
+        client_mock = mock.MagicMock()
+        client_mock.cosmo_list.return_value = ['a', 'b', 'c']
+        client_mock.get_quota.return_value = 5
+        self._test_validate_resource(False, True, False, client_mock)
+        self._test_validate_resource(False, False, False, client_mock)
+        self._test_validate_resource(True, True, False, client_mock)
+
+    def test_raise_error(self):
+        # If exists and shouldn't it is checked in resource
+        # validation so below scenario is not tested here
+        self.assertRaises(NonRecoverableError,
+                          self._test_validate_resource,
+                          is_external=True,
+                          create_if_missing=False,
+                          exists=False)
+
+    def test_raise_quota_error(self):
+        client_mock = mock.MagicMock()
+        client_mock.cosmo_list.return_value = ['a', 'b', 'c']
+        client_mock.get_quota.return_value = 3
+        self.assertRaises(NonRecoverableError,
+                          self._test_validate_resource,
+                          is_external=True,
+                          create_if_missing=True,
+                          exists=False,
+                          client_mock_provided=client_mock)

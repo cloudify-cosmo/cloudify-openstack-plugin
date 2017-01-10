@@ -15,7 +15,6 @@
 
 import os
 import errno
-import platform
 from getpass import getuser
 
 from cloudify import ctx
@@ -147,7 +146,7 @@ def creation_validation(nova_client, **kwargs):
 
     if is_external_resource(ctx):
         if pk_exists:
-            if platform.system() == 'Linux':
+            if os.name == 'posix':
                 validate_private_key_permissions(private_key_path)
                 validate_path_owner(private_key_path)
         else:

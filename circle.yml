@@ -21,8 +21,7 @@ test:
     - tox -e flake8
     - tox -e py27
 
-deployment:
-  release:
-    tag: /.*/
-    commands:
-      - (true)
+# Docs artifacts
+general:
+  artifacts:
+    - .tox/docs/tmp/html

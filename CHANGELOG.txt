@@ -1,3 +1,6 @@
+1.6:
+    - Add support for keystone auth v3. auth_url setting must now include version
+    - Upgraded openstack library dependencies
 1.5:
     - Create project, assign existing users with roles and customize quotas.
     - Create image from file (local workflow only) or url.

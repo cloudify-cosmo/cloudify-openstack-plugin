@@ -1,4 +1,5 @@
 1.6:
+    - Don't require a Server image to be specified if a boot_volume is attached
     - Add support for keystone auth v3. auth_url setting must now include version
     - Upgraded openstack library dependencies
 1.5:

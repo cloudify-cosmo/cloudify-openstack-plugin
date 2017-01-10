@@ -133,21 +133,17 @@ class TestServer(unittest.TestCase):
     @mock.patch('nova_plugin.server.start')
     @mock.patch('nova_plugin.server._handle_image_or_flavor')
     @mock.patch('nova_plugin.server._fail_on_missing_required_parameters')
-    def test_nova_server_creation_param_integrity(self, cfy_local, *args):
-        class MyDict(dict):
-            id = 'uid'
-
-        def mock_create_server(*args, **kwargs):
-            key_args = MyDict(kwargs)
-            self.assertIn('scheduler_hints', key_args)
-            self.assertEqual(key_args['scheduler_hints'],
-                             {'group': 'affinity-group-id'},
-                             'expecting \'scheduler_hints\' value to exist')
-            return key_args
-
-        with mock.patch('openstack_plugin_common.nova_client.servers.'
-                        'ServerManager.create', new=mock_create_server):
-            cfy_local.execute('install', task_retries=0)
+    @mock.patch('openstack_plugin_common.nova_client')
+    def test_nova_server_creation_param_integrity(
+            self, cfy_local, mock_nova, *args):
+        cfy_local.execute('install', task_retries=0)
+        calls = mock_nova.Client.return_value.servers.method_calls
+        self.assertEqual(1, len(calls))
+        kws = calls[0][2]
+        self.assertIn('scheduler_hints', kws)
+        self.assertEqual(kws['scheduler_hints'],
+                         {'group': 'affinity-group-id'},
+                         'expecting \'scheduler_hints\' value to exist')
 
     @workflow_test(blueprint_path, copy_plugin_yaml=True,
                    inputs={'use_password': True})
@@ -222,6 +218,11 @@ class TestNormalizeNICs(unittest.TestCase):
 
 class MockNeutronClient(NeutronClientWithSugar):
     """A fake neutron client with hard-coded test data."""
+
+    @mock.patch('openstack_plugin_common.OpenStackClient.__init__',
+                new=mock.Mock())
+    def __init__(self):
+        super(MockNeutronClient, self).__init__()
 
     @staticmethod
     def _search_filter(objs, search_params):

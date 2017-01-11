@@ -436,10 +436,14 @@ class OpenStackClient(object):
         v3 = '/v3' in config['auth_url']
 
         if config:
-            region = config.pop('region', None)
-            if v3 and region:
-                config['region_name'] = region
             Config.update_config(cfg, config)
+
+        # Newer libraries expect the region key to be `region_name`, not
+        # `region`.
+        region = cfg.pop('region', None)
+        if v3 and region:
+            cfg['region_name'] = region
+
         cfg = self._merge_custom_configuration(cfg, client_name)
 
         auth_params, client_params = OpenStackClient._split_config(cfg)

@@ -69,7 +69,7 @@ SERVER_STATUS_SHUTOFF = 'SHUTOFF'
 OS_EXT_STS_TASK_STATE = 'OS-EXT-STS:task_state'
 SERVER_TASK_STATE_POWERING_ON = 'powering-on'
 
-MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
+MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'More than one possible network found.'
 SERVER_DELETE_CHECK_SLEEP = 2
 
 # Runtime properties
@@ -330,12 +330,6 @@ def create(nova_client, neutron_client, args, **kwargs):
     try:
         s = nova_client.servers.create(**server)
     except nova_exceptions.BadRequest as e:
-        up = '[A-Za-z0-9]{8}(-[A-Za-z0-9]{4}){3}-[A-Za-z0-9]{12}'
-        p = 'Invalid volume: volume \'{0}\' status must be \'available\'\. ' \
-            'Currently in \'downloading\' \(HTTP 400\) ' \
-            '\(Request-ID: req-{0}\)'.format(up)
-        if re.match(p, str(e)):
-            return ctx.operation.retry(message=str(e), retry_after=30)
         if 'Block Device Mapping is Invalid' in str(e):
             return ctx.operation.retry(
                 message='Block Device Mapping is not created yet',

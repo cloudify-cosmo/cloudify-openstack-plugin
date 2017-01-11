@@ -17,6 +17,7 @@ import os
 import unittest
 import tempfile
 import json
+import __builtin__ as builtins
 
 import mock
 from cloudify.exceptions import NonRecoverableError
@@ -277,6 +278,35 @@ class OpenstackClientTests(unittest.TestCase):
         new = common.OpenStackClient._merge_custom_configuration(cfg, "bummy")
         self.assertEqual(result, new)
         self.assertEqual(cfg, bak)
+
+    @mock.patch('keystoneauth1.session.Session')
+    def test___init___multi_region(self, m_session):
+        mock_client_class = mock.MagicMock()
+
+        cfg = {
+            'auth_url': 'test-auth_url/v3',
+            'region': 'test-region',
+        }
+
+        with mock.patch.object(
+            builtins, 'open',
+            mock.mock_open(
+                read_data="""
+                {
+                    "region": "region from file",
+                    "other": "this one should get through"
+                }
+                """
+            ),
+            create=True,
+        ):
+            common.OpenStackClient('fred', mock_client_class, cfg)
+
+        mock_client_class.assert_called_once_with(
+            region_name='test-region',
+            other='this one should get through',
+            session=m_session.return_value,
+            )
 
     def test__validate_auth_params_missing(self):
         with self.assertRaises(NonRecoverableError):

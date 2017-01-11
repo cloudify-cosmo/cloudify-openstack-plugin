@@ -58,6 +58,7 @@ def create(keystone_client, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = project.name
 
 
+@operation
 @with_keystone_client
 @with_nova_client
 @with_cinder_client

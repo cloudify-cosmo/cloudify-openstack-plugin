@@ -846,8 +846,8 @@ class CinderClientWithSugar(OpenStackClient):
         # None if project_id (AKA tenant_name) was used instead; However the
         # actual tenant_id must be used to retrieve the quotas)
         self.client.authenticate()
-        tenant_id = self.client.service_catalog.get_token()['tenant_id']
-        quotas = self.quotas.get(tenant_id)
+        project_id = self.client.session.get_project_id()
+        quotas = self.quotas.get(project_id)
         return getattr(quotas, self.cosmo_plural(obj_type_single))
 
 
@@ -861,7 +861,7 @@ class KeystoneClientWithSugar(OpenStackClient):
 
     def cosmo_list(self, obj_type_single, **kw):
         obj_type_plural = self.cosmo_plural(obj_type_single)
-        for obj in getattr(self, obj_type_plural).findall(**kw):
+        for obj in getattr(self, obj_type_plural).list(**kw):
             yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):

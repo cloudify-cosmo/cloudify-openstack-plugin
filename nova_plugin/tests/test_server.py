@@ -133,21 +133,17 @@ class TestServer(unittest.TestCase):
     @mock.patch('nova_plugin.server.start')
     @mock.patch('nova_plugin.server._handle_image_or_flavor')
     @mock.patch('nova_plugin.server._fail_on_missing_required_parameters')
-    def test_nova_server_creation_param_integrity(self, cfy_local, *args):
-        class MyDict(dict):
-            id = 'uid'
-
-        def mock_create_server(*args, **kwargs):
-            key_args = MyDict(kwargs)
-            self.assertIn('scheduler_hints', key_args)
-            self.assertEqual(key_args['scheduler_hints'],
-                             {'group': 'affinity-group-id'},
-                             'expecting \'scheduler_hints\' value to exist')
-            return key_args
-
-        with mock.patch('openstack_plugin_common.nova_client.servers.'
-                        'ServerManager.create', new=mock_create_server):
-            cfy_local.execute('install', task_retries=0)
+    @mock.patch('openstack_plugin_common.nova_client')
+    def test_nova_server_creation_param_integrity(
+            self, cfy_local, mock_nova, *args):
+        cfy_local.execute('install', task_retries=0)
+        calls = mock_nova.Client.return_value.servers.method_calls
+        self.assertEqual(1, len(calls))
+        kws = calls[0][2]
+        self.assertIn('scheduler_hints', kws)
+        self.assertEqual(kws['scheduler_hints'],
+                         {'group': 'affinity-group-id'},
+                         'expecting \'scheduler_hints\' value to exist')
 
     @workflow_test(blueprint_path, copy_plugin_yaml=True,
                    inputs={'use_password': True})
@@ -222,6 +218,11 @@ class TestNormalizeNICs(unittest.TestCase):
 
 class MockNeutronClient(NeutronClientWithSugar):
     """A fake neutron client with hard-coded test data."""
+
+    @mock.patch('openstack_plugin_common.OpenStackClient.__init__',
+                new=mock.Mock())
+    def __init__(self):
+        super(MockNeutronClient, self).__init__()
 
     @staticmethod
     def _search_filter(objs, search_params):
@@ -416,13 +417,19 @@ class TestServerPortNICs(NICTestBase):
 class TestBootFromVolume(unittest.TestCase):
 
     @mock.patch('nova_plugin.server._get_boot_volume_relationships',
-                autospec=True, return_value=['test-id'])
-    def test_handle_boot_volume(self, *_):
+                autospec=True)
+    def test_handle_boot_volume(self, mock_get_rels):
+        mock_get_rels.return_value.runtime_properties = {
+                'external_id': 'test-id',
+                'availability_zone': 'test-az',
+                }
         server = {}
         ctx = mock.MagicMock()
         nova_plugin.server._handle_boot_volume(server, ctx)
         self.assertEqual({'vda': 'test-id:::0'},
                          server['block_device_mapping'])
+        self.assertEqual('test-az',
+                         server['availability_zone'])
 
     @mock.patch('nova_plugin.server._get_boot_volume_relationships',
                 autospec=True, return_value=[])
@@ -474,7 +481,9 @@ class TestServerRelationships(unittest.TestCase):
         ctx = self._get_ctx_mock(instance_id, True)
         result = nova_plugin.server._get_boot_volume_relationships(
             VOLUME_OPENSTACK_TYPE, ctx)
-        self.assertEqual([instance_id], result)
+        self.assertEqual(
+                instance_id,
+                result.runtime_properties['external_id'])
 
     def test_no_boot_volume_relationship(self):
         instance_id = 'test-id'

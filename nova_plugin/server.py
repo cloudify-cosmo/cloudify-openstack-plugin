@@ -15,7 +15,6 @@
 
 
 import os
-import re
 import time
 import copy
 import operator
@@ -45,6 +44,7 @@ from openstack_plugin_common import (
     is_external_relationship,
     validate_resource,
     USE_EXTERNAL_RESOURCE_PROPERTY,
+    OPENSTACK_AZ_PROPERTY,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
@@ -68,7 +68,7 @@ SERVER_STATUS_SHUTOFF = 'SHUTOFF'
 OS_EXT_STS_TASK_STATE = 'OS-EXT-STS:task_state'
 SERVER_TASK_STATE_POWERING_ON = 'powering-on'
 
-MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'Multiple possible networks found'
+MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'More than one possible network found.'
 SERVER_DELETE_CHECK_SLEEP = 2
 
 # Runtime properties
@@ -180,20 +180,34 @@ def _get_boot_volume_relationships(type_name, ctx):
     ctx.logger.debug('Instance relationship target instances: {0}'.format(str([
         rel.target.instance.runtime_properties
         for rel in ctx.instance.relationships])))
-    return [rel.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    targets = [
+            rel.target.instance
             for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(
                 OPENSTACK_TYPE_PROPERTY) == type_name and
             rel.target.node.properties.get('boot', False)]
 
+    if not targets:
+        return None
+    elif len(targets) > 1:
+        raise NonRecoverableError("2 boot volumes not supported")
+    return targets[0]
+
 
 def _handle_boot_volume(server, ctx):
     boot_volume = _get_boot_volume_relationships(VOLUME_OPENSTACK_TYPE, ctx)
     if boot_volume:
-        boot_volume_id = boot_volume[0]
+        boot_volume_id = boot_volume.runtime_properties[OPENSTACK_ID_PROPERTY]
         ctx.logger.info('boot_volume_id: {0}'.format(boot_volume_id))
-        server['block_device_mapping'] = {
-            'vda': '{0}:::0'.format(boot_volume_id)}
+        az = boot_volume.runtime_properties[OPENSTACK_AZ_PROPERTY]
+        # If a block device mapping already exists we shouldn't overwrite it
+        # completely
+        bdm = server.setdefault('block_device_mapping', {})
+        bdm['vda'] = '{0}:::0'.format(boot_volume_id)
+        # Some nova configurations allow cross-az server-volume connections, so
+        # we can't treat that as an error.
+        if not server.get('availability_zone'):
+            server['availability_zone'] = az
 
 
 @operation
@@ -253,7 +267,17 @@ def create(nova_client, neutron_client, args, **kwargs):
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
 
-    _handle_image_or_flavor(server, nova_client, 'image')
+    for key in 'block_device_mapping', 'block_device_mapping_v2':
+        if key in server:
+            # if there is a connected boot volume, don't require the `image`
+            # property.
+            # However, python-novaclient requires an `image` input anyway, and
+            # checks it for truthiness when deciding whether to pass it along
+            # to the API
+            server['image'] = ctx.node.properties.get('image')
+            break
+    else:
+        _handle_image_or_flavor(server, nova_client, 'image')
     _handle_image_or_flavor(server, nova_client, 'flavor')
 
     if provider_context.agents_security_group:
@@ -287,7 +311,7 @@ def create(nova_client, neutron_client, args, **kwargs):
 
     _fail_on_missing_required_parameters(
         server,
-        ('name', 'flavor', 'image', 'key_name'),
+        ('name', 'flavor', 'key_name'),
         'server')
 
     _prepare_server_nics(neutron_client, ctx, server)
@@ -305,12 +329,6 @@ def create(nova_client, neutron_client, args, **kwargs):
     try:
         s = nova_client.servers.create(**server)
     except nova_exceptions.BadRequest as e:
-        up = '[A-Za-z0-9]{8}(-[A-Za-z0-9]{4}){3}-[A-Za-z0-9]{12}'
-        p = 'Invalid volume: volume \'{0}\' status must be \'available\'\. ' \
-            'Currently in \'downloading\' \(HTTP 400\) ' \
-            '\(Request-ID: req-{0}\)'.format(up)
-        if re.match(p, str(e)):
-            return ctx.operation.retry(message=str(e), retry_after=30)
         if 'Block Device Mapping is Invalid' in str(e):
             return ctx.operation.retry(
                 message='Block Device Mapping is not created yet',
@@ -574,7 +592,8 @@ def disconnect_security_group(nova_client, **kwargs):
 @operation
 @with_nova_client
 @with_cinder_client
-def attach_volume(nova_client, cinder_client, **kwargs):
+def attach_volume(nova_client, cinder_client, status_attempts,
+                  status_timeout, **kwargs):
     server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
@@ -603,7 +622,9 @@ def attach_volume(nova_client, cinder_client, **kwargs):
         vol, wait_succeeded = volume.wait_until_status(
             cinder_client=cinder_client,
             volume_id=volume_id,
-            status=volume.VOLUME_STATUS_IN_USE
+            status=volume.VOLUME_STATUS_IN_USE,
+            num_tries=status_attempts,
+            timeout=status_timeout
         )
         if not wait_succeeded:
             raise RecoverableError(
@@ -626,23 +647,27 @@ def attach_volume(nova_client, cinder_client, **kwargs):
     except Exception, e:
         if not isinstance(e, NonRecoverableError):
             _prepare_attach_volume_to_be_repeated(
-                nova_client, cinder_client, server_id, volume_id)
+                nova_client, cinder_client, server_id, volume_id,
+                status_attempts, status_timeout)
         raise
 
 
 def _prepare_attach_volume_to_be_repeated(
-        nova_client, cinder_client, server_id, volume_id):
+        nova_client, cinder_client, server_id, volume_id,
+        status_attempts, status_timeout):
 
     ctx.logger.info('Cleaning after a failed attach_volume() call')
     try:
-        _detach_volume(nova_client, cinder_client, server_id, volume_id)
+        _detach_volume(nova_client, cinder_client, server_id, volume_id,
+                       status_attempts, status_timeout)
     except Exception, e:
         ctx.logger.error('Cleaning after a failed attach_volume() call failed '
                          'raising a \'{0}\' exception.'.format(e))
         raise NonRecoverableError(e)
 
 
-def _detach_volume(nova_client, cinder_client, server_id, volume_id):
+def _detach_volume(nova_client, cinder_client, server_id, volume_id,
+                   status_attempts, status_timeout):
     attachment = volume.get_attachment(cinder_client=cinder_client,
                                        volume_id=volume_id,
                                        server_id=server_id)
@@ -650,13 +675,16 @@ def _detach_volume(nova_client, cinder_client, server_id, volume_id):
         nova_client.volumes.delete_server_volume(server_id, attachment['id'])
         volume.wait_until_status(cinder_client=cinder_client,
                                  volume_id=volume_id,
-                                 status=volume.VOLUME_STATUS_AVAILABLE)
+                                 status=volume.VOLUME_STATUS_AVAILABLE,
+                                 num_tries=status_attempts,
+                                 timeout=status_timeout)
 
 
 @operation
 @with_nova_client
 @with_cinder_client
-def detach_volume(nova_client, cinder_client, **kwargs):
+def detach_volume(nova_client, cinder_client, status_attempts,
+                  status_timeout, **kwargs):
     if is_external_relationship(ctx):
         ctx.logger.info('Not detaching volume from server since '
                         'external volume and server are being used')
@@ -665,7 +693,8 @@ def detach_volume(nova_client, cinder_client, **kwargs):
     server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
-    _detach_volume(nova_client, cinder_client, server_id, volume_id)
+    _detach_volume(nova_client, cinder_client, server_id, volume_id,
+                   status_attempts, status_timeout)
 
 
 def _fail_on_missing_required_parameters(obj, required_parameters, hint_where):
@@ -796,7 +825,6 @@ def creation_validation(nova_client, args, **kwargs):
     validate_resource(ctx, nova_client, SERVER_OPENSTACK_TYPE)
 
     server_props = dict(ctx.node.properties['server'], **args)
-    validate_server_property_value_exists(server_props, 'image')
     validate_server_property_value_exists(server_props, 'flavor')
 
 

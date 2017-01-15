@@ -1,3 +1,9 @@
+2.0:
+    - Don't require a Server image to be specified if a boot_volume is attached
+    - Add support for keystone auth v3. auth_url setting must now include version
+    - Upgraded openstack library dependencies
+    - Use availability_zone from connected boot_volume if Server doesn't specify
+    - Embed full docs in plugin repo. Now using sphinxify sphinx extension
 1.5:
     - Create project, assign existing users with roles and customize quotas.
     - Create image from file (local workflow only) or url.

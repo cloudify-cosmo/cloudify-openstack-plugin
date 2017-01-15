@@ -13,7 +13,6 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
-import contextlib
 import mock
 import unittest
 
@@ -22,9 +21,7 @@ from cloudify import exceptions as cfy_exc
 from cloudify.state import current_ctx
 from cinder_plugin import volume
 from nova_plugin import server
-from openstack_plugin_common import (CinderClient,
-                                     NovaClient,
-                                     OPENSTACK_ID_PROPERTY,
+from openstack_plugin_common import (OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY,
                                      OPENSTACK_NAME_PROPERTY)
 
@@ -69,11 +66,12 @@ class TestCinderVolume(unittest.TestCase):
             return_value=available_volume_m)
         ctx_m = self._mock(node_id='a', properties=volume_properties)
 
-        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m)
+        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m,
+                      status_attempts=10, status_timeout=2)
 
         cinder_client_m.volumes.create.assert_called_once_with(
             size=volume_size,
-            display_name=volume_name,
+            name=volume_name,
             description=volume_description)
         cinder_client_m.volumes.get.assert_called_once_with(volume_id)
         self.assertEqual(
@@ -103,7 +101,8 @@ class TestCinderVolume(unittest.TestCase):
             return_value=volume_id)
         ctx_m = self._mock(node_id='a', properties=volume_properties)
 
-        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m)
+        volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m,
+                      status_attempts=10, status_timeout=2)
 
         self.assertFalse(cinder_client_m.volumes.create.called)
         self.assertEqual(
@@ -142,7 +141,10 @@ class TestCinderVolume(unittest.TestCase):
         self.assertTrue(OPENSTACK_NAME_PROPERTY
                         not in ctx_m.instance.runtime_properties)
 
-    def test_attach(self):
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    @mock.patch.object(volume, 'wait_until_status', return_value=(None, True))
+    def test_attach(self, wait_until_status_m, cinder_m, nova_m):
         volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
         device_name = '/dev/fake'
@@ -172,31 +174,27 @@ class TestCinderVolume(unittest.TestCase):
                            target=server_ctx,
                            source=volume_ctx)
 
-        cinderclient_m = mock.Mock()
-        novaclient_m = mock.Mock()
-        novaclient_m.volumes = mock.Mock()
-        novaclient_m.volumes.create_server_volume = mock.Mock()
+        nova_instance = nova_m.return_value
+        cinder_instance = cinder_m.return_value
 
-        with contextlib.nested(
-                mock.patch.object(NovaClient, 'get',
-                                  mock.Mock(return_value=novaclient_m)),
-                mock.patch.object(CinderClient, 'get',
-                                  mock.Mock(return_value=cinderclient_m)),
-                mock.patch.object(volume,
-                                  'wait_until_status',
-                                  mock.Mock(return_value=(None, True)))):
+        server.attach_volume(ctx=ctx_m, status_attempts=10,
+                             status_timeout=2)
 
-            server.attach_volume(ctx=ctx_m)
+        nova_instance.volumes.create_server_volume.assert_called_once_with(
+            server_id, volume_id, device_name)
+        wait_until_status_m.assert_called_once_with(
+            cinder_client=cinder_instance,
+            volume_id=volume_id,
+            status=volume.VOLUME_STATUS_IN_USE,
+            num_tries=10,
+            timeout=2,
+            )
 
-            novaclient_m.volumes.create_server_volume.assert_called_once_with(
-                server_id, volume_id, device_name)
-            volume.wait_until_status.assert_called_once_with(
-                cinder_client=cinderclient_m,
-                volume_id=volume_id,
-                status=volume.VOLUME_STATUS_IN_USE)
-
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
     def _test_cleanup__after_attach_fails(
-            self, volume_ctx_mgr, expected_err_cls, expect_cleanup=True):
+            self, expected_err_cls, expect_cleanup,
+            wait_until_status_m, cinder_m, nova_m):
         volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
         attachment_id = '22222222-2222-2222-2222-222222222222'
@@ -231,86 +229,66 @@ class TestCinderVolume(unittest.TestCase):
                            target=server_ctx,
                            source=volume_ctx)
 
-        attached_volume_m = mock.Mock()
-        attached_volume_m.id = volume_id
-        attached_volume_m.status = volume.VOLUME_STATUS_IN_USE
-        attached_volume_m.attachments = [attachment]
-        cinderclient_m = mock.Mock()
-        cinderclient_m.volumes = mock.Mock()
-        cinderclient_m.volumes.get = mock.Mock(
-            return_value=attached_volume_m)
-        novaclient_m = mock.Mock()
-        novacl_vols_m = novaclient_m.volumes = mock.Mock()
-        novacl_vols_m.create_server_volume = mock.Mock()
+        attached_volume = mock.Mock(id=volume_id,
+                                    status=volume.VOLUME_STATUS_IN_USE,
+                                    attachments=[attachment])
+        nova_instance = nova_m.return_value
+        cinder_instance = cinder_m.return_value
+        cinder_instance.volumes.get.return_value = attached_volume
 
-        with contextlib.nested(
-                mock.patch.object(NovaClient, 'get',
-                                  mock.Mock(return_value=novaclient_m)),
-                mock.patch.object(CinderClient, 'get',
-                                  mock.Mock(return_value=cinderclient_m)),
-                volume_ctx_mgr):
-            with self.assertRaises(expected_err_cls):
-                server.attach_volume(ctx=ctx_m)
+        with self.assertRaises(expected_err_cls):
+            server.attach_volume(ctx=ctx_m, status_attempts=10,
+                                 status_timeout=2)
 
-            novacl_vols_m.create_server_volume.assert_called_once_with(
-                server_id, volume_id, device_name)
-            volume.wait_until_status.assert_any_call(
-                cinder_client=cinderclient_m,
+        nova_instance.volumes.create_server_volume.assert_called_once_with(
+            server_id, volume_id, device_name)
+        volume.wait_until_status.assert_any_call(
+            cinder_client=cinder_instance,
+            volume_id=volume_id,
+            status=volume.VOLUME_STATUS_IN_USE,
+            num_tries=10,
+            timeout=2,
+            )
+        if expect_cleanup:
+            nova_instance.volumes.delete_server_volume.assert_called_once_with(
+                server_id, attachment_id)
+            self.assertEqual(2, volume.wait_until_status.call_count)
+            volume.wait_until_status.assert_called_with(
+                cinder_client=cinder_instance,
                 volume_id=volume_id,
-                status=volume.VOLUME_STATUS_IN_USE)
-            if expect_cleanup:
-                novacl_vols_m.delete_server_volume.assert_called_once_with(
-                    server_id, attachment_id)
-                self.assertEqual(2, volume.wait_until_status.call_count)
-                volume.wait_until_status.assert_called_with(
-                    cinder_client=cinderclient_m,
-                    volume_id=volume_id,
-                    status=volume.VOLUME_STATUS_AVAILABLE)
-
-    def _test_cleanup_after_waituntilstatus_throws(self, err, expect_cleanup):
-        def raise_once(*args, **kwargs):
-            if raise_once.first_call:
-                raise_once.first_call = False
-                raise err
-            else:
-                return None, True
-        raise_once.first_call = True
-
-        self._test_cleanup__after_attach_fails(
-            volume_ctx_mgr=mock.patch.object(
-                volume,
-                'wait_until_status',
-                mock.Mock(side_effect=raise_once)
-            ),
-            expected_err_cls=type(err),
-            expect_cleanup=expect_cleanup
-        )
+                status=volume.VOLUME_STATUS_AVAILABLE,
+                num_tries=10,
+                timeout=2)
 
     def test_cleanup_after_waituntilstatus_throws_recoverable_error(self):
         err = cfy_exc.RecoverableError('Some recoverable error')
-        self._test_cleanup_after_waituntilstatus_throws(err, True)
+        with mock.patch.object(volume, 'wait_until_status',
+                               side_effect=[err, (None, True)]) as wait_mock:
+            self._test_cleanup__after_attach_fails(type(err), True, wait_mock)
 
     def test_cleanup_after_waituntilstatus_throws_any_not_nonrecov_error(self):
         class ArbitraryNonRecoverableException(Exception):
             pass
         err = ArbitraryNonRecoverableException('An exception')
-        self._test_cleanup_after_waituntilstatus_throws(err, True)
+        with mock.patch.object(volume, 'wait_until_status',
+                               side_effect=[err, (None, True)]) as wait_mock:
+            self._test_cleanup__after_attach_fails(type(err), True, wait_mock)
 
     def test_cleanup_after_waituntilstatus_lets_nonrecov_errors_pass(self):
         err = cfy_exc.NonRecoverableError('Some non recoverable error')
-        self._test_cleanup_after_waituntilstatus_throws(err, False)
+        with mock.patch.object(volume, 'wait_until_status',
+                               side_effect=[err, (None, True)]) as wait_mock:
+            self._test_cleanup__after_attach_fails(type(err), False, wait_mock)
 
-    def test_cleanup_after_waituntilstatus_times_out(self):
-        self._test_cleanup__after_attach_fails(
-            volume_ctx_mgr=mock.patch.object(
-                volume,
-                'wait_until_status',
-                mock.Mock(return_value=(None, False))
-            ),
-            expected_err_cls=cfy_exc.RecoverableError
-        )
+    @mock.patch.object(volume, 'wait_until_status', return_value=(None, False))
+    def test_cleanup_after_waituntilstatus_times_out(self, wait_mock):
+        self._test_cleanup__after_attach_fails(cfy_exc.RecoverableError, True,
+                                               wait_mock)
 
-    def test_detach(self):
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    @mock.patch.object(volume, 'wait_until_status', return_value=(None, True))
+    def test_detach(self, wait_until_status_m, cinder_m, nova_m):
         volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
         attachment_id = '22222222-2222-2222-2222-222222222222'
@@ -344,31 +322,21 @@ class TestCinderVolume(unittest.TestCase):
                            target=server_ctx,
                            source=volume_ctx)
 
-        attached_volume_m = mock.Mock()
-        attached_volume_m.id = volume_id
-        attached_volume_m.status = volume.VOLUME_STATUS_IN_USE
-        attached_volume_m.attachments = [attachment]
-        cinder_client_m = mock.Mock()
-        cinder_client_m.volumes = mock.Mock()
-        cinder_client_m.volumes.get = mock.Mock(
-            return_value=attached_volume_m)
+        attached_volume = mock.Mock(id=volume_id,
+                                    status=volume.VOLUME_STATUS_IN_USE,
+                                    attachments=[attachment])
+        nova_instance = nova_m.return_value
+        cinder_instance = cinder_m.return_value
+        cinder_instance.volumes.get.return_value = attached_volume
 
-        novaclient_m = mock.Mock()
-        novaclient_m.volumes = mock.Mock()
-        novaclient_m.volumes.delete_server_volume = mock.Mock()
+        server.detach_volume(ctx=ctx_m, status_attempts=10, status_timeout=2)
 
-        with contextlib.nested(
-                mock.patch.object(NovaClient, 'get',
-                                  mock.Mock(return_value=novaclient_m)),
-                mock.patch.object(CinderClient, 'get',
-                                  mock.Mock(return_value=cinder_client_m)),
-                mock.patch.object(volume, 'wait_until_status', mock.Mock())):
-
-            server.detach_volume(ctx=ctx_m)
-
-            novaclient_m.volumes.delete_server_volume.assert_called_once_with(
-                server_id, attachment_id)
-            volume.wait_until_status.assert_called_once_with(
-                cinder_client=cinder_client_m,
-                volume_id=volume_id,
-                status=volume.VOLUME_STATUS_AVAILABLE)
+        nova_instance.volumes.delete_server_volume.assert_called_once_with(
+            server_id, attachment_id)
+        volume.wait_until_status.assert_called_once_with(
+            cinder_client=cinder_instance,
+            volume_id=volume_id,
+            status=volume.VOLUME_STATUS_AVAILABLE,
+            num_tries=10,
+            timeout=2,
+            )

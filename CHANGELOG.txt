@@ -1,5 +1,6 @@
 2.0.1:
     - Fix loading auth_url from environment (OPENSTACK-101)
+    - Raise an error if server is not attached to a network. Previously an IndexError would be raised.
 2.0:
     - Don't require a Server image to be specified if a boot_volume is attached
     - Add support for keystone auth v3. auth_url setting must now include version

@@ -61,6 +61,8 @@ from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
 from glance_plugin.image import handle_image_from_relationship
 
 SERVER_OPENSTACK_TYPE = 'server'
+SERVER_CONNECTED_TO_SECURITY_GROUP = \
+    'cloudify.openstack.server_connected_to_security_group'
 
 # server status constants. Full lists here: http://docs.openstack.org/api/openstack-compute/2/content/List_Servers-d1e2078.html  # NOQA
 SERVER_STATUS_ACTIVE = 'ACTIVE'
@@ -294,9 +296,8 @@ def create(nova_client, neutron_client, args, **kwargs):
         # from CREATE time so that there the user can control
         # that there is never a time that a running server is not protected.
         security_group_names = \
-            get_attribute_of_connected_nodes_by_relationship_type(
-                ctx, 'cloudify.openstack.server_connected_to_security_group',
-                OPENSTACK_NAME_PROPERTY)
+            get_openstack_ids_of_connected_nodes_by_openstack_type(
+                ctx, SERVER_CONNECTED_TO_SECURITY_GROUP, OPENSTACK_NAME_PROPERTY)
         server['security_groups'] = security_group_names
 
     # server keypair handling

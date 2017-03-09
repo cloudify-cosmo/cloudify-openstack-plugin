@@ -114,6 +114,60 @@ def provider(ctx):
     return ProviderContext(ctx.provider_context)
 
 
+def assign_payload_as_runtime_properties(ctx, resource_name, payload={}):
+    """
+    In general Openstack API objects have create, update, and delete
+    functions. Each function normally receives a payload that describes
+    the desired configuration of the object.
+    This makes sure to store that configuration in the runtime
+    properties and cleans any potentially sensitive data.
+
+    :param ctx: The Cloudify NodeInstanceContext
+    :param resource_name: A string describing the resource.
+    :param payload: The payload.
+    :return:
+    """
+
+    # Avoid failing if a developer inadvertently passes a
+    # non-NodeInstanceContext
+    if getattr(ctx, 'instance'):
+        if resource_name not in ctx.instance.runtime_properties.keys():
+            ctx.instance.runtime_properties[resource_name] = {}
+        for key, value in payload.items():
+            if key != 'user_data' and key != 'adminPass':
+                ctx.instance.runtime_properties[resource_name][key] = value
+
+
+def get_relationships_by_relationship_type(ctx, type_name):
+    """
+    Get cloudify relationships by relationship type.
+    Follows the inheritance tree.
+
+    :param ctx: Cloudify NodeInstanceContext
+    :param type_name: desired relationship type derived
+    from cloudify.relationships.depends_on.
+    :return: list of RelationshipSubjectContext
+    """
+
+    return [rel for rel in ctx.instance.relationships if
+            type_name in rel.type_hierarchy]
+
+
+def get_openstack_ids_of_connected_nodes_by_relationship_type(ctx, type_name):
+    """
+    Returns a list of OPENSTACK_ID_PROPERTY from a list of
+    Cloudify RelationshipSubjectContext.
+
+    :param ctx: Cloudify NodeInstanceContext
+    :param type_name: desired relationship type derived
+    from cloudify.relationships.depends_on.
+    :return: list of strings
+    """
+
+    return [rel.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+            for rel in get_relationships_by_relationship_type(ctx, type_name)]
+
+
 def get_relationships_by_openstack_type(ctx, type_name):
     return [rel for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(

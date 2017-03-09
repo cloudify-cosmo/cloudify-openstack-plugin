@@ -48,6 +48,47 @@ class TestServer(unittest.TestCase):
     blueprint_path = path.join('resources',
                                'test-start-operation-retry-blueprint.yaml')
 
+    @workflow_test(path.join('resources', 'test-server-create-secgroup.yaml'),
+                   copy_plugin_yaml=True)
+    @mock.patch('neutron_plugin.security_group.create')
+    @mock.patch('nova_plugin.server.connect_security_group')
+    @mock.patch('nova_plugin.server.start')
+    @mock.patch('nova_plugin.server._handle_image_or_flavor')
+    @mock.patch('nova_plugin.server._fail_on_missing_required_parameters')
+    @mock.patch('openstack_plugin_common.nova_client')
+    def test_nova_server_lifecycle_sec_grp_rela(self, cfy_local, *args):
+
+        test_vars = {
+            'counter': 0,
+            'server': mock.MagicMock()
+        }
+
+        def mock_get_server_by_context(_):
+            s = test_vars['server']
+            if test_vars['counter'] == 0:
+                s.status = nova_plugin.server.SERVER_STATUS_BUILD
+            else:
+                s.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+            test_vars['counter'] += 1
+            return s
+
+        expected_security_group_ids = ["EXPECTEDID", "ALSOEXPECTED"]
+
+        with mock.patch('nova_plugin.server.get_server_by_context',
+                        mock_get_server_by_context):
+            with mock.patch(
+                    'nova_plugin.server.get_openstack_ids_'
+                    'of_connected_nodes_by_relationship_type') as rels:
+                rels.return_value = expected_security_group_ids
+                cfy_local.execute('install', task_retries=5)
+
+        instances = cfy_local.storage.get_node_instances()
+        for instance in instances:
+            if instance.get('name') == 'server':
+                server = instance.get('runtime_properties', {}).get('server')
+                self.assertEqual(expected_security_group_ids,
+                                 server.get('security_groups', []))
+
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
     @workflow_test(blueprint_path, copy_plugin_yaml=True)

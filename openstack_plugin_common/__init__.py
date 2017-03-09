@@ -153,7 +153,9 @@ def get_relationships_by_relationship_type(ctx, type_name):
             type_name in rel.type_hierarchy]
 
 
-def get_openstack_ids_of_connected_nodes_by_relationship_type(ctx, type_name):
+def get_attribute_of_connected_nodes_by_relationship_type(ctx,
+                                                          type_name,
+                                                          attribute_name):
     """
     Returns a list of OPENSTACK_ID_PROPERTY from a list of
     Cloudify RelationshipSubjectContext.
@@ -161,10 +163,12 @@ def get_openstack_ids_of_connected_nodes_by_relationship_type(ctx, type_name):
     :param ctx: Cloudify NodeInstanceContext
     :param type_name: desired relationship type derived
     from cloudify.relationships.depends_on.
-    :return: list of strings
+    :param attribute_name: usually either
+    OPENSTACK_NAME_PROPERTY or OPENSTACK_ID_PROPERTY
+    :return:
     """
 
-    return [rel.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    return [rel.target.instance.runtime_properties[attribute_name]
             for rel in get_relationships_by_relationship_type(ctx, type_name)]
 
 

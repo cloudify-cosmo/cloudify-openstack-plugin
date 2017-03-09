@@ -31,7 +31,7 @@ from openstack_plugin_common import (
     transform_resource_name,
     get_resource_id,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
-    get_openstack_ids_of_connected_nodes_by_relationship_type,
+    get_attribute_of_connected_nodes_by_relationship_type,
     with_nova_client,
     with_cinder_client,
     assign_payload_as_runtime_properties,
@@ -293,10 +293,11 @@ def create(nova_client, neutron_client, args, **kwargs):
         # Make sure that if the server is connected to a security group
         # from CREATE time so that there the user can control
         # that there is never a time that a running server is not protected.
-        security_groups = \
-            get_openstack_ids_of_connected_nodes_by_relationship_type(
-                ctx, 'cloudify.openstack.server_connected_to_security_group')
-        server['security_groups'] = security_groups
+        security_group_names = \
+            get_attribute_of_connected_nodes_by_relationship_type(
+                ctx, 'cloudify.openstack.server_connected_to_security_group',
+                OPENSTACK_NAME_PROPERTY)
+        server['security_groups'] = security_group_names
 
     # server keypair handling
     keypair_id = get_openstack_id_of_single_connected_node_by_openstack_type(
@@ -575,9 +576,16 @@ def connect_security_group(nova_client, **kwargs):
             'be connected'.format(server_id, security_group_id))
 
     server = nova_client.servers.get(server_id)
-    # to support nova security groups as well, we connect the security group
-    # by name (as connecting by id doesn't seem to work well for nova SGs)
-    server.add_security_group(security_group_name)
+    for security_group in server.list_security_group():
+        # Since some security groups are already attached in
+        # create this will ensure that they are not attached twice.
+        if security_group_id != security_group.id and \
+                security_group_name != security_group.name:
+            # to support nova security groups as well,
+            # we connect the security group by name
+            # (as connecting by id
+            # doesn't seem to work well for nova SGs)
+            server.add_security_group(security_group_name)
 
     _validate_security_group_and_server_connection_status(nova_client,
                                                           server_id,

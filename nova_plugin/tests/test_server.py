@@ -77,7 +77,7 @@ class TestServer(unittest.TestCase):
         with mock.patch('nova_plugin.server.get_server_by_context',
                         mock_get_server_by_context):
             with mock.patch(
-                    'nova_plugin.server.get_openstack_ids_'
+                    'nova_plugin.server.get_attribute_'
                     'of_connected_nodes_by_relationship_type') as rels:
                 rels.return_value = expected_security_group_ids
                 cfy_local.execute('install', task_retries=5)

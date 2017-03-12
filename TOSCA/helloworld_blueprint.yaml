@@ -1,0 +1,73 @@
+tosca_definitions_version: tosca_simple_profile_for_nfv_1_0
+
+imports:
+  - plugin.yaml
+
+
+node_types:
+  web_server_type:
+    derived_from: tosca.nodes.SoftwareComponent
+    properties:
+      port:
+        type: string
+        default:
+    interfaces:
+      Standard:
+        configure: {}
+        start: {}
+        stop: {}
+
+topology_template:
+
+  inputs:
+    webserver_port:
+      description: The HTTP web server port
+      default: 8080
+      type: integer
+    agent_user:
+      description: User name used when SSH-ing into the started machine
+      type: string
+    image:
+      description: Openstack image name or id to use for the new server
+      type: string
+    flavor:
+      description: Openstack flavor name or id to use for the new server
+      type: string
+
+  node_templates:
+
+    virtual_ip:
+      type: aria.openstack.nodes.FloatingIP
+
+    security_group:
+      type: aria.openstack.nodes.SecurityGroup
+      properties:
+        rules:
+          - remote_ip_prefix: 0.0.0.0/0
+            port: { get_property: [ http_web_server, port ] }
+    vm:
+      type: aria.openstack.nodes.Server
+      properties:
+        image: { get_input: image }
+        flavor: { get_input: flavor }
+      requirements:
+        - floating_ip: virtual_ip
+        - security_group: security_group
+
+    http_web_server:
+      type: web_server_type
+      properties:
+        port: { get_input: webserver_port }
+      requirements:
+        - host: vm
+      interfaces:
+        Standard:
+          configure: scripts/configure.sh
+          start: scripts/start.sh
+          stop: scripts/stop.sh
+
+  outputs:
+    http_endpoint:
+      description: Web server external endpoint
+      value: { concat: ['http://', { get_attribute: [virtual_ip, floating_ip_address] },
+                        ':', { get_property: [http_web_server, port] }] }

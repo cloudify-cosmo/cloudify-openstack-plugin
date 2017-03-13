@@ -29,11 +29,14 @@ from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from nova_plugin.tests.test_relationships import RelationshipsTestBase
 from nova_plugin.server import _prepare_server_nics
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+from cloudify.exceptions import NonRecoverableError
+from cloudify.state import current_ctx
 
 from cloudify.utils import setup_logger
 
 from cloudify.mocks import (
     MockNodeContext,
+    MockCloudifyContext,
     MockNodeInstanceContext,
     MockRelationshipContext,
     MockRelationshipSubjectContext
@@ -491,3 +494,58 @@ class TestServerRelationships(unittest.TestCase):
         result = nova_plugin.server._get_boot_volume_relationships(
             VOLUME_OPENSTACK_TYPE, ctx)
         self.assertFalse(result)
+
+
+class TestServerNetworkRuntimeProperties(unittest.TestCase):
+
+    @property
+    def mock_ctx(self):
+        return MockCloudifyContext(
+            node_id='test',
+            deployment_id='test',
+            properties={},
+            operation={'retry_number': 0},
+            provider_context={'resources': {}}
+        )
+
+    def test_server_networks_runtime_properties_empty_server(self):
+        ctx = self.mock_ctx
+        current_ctx.set(ctx=ctx)
+        server = mock.MagicMock()
+        setattr(server, 'networks', {})
+        with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'The server was created but not attached to a network.'):
+            nova_plugin.server._set_network_and_ip_runtime_properties(server)
+
+    def test_server_networks_runtime_properties_valid_networks(self):
+        ctx = self.mock_ctx
+        current_ctx.set(ctx=ctx)
+        server = mock.MagicMock()
+        network_id = 'management_network'
+        network_ips = ['good', 'bad1', 'bad2']
+        setattr(server,
+                'networks',
+                {network_id: network_ips})
+        nova_plugin.server._set_network_and_ip_runtime_properties(server)
+        self.assertIn('networks', ctx.instance.runtime_properties.keys())
+        self.assertIn('ip', ctx.instance.runtime_properties.keys())
+        self.assertEquals(ctx.instance.runtime_properties['ip'], 'good')
+        self.assertEquals(ctx.instance.runtime_properties['networks'],
+                          {network_id: network_ips})
+
+    def test_server_networks_runtime_properties_empty_networks(self):
+        ctx = self.mock_ctx
+        current_ctx.set(ctx=ctx)
+        server = mock.MagicMock()
+        network_id = 'management_network'
+        network_ips = []
+        setattr(server,
+                'networks',
+                {network_id: network_ips})
+        nova_plugin.server._set_network_and_ip_runtime_properties(server)
+        self.assertIn('networks', ctx.instance.runtime_properties.keys())
+        self.assertIn('ip', ctx.instance.runtime_properties.keys())
+        self.assertEquals(ctx.instance.runtime_properties['ip'], None)
+        self.assertEquals(ctx.instance.runtime_properties['networks'],
+                          {network_id: network_ips})

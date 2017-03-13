@@ -433,11 +433,11 @@ class OpenStackClient(object):
 
     def __init__(self, client_name, client_class, config=None, *args, **kw):
         cfg = Config.get()
-        v3 = '/v3' in config['auth_url']
 
         if config:
             Config.update_config(cfg, config)
 
+        v3 = '/v3' in cfg['auth_url']
         # Newer libraries expect the region key to be `region_name`, not
         # `region`.
         region = cfg.pop('region', None)

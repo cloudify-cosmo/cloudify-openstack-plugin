@@ -416,6 +416,15 @@ class OpenstackClientTests(unittest.TestCase):
             auth = loader.load_from_options.return_value
             mock_session.Session.assert_called_with(auth=auth, verify=True)
 
+    @mock.patch.object(common, 'cinder_client')
+    def test_cinder_client_get_name_from_resource(self, cc_mock):
+        ccws = common.CinderClientWithSugar()
+        mock_volume = mock.Mock()
+
+        self.assertIs(
+            mock_volume.name,
+            ccws.get_name_from_resource(mock_volume))
+
 
 class ClientsConfigTest(unittest.TestCase):
 

@@ -1,3 +1,5 @@
+2.0.1:
+    - Don't overwrite server['image'] when server is booted from volume
 2.0:
     - Don't require a Server image to be specified if a boot_volume is attached
     - Add support for keystone auth v3. auth_url setting must now include version

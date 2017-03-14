@@ -1,4 +1,5 @@
 2.0.1:
+    - Don't overwrite server['image'] when server is booted from volume
     - Fix loading auth_url from environment (OPENSTACK-101)
     - Raise an error if server is not attached to a network. Previously an IndexError would be raised.
 2.0:

@@ -274,7 +274,8 @@ def create(nova_client, neutron_client, args, **kwargs):
             # However, python-novaclient requires an `image` input anyway, and
             # checks it for truthiness when deciding whether to pass it along
             # to the API
-            server['image'] = ctx.node.properties.get('image')
+            if 'image' not in server:
+                server['image'] = ctx.node.properties.get('image')
             break
     else:
         _handle_image_or_flavor(server, nova_client, 'image')

@@ -279,6 +279,33 @@ class OpenstackClientTests(unittest.TestCase):
         self.assertEqual(result, new)
         self.assertEqual(cfg, bak)
 
+    @mock.patch.object(common, 'ctx')
+    def test__merge_custom_configuration_nova_url(self, mock_ctx):
+        cfg = {
+            'nova_url': 'gopher://nova',
+        }
+        bak = cfg.copy()
+
+        self.assertEqual(
+            common.OpenStackClient._merge_custom_configuration(
+                cfg, 'nova_client'),
+            {'endpoint_override': 'gopher://nova'},
+        )
+        self.assertEqual(
+            common.OpenStackClient._merge_custom_configuration(
+                cfg, 'dummy'),
+            {},
+        )
+        self.assertEqual(cfg, bak)
+        mock_ctx.logger.warn.assert_has_calls([
+            mock.call(
+                "'nova_url' property is deprecated. Use `custom_configuration."
+                "nova_client.endpoint_override` instead."),
+            mock.call(
+                "'nova_url' property is deprecated. Use `custom_configuration."
+                "nova_client.endpoint_override` instead."),
+        ])
+
     @mock.patch('keystoneauth1.session.Session')
     def test___init___multi_region(self, m_session):
         mock_client_class = mock.MagicMock()

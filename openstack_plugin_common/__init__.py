@@ -32,7 +32,7 @@ import glanceclient.client as glance_client
 import glanceclient.exc as glance_exceptions
 
 import cloudify
-from cloudify import context
+from cloudify import context, ctx
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 INFINITE_RESOURCE_QUOTA = -1
@@ -481,6 +481,21 @@ class OpenStackClient(object):
     @staticmethod
     def _merge_custom_configuration(cfg, client_name):
         config = cfg.copy()
+
+        mapping = {
+            'nova_url': 'nova_client',
+            'neutron_url': 'neutron_client'
+        }
+        for key in 'nova_url', 'neutron_url':
+            val = config.pop(key, None)
+            if val is not None:
+                ctx.logger.warn(
+                    "'{}' property is deprecated. Use `custom_configuration"
+                    ".{}.endpoint_override` instead.".format(
+                        key, mapping[key]))
+                if mapping.get(key, None) == client_name:
+                    config['endpoint_override'] = val
+
         if 'custom_configuration' in cfg:
             del config['custom_configuration']
             config.update(cfg['custom_configuration'].get(client_name, {}))
@@ -710,7 +725,7 @@ class NovaClientWithSugar(OpenStackClient):
     def __init__(self, *args, **kw):
         config = kw['config']
         if config.get('nova_url'):
-            config['bypass_url'] = config.pop('nova_url')
+            config['endpoint_override'] = config.pop('nova_url')
 
         super(NovaClientWithSugar, self).__init__(
             'nova_client', partial(nova_client.Client, '2'), *args, **kw)

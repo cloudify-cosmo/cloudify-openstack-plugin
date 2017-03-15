@@ -837,7 +837,7 @@ class CinderClientWithSugar(OpenStackClient):
         return resource.id
 
     def get_name_from_resource(self, resource):
-        return resource.display_name
+        return resource.name
 
     def get_quota(self, obj_type_single):
         # we're already authenticated, but the following call will make

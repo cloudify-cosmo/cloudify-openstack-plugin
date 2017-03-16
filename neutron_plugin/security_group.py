@@ -13,6 +13,10 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from time import sleep
+
+from requests.exceptions import RequestException
+
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
@@ -44,7 +48,10 @@ DEFAULT_RULE_VALUES = {
 
 @operation
 @with_neutron_client
-def create(neutron_client, args, **kwargs):
+def create(
+    neutron_client, args,
+    status_attempts=10, status_timeout=2, **kwargs
+):
 
     security_group = build_sg_data(args)
     if not security_group['description']:
@@ -64,6 +71,18 @@ def create(neutron_client, args, **kwargs):
 
     sg = neutron_client.create_security_group(
         {'security_group': security_group})['security_group']
+
+    for _ in range(max(status_attempts, 1)):
+        sleep(status_timeout)
+        try:
+            neutron_client.show_security_group(sg['id'])
+        except RequestException as e:
+            pass
+        else:
+            break
+    else:
+        raise NonRecoverableError(
+            "Timed out waiting for security_group to exist", e)
 
     set_sg_runtime_properties(sg, neutron_client)
 

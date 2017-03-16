@@ -15,7 +15,9 @@
 #  * limitations under the License.
 
 import unittest
+
 from mock import Mock, patch
+from requests.exceptions import RequestException
 
 from neutron_plugin import security_group
 
@@ -79,6 +81,18 @@ class TestSecurityGroup(unittest.TestCase):
             },
             self.ctx.instance.runtime_properties
         )
+
+    def test_create_sg_wait_timeout(self, mock_nc, *_):
+        mock_nc().show_security_group.side_effect = RequestException
+
+        with self.assertRaises(NonRecoverableError):
+            security_group.create(
+                nova_client=self.nova_client,
+                ctx=self.ctx,
+                args={},
+                status_attempts=3,
+                status_timeout=0.001,
+                )
 
     @patch(
         'neutron_plugin.security_group.delete_resource_and_runtime_properties')

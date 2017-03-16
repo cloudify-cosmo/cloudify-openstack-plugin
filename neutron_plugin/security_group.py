@@ -72,12 +72,13 @@ def create(
     sg = neutron_client.create_security_group(
         {'security_group': security_group})['security_group']
 
-    for _ in range(max(status_attempts, 1)):
+    for attempt in range(max(status_attempts, 1)):
         sleep(status_timeout)
         try:
             neutron_client.show_security_group(sg['id'])
         except RequestException as e:
-            pass
+            ctx.logger.debug("Waiting for SG to be visible. Attempt {}".format(
+                attempt))
         else:
             break
     else:

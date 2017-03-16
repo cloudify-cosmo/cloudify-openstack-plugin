@@ -15,6 +15,7 @@
 
 from cloudify import ctx
 from cloudify.decorators import operation
+from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
@@ -77,8 +78,13 @@ def create(neutron_client, args, **kwargs):
             neutron_client.create_security_group_rule(
                 {'security_group_rule': sgr})
     except Exception:
-        delete_resource_and_runtime_properties(ctx, neutron_client,
-                                               RUNTIME_PROPERTIES_KEYS)
+        try:
+            delete_resource_and_runtime_properties(
+                ctx, neutron_client,
+                RUNTIME_PROPERTIES_KEYS)
+        except Exception as e:
+            raise NonRecoverableError(
+                'Exception while tearing down for retry', e)
         raise
 
 

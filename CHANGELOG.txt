@@ -2,6 +2,7 @@
     - Don't overwrite server['image'] when server is booted from volume
     - Fix loading auth_url from environment (OPENSTACK-101)
     - Raise an error if server is not attached to a network. Previously an IndexError would be raised.
+    - Make sure security_group is removed if a later step (rule creation) fails (OPENSTACK-106)
     - Fix attempt to access `volume.display_name` (is now .name) (OPENSTACK-108)
     - Correctly handle nova_url and neutron_url in openstack_configuration (these are deprecated) (OPENSTACK-109)
 2.0:

@@ -669,6 +669,34 @@ class PutClientInKwTests(unittest.TestCase):
         # 'openstack_config' property of a node.
         self.assertEqual(props_copy, ctx.node.properties)
 
+    def test_override_runtime_prop(self):
+        props = {
+            'openstack_config': {
+                'p1': 'u1',
+                'p2': 'u2'
+            }
+        }
+        runtime_props = {
+            'openstack_config': {
+                'p1': 'u3'
+            }
+        }
+        props_copy = props.copy()
+        runtime_props_copy = runtime_props.copy()
+        ctx = MockCloudifyContext(node_id='a20847', properties=props,
+                                  runtime_properties=runtime_props)
+        kwargs= {
+            'ctx': ctx
+        }
+        expected_cfg = {
+            'p1': 'u3',
+            'p2': 'u2'
+        }
+        client_class = mock.MagicMock()
+        common._put_client_in_kw('mock_client', client_class, kwargs)
+        client_class.assert_called_once_with(config=expected_cfg)
+        self.assertEqual(props_copy, ctx.node.properties)
+        self.assertEqual(runtime_props_copy, ctx.instance.runtime_properties)
 
 class ResourceQuotaTests(unittest.TestCase):
 

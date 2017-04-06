@@ -19,7 +19,7 @@ Contents:
     types
     nova-net
     examples
-    tips
+    misc
     changelog
 
 

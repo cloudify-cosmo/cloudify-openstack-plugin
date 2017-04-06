@@ -20,6 +20,7 @@ Contents:
     nova-net
     examples
     tips
+    changelog
 
 
 Plugin Requirements

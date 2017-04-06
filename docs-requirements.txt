@@ -1,2 +1,1 @@
--e .
-git+https://github.com/cloudify-cosmo/sphinxify.git@initial-work
+git+https://github.com/cloudify-cosmo/sphinxify.git

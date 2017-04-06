@@ -45,10 +45,6 @@ Compatibility
 * *Kilo* official support
 * *Juno*, *Icehouse* previously supported, not currently tested.
 
-.. attention:: New in 2.0
-
-    The full Keystone URL in :ref:`config` is now required in the ``openstack_config`` ``auth_url`` property: eg ``http://192.0.2.200:5000/v2.0`` or ``http://192.0.2.200:5000/v3``.
-
 The Openstack plugin uses various Openstack clients packages. The versions used in Openstack Plugin are as follows:
 
 * `keystoneauth1 <https://github.com/openstack/keystoneauth>`_ - 2.12.1

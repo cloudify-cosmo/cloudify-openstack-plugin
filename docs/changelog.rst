@@ -3,6 +3,5 @@
 Changelog
 =========
 
-.. literalinclude:: ../CHANGELOG.txt
-    :language: yaml
+.. include:: ../CHANGELOG.txt
 

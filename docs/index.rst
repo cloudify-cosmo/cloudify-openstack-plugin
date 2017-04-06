@@ -20,7 +20,6 @@ Contents:
     nova-net
     examples
     tips
-    operations
 
 
 Plugin Requirements

@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-cloudify-openstack-plugin
+Cloudify Openstack Plugin
 =========================
 
 The OpenStack plugin allows users to use an OpenStack based cloud infrastructure for deploying services and applications.

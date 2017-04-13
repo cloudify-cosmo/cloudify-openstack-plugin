@@ -21,4 +21,5 @@
     - Get mac address from port after creation.
     - Raise error also when external network is missing in floating ip creation. Previously, an error was raised only
       when floating network id or name was missing.
-
+2.0.2 :
+    - Fix duplicated mapping key

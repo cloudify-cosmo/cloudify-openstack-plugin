@@ -1,0 +1,149 @@
+tosca_definitions_version: tosca_simple_profile_for_nfv_1_0
+
+imports:
+  - _plugin.yaml
+  - aria-1.0
+
+
+node_types:
+  web_server_type:
+    derived_from: tosca.nodes.SoftwareComponent
+    properties:
+      port:
+        type: integer
+        default:
+    interfaces:
+      Standard:
+        configure: {}
+        start: {}
+        stop: {}
+
+topology_template:
+
+  inputs:
+    openstack_config:
+      description: ...
+      default: {}
+      type: map
+      entry_schema: string
+
+  node_templates:
+    network:
+      type: aria.openstack.nodes.Network
+      properties:
+        resource_id: my_net
+        create_if_missing: true
+
+    router:
+      type: aria.openstack.nodes.Router
+      properties:
+        external_network: external
+        create_if_missing: true
+        resource_id: my_rtr
+
+    subnet:
+      type: aria.openstack.nodes.Subnet
+      properties:
+        resource_id: my_subnet
+        create_if_missing: true
+        subnet:
+          ip_version: "4"
+          cidr: "172.16.0.0/16"
+      requirements:
+        - router: router
+        - network: network
+
+    port:
+      type: aria.openstack.nodes.Port
+      properties:
+        create_if_missing: true
+        resource_id: my_port
+      requirements:
+        - security_group: security_group
+        - floating_ip: virtual_ip
+        - subnet: subnet
+
+    virtual_ip:
+      type: aria.openstack.nodes.FloatingIP
+      properties:
+        resource_id: 'my_floating_ip'
+        create_if_missing: true
+        floatingip:
+          floating_network_id: 6751cb30-0aef-4d7e-94c3-ee2a09e705eb
+
+    security_group:
+      type: aria.openstack.nodes.SecurityGroup
+      properties:
+        description: ...
+        create_if_missing: true
+        resource_id: 'my_sg'
+        rules:
+          - remote_ip_prefix: 0.0.0.0/0
+            port: 8080
+          - port: 22
+            remote_ip_prefix: 0.0.0.0/0
+          - port: 5985
+            remote_ip_prefix: 0.0.0.0/0
+
+    keypair:
+      type: aria.openstack.nodes.KeyPair
+      properties:
+        create_if_missing: true
+        resource_id: 'my_kp'
+        private_key_path: '/home/maxim-pcu/Desktop/os_hw'
+
+    vm:
+      type: aria.openstack.nodes.Server
+      properties:
+        image: 'ubuntu-14.04'
+        flavor: 'dc1.8x16'
+        create_if_missing: true
+        resource_id: 'my_vm'
+        management_network_name: my_net
+      requirements:
+        - floating_ip: virtual_ip
+        - security_group: security_group
+        - key_pair: keypair
+        - port: port
+
+    http_web_server:
+      type: web_server_type
+      properties:
+        port: 8080
+      requirements:
+        - host: vm
+      interfaces:
+        Standard:
+          configure:
+            implementation:
+              primary: scripts/configure.sh
+              dependencies:
+                - ssh.use_sudo > false
+                - ssh.user > ubuntu
+                - ssh.key_filename > /home/maxim-pcu/Desktop/os_hw
+                - hide_output > [ everything ]
+          start:
+            implementation:
+              primary: scripts/start.sh
+              dependencies:
+                - ssh.use_sudo > false
+                - ssh.user > ubuntu
+                - ssh.key_filename > /home/maxim-pcu/Desktop/os_hw
+                - hide_output > [ everything ]
+          stop:
+            implementation:
+              primary: scripts/stop.sh
+              dependencies:
+                - ssh.use_sudo > false
+                - ssh.user > ubuntu
+                - ssh.key_filename > /home/maxim-pcu/Desktop/os_hw
+                - hide_output > [ everything ]
+
+  policies:
+    cloudify-openstack-plugin:
+      description: >-
+        openstack plugin executes operations.
+      type: aria.Plugin
+      properties:
+        version: 1.0
+        enabled: true

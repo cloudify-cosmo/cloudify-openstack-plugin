@@ -296,8 +296,10 @@ def create(nova_client, neutron_client, args, **kwargs):
         # from CREATE time so that there the user can control
         # that there is never a time that a running server is not protected.
         security_group_names = \
-            get_openstack_ids_of_connected_nodes_by_openstack_type(
-                ctx, SERVER_CONNECTED_TO_SECURITY_GROUP, OPENSTACK_NAME_PROPERTY)
+            get_attribute_of_connected_nodes_by_relationship_type(
+                ctx,
+                SERVER_CONNECTED_TO_SECURITY_GROUP,
+                OPENSTACK_NAME_PROPERTY)
         server['security_groups'] = security_group_names
 
     # server keypair handling

@@ -31,11 +31,11 @@ from openstack_plugin_common import (
     transform_resource_name,
     get_resource_id,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
-    get_attribute_of_connected_nodes_by_relationship_type,
     with_nova_client,
     with_cinder_client,
     assign_payload_as_runtime_properties,
     get_openstack_id_of_single_connected_node_by_openstack_type,
+    get_openstack_names_of_connected_nodes_by_openstack_type,
     get_single_connected_node_by_openstack_type,
     is_external_resource,
     is_external_resource_by_properties,
@@ -58,11 +58,11 @@ from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+from openstack_plugin_common.security_group import \
+    SECURITY_GROUP_OPENSTACK_TYPE
 from glance_plugin.image import handle_image_from_relationship
 
 SERVER_OPENSTACK_TYPE = 'server'
-SERVER_CONNECTED_TO_SECURITY_GROUP = \
-    'cloudify.openstack.server_connected_to_security_group'
 
 # server status constants. Full lists here: http://docs.openstack.org/api/openstack-compute/2/content/List_Servers-d1e2078.html  # NOQA
 SERVER_STATUS_ACTIVE = 'ACTIVE'
@@ -296,10 +296,9 @@ def create(nova_client, neutron_client, args, **kwargs):
         # from CREATE time so that there the user can control
         # that there is never a time that a running server is not protected.
         security_group_names = \
-            get_attribute_of_connected_nodes_by_relationship_type(
+            get_openstack_names_of_connected_nodes_by_openstack_type(
                 ctx,
-                SERVER_CONNECTED_TO_SECURITY_GROUP,
-                OPENSTACK_NAME_PROPERTY)
+                SECURITY_GROUP_OPENSTACK_TYPE)
         server['security_groups'] = security_group_names
 
     # server keypair handling

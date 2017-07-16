@@ -189,6 +189,12 @@ def get_openstack_ids_of_connected_nodes_by_openstack_type(ctx, type_name):
             ]
 
 
+def get_openstack_names_of_connected_nodes_by_openstack_type(ctx, type_name):
+    return [rel.target.instance.runtime_properties[OPENSTACK_NAME_PROPERTY]
+            for rel in get_relationships_by_openstack_type(ctx, type_name)
+            ]
+
+
 def get_single_connected_node_by_openstack_type(
         ctx, type_name, if_exists=False):
     nodes = get_connected_nodes_by_openstack_type(ctx, type_name)

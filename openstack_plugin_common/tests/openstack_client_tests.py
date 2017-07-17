@@ -685,7 +685,7 @@ class PutClientInKwTests(unittest.TestCase):
         runtime_props_copy = runtime_props.copy()
         ctx = MockCloudifyContext(node_id='a20847', properties=props,
                                   runtime_properties=runtime_props)
-        kwargs= {
+        kwargs = {
             'ctx': ctx
         }
         expected_cfg = {
@@ -697,6 +697,7 @@ class PutClientInKwTests(unittest.TestCase):
         client_class.assert_called_once_with(config=expected_cfg)
         self.assertEqual(props_copy, ctx.node.properties)
         self.assertEqual(runtime_props_copy, ctx.instance.runtime_properties)
+
 
 class ResourceQuotaTests(unittest.TestCase):
 

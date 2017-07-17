@@ -304,15 +304,16 @@ def create(nova_client, neutron_client, args, **kwargs):
     elif provider_context.agents_keypair:
         server['key_name'] = provider_context.agents_keypair['name']
     else:
-        raise NonRecoverableError(
+        server['key_name'] = None
+        ctx.logger.info(
             'server must have a keypair, yet no keypair was connected to the '
             'server node, the "key_name" nested property '
             "wasn't used, and there is no agent keypair in the provider "
-            "context")
+            "context. Agent installation can have issues.")
 
     _fail_on_missing_required_parameters(
         server,
-        ('name', 'flavor', 'key_name'),
+        ('name', 'flavor'),
         'server')
 
     _prepare_server_nics(neutron_client, ctx, server)

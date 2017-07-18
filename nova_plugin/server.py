@@ -54,7 +54,8 @@ from openstack_plugin_common import (
     with_neutron_client)
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
 from nova_plugin import userdata
-from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
+from openstack_plugin_common.floatingip import (IP_ADDRESS_PROPERTY,
+                                                get_server_floating_ip)
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
@@ -546,16 +547,22 @@ def connect_floatingip(nova_client, fixed_ip, **kwargs):
 
 @operation
 @with_nova_client
-def disconnect_floatingip(nova_client, **kwargs):
+@with_neutron_client
+def disconnect_floatingip(nova_client, neutron_client, **kwargs):
     if is_external_relationship(ctx):
         ctx.logger.info('Not disassociating floatingip and server since '
                         'external floatingip and server are being used')
         return
 
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    server = nova_client.servers.get(server_id)
-    server.remove_floating_ip(ctx.target.instance.runtime_properties[
-        IP_ADDRESS_PROPERTY])
+    ctx.logger.info("Remove floating ip {0}".format(
+        ctx.target.instance.runtime_properties[IP_ADDRESS_PROPERTY]))
+    server_floating_ip = get_server_floating_ip(neutron_client, server_id)
+    if server_floating_ip:
+        server = nova_client.servers.get(server_id)
+        server.remove_floating_ip(server_floating_ip['floating_ip_address'])
+        ctx.logger.info("Floating ip {0} detached from server"
+                        .format(server_floating_ip['floating_ip_address']))
 
 
 @operation

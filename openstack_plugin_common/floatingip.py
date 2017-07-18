@@ -57,3 +57,28 @@ def delete_floatingip(client, **kwargs):
 def floatingip_creation_validation(client, ip_field_name, **kwargs):
     validate_resource(ctx, client, FLOATINGIP_OPENSTACK_TYPE,
                       ip_field_name)
+
+
+def get_server_floating_ip(neutron_client, server_id):
+
+    floating_ips = neutron_client.list_floatingips()
+
+    floating_ips = floating_ips.get('floatingips')
+    if not floating_ips:
+        return None
+
+    for floating_ip in floating_ips:
+        port_id = floating_ip.get('port_id')
+        if not port_id:
+            # this floating ip is not attached to any port
+            continue
+
+        port = neutron_client.show_port(port_id)['port']
+        device_id = port.get('device_id')
+        if not device_id:
+            # this port is not attached to any server
+            continue
+
+        if server_id == device_id:
+            return floating_ip
+    return None

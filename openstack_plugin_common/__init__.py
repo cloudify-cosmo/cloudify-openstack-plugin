@@ -40,6 +40,7 @@ INFINITE_RESOURCE_QUOTA = -1
 # properties
 USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
 CREATE_IF_MISSING_PROPERTY = 'create_if_missing'
+CONFIG_PROPERTY = 'openstack_config'
 
 # runtime properties
 OPENSTACK_AZ_PROPERTY = 'availability_zone'
@@ -48,6 +49,10 @@ OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
 OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name
 CONDITIONALLY_CREATED = 'conditionally_created'  # resource was
 # conditionally created
+CONFIG_RUNTIME_PROPERTY = CONFIG_PROPERTY   # openstack configuration
+
+# operation inputs
+CONFIG_INPUT = CONFIG_PROPERTY
 
 # runtime properties which all types use
 COMMON_RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
@@ -536,10 +541,11 @@ class OpenStackClient(object):
             "either as environment variables, in a JSON file (at either a "
             "path which is set under the environment variable {} or at the "
             "default location {}), or as nested properties under an "
-            "'openstack_config' property. Valid auth param sets are: {}."
+            "'{}' property. Valid auth param sets are: {}."
             .format(received_params,
                     Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
                     Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH,
+                    CONFIG_PROPERTY,
                     ', '.join(valid_auth_sets)))
 
     @staticmethod
@@ -748,19 +754,36 @@ def _put_client_in_kw(client_name, client_class, kw):
 
     ctx = _find_context_in_kw(kw)
     if ctx.type == context.NODE_INSTANCE:
-        config = ctx.node.properties.get('openstack_config')
+        config = ctx.node.properties.get(CONFIG_PROPERTY)
+        rt_config = ctx.instance.runtime_properties.get(
+            CONFIG_RUNTIME_PROPERTY)
     elif ctx.type == context.RELATIONSHIP_INSTANCE:
-        config = ctx.source.node.properties.get('openstack_config')
+        config = ctx.source.node.properties.get(CONFIG_PROPERTY)
+        rt_config = ctx.source.instance.runtime_properties.get(
+            CONFIG_RUNTIME_PROPERTY)
         if not config:
-            config = ctx.target.node.properties.get('openstack_config')
+            config = ctx.target.node.properties.get(CONFIG_PROPERTY)
+            rt_config = ctx.target.instance.runtime_properties.get(
+                CONFIG_RUNTIME_PROPERTY)
+
     else:
         config = None
-    if 'openstack_config' in kw:
+        rt_config = None
+
+    # Overlay with configuration from runtime property, if any.
+    if rt_config:
         if config:
             config = config.copy()
-            config.update(kw['openstack_config'])
+            config.update(rt_config)
         else:
-            config = kw['openstack_config']
+            config = rt_config
+
+    if CONFIG_INPUT in kw:
+        if config:
+            config = config.copy()
+            config.update(kw[CONFIG_INPUT])
+        else:
+            config = kw[CONFIG_INPUT]
     kw[client_name] = client_class(config=config)
 
 

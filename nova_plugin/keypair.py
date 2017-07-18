@@ -198,9 +198,5 @@ def _check_private_key_exists(private_key_path):
 
 
 def _mkdir_p(path):
-    try:
+    if path and not os.path.isdir(path):
         os.makedirs(path)
-    except OSError as e:
-        if e.errno == errno.EEXIST and os.path.isdir(path):
-            return
-        raise

@@ -590,13 +590,17 @@ def disconnect_security_group(nova_client, **kwargs):
     server = nova_client.servers.get(server_id)
     # to support nova security groups as well, we disconnect the security group
     # by name (as disconnecting by id doesn't seem to work well for nova SGs)
-    server.remove_security_group(security_group_name)
-
-    _validate_security_group_and_server_connection_status(nova_client,
-                                                          server_id,
-                                                          security_group_id,
-                                                          security_group_name,
-                                                          is_connected=False)
+    try:
+        server.remove_security_group(security_group_name)
+    except nova_exceptions.NotFound:
+        ctx.logger.warn("Security group '{0}' (id: {1}) is not attached "
+                        "to server instance {2}; skipping"
+                        .format(security_group_name, security_group_id,
+                                server_id))
+    else:
+        _validate_security_group_and_server_connection_status(
+            nova_client, server_id, security_group_id, security_group_name,
+            is_connected=False)
 
 
 @operation

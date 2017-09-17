@@ -13,16 +13,15 @@ checkout:
 
 dependencies:
   override:
-    - pip install tox
+    - pip install --upgrade tox virtualenv
 
 test:
   override:
-    - tox -e docs
+   #  - tox -e docs
     - tox -e flake8
     - tox -e py27
 
-deployment:
-  release:
-    tag: /.*/
-    commands:
-      - (true)
+# Docs artifacts
+general:
+  artifacts:
+    - .tox/docs/tmp/html

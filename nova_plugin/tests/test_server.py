@@ -28,6 +28,19 @@ from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from nova_plugin.tests.test_relationships import RelationshipsTestBase
 from nova_plugin.server import _prepare_server_nics
+from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+from cloudify.exceptions import NonRecoverableError
+from cloudify.state import current_ctx
+
+from cloudify.utils import setup_logger
+
+from cloudify.mocks import (
+    MockNodeContext,
+    MockCloudifyContext,
+    MockNodeInstanceContext,
+    MockRelationshipContext,
+    MockRelationshipSubjectContext
+)
 
 
 class TestServer(unittest.TestCase):
@@ -123,21 +136,17 @@ class TestServer(unittest.TestCase):
     @mock.patch('nova_plugin.server.start')
     @mock.patch('nova_plugin.server._handle_image_or_flavor')
     @mock.patch('nova_plugin.server._fail_on_missing_required_parameters')
-    def test_nova_server_creation_param_integrity(self, cfy_local, *args):
-        class MyDict(dict):
-            id = 'uid'
-
-        def mock_create_server(*args, **kwargs):
-            key_args = MyDict(kwargs)
-            self.assertIn('scheduler_hints', key_args)
-            self.assertEqual(key_args['scheduler_hints'],
-                             {'group': 'affinity-group-id'},
-                             'expecting \'scheduler_hints\' value to exist')
-            return key_args
-
-        with mock.patch('openstack_plugin_common.nova_client.servers.'
-                        'ServerManager.create', new=mock_create_server):
-            cfy_local.execute('install', task_retries=0)
+    @mock.patch('openstack_plugin_common.nova_client')
+    def test_nova_server_creation_param_integrity(
+            self, cfy_local, mock_nova, *args):
+        cfy_local.execute('install', task_retries=0)
+        calls = mock_nova.Client.return_value.servers.method_calls
+        self.assertEqual(1, len(calls))
+        kws = calls[0][2]
+        self.assertIn('scheduler_hints', kws)
+        self.assertEqual(kws['scheduler_hints'],
+                         {'group': 'affinity-group-id'},
+                         'expecting \'scheduler_hints\' value to exist')
 
     @workflow_test(blueprint_path, copy_plugin_yaml=True,
                    inputs={'use_password': True})
@@ -212,6 +221,11 @@ class TestNormalizeNICs(unittest.TestCase):
 
 class MockNeutronClient(NeutronClientWithSugar):
     """A fake neutron client with hard-coded test data."""
+
+    @mock.patch('openstack_plugin_common.OpenStackClient.__init__',
+                new=mock.Mock())
+    def __init__(self):
+        super(MockNeutronClient, self).__init__()
 
     @staticmethod
     def _search_filter(objs, search_params):
@@ -401,3 +415,137 @@ class TestServerPortNICs(NICTestBase):
             {'port-id': '1'}
         ]
         self.assertEqual(expected, server['nics'])
+
+
+class TestBootFromVolume(unittest.TestCase):
+
+    @mock.patch('nova_plugin.server._get_boot_volume_relationships',
+                autospec=True)
+    def test_handle_boot_volume(self, mock_get_rels):
+        mock_get_rels.return_value.runtime_properties = {
+                'external_id': 'test-id',
+                'availability_zone': 'test-az',
+                }
+        server = {}
+        ctx = mock.MagicMock()
+        nova_plugin.server._handle_boot_volume(server, ctx)
+        self.assertEqual({'vda': 'test-id:::0'},
+                         server['block_device_mapping'])
+        self.assertEqual('test-az',
+                         server['availability_zone'])
+
+    @mock.patch('nova_plugin.server._get_boot_volume_relationships',
+                autospec=True, return_value=[])
+    def test_handle_boot_volume_no_boot_volume(self, *_):
+        server = {}
+        ctx = mock.MagicMock()
+        nova_plugin.server._handle_boot_volume(server, ctx)
+        self.assertNotIn('block_device_mapping', server)
+
+
+class TestImageFromRelationships(unittest.TestCase):
+
+    @mock.patch('glance_plugin.image.'
+                'get_openstack_ids_of_connected_nodes_by_openstack_type',
+                autospec=True, return_value=['test-id'])
+    def test_handle_boot_image(self, *_):
+        server = {}
+        ctx = mock.MagicMock()
+        nova_plugin.server.handle_image_from_relationship(server, 'image', ctx)
+        self.assertEqual({'image': 'test-id'}, server)
+
+    @mock.patch('glance_plugin.image.'
+                'get_openstack_ids_of_connected_nodes_by_openstack_type',
+                autospec=True, return_value=[])
+    def test_handle_boot_image_no_image(self, *_):
+        server = {}
+        ctx = mock.MagicMock()
+        nova_plugin.server.handle_image_from_relationship(server, 'image', ctx)
+        self.assertNotIn('image', server)
+
+
+class TestServerRelationships(unittest.TestCase):
+
+    def _get_ctx_mock(self, instance_id, boot):
+        rel_specs = [MockRelationshipContext(
+            target=MockRelationshipSubjectContext(node=MockNodeContext(
+                properties={'boot': boot}), instance=MockNodeInstanceContext(
+                runtime_properties={
+                    OPENSTACK_TYPE_PROPERTY: VOLUME_OPENSTACK_TYPE,
+                    OPENSTACK_ID_PROPERTY: instance_id
+                })))]
+        ctx = mock.MagicMock()
+        ctx.instance = MockNodeInstanceContext(relationships=rel_specs)
+        ctx.logger = setup_logger('mock-logger')
+        return ctx
+
+    def test_boot_volume_relationship(self):
+        instance_id = 'test-id'
+        ctx = self._get_ctx_mock(instance_id, True)
+        result = nova_plugin.server._get_boot_volume_relationships(
+            VOLUME_OPENSTACK_TYPE, ctx)
+        self.assertEqual(
+                instance_id,
+                result.runtime_properties['external_id'])
+
+    def test_no_boot_volume_relationship(self):
+        instance_id = 'test-id'
+        ctx = self._get_ctx_mock(instance_id, False)
+        result = nova_plugin.server._get_boot_volume_relationships(
+            VOLUME_OPENSTACK_TYPE, ctx)
+        self.assertFalse(result)
+
+
+class TestServerNetworkRuntimeProperties(unittest.TestCase):
+
+    @property
+    def mock_ctx(self):
+        return MockCloudifyContext(
+            node_id='test',
+            deployment_id='test',
+            properties={},
+            operation={'retry_number': 0},
+            provider_context={'resources': {}}
+        )
+
+    def test_server_networks_runtime_properties_empty_server(self):
+        ctx = self.mock_ctx
+        current_ctx.set(ctx=ctx)
+        server = mock.MagicMock()
+        setattr(server, 'networks', {})
+        with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'The server was created but not attached to a network.'):
+            nova_plugin.server._set_network_and_ip_runtime_properties(server)
+
+    def test_server_networks_runtime_properties_valid_networks(self):
+        ctx = self.mock_ctx
+        current_ctx.set(ctx=ctx)
+        server = mock.MagicMock()
+        network_id = 'management_network'
+        network_ips = ['good', 'bad1', 'bad2']
+        setattr(server,
+                'networks',
+                {network_id: network_ips})
+        nova_plugin.server._set_network_and_ip_runtime_properties(server)
+        self.assertIn('networks', ctx.instance.runtime_properties.keys())
+        self.assertIn('ip', ctx.instance.runtime_properties.keys())
+        self.assertEquals(ctx.instance.runtime_properties['ip'], 'good')
+        self.assertEquals(ctx.instance.runtime_properties['networks'],
+                          {network_id: network_ips})
+
+    def test_server_networks_runtime_properties_empty_networks(self):
+        ctx = self.mock_ctx
+        current_ctx.set(ctx=ctx)
+        server = mock.MagicMock()
+        network_id = 'management_network'
+        network_ips = []
+        setattr(server,
+                'networks',
+                {network_id: network_ips})
+        nova_plugin.server._set_network_and_ip_runtime_properties(server)
+        self.assertIn('networks', ctx.instance.runtime_properties.keys())
+        self.assertIn('ip', ctx.instance.runtime_properties.keys())
+        self.assertEquals(ctx.instance.runtime_properties['ip'], None)
+        self.assertEquals(ctx.instance.runtime_properties['networks'],
+                          {network_id: network_ips})

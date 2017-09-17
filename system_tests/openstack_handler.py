@@ -20,8 +20,9 @@ import time
 import copy
 from contextlib import contextmanager
 
-from cinderclient.v1 import client as cinderclient
-import novaclient.v2.client as nvclient
+from cinderclient import client as cinderclient
+from keystoneauth1 import loading, session
+import novaclient.client as nvclient
 import neutronclient.v2_0.client as neclient
 from retrying import retry
 
@@ -249,13 +250,21 @@ class OpenstackHandler(BaseHandler):
 
     def openstack_clients(self):
         creds = self._client_creds()
-        return (nvclient.Client(**creds),
-                neclient.Client(username=creds['username'],
-                                password=creds['api_key'],
-                                tenant_name=creds['project_id'],
-                                region_name=creds['region_name'],
-                                auth_url=creds['auth_url']),
-                cinderclient.Client(**creds))
+        params = {
+            'region_name': creds.pop('region_name'),
+        }
+
+        loader = loading.get_plugin_loader("password")
+        auth = loader.load_from_options(**creds)
+        sess = session.Session(auth=auth, verify=True)
+
+        params['session'] = sess
+
+        nova = nvclient.Client('2', **params)
+        neutron = neclient.Client(**params)
+        cinder = cinderclient.Client('2', **params)
+
+        return (nova, neutron, cinder)
 
     @retry(stop_max_attempt_number=5, wait_fixed=20000)
     def openstack_infra_state(self):
@@ -489,7 +498,7 @@ class OpenstackHandler(BaseHandler):
                 try:
                     self.logger.info('Detaching volume {0} ({1}), currently in'
                                      ' status {2} ...'.
-                                     format(volume.display_name, volume.id,
+                                     format(volume.name, volume.id,
                                             volume.status))
                     for attachment in volume.attachments:
                         nova.volumes.delete_server_volume(
@@ -498,7 +507,7 @@ class OpenstackHandler(BaseHandler):
                 except Exception as e:
                     self.logger.warning('Attempt to detach volume {0} ({1})'
                                         ' yielded exception: "{2}"'.
-                                        format(volume.display_name, volume.id,
+                                        format(volume.name, volume.id,
                                                e))
                     unremovables[volume.id] = e
                     existing_volumes.remove(volume)
@@ -510,13 +519,13 @@ class OpenstackHandler(BaseHandler):
                 try:
                     self.logger.info('Deleting volume {0} ({1}), currently in'
                                      ' status {2} ...'.
-                                     format(volume.display_name, volume.id,
+                                     format(volume.name, volume.id,
                                             volume.status))
                     cinder.volumes.delete(volume)
                 except Exception as e:
                     self.logger.warning('Attempt to delete volume {0} ({1})'
                                         ' yielded exception: "{2}"'.
-                                        format(volume.display_name, volume.id,
+                                        format(volume.name, volume.id,
                                                e))
                     unremovables[volume.id] = e
                     existing_volumes.remove(volume)
@@ -526,7 +535,7 @@ class OpenstackHandler(BaseHandler):
             time.sleep(3)
             for volume in existing_volumes:
                 volume_id = volume.id
-                volume_name = volume.display_name
+                volume_name = volume.name
                 try:
                     vol = cinder.volumes.get(volume_id)
                     if vol.status == 'deleting':
@@ -564,7 +573,7 @@ class OpenstackHandler(BaseHandler):
 
                 unremovables[volume.id] = 'timed out while removing volume '\
                                           '{0} ({1}), current volume status '\
-                                          'is {2}'.format(volume.display_name,
+                                          'is {2}'.format(volume.name,
                                                           volume.id,
                                                           vol_status)
 
@@ -577,9 +586,9 @@ class OpenstackHandler(BaseHandler):
     def _client_creds(self):
         return {
             'username': self.env.keystone_username,
-            'api_key': self.env.keystone_password,
+            'password': self.env.keystone_password,
             'auth_url': self.env.keystone_url,
-            'project_id': self.env.keystone_tenant_name,
+            'project_name': self.env.keystone_tenant_name,
             'region_name': self.env.region
         }
 
@@ -623,8 +632,8 @@ class OpenstackHandler(BaseHandler):
                 if self._check_prefix(p['name'], prefix)]
 
     def _volumes(self, cinder, prefix):
-        return [(v.id, v.display_name) for v in cinder.volumes.list()
-                if self._check_prefix(v.display_name, prefix)]
+        return [(v.id, v.name) for v in cinder.volumes.list()
+                if self._check_prefix(v.name, prefix)]
 
     def _check_prefix(self, name, prefix):
         # some openstack resources (eg. volumes) can have no display_name,
@@ -643,5 +652,6 @@ class OpenstackHandler(BaseHandler):
             yield
         except BaseException, ex:
             failed[resource_group][resource_id] = ex
+
 
 handler = OpenstackHandler

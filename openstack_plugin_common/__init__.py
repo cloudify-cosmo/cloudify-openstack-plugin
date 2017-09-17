@@ -13,38 +13,50 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
-from functools import wraps
+from functools import wraps, partial
 import json
 import os
 import sys
 
 from IPy import IP
-from cinderclient.v1 import client as cinder_client
-from cinderclient import exceptions as cinder_exceptions
+from keystoneauth1 import loading, session
+import cinderclient.client as cinder_client
+import cinderclient.exceptions as cinder_exceptions
 import keystoneclient.v3.client as keystone_client
+import keystoneclient.exceptions as keystone_exceptions
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
-import novaclient.v2.client as nova_client
+import novaclient.client as nova_client
 import novaclient.exceptions as nova_exceptions
+import glanceclient.client as glance_client
+import glanceclient.exc as glance_exceptions
 
 import cloudify
-from cloudify import context
+from cloudify import context, ctx
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 INFINITE_RESOURCE_QUOTA = -1
 
 # properties
 USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
+CREATE_IF_MISSING_PROPERTY = 'create_if_missing'
 
 # runtime properties
+OPENSTACK_AZ_PROPERTY = 'availability_zone'
 OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
 OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
 OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name
+CONDITIONALLY_CREATED = 'conditionally_created'  # resource was
+# conditionally created
 
 # runtime properties which all types use
 COMMON_RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
                                   OPENSTACK_TYPE_PROPERTY,
-                                  OPENSTACK_NAME_PROPERTY]
+                                  OPENSTACK_NAME_PROPERTY,
+                                  CONDITIONALLY_CREATED]
+
+MISSING_RESOURCE_MESSAGE = "Couldn't find a resource of " \
+                           "type {0} with the name or id {1}"
 
 
 class ProviderContext(object):
@@ -202,8 +214,7 @@ def get_resource_by_name_or_id(
 
     if not resource and raise_if_not_found:
         raise NonRecoverableError(
-            "Couldn't find a resource of type {0} with the name or id {1}"
-            .format(openstack_type, resource_id))
+            MISSING_RESOURCE_MESSAGE.format(openstack_type, resource_id))
 
     return resource
 
@@ -212,9 +223,15 @@ def use_external_resource(ctx, sugared_client, openstack_type,
                           name_field_name='name'):
     if not is_external_resource(ctx):
         return None
-
-    resource = _get_resource_by_name_or_id_from_ctx(
-        ctx, name_field_name, openstack_type, sugared_client)
+    try:
+        resource = _get_resource_by_name_or_id_from_ctx(
+            ctx, name_field_name, openstack_type, sugared_client)
+    except NonRecoverableError:
+        if is_create_if_missing(ctx):
+            ctx.instance.runtime_properties[CONDITIONALLY_CREATED] = True
+            return None
+        else:
+            raise
 
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
@@ -238,28 +255,32 @@ def validate_resource(ctx, sugared_client, openstack_type,
         openstack_type, ctx.node.id))
 
     openstack_type_plural = sugared_client.cosmo_plural(openstack_type)
+    resource = None
+
     if is_external_resource(ctx):
-        # validate the resource truly exists
+
         try:
-            _get_resource_by_name_or_id_from_ctx(
+            # validate the resource truly exists
+            resource = _get_resource_by_name_or_id_from_ctx(
                 ctx, name_field_name, openstack_type, sugared_client)
             ctx.logger.debug('OK: {0} {1} found in pool'.format(
                 openstack_type, ctx.node.properties['resource_id']))
         except NonRecoverableError as e:
-            ctx.logger.error('VALIDATION ERROR: ' + str(e))
-            resource_list = list(sugared_client.cosmo_list(openstack_type))
-            if resource_list:
-                ctx.logger.info('list of existing {0}: '.format(
-                    openstack_type_plural))
-                for resource in resource_list:
-                    ctx.logger.info('    {0:>10} - {1}'.format(
-                        sugared_client.get_id_from_resource(resource),
-                        sugared_client.get_name_from_resource(resource)))
-            else:
-                ctx.logger.info('there are no existing {0}'.format(
-                    openstack_type_plural))
-            raise
-    else:
+            if not is_create_if_missing(ctx):
+                ctx.logger.error('VALIDATION ERROR: ' + str(e))
+                resource_list = list(sugared_client.cosmo_list(openstack_type))
+                if resource_list:
+                    ctx.logger.info('list of existing {0}: '.format(
+                        openstack_type_plural))
+                    for resource in resource_list:
+                        ctx.logger.info('    {0:>10} - {1}'.format(
+                            sugared_client.get_id_from_resource(resource),
+                            sugared_client.get_name_from_resource(resource)))
+                else:
+                    ctx.logger.info('there are no existing {0}'.format(
+                        openstack_type_plural))
+                raise
+    if not resource:
         if isinstance(sugared_client, NovaClientWithSugar):
             # not checking quota for Nova resources due to a bug in Nova client
             return
@@ -269,6 +290,7 @@ def validate_resource(ctx, sugared_client, openstack_type,
         resource_amount = len(resource_list)
 
         resource_quota = sugared_client.get_quota(openstack_type)
+
         if resource_amount < resource_quota \
                 or resource_quota == INFINITE_RESOURCE_QUOTA:
             ctx.logger.debug(
@@ -305,6 +327,23 @@ def is_external_resource(ctx):
     return is_external_resource_by_properties(ctx.node.properties)
 
 
+def is_external_resource_not_conditionally_created(ctx):
+    return is_external_resource_by_properties(ctx.node.properties) and \
+        not ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+
+def is_external_relationship_not_conditionally_created(ctx):
+    return is_external_resource_by_properties(ctx.source.node.properties) and \
+        is_external_resource_by_properties(ctx.target.node.properties) and \
+        not ctx.source.instance.runtime_properties.get(
+            CONDITIONALLY_CREATED) and not \
+        ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+
+def is_create_if_missing(ctx):
+    return is_create_if_missing_by_properties(ctx.node.properties)
+
+
 def is_external_relationship(ctx):
     return is_external_resource_by_properties(ctx.source.node.properties) and \
         is_external_resource_by_properties(ctx.target.node.properties)
@@ -313,6 +352,11 @@ def is_external_relationship(ctx):
 def is_external_resource_by_properties(properties):
     return USE_EXTERNAL_RESOURCE_PROPERTY in properties and \
         properties[USE_EXTERNAL_RESOURCE_PROPERTY]
+
+
+def is_create_if_missing_by_properties(properties):
+    return CREATE_IF_MISSING_PROPERTY in properties and \
+        properties[CREATE_IF_MISSING_PROPERTY]
 
 
 def delete_runtime_properties(ctx, runtime_properties_keys):
@@ -341,37 +385,31 @@ class Config(object):
 
     OPENSTACK_CONFIG_PATH_ENV_VAR = 'OPENSTACK_CONFIG_PATH'
     OPENSTACK_CONFIG_PATH_DEFAULT_PATH = '~/openstack_config.json'
+    OPENSTACK_ENV_VAR_PREFIX = 'OS_'
+    OPENSTACK_SUPPORTED_ENV_VARS = {
+        'OS_AUTH_URL', 'OS_USERNAME', 'OS_PASSWORD', 'OS_TENANT_NAME',
+        'OS_REGION_NAME', 'OS_PROJECT_ID', 'OS_PROJECT_NAME',
+        'OS_USER_DOMAIN_NAME', 'OS_PROJECT_DOMAIN_NAME'
+    }
 
-    def get(self):
-        static_config = self._build_config_from_env_variables()
-        env_name = self.OPENSTACK_CONFIG_PATH_ENV_VAR
-        default_location_tpl = self.OPENSTACK_CONFIG_PATH_DEFAULT_PATH
+    @classmethod
+    def get(cls):
+        static_config = cls._build_config_from_env_variables()
+        env_name = cls.OPENSTACK_CONFIG_PATH_ENV_VAR
+        default_location_tpl = cls.OPENSTACK_CONFIG_PATH_DEFAULT_PATH
         default_location = os.path.expanduser(default_location_tpl)
         config_path = os.getenv(env_name, default_location)
         try:
             with open(config_path) as f:
-                Config.update_config(static_config, json.loads(f.read()))
+                cls.update_config(static_config, json.loads(f.read()))
         except IOError:
             pass
         return static_config
 
-    @staticmethod
-    def _build_config_from_env_variables():
-        cfg = dict()
-
-        def take_env_var_if_exists(cfg_key, env_var):
-            if env_var in os.environ:
-                cfg[cfg_key] = os.environ[env_var]
-
-        take_env_var_if_exists('username', 'OS_USERNAME')
-        take_env_var_if_exists('password', 'OS_PASSWORD')
-        take_env_var_if_exists('tenant_name', 'OS_TENANT_NAME')
-        take_env_var_if_exists('auth_url', 'OS_AUTH_URL')
-        take_env_var_if_exists('region', 'OS_REGION_NAME')
-        take_env_var_if_exists('neutron_url', 'OS_URL')
-        take_env_var_if_exists('nova_url', 'NOVACLIENT_BYPASS_URL')
-
-        return cfg
+    @classmethod
+    def _build_config_from_env_variables(cls):
+        return {v.lstrip(cls.OPENSTACK_ENV_VAR_PREFIX).lower(): os.environ[v]
+                for v in cls.OPENSTACK_SUPPORTED_ENV_VARS if v in os.environ}
 
     @staticmethod
     def update_config(overridden_cfg, overriding_cfg):
@@ -384,224 +422,119 @@ class Config(object):
 
 class OpenStackClient(object):
 
-    REQUIRED_CONFIG_PARAMS = \
-        ['username', 'password', 'tenant_name', 'auth_url']
+    COMMON = {'username', 'password', 'auth_url'}
+    AUTH_SETS = [
+        COMMON | {'tenant_name'},
+        COMMON | {'project_id', 'user_domain_name'},
+        COMMON | {'project_id', 'project_name', 'user_domain_name'},
+        COMMON | {'project_name', 'user_domain_name', 'project_domain_name'},
+    ]
+    OPTIONAL_AUTH_PARAMS = {'insecure'}
 
-    def get(self, config=None, *args, **kw):
-        cfg = Config().get()
+    def __init__(self, client_name, client_class, config=None, *args, **kw):
+        cfg = Config.get()
+
         if config:
             Config.update_config(cfg, config)
 
-        self._validate_config(cfg)
-        ret = self.connect(cfg, *args, **kw)
-        ret.format = 'json'
-        return ret
+        v3 = '/v3' in cfg['auth_url']
+        # Newer libraries expect the region key to be `region_name`, not
+        # `region`.
+        region = cfg.pop('region', None)
+        if v3 and region:
+            cfg['region_name'] = region
 
-    def _validate_config(self, cfg):
-        missing_config_params = self._get_missing_config_params(cfg)
-        if missing_config_params:
-            self._raise_missing_config_params_error(missing_config_params)
+        cfg = self._merge_custom_configuration(cfg, client_name)
 
-    def _get_missing_config_params(self, cfg):
-        missing_config_params = \
-            [param for param in self.REQUIRED_CONFIG_PARAMS if param not in
-             cfg or not cfg[param]]
-        return missing_config_params
+        auth_params, client_params = OpenStackClient._split_config(cfg)
+        OpenStackClient._validate_auth_params(auth_params)
 
-    def _raise_missing_config_params_error(self, missing_config_params):
+        if v3:
+            # keystone v3 complains if these aren't set.
+            for key in 'user_domain_name', 'project_domain_name':
+                auth_params.setdefault(key, 'default')
+
+        client_params['session'] = self._authenticate(auth_params)
+        self._client = client_class(**client_params)
+
+    @classmethod
+    def _validate_auth_params(cls, params):
+        if set(params.keys()) - cls.OPTIONAL_AUTH_PARAMS in cls.AUTH_SETS:
+            return
+
+        def set2str(s):
+            return '({})'.format(', '.join(sorted(s)))
+
+        received_params = set2str(params)
+        valid_auth_sets = map(set2str, cls.AUTH_SETS)
         raise NonRecoverableError(
-            "Missing Openstack configuration parameters: {0}; "
-            "Expected to find parameters either as environment "
-            "variables, in a JSON file (at either a path which is "
-            "set under the environment variable {1} or at the "
-            "default location {2}), or as nested properties under "
-            "a 'openstack_config' property".format(
-                ', '.join(missing_config_params),
-                Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
-                Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH))
+            "{} is not valid set of auth params. Expected to find parameters "
+            "either as environment variables, in a JSON file (at either a "
+            "path which is set under the environment variable {} or at the "
+            "default location {}), or as nested properties under an "
+            "'openstack_config' property. Valid auth param sets are: {}."
+            .format(received_params,
+                    Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
+                    Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH,
+                    ', '.join(valid_auth_sets)))
 
+    @staticmethod
+    def _merge_custom_configuration(cfg, client_name):
+        config = cfg.copy()
 
-# Clients procurers
-class KeystoneClient(OpenStackClient):
+        mapping = {
+            'nova_url': 'nova_client',
+            'neutron_url': 'neutron_client'
+        }
+        for key in 'nova_url', 'neutron_url':
+            val = config.pop(key, None)
+            if val is not None:
+                ctx.logger.warn(
+                    "'{}' property is deprecated. Use `custom_configuration"
+                    ".{}.endpoint_override` instead.".format(
+                        key, mapping[key]))
+                if mapping.get(key, None) == client_name:
+                    config['endpoint_override'] = val
 
-    def connect(self, cfg):
-        client_kwargs = {field: cfg[field] for field in
-                         self.REQUIRED_CONFIG_PARAMS}
+        if 'custom_configuration' in cfg:
+            del config['custom_configuration']
+            config.update(cfg['custom_configuration'].get(client_name, {}))
+        return config
 
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('keystone_client', {}))
+    @classmethod
+    def _split_config(cls, cfg):
+        all = reduce(lambda x, y: x | y, cls.AUTH_SETS)
+        all |= cls.OPTIONAL_AUTH_PARAMS
 
-        return keystone_client.Client(**client_kwargs)
-
-
-class NovaClient(OpenStackClient):
-
-    def connect(self, cfg):
-        # note: 'region_name' is required regardless of whether 'bypass_url'
-        # is used or not
-        client_kwargs = dict(
-            username=cfg['username'],
-            api_key=cfg['password'],
-            project_id=cfg['tenant_name'],
-            auth_url=cfg['auth_url'],
-            region_name=cfg.get('region', ''),
-            http_log_debug=False
-        )
-
-        if cfg.get('nova_url'):
-            client_kwargs['bypass_url'] = cfg['nova_url']
-
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('nova_client', {}))
-
-        return NovaClientWithSugar(**client_kwargs)
-
-
-class CinderClient(OpenStackClient):
-
-    def connect(self, cfg):
-        client_kwargs = dict(
-            username=cfg['username'],
-            api_key=cfg['password'],
-            project_id=cfg['tenant_name'],
-            auth_url=cfg['auth_url'],
-            region_name=cfg.get('region', '')
-        )
-
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('cinder_client', {}))
-
-        return CinderClientWithSugar(**client_kwargs)
-
-
-class NeutronClient(OpenStackClient):
-
-    def connect(self, cfg):
-        client_kwargs = dict(
-            username=cfg['username'],
-            password=cfg['password'],
-            tenant_name=cfg['tenant_name'],
-            auth_url=cfg['auth_url'],
-        )
-
-        if cfg.get('neutron_url'):
-            client_kwargs['endpoint_url'] = cfg['neutron_url']
-        else:
-            client_kwargs['region_name'] = cfg.get('region', '')
-
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('neutron_client', {}))
-
-        return NeutronClientWithSugar(**client_kwargs)
-
-
-# Decorators
-def _find_instanceof_in_kw(cls, kw):
-    ret = [v for v in kw.values() if isinstance(v, cls)]
-    if not ret:
-        return None
-    if len(ret) > 1:
-        raise NonRecoverableError(
-            "Expected to find exactly one instance of {0} in "
-            "kwargs but found {1}".format(cls, len(ret)))
-    return ret[0]
-
-
-def _find_context_in_kw(kw):
-    return _find_instanceof_in_kw(cloudify.context.CloudifyContext, kw)
-
-
-def with_neutron_client(f):
-    @wraps(f)
-    def wrapper(*args, **kw):
-        _put_client_in_kw('neutron_client', NeutronClient, kw)
-
-        try:
-            return f(*args, **kw)
-        except neutron_exceptions.NeutronClientException, e:
-            if e.status_code in _non_recoverable_error_codes:
-                _re_raise(e, recoverable=False, status_code=e.status_code)
+        auth, misc = {}, {}
+        for param, value in cfg.items():
+            if param in all:
+                auth[param] = value
             else:
-                raise
-    return wrapper
+                misc[param] = value
+        return auth, misc
 
+    @staticmethod
+    def _authenticate(cfg):
+        verify = True
+        if 'insecure' in cfg:
+            cfg = cfg.copy()
+            # NOTE: Next line will evaluate to False only when insecure is set
+            # to True. Any other value (string etc.) will force verify to True.
+            # This is done on purpose, since we do not wish to use insecure
+            # connection by mistake.
+            verify = not (cfg['insecure'] is True)
+            del cfg['insecure']
+        loader = loading.get_plugin_loader("password")
+        auth = loader.load_from_options(**cfg)
+        sess = session.Session(auth=auth, verify=verify)
+        return sess
 
-def with_nova_client(f):
-    @wraps(f)
-    def wrapper(*args, **kw):
-        _put_client_in_kw('nova_client', NovaClient, kw)
+    # Proxy any unknown call to base client
+    def __getattr__(self, attr):
+        return getattr(self._client, attr)
 
-        try:
-            return f(*args, **kw)
-        except nova_exceptions.OverLimit, e:
-            _re_raise(e, recoverable=True, retry_after=e.retry_after)
-        except nova_exceptions.ClientException, e:
-            if e.code in _non_recoverable_error_codes:
-                _re_raise(e, recoverable=False, status_code=e.code)
-            else:
-                raise
-    return wrapper
-
-
-def with_cinder_client(f):
-    @wraps(f)
-    def wrapper(*args, **kw):
-        _put_client_in_kw('cinder_client', CinderClient, kw)
-
-        try:
-            return f(*args, **kw)
-        except cinder_exceptions.ClientException, e:
-            if e.code in _non_recoverable_error_codes:
-                _re_raise(e, recoverable=False, status_code=e.code)
-            else:
-                raise
-    return wrapper
-
-
-def _put_client_in_kw(client_name, client_class, kw):
-    if client_name in kw:
-        return
-
-    ctx = _find_context_in_kw(kw)
-    if ctx.type == context.NODE_INSTANCE:
-        config = ctx.node.properties.get('openstack_config')
-    elif ctx.type == context.RELATIONSHIP_INSTANCE:
-        config = ctx.source.node.properties.get('openstack_config')
-        if not config:
-            config = ctx.target.node.properties.get('openstack_config')
-    else:
-        config = None
-    if 'openstack_config' in kw:
-        if config:
-            config = config.copy()
-            config.update(kw['openstack_config'])
-        else:
-            config = kw['openstack_config']
-    kw[client_name] = client_class().get(config=config)
-
-
-_non_recoverable_error_codes = [400, 401, 403, 404, 409]
-
-
-def _re_raise(e, recoverable, retry_after=None, status_code=None):
-    exc_type, exc, traceback = sys.exc_info()
-    message = e.message
-    if status_code is not None:
-        message = '{0} [status_code={1}]'.format(message, status_code)
-    if recoverable:
-        if retry_after == 0:
-            retry_after = None
-        raise RecoverableError(
-            message=message,
-            retry_after=retry_after), None, traceback
-    else:
-        raise NonRecoverableError(message), None, traceback
-
-
-# Sugar for clients
-
-class ClientWithSugar(object):
-
+    # Sugar, common to all clients
     def cosmo_plural(self, obj_type_single):
         return obj_type_single + 's'
 
@@ -626,7 +559,176 @@ class ClientWithSugar(object):
         return ls[0] if ls else None
 
 
-class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
+class GlanceClient(OpenStackClient):
+
+    # Can't glance_url be figured out from keystone
+    REQUIRED_CONFIG_PARAMS = \
+        ['username', 'password', 'tenant_name', 'auth_url']
+
+    def connect(self, cfg):
+        loader = loading.get_plugin_loader('password')
+        auth = loader.load_from_options(
+            auth_url=cfg['auth_url'],
+            username=cfg['username'],
+            password=cfg['password'],
+            tenant_name=cfg['tenant_name'])
+        sess = session.Session(auth=auth)
+
+        client_kwargs = dict(
+            session=sess,
+        )
+        if cfg.get('glance_url'):
+            client_kwargs['endpoint'] = cfg['glance_url']
+
+        return GlanceClientWithSugar(**client_kwargs)
+
+
+# Decorators
+def _find_instanceof_in_kw(cls, kw):
+    ret = [v for v in kw.values() if isinstance(v, cls)]
+    if not ret:
+        return None
+    if len(ret) > 1:
+        raise NonRecoverableError(
+            "Expected to find exactly one instance of {0} in "
+            "kwargs but found {1}".format(cls, len(ret)))
+    return ret[0]
+
+
+def _find_context_in_kw(kw):
+    return _find_instanceof_in_kw(cloudify.context.CloudifyContext, kw)
+
+
+def with_neutron_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('neutron_client', NeutronClientWithSugar, kw)
+
+        try:
+            return f(*args, **kw)
+        except neutron_exceptions.NeutronClientException, e:
+            if e.status_code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.status_code)
+            else:
+                raise
+    return wrapper
+
+
+def with_nova_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('nova_client', NovaClientWithSugar, kw)
+
+        try:
+            return f(*args, **kw)
+        except nova_exceptions.OverLimit, e:
+            _re_raise(e, recoverable=True, retry_after=e.retry_after)
+        except nova_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.code)
+            else:
+                raise
+    return wrapper
+
+
+def with_cinder_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('cinder_client', CinderClientWithSugar, kw)
+
+        try:
+            return f(*args, **kw)
+        except cinder_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.code)
+            else:
+                raise
+    return wrapper
+
+
+def with_glance_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('glance_client', GlanceClientWithSugar, kw)
+
+        try:
+            return f(*args, **kw)
+        except glance_exceptions.ClientException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.code)
+            else:
+                raise
+    return wrapper
+
+
+def with_keystone_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('keystone_client', KeystoneClientWithSugar, kw)
+
+        try:
+            return f(*args, **kw)
+        except keystone_exceptions.HTTPError, e:
+            if e.http_status in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.http_status)
+            else:
+                raise
+        except keystone_exceptions.ClientException, e:
+            _re_raise(e, recoverable=False)
+    return wrapper
+
+
+def _put_client_in_kw(client_name, client_class, kw):
+    if client_name in kw:
+        return
+
+    ctx = _find_context_in_kw(kw)
+    if ctx.type == context.NODE_INSTANCE:
+        config = ctx.node.properties.get('openstack_config')
+    elif ctx.type == context.RELATIONSHIP_INSTANCE:
+        config = ctx.source.node.properties.get('openstack_config')
+        if not config:
+            config = ctx.target.node.properties.get('openstack_config')
+    else:
+        config = None
+    if 'openstack_config' in kw:
+        if config:
+            config = config.copy()
+            config.update(kw['openstack_config'])
+        else:
+            config = kw['openstack_config']
+    kw[client_name] = client_class(config=config)
+
+
+_non_recoverable_error_codes = [400, 401, 403, 404, 409]
+
+
+def _re_raise(e, recoverable, retry_after=None, status_code=None):
+    exc_type, exc, traceback = sys.exc_info()
+    message = e.message
+    if status_code is not None:
+        message = '{0} [status_code={1}]'.format(message, status_code)
+    if recoverable:
+        if retry_after == 0:
+            retry_after = None
+        raise RecoverableError(
+            message=message,
+            retry_after=retry_after), None, traceback
+    else:
+        raise NonRecoverableError(message), None, traceback
+
+
+# Sugar for clients
+
+class NovaClientWithSugar(OpenStackClient):
+
+    def __init__(self, *args, **kw):
+        config = kw['config']
+        if config.get('nova_url'):
+            config['endpoint_override'] = config.pop('nova_url')
+
+        super(NovaClientWithSugar, self).__init__(
+            'nova_client', partial(nova_client.Client, '2'), *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for xxx.findall() - not using xxx.list() because findall
@@ -671,7 +773,11 @@ class NovaClientWithSugar(nova_client.Client, ClientWithSugar):
         return self.cosmo_plural(obj_type_single)
 
 
-class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
+class NeutronClientWithSugar(OpenStackClient):
+
+    def __init__(self, *args, **kw):
+        super(NeutronClientWithSugar, self).__init__(
+            'neutron_client', neutron_client.Client, *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for list_XXXs()['XXXs'] """
@@ -727,12 +833,16 @@ class NeutronClientWithSugar(neutron_client.Client, ClientWithSugar):
         return ls[0]
 
 
-class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
+class CinderClientWithSugar(OpenStackClient):
+
+    def __init__(self, *args, **kw):
+        super(CinderClientWithSugar, self).__init__(
+            'cinder_client', partial(cinder_client.Client, '2'), *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         obj_type_plural = self.cosmo_plural(obj_type_single)
         for obj in getattr(self, obj_type_plural).findall(**kw):
-                yield obj
+            yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
         obj_type_plural = self.cosmo_plural(obj_type_single)
@@ -742,7 +852,7 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
         return resource.id
 
     def get_name_from_resource(self, resource):
-        return resource.display_name
+        return resource.name
 
     def get_quota(self, obj_type_single):
         # we're already authenticated, but the following call will make
@@ -751,6 +861,58 @@ class CinderClientWithSugar(cinder_client.Client, ClientWithSugar):
         # None if project_id (AKA tenant_name) was used instead; However the
         # actual tenant_id must be used to retrieve the quotas)
         self.client.authenticate()
-        tenant_id = self.client.service_catalog.get_token()['tenant_id']
-        quotas = self.quotas.get(tenant_id)
+        project_id = self.client.session.get_project_id()
+        quotas = self.quotas.get(project_id)
         return getattr(quotas, self.cosmo_plural(obj_type_single))
+
+
+class KeystoneClientWithSugar(OpenStackClient):
+    # keystone does not have resource quota
+    KEYSTONE_INFINITE_RESOURCE_QUOTA = 10**9
+
+    def __init__(self, *args, **kw):
+        super(KeystoneClientWithSugar, self).__init__(
+            'keystone_client', keystone_client.Client, *args, **kw)
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        for obj in getattr(self, obj_type_plural).list(**kw):
+            yield obj
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.name
+
+    def get_quota(self, obj_type_single):
+        return self.KEYSTONE_INFINITE_RESOURCE_QUOTA
+
+
+class GlanceClientWithSugar(OpenStackClient):
+    GLANCE_INIFINITE_RESOURCE_QUOTA = 10**9
+
+    def __init__(self, *args, **kw):
+        super(GlanceClientWithSugar, self).__init__(
+            'glance_client', partial(glance_client.Client, '2'), *args, **kw)
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        return getattr(self, obj_type_plural).list(filters=kw)
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.name
+
+    def get_quota(self, obj_type_single):
+        return self.GLANCE_INIFINITE_RESOURCE_QUOTA

@@ -20,6 +20,7 @@ from openstack_plugin_common import (
     with_neutron_client,
     provider,
     is_external_relationship,
+    is_external_relationship_not_conditionally_created,
     OPENSTACK_ID_PROPERTY
 )
 from openstack_plugin_common.floatingip import (
@@ -53,8 +54,9 @@ def create(neutron_client, args, **kwargs):
         ext_network = provider_context.ext_network
         if ext_network:
             floatingip['floating_network_id'] = ext_network['id']
-    else:
-        raise NonRecoverableError('Missing floating network id or name')
+        else:
+            raise NonRecoverableError(
+                'Missing floating network id, name or external network')
 
     fip = neutron_client.create_floatingip(
         {'floatingip': floatingip})['floatingip']
@@ -78,7 +80,7 @@ def creation_validation(neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def connect_port(neutron_client, **kwargs):
-    if is_external_relationship(ctx):
+    if is_external_relationship_not_conditionally_created(ctx):
         return
 
     port_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]

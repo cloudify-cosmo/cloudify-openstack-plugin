@@ -19,23 +19,27 @@ from setuptools import setup
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='1.4',
+    version='2.0.2.dev1',
     author='idanmo',
     author_email='idan@gigaspaces.com',
     packages=[
         'openstack_plugin_common',
         'nova_plugin',
         'neutron_plugin',
-        'cinder_plugin'
+        'cinder_plugin',
+        'glance_plugin',
+        'keystone_plugin'
     ],
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
     install_requires=[
         'cloudify-plugins-common>=3.3.1',
-        'python-novaclient==2.26.0',
-        'python-keystoneclient==1.6.0',
-        'python-neutronclient==2.6.0',
-        'python-cinderclient==1.2.2',
+        'keystoneauth1>=2.16.0,<3',
+        'python-novaclient==7.0.0',
+        'python-keystoneclient==3.5.0',
+        'python-neutronclient==6.0.0',
+        'python-cinderclient==1.9.0',
+        'python-glanceclient==2.5.0',
         'IPy==0.81'
     ]
 )

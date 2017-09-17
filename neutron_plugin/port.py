@@ -32,8 +32,8 @@ from openstack_plugin_common import (
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
-    COMMON_RUNTIME_PROPERTIES_KEYS
-)
+    COMMON_RUNTIME_PROPERTIES_KEYS,
+    is_external_relationship_not_conditionally_created)
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
@@ -42,8 +42,12 @@ PORT_OPENSTACK_TYPE = 'port'
 
 # Runtime properties
 FIXED_IP_ADDRESS_PROPERTY = 'fixed_ip_address'  # the fixed ip address
+MAC_ADDRESS_PROPERTY = 'mac_address'  # the mac address
 RUNTIME_PROPERTIES_KEYS = \
-    COMMON_RUNTIME_PROPERTIES_KEYS + [FIXED_IP_ADDRESS_PROPERTY]
+    COMMON_RUNTIME_PROPERTIES_KEYS + [FIXED_IP_ADDRESS_PROPERTY,
+                                      MAC_ADDRESS_PROPERTY]
+
+NO_SG_PORT_CONNECTION_RETRY_INTERVAL = 3
 
 
 @operation
@@ -69,6 +73,8 @@ def create(neutron_client, args, **kwargs):
 
             ctx.instance.runtime_properties[FIXED_IP_ADDRESS_PROPERTY] = \
                 _get_fixed_ip(ext_port)
+            ctx.instance.runtime_properties[MAC_ADDRESS_PROPERTY] = \
+                ext_port['mac_address']
             return
         except Exception:
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
@@ -94,6 +100,7 @@ def create(neutron_client, args, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = p['name']
     ctx.instance.runtime_properties[FIXED_IP_ADDRESS_PROPERTY] = \
         _get_fixed_ip(p)
+    ctx.instance.runtime_properties[MAC_ADDRESS_PROPERTY] = p['mac_address']
 
 
 @operation
@@ -148,7 +155,7 @@ def connect_security_group(neutron_client, **kwargs):
     security_group_id = ctx.target.instance.runtime_properties[
         OPENSTACK_ID_PROPERTY]
 
-    if is_external_relationship(ctx):
+    if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external port and security-group are '
                         'connected')
         if any(sg for sg in neutron_client.show_port(port_id)['port'].get(
@@ -165,6 +172,18 @@ def connect_security_group(neutron_client, **kwargs):
             port_id, ctx.target.instance.runtime_properties))
     sgs = port['security_groups'] + [security_group_id]
     neutron_client.update_port(port_id, {'port': {'security_groups': sgs}})
+
+    # Double check if SG has been actually updated (a race-condition
+    # in OpenStack):
+    port_info = neutron_client.show_port(port_id)['port']
+    port_security_groups = port_info.get('security_groups', [])
+    if security_group_id not in port_security_groups:
+        return ctx.operation.retry(
+            message='Security group connection (`{0}\' -> `{1}\')'
+                    ' has not been established!'.format(port_id,
+                                                        security_group_id),
+            retry_after=NO_SG_PORT_CONNECTION_RETRY_INTERVAL
+        )
 
 
 @operation

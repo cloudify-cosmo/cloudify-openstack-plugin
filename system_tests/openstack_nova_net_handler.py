@@ -94,4 +94,5 @@ class OpenstackNovaNetHandler(OpenstackHandler):
 
         return failed
 
+
 handler = OpenstackNovaNetHandler

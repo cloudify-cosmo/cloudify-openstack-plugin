@@ -23,11 +23,12 @@ import nova_plugin
 from cloudify.test_utils import workflow_test
 
 from openstack_plugin_common import NeutronClientWithSugar, \
-    OPENSTACK_TYPE_PROPERTY, OPENSTACK_ID_PROPERTY
+    OPENSTACK_TYPE_PROPERTY, OPENSTACK_ID_PROPERTY, OPENSTACK_NAME_PROPERTY
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from nova_plugin.tests.test_relationships import RelationshipsTestBase
 from nova_plugin.server import _prepare_server_nics
+from novaclient import exceptions as nova_exceptions
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
 from cloudify.exceptions import NonRecoverableError
 from cloudify.state import current_ctx
@@ -36,6 +37,7 @@ from cloudify.utils import setup_logger
 
 from cloudify.mocks import (
     MockNodeContext,
+    MockContext,
     MockCloudifyContext,
     MockNodeInstanceContext,
     MockRelationshipContext,
@@ -462,6 +464,45 @@ class TestImageFromRelationships(unittest.TestCase):
         ctx = mock.MagicMock()
         nova_plugin.server.handle_image_from_relationship(server, 'image', ctx)
         self.assertNotIn('image', server)
+
+
+@mock.patch('openstack_plugin_common.OpenStackClient._validate_auth_params')
+class TestServerSGAttachments(unittest.TestCase):
+    def setUp(self):
+        ctx = MockCloudifyContext(
+            target=MockContext({
+                'instance': MockNodeInstanceContext(
+                    'sg1', {
+                        OPENSTACK_ID_PROPERTY: 'test-sg',
+                        OPENSTACK_NAME_PROPERTY: 'test-sg-name'
+                    })
+            }),
+            source=MockContext({
+                'node': mock.MagicMock(),
+                'instance': MockNodeInstanceContext(
+                    'server', {
+                        OPENSTACK_ID_PROPERTY: 'server'
+                    }
+                )})
+        )
+
+        current_ctx.set(ctx)
+        self.addCleanup(current_ctx.clear)
+        findctx = mock.patch(
+            'openstack_plugin_common._find_context_in_kw',
+            return_value=ctx,
+        )
+        findctx.start()
+        self.addCleanup(findctx.stop)
+
+    def test_detach_already_detached(self, *kwargs):
+        fake_client = mock.MagicMock()
+        fake_client().servers.get = mock.MagicMock()
+        fake_client().servers.get().remove_security_group = mock.MagicMock(
+            side_effect=nova_exceptions.NotFound('test'))
+        with mock.patch('openstack_plugin_common.NovaClientWithSugar',
+                        fake_client):
+            nova_plugin.server.disconnect_security_group()
 
 
 class TestServerRelationships(unittest.TestCase):

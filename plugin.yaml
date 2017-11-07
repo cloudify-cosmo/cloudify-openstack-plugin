@@ -576,13 +576,13 @@ node_types:
               description: >
                 Number of times to check for the creation's status before failing
               type: integer
-              default: 20 
+              default: 20
             status_timeout:
               description: >
                 Interval (in seconds) between subsequent inquiries of the creation's
                 status
               type: integer
-              default: 15 
+              default: 15
         delete:
           implementation: openstack.cinder_plugin.volume.delete
           inputs:
@@ -820,6 +820,61 @@ node_types:
       cloudify.interfaces.validation:
         creation: openstack.keystone_plugin.project.creation_validation
 
+  cloudify.openstack.nodes.ServerGroup:
+    derived_from: cloudify.nodes.Root
+    properties:
+      policy:
+        type: string
+        description: >
+          the policy of the server group, this must be either 'affinity',
+          'anti-affinity', 'soft-affinity', or 'soft-anti-affinity'.
+      use_external_resource:
+        type: boolean
+        default: false
+        description: >
+          a boolean describing whether this resource should be
+          created or rather that it already exists on Openstack
+          and should be used as-is.
+      create_if_missing:
+        default: false
+        description: >
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
+      resource_id:
+        default: ''
+        description: >
+          the name that will be given to the resource on Openstack (excluding optional prefix).
+          If not provided, a default name will be given instead.
+          If use_external_resource is set to "true", this exact
+          value (without any prefixes applied) will be looked for
+          as either the name or id of an existing server group to be used.
+      openstack_config:
+        default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.server_group.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.nova_plugin.server_group.delete
+          inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.validation:
+        creation:
+          implementation: openstack.nova_plugin.server_group.creation_validation
+          inputs:
+            openstack_config:
+              default: {}
+
 relationships:
   cloudify.openstack.port_connected_to_security_group:
     derived_from: cloudify.relationships.connected_to
@@ -949,3 +1004,6 @@ relationships:
                 status
               type: integer
               default: 2
+
+  cloudify.openstack.server_connected_to_server_group:
+    derived_from: cloudify.relationships.connected_to

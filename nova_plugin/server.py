@@ -53,6 +53,7 @@ from openstack_plugin_common import (
     COMMON_RUNTIME_PROPERTIES_KEYS,
     with_neutron_client)
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
+from nova_plugin.server_group import SERVER_GROUP_OPENSTACK_TYPE
 from nova_plugin import userdata
 from openstack_plugin_common.floatingip import (IP_ADDRESS_PROPERTY,
                                                 get_server_floating_ip)
@@ -341,6 +342,14 @@ def create(nova_client, neutron_client, args, **kwargs):
         'server')
 
     _prepare_server_nics(neutron_client, ctx, server)
+
+    # server group handling
+    server_group_id = get_openstack_id_of_single_connected_node_by_openstack_type(
+        ctx, SERVER_GROUP_OPENSTACK_TYPE, True)
+    if server_group_id:
+        scheduler_hints = server.get('scheduler_hints', {})
+        scheduler_hints['group'] = server_group_id
+        server['scheduler_hints'] = scheduler_hints
 
     ctx.logger.debug(
         "server.create() server after transformations: {0}".format(server))

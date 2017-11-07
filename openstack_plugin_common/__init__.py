@@ -815,7 +815,7 @@ class NovaClientWithSugar(OpenStackClient):
             config['endpoint_override'] = config.pop('nova_url')
 
         super(NovaClientWithSugar, self).__init__(
-            'nova_client', partial(nova_client.Client, '2'), *args, **kw)
+            'nova_client', partial(nova_client.Client, '2.15'), *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for xxx.findall() - not using xxx.list() because findall

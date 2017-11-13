@@ -91,9 +91,6 @@ The following is an excerpt from the blueprint's `blueprint`.`nodes` section::
           type: cloudify.openstack.server_connected_to_security_group
 
 
-Node by node explanation
-~~~~~~~~~~~~~~~~~~~~~~~~
-
 1. Creates a floating IP, whose node name is ``my_floating_ip``, and whose floating_network_name is ``Ext-Net`` (This value represents the name of the external network).
 2. Creates a network, whose node name is ``my_network``, and whose name on Openstack is ``my_network_openstack_name``.
 3. Creates a subnet, whose node name is ``my_subnet``, and whose name on Openstack is ``my_subnet_openstack_name``. The subnet's address range is defined to be 1.2.3.0 - 1.2.3.255 using the ``cidr`` parameter, and the subnet's IP version is set to version 4. The subnet will be set on the ``my_network_openstack_name`` network because of the relationship to the ``my_network`` node.
@@ -202,9 +199,6 @@ The following is an excerpt from the blueprint's ``blueprint``.``node_templates`
           type: cloudify.openstack.server_connected_to_port
 
 
-Node by node explanation
-~~~~~~~~~~~~~~~~~~~~~~~~
-
 1. Creates a network. See Example I for more information.
 
 2. Creates a security group. See Example I for more information.
@@ -263,8 +257,6 @@ The following is an excerpt from the blueprint's ``blueprint``.``node_templates`
         - target: my_server
           type: cloudify.openstack.volume_attached_to_server
 
-Node by node explanation
-~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Creates a server, with name ``my_server``, and with name on Openstack **the node's ID** (since no ``name`` parameter was supplied under the ``server`` property). The server is set with an image and flavor IDs.
 2. Creates a volume. It is set with a relationship to the ``my_server`` node: This designated relationship type will take care of attaching the volume to Openstack server node.
@@ -335,8 +327,6 @@ The following is an excerpt from the blueprint's ``blueprint``.``node_templates`
                 user: Admin
                 password: { get_attribute: [SELF, password] }
 
-Node by node explanation
-~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Creates a keypair. the private key will be saved under ``/tmp/windows-test.pem``.
 2. Creates a Windows server:

@@ -64,8 +64,7 @@ def create(glance_client, **kwargs):
                     image_data=image_file)
         elif img_url:
             img = glance_client.images.add_location(img.id, img_url, {})
-
-    except:
+    except Exception:
         _remove_protected(glance_client)
         glance_client.images.delete(image_id=img.id)
         raise

@@ -33,7 +33,9 @@ from openstack_plugin_common import (
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     with_nova_client,
     with_cinder_client,
+    assign_payload_as_runtime_properties,
     get_openstack_id_of_single_connected_node_by_openstack_type,
+    get_openstack_names_of_connected_nodes_by_openstack_type,
     get_single_connected_node_by_openstack_type,
     is_external_resource,
     is_external_resource_by_properties,
@@ -52,10 +54,13 @@ from openstack_plugin_common import (
     with_neutron_client)
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
 from nova_plugin import userdata
-from openstack_plugin_common.floatingip import IP_ADDRESS_PROPERTY
+from openstack_plugin_common.floatingip import (IP_ADDRESS_PROPERTY,
+                                                get_server_floating_ip)
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+from openstack_plugin_common.security_group import \
+    SECURITY_GROUP_OPENSTACK_TYPE
 from glance_plugin.image import handle_image_from_relationship
 
 SERVER_OPENSTACK_TYPE = 'server'
@@ -287,6 +292,15 @@ def create(nova_client, neutron_client, args, **kwargs):
         if asg not in security_groups:
             security_groups.append(asg)
         server['security_groups'] = security_groups
+    elif not server.get('security_groups', []):
+        # Make sure that if the server is connected to a security group
+        # from CREATE time so that there the user can control
+        # that there is never a time that a running server is not protected.
+        security_group_names = \
+            get_openstack_names_of_connected_nodes_by_openstack_type(
+                ctx,
+                SECURITY_GROUP_OPENSTACK_TYPE)
+        server['security_groups'] = security_group_names
 
     # server keypair handling
     keypair_id = get_openstack_id_of_single_connected_node_by_openstack_type(
@@ -304,15 +318,16 @@ def create(nova_client, neutron_client, args, **kwargs):
     elif provider_context.agents_keypair:
         server['key_name'] = provider_context.agents_keypair['name']
     else:
-        raise NonRecoverableError(
+        server['key_name'] = None
+        ctx.logger.info(
             'server must have a keypair, yet no keypair was connected to the '
             'server node, the "key_name" nested property '
             "wasn't used, and there is no agent keypair in the provider "
-            "context")
+            "context. Agent installation can have issues.")
 
     _fail_on_missing_required_parameters(
         server,
-        ('name', 'flavor', 'key_name'),
+        ('name', 'flavor'),
         'server')
 
     _prepare_server_nics(neutron_client, ctx, server)
@@ -323,6 +338,8 @@ def create(nova_client, neutron_client, args, **kwargs):
     userdata.handle_userdata(server)
 
     ctx.logger.info("Creating VM with parameters: {0}".format(str(server)))
+    # Store the server dictionary contents in runtime properties
+    assign_payload_as_runtime_properties(ctx, SERVER_OPENSTACK_TYPE, server)
     ctx.logger.debug(
         "Asking Nova to create server. All possible parameters are: {0})"
         .format(','.join(server.keys())))
@@ -530,16 +547,22 @@ def connect_floatingip(nova_client, fixed_ip, **kwargs):
 
 @operation
 @with_nova_client
-def disconnect_floatingip(nova_client, **kwargs):
+@with_neutron_client
+def disconnect_floatingip(nova_client, neutron_client, **kwargs):
     if is_external_relationship(ctx):
         ctx.logger.info('Not disassociating floatingip and server since '
                         'external floatingip and server are being used')
         return
 
     server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    server = nova_client.servers.get(server_id)
-    server.remove_floating_ip(ctx.target.instance.runtime_properties[
-        IP_ADDRESS_PROPERTY])
+    ctx.logger.info("Remove floating ip {0}".format(
+        ctx.target.instance.runtime_properties[IP_ADDRESS_PROPERTY]))
+    server_floating_ip = get_server_floating_ip(neutron_client, server_id)
+    if server_floating_ip:
+        server = nova_client.servers.get(server_id)
+        server.remove_floating_ip(server_floating_ip['floating_ip_address'])
+        ctx.logger.info("Floating ip {0} detached from server"
+                        .format(server_floating_ip['floating_ip_address']))
 
 
 @operation
@@ -563,9 +586,16 @@ def connect_security_group(nova_client, **kwargs):
             'be connected'.format(server_id, security_group_id))
 
     server = nova_client.servers.get(server_id)
-    # to support nova security groups as well, we connect the security group
-    # by name (as connecting by id doesn't seem to work well for nova SGs)
-    server.add_security_group(security_group_name)
+    for security_group in server.list_security_group():
+        # Since some security groups are already attached in
+        # create this will ensure that they are not attached twice.
+        if security_group_id != security_group.id and \
+                security_group_name != security_group.name:
+            # to support nova security groups as well,
+            # we connect the security group by name
+            # (as connecting by id
+            # doesn't seem to work well for nova SGs)
+            server.add_security_group(security_group_name)
 
     _validate_security_group_and_server_connection_status(nova_client,
                                                           server_id,
@@ -590,13 +620,17 @@ def disconnect_security_group(nova_client, **kwargs):
     server = nova_client.servers.get(server_id)
     # to support nova security groups as well, we disconnect the security group
     # by name (as disconnecting by id doesn't seem to work well for nova SGs)
-    server.remove_security_group(security_group_name)
-
-    _validate_security_group_and_server_connection_status(nova_client,
-                                                          server_id,
-                                                          security_group_id,
-                                                          security_group_name,
-                                                          is_connected=False)
+    try:
+        server.remove_security_group(security_group_name)
+    except nova_exceptions.NotFound:
+        ctx.logger.warn("Security group '{0}' (id: {1}) is not attached "
+                        "to server instance {2}; skipping"
+                        .format(security_group_name, security_group_id,
+                                server_id))
+    else:
+        _validate_security_group_and_server_connection_status(
+            nova_client, server_id, security_group_id, security_group_name,
+            is_connected=False)
 
 
 @operation

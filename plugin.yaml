@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.0.1.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.2.0.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.0.1'
+    package_version: '2.2.0'
 
 node_types:
   cloudify.openstack.nodes.Server:
@@ -494,8 +494,6 @@ node_types:
       resource_id:
         description: IP address of the floating IP
         default: ''
-        description: >
-          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
         default: {}
         description: >

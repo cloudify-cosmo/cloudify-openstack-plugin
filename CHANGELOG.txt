@@ -1,3 +1,10 @@
+2.2.0 :
+    - Fix duplicated mapping key in plugin.yaml.
+    - Create Server with security groups from instance relationships. This prevents a window of time when a server can
+    be unsecured. (OPENSTACK-38)
+    - Fix floating IP detach issue. (OPENSTACK-12)
+    - Allow openstack_config as runtime property. (OPENSTACK-112)
+    - Fix key creation when folders don't exist.  (OPENSTACK-7)
 2.0.1:
     - Don't overwrite server['image'] when server is booted from volume
     - Fix loading auth_url from environment (OPENSTACK-101)
@@ -21,4 +28,3 @@
     - Get mac address from port after creation.
     - Raise error also when external network is missing in floating ip creation. Previously, an error was raised only
       when floating network id or name was missing.
-

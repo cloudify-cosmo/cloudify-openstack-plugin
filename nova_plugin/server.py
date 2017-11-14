@@ -87,13 +87,11 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
 def _get_management_network_id_and_name(neutron_client, ctx):
     """Examine the context to find the management network id and name."""
     management_network_id = None
-    management_network_name = None
+    management_network_name = \
+        ctx.node.properties.get('management_network_name')
     provider_context = provider(ctx)
 
-    if ('management_network_name' in ctx.node.properties) and \
-            ctx.node.properties['management_network_name']:
-        management_network_name = \
-            ctx.node.properties['management_network_name']
+    if management_network_name:
         management_network_name = transform_resource_name(
             ctx, management_network_name)
         management_network_id = neutron_client.cosmo_get_named(
@@ -157,18 +155,35 @@ def _prepare_server_nics(neutron_client, ctx, server):
         ctx, PORT_OPENSTACK_TYPE)
     management_network_id, management_network_name = \
         _get_management_network_id_and_name(neutron_client, ctx)
-    if management_network_id is None and (network_ids or port_ids):
-        # Known limitation
-        raise NonRecoverableError(
-            "Nova server with NICs requires "
-            "'management_network_name' in properties or id "
-            "from provider context, which was not supplied")
+
+    if management_network_id or management_network_name:
+        ctx.logger.warning(
+            'A management_network_name was provided ({0}), '
+            'however this node property is deprecated. '
+            'Instead, use a '
+            'cloudify.openstack.server_connected_to_port '
+            'relationship to a '
+            'cloudify.openstack.nodes.Port type '
+            'or a cloudify.relationships.depends_on '
+            'derived relationship to a '
+            'cloudify.openstack.nodes.Network type '
+            'node template. '
+            'In Cloudify 3.4.x and above, relationships are ordered. '
+            'NICS on a Server are ordered according to '
+            'relationship order'.format(management_network_name))
+
+    port_networks = get_port_networks(neutron_client, port_ids)
+
+    for port_network in port_networks:
+        for network_id in network_ids:
+            if network_id in port_network.get('net-id'):
+                network_ids.remove(network_id)
 
     nics = _merge_nics(
         management_network_id,
         server.get('nics', []),
         [{'net-id': net_id} for net_id in network_ids],
-        get_port_networks(neutron_client, port_ids))
+        port_networks)
 
     nics = _normalize_nics(nics)
 
@@ -351,11 +366,6 @@ def create(nova_client, neutron_client, args, **kwargs):
             return ctx.operation.retry(
                 message='Block Device Mapping is not created yet',
                 retry_after=30)
-        if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
-            raise NonRecoverableError(
-                "Can not provision server: management_network_name or id"
-                " is not specified but there are several networks that the "
-                "server can be connected to.")
         raise
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = s.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \

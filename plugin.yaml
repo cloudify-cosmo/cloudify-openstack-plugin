@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.2.0.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.3.0.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.2.0'
+    package_version: '2.3.0'
 
 node_types:
   cloudify.openstack.nodes.Server:
@@ -49,16 +49,14 @@ node_types:
           but will be modified to become a required property in future versions
           (Default: '').
       management_network_name:
-        default: ''
+        required: false
         description: >
-          Cloudify's management network name.
-          Every server should be connected to the management network.
+          Old requirement called management network name. Not required. Leave blank. Retained for backward compatibility.
+          Not every server need be connected to a management network.
           If the management network's name information is available in the Provider Context,
           this connection is made automatically and there's no need to override this property
           (See the Misc section for more information on the Openstack Provider Context).
-          Otherwise, it is required to set the value of this property to the management network name as it was set in the bootstrap process.
-          Note: When using Nova-net Openstack (see the Nova-net Support section),
-          don't set this property. Defaults to '' (empty string).
+          It is not required to set the value of this property to the management network name. As of Cloudify 4.0, it has no relationship to the bootstrap process.
       use_password:
         default: false
         description: >

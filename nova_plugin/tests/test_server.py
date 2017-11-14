@@ -192,6 +192,15 @@ class TestServer(unittest.TestCase):
 
 
 class TestMergeNICs(unittest.TestCase):
+    def test_no_management_network(self):
+        mgmt_network_id = None
+        nics = [{'net-id': 'other network'}]
+
+        merged = nova_plugin.server._merge_nics(mgmt_network_id, nics)
+
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]['net-id'], 'other network')
+
     def test_merge_prepends_management_network(self):
         """When the mgmt network isnt in a relationship, its the 1st nic."""
         mgmt_network_id = 'management network'
@@ -564,6 +573,22 @@ class TestServerNetworkRuntimeProperties(unittest.TestCase):
         current_ctx.set(ctx=ctx)
         server = mock.MagicMock()
         network_id = 'management_network'
+        network_ips = ['good', 'bad1', 'bad2']
+        setattr(server,
+                'networks',
+                {network_id: network_ips})
+        nova_plugin.server._set_network_and_ip_runtime_properties(server)
+        self.assertIn('networks', ctx.instance.runtime_properties.keys())
+        self.assertIn('ip', ctx.instance.runtime_properties.keys())
+        self.assertEquals(ctx.instance.runtime_properties['ip'], 'good')
+        self.assertEquals(ctx.instance.runtime_properties['networks'],
+                          {network_id: network_ips})
+
+    def test_server_networks_runtime_properties_valid_networks_no_mgmt(self):
+        ctx = self.mock_ctx
+        current_ctx.set(ctx=ctx)
+        server = mock.MagicMock()
+        network_id = None
         network_ips = ['good', 'bad1', 'bad2']
         setattr(server,
                 'networks',

@@ -157,7 +157,17 @@ def _prepare_server_nics(neutron_client, ctx, server):
         _get_management_network_id_and_name(neutron_client, ctx)
 
     if management_network_id or management_network_name:
-        ctx.logger.debug('Management Network id deprecated and was provided.')
+        ctx.logger.warning(
+            'A management_network_name was provided ({0}), '
+            'however this node property is deprecated. '
+            'Instead, use a '
+            'cloudify.openstack.server_connected_to_port '
+            'relationship to a '
+            'cloudify.openstack.nodes.Port type '
+            'node template. '
+            'In Cloudify 3.4.x and above, relationships are ordered. '
+            'NICS on a Server are ordered according to '
+            'relationship order'.format(management_network_name))
 
     port_networks = get_port_networks(neutron_client, port_ids)
 

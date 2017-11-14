@@ -363,11 +363,6 @@ def create(nova_client, neutron_client, args, **kwargs):
             return ctx.operation.retry(
                 message='Block Device Mapping is not created yet',
                 retry_after=30)
-        if str(e).startswith(MUST_SPECIFY_NETWORK_EXCEPTION_TEXT):
-            raise NonRecoverableError(
-                "Can not provision server: management_network_name or id"
-                " is not specified but there are several networks that the "
-                "server can be connected to.")
         raise
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = s.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \

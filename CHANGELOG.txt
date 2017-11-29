@@ -1,3 +1,5 @@
+2.4.1
+    - Improve router update (configure step).
 2.4.0
     - Add Router Update (configure step).
 2.3.0:

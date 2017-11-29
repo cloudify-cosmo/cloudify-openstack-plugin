@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.4.0.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.4.1.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.4.0'
+    package_version: '2.4.1'
 
 node_types:
   cloudify.openstack.nodes.Server:
@@ -842,7 +842,7 @@ relationships:
     derived_from: cloudify.relationships.connected_to
     target_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        establish:
+        postconfigure:
           implementation: openstack.neutron_plugin.router.connect_subnet
           inputs:
             openstack_config:

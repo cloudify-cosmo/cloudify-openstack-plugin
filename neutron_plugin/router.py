@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+import copy
 import warnings
 
 from cloudify import ctx
@@ -97,6 +98,10 @@ def create(neutron_client, args, **kwargs):
 @operation
 @with_neutron_client
 def update(neutron_client, args, **kwargs):
+    update_router(neutron_client, args, **kwargs)
+
+
+def update_router(neutron_client, args, **kwargs):
 
     from copy import deepcopy
 
@@ -117,7 +122,17 @@ def update(neutron_client, args, **kwargs):
     # Find out if the update script is being called
     # from a relationship or a node operation.
     if ctx.type == RELATIONSHIP_INSTANCE:
-        subject = ctx.source
+        if ROUTER_OPENSTACK_TYPE in \
+                ctx.source.instance.runtime_properties.get(
+                    OPENSTACK_TYPE_PROPERTY):
+            subject = ctx.source
+        elif ROUTER_OPENSTACK_TYPE in \
+                ctx.target.instance.runtime_properties.get(
+                    OPENSTACK_TYPE_PROPERTY):
+            subject = ctx.target
+        else:
+            raise NonRecoverableError(
+                'Neither target nor source is {0}'.format(ROUTER_OPENSTACK_TYPE))
     else:
         subject = ctx
 
@@ -175,7 +190,11 @@ def connect_subnet(neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def disconnect_subnet(neutron_client, **kwargs):
+def disconnect_subnet(neutron_client, update_args=None, **kwargs):
+
+    if update_args is not None and isinstance(update_args, dict):
+        update_router(neutron_client, args=update_args, ctx=ctx)
+
     if is_external_relationship(ctx):
         ctx.logger.info('Not connecting subnet and router since external '
                         'subnet and router are being used')

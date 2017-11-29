@@ -25,8 +25,7 @@ inputs:
     description: Openstack tenant external network name.
 
 dsl_definitions:
-
-  client_config: &client_config
+  openstack_config: &OPENSTACK_CONFIG
     username: { get_input: username }
     password: { get_input: password }
     tenant_name: { get_input: tenant_name }
@@ -35,56 +34,74 @@ dsl_definitions:
 
 node_templates:
 
-  external_network:
+  network:
     type: cloudify.openstack.nodes.Network
     properties:
-      openstack_config: *client_config
-      use_external_resource: true
-      resource_id: { get_input: external_network_name }
+      resource_id: 'ja-simple-vm-network'
+      openstack_config: *OPENSTACK_CONFIG
 
-  router_blueprint_network:
+  network2:
     type: cloudify.openstack.nodes.Network
     properties:
-      openstack_config: *client_config
-      resource_id: router_blueprint_network
+      resource_id: 'ja-simple-vm-network2'
+      openstack_config: *OPENSTACK_CONFIG
 
-  router_blueprint_subnet:
-    type: cloudify.openstack.nodes.Subnet
-    properties:
-      openstack_config: *client_config
-      resource_id: router_blueprint_subnet
-      subnet:
-        ip_version: 4
-        cidr: 192.168.121.0/24
-        allocation_pools: 
-        - start: 192.168.121.2
-          end: 192.168.121.254
-    relationships:
-    - type: cloudify.relationships.contained_in
-      target: router_blueprint_network
-
-  router_blueprint_router:
+  external_router_add_route:
     type: cloudify.openstack.nodes.Router
     properties:
-      openstack_config: *client_config
-      resource_id: router_blueprint_router
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        configure:
-          implementation: openstack.neutron_plugin.router.update
-          inputs:
-            args:
-              admin_state_up: False
-              external_gateway_info:
-                network_id: { get_attribute: [ router_blueprint_network, external_id ] }
-                external_fixed_ips:
-                  - subnet_id: { get_attribute: [ router_blueprint_subnet, external_id ] }
-                    ip_address:  192.168.121.3
-              routes:
-                - nexthop: 192.168.121.3
-                  destination: 192.168.120.0/24
+        use_external_resource: false  
+        resource_id: external_router_add_route
+        openstack_config: *OPENSTACK_CONFIG
+
+  subnet2:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      resource_id: 'ja-simple-vm-subnet2'
+      subnet:
+        ip_version: 4
+        cidr: 192.168.123.0/24
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
+      openstack_config: *OPENSTACK_CONFIG
     relationships:
-    - type: cloudify.relationships.connected_to
-      target: router_blueprint_network
-    - type: cloudify.relationships.depends_on
-      target: router_blueprint_subnet
+      - target: network2
+        type: cloudify.relationships.contained_in
+      - target: external_router_add_route
+        type: cloudify.openstack.subnet_connected_to_router
+        target_interfaces:
+          cloudify.interfaces.relationship_lifecycle:
+            unlink:
+              implementation: openstack.neutron_plugin.router.disconnect_subnet
+              inputs:
+                update_args:
+                  routes: []
+
+  subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      resource_id: 'ja-simple-vm-subnet'
+      subnet:
+        ip_version: 4
+        cidr: 10.0.0.0/24
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
+      openstack_config: *OPENSTACK_CONFIG
+    relationships:
+      - target: network
+        type: cloudify.relationships.contained_in
+      - target: subnet2
+        type: cloudify.relationships.depends_on
+      - target: external_router_add_route
+        type: cloudify.openstack.subnet_connected_to_router
+        target_interfaces:
+          cloudify.interfaces.relationship_lifecycle:
+            establish:
+              implementation: openstack.neutron_plugin.router.update
+              inputs:
+                args:
+                  routes:
+                  - destination: 10.0.0.0/24
+                    nexthop: 192.168.123.123
+            unlink:
+              implementation: openstack.neutron_plugin.router.disconnect_subnet
+              inputs:
+                update_args:
+                  routes: []

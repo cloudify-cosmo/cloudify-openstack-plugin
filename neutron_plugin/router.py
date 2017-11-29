@@ -13,7 +13,6 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
-import copy
 import warnings
 
 from cloudify import ctx
@@ -132,7 +131,8 @@ def update_router(neutron_client, args, **kwargs):
             subject = ctx.target
         else:
             raise NonRecoverableError(
-                'Neither target nor source is {0}'.format(ROUTER_OPENSTACK_TYPE))
+                'Neither target nor source is {0}'.format(
+                    ROUTER_OPENSTACK_TYPE))
     else:
         subject = ctx
 

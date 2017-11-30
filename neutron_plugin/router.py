@@ -18,6 +18,10 @@ import warnings
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
+try:
+    from cloudify.context import RELATIONSHIP_INSTANCE
+except ImportError:
+    from cloudify.constants import RELATIONSHIP_INSTANCE
 
 from openstack_plugin_common import (
     provider,
@@ -39,7 +43,7 @@ from openstack_plugin_common import (
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
-
+from neutronclient.common.exceptions import NeutronClientException
 
 ROUTER_OPENSTACK_TYPE = 'router'
 
@@ -77,6 +81,7 @@ def create(neutron_client, args, **kwargs):
         'name': get_resource_id(ctx, ROUTER_OPENSTACK_TYPE),
     }
     router.update(ctx.node.properties['router'], **args)
+    ctx.logger.info('router: {0}'.format(router))
     transform_resource_name(ctx, router)
 
     _handle_external_network_config(router, neutron_client)
@@ -87,6 +92,80 @@ def create(neutron_client, args, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
         ROUTER_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = r['name']
+
+
+@operation
+@with_neutron_client
+def update(neutron_client, args, **kwargs):
+    update_router(neutron_client, args, **kwargs)
+
+
+def update_router(neutron_client, args, **kwargs):
+
+    from copy import deepcopy
+
+    def dict_merge(a, b):
+        if isinstance(a, list) and isinstance(b, list):
+            a.append(b)
+            return a
+        if not isinstance(b, dict):
+            return b
+        result = deepcopy(a)
+        for k, v in b.iteritems():
+            if k in result and isinstance(result[k], dict):
+                    result[k] = dict_merge(result[k], v)
+            else:
+                result[k] = deepcopy(v)
+        return result
+
+    # Find out if the update script is being called
+    # from a relationship or a node operation.
+    if ctx.type == RELATIONSHIP_INSTANCE:
+        if ROUTER_OPENSTACK_TYPE in \
+                ctx.source.instance.runtime_properties.get(
+                    OPENSTACK_TYPE_PROPERTY):
+            subject = ctx.source
+        elif ROUTER_OPENSTACK_TYPE in \
+                ctx.target.instance.runtime_properties.get(
+                    OPENSTACK_TYPE_PROPERTY):
+            subject = ctx.target
+        else:
+            raise NonRecoverableError(
+                'Neither target nor source is {0}'.format(
+                    ROUTER_OPENSTACK_TYPE))
+    else:
+        subject = ctx
+
+    try:
+        router = neutron_client.show_router(
+            subject.instance.runtime_properties[OPENSTACK_ID_PROPERTY])
+    except NeutronClientException as e:
+        raise NonRecoverableError('Error: {0}'.format(str(e)))
+    if not isinstance(router, dict) or \
+            'router' not in router.keys() or \
+            'id' not in router['router'].keys():
+        raise NonRecoverableError(
+            'API returned unexpected structure.: {0}'.format(router))
+
+    router_id = router['router'].pop('id')
+    new_router = {
+        'router': {
+            'admin_state_up': args.get('admin_state_up', True),
+            'routes': args.get('routes', []),
+            'external_gateway_info': args.get(
+                'external_gateway_info', {}),
+        }
+    }
+
+    for ro_attribute in ['status', 'tenant_id']:
+        try:
+            del router['router'][ro_attribute]
+        except KeyError:
+            pass
+
+    dict_merge(new_router, router)
+    ctx.logger.info(new_router)
+    neutron_client.update_router(router_id, new_router)
 
 
 @operation
@@ -111,7 +190,11 @@ def connect_subnet(neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def disconnect_subnet(neutron_client, **kwargs):
+def disconnect_subnet(neutron_client, update_args=None, **kwargs):
+
+    if update_args is not None and isinstance(update_args, dict):
+        update_router(neutron_client, args=update_args, ctx=ctx)
+
     if is_external_relationship(ctx):
         ctx.logger.info('Not connecting subnet and router since external '
                         'subnet and router are being used')
@@ -174,7 +257,8 @@ def _handle_external_network_config(router, neutron_client):
     # relationship and/or provider context
     if 'external_gateway_info' in router and 'network_id' in \
             router['external_gateway_info']:
-        ext_net_by_property = router['external_gateway_info']['network_name']
+        ext_net_by_property = \
+            router['external_gateway_info'].get('network_name')
 
     if ext_net_by_property and ext_net_id_by_rel:
         raise RuntimeError(

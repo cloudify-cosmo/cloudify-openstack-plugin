@@ -287,16 +287,11 @@ def create(nova_client, neutron_client, args, **kwargs):
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
 
-    for key in 'block_device_mapping', 'block_device_mapping_v2':
-        if key in server:
-            # if there is a connected boot volume, don't require the `image`
-            # property.
-            # However, python-novaclient requires an `image` input anyway, and
-            # checks it for truthiness when deciding whether to pass it along
-            # to the API
-            if 'image' not in server:
-                server['image'] = ctx.node.properties.get('image')
-            break
+    if any(['block_device_mapping' in server.keys(),
+            'block_device_mapping_v2' in server.keys()]) and \
+            'image' not in server:
+        # python-novaclient requires an image field even if BDM is used.
+        server['image'] = ctx.node.properties.get('image')
     else:
         _handle_image_or_flavor(server, nova_client, 'image')
     _handle_image_or_flavor(server, nova_client, 'flavor')

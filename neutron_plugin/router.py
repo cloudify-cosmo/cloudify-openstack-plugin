@@ -148,14 +148,11 @@ def update_router(neutron_client, args, **kwargs):
             'API returned unexpected structure.: {0}'.format(router))
 
     router_id = router['router'].pop('id')
-    new_router = {
-        'router': {
-            'admin_state_up': args.get('admin_state_up', True),
-            'routes': args.get('routes', []),
-            'external_gateway_info': args.get(
-                'external_gateway_info', {}),
-        }
-    }
+
+    new_router = {'router': {}}
+    if len(args.keys()) > 0:
+        for key, value in args.items():
+            new_router['router'][key] = value
 
     for ro_attribute in ['status', 'tenant_id']:
         try:

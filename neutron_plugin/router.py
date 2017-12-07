@@ -150,9 +150,8 @@ def update_router(neutron_client, args, **kwargs):
     router_id = router['router'].pop('id')
 
     new_router = {'router': {}}
-    if len(args.keys()) > 0:
-        for key, value in args.items():
-            new_router['router'][key] = value
+    for key, value in args.items():
+        new_router['router'][key] = value
 
     for ro_attribute in ['status', 'tenant_id']:
         try:

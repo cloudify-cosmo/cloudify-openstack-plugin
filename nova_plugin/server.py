@@ -287,7 +287,7 @@ def create(nova_client, neutron_client, args, **kwargs):
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
 
-    if ('block_device_mapping' in server or 
+    if ('block_device_mapping' in server or
             'block_device_mapping_v2' in server) \
             and 'image' not in server:
         # python-novaclient requires an image field even if BDM is used.

@@ -344,8 +344,9 @@ def create(nova_client, neutron_client, args, **kwargs):
     _prepare_server_nics(neutron_client, ctx, server)
 
     # server group handling
-    server_group_id = get_openstack_id_of_single_connected_node_by_openstack_type(
-        ctx, SERVER_GROUP_OPENSTACK_TYPE, True)
+    server_group_id = \
+        get_openstack_id_of_single_connected_node_by_openstack_type(
+            ctx, SERVER_GROUP_OPENSTACK_TYPE, True)
     if server_group_id:
         scheduler_hints = server.get('scheduler_hints', {})
         scheduler_hints['group'] = server_group_id

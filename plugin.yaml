@@ -823,6 +823,10 @@ node_types:
   cloudify.openstack.nodes.ServerGroup:
     derived_from: cloudify.nodes.Root
     properties:
+      server_group:
+        description: >
+          A dictionary representing the server group API object.
+        default: {}
       policy:
         type: string
         description: >

@@ -39,6 +39,12 @@ inputs:
   public_subnet_cidr:
     default: 192.168.120.0/24
 
+  ubuntu_trusty_image:
+    default: { get_secret: ubuntu_trusty_image }
+
+  small_image_flavor:
+    default: { get_secret: small_image_flavor }
+
 dsl_definitions:
 
   openstack_config: &openstack_config
@@ -50,88 +56,93 @@ dsl_definitions:
 
 node_templates:
 
-  # server_group_member:
-  #   type: cloudify.openstack.nodes.Server
-  #   properties:
-  #     openstack_config: *openstack_config
-  #     agent_config:
-  #       install_method: none
-  #     server: {}
-  #   interfaces:
-  #     cloudify.interfaces.lifecycle:
-  #       create:
-  #         inputs:
-  #           args:
-  #             image: { get_input: image }
-  #             flavor: { get_input: flavor }
-  #             availability_zone: nova
-  #   relationships:
-  #     - target: image_volume_example_key
-  #       type: cloudify.openstack.server_connected_to_keypair
-  #     - target: public_subnet_nic
-  #       type: cloudify.openstack.server_connected_to_port
-  # relationships:
-  # - type: cloudify.openstack.server_connected_to_server_group
-  #   target: server_group
+  server_group_member:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *openstack_config
+      agent_config:
+        install_method: none
+      server:
+        image: { get_input: ubuntu_trusty_image }
+        flavor: { get_input: small_image_flavor }
+        availability_zone: nova
+    relationships:
+      - target: example_key
+        type: cloudify.openstack.server_connected_to_keypair
+      - target: public_subnet_nic
+        type: cloudify.openstack.server_connected_to_port
+      - type: cloudify.openstack.server_connected_to_server_group
+        target: server_group
 
-  # server_group:
-  #   type: cloudify.openstack.nodes.ServerGroup
-  #   properties:
-  #     openstack_config: *openstack_config
-  #     policy: affinity
+  server_group:
+    type: cloudify.openstack.nodes.ServerGroup
+    properties:
+      openstack_config: *openstack_config
+      # Another, better way of specifying.
+      # server_group:
+      #   policies:
+      #   - anti-affinity
+      policy: affinity
 
-  # public_subnet_nic:
-  #   type: cloudify.openstack.nodes.Port
-  #   properties:
-  #     openstack_config: *openstack_config
-  #   relationships:
-  #     - type: cloudify.relationships.contained_in
-  #       target: public_network
-  #     - type: cloudify.relationships.depends_on
-  #       target: public_subnet
-  #     - type: cloudify.openstack.port_connected_to_security_group
-  #       target: server_groups_example_security_group
-  #     - type: cloudify.openstack.port_connected_to_floating_ip
-  #       target: public_ip
+  example_key:
+    type: cloudify.openstack.nodes.KeyPair
+    properties:
+      openstack_config: *openstack_config
+      resource_id: example-key
+      private_key_path: { concat: [ '~/.ssh/', { get_property: [ SELF, resource_id ] }, '.pem' ] }
 
-  # server_groups_example_security_group:
-  #   type: cloudify.openstack.nodes.SecurityGroup
-  #   properties:
-  #     openstack_config: *openstack_config
-  #     security_group:
-  #       name: server_groups_example_security_group
-  #     rules:
-  #     - remote_ip_prefix: 0.0.0.0/0
-  #       port: 22
+  public_subnet_nic:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: public_network
+      - type: cloudify.relationships.depends_on
+        target: public_subnet
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: server_groups_example_security_group
+      - type: cloudify.openstack.port_connected_to_floating_ip
+        target: public_ip
 
-  # public_ip:
-  #   type: cloudify.openstack.nodes.FloatingIP
-  #   properties:
-  #     openstack_config: *openstack_config
-  #     floatingip:
-  #       floating_network_name: { get_property: [ external_network, resource_id ] }
+  server_groups_example_security_group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      openstack_config: *openstack_config
+      security_group:
+        name: server_groups_example_security_group
+      rules:
+      - remote_ip_prefix: 0.0.0.0/0
+        port: 22
 
-  # public_subnet:
-  #   type: cloudify.openstack.nodes.Subnet
-  #   properties:
-  #     openstack_config: *openstack_config
-  #     subnet:
-  #       ip_version: 4
-  #       cidr: { get_input: public_subnet_cidr }
-  #     # use_external_resource: true
-  #     # resource_id: { get_input: public_subnet_name }
-  #   relationships:
-  #     - target: public_network
-  #       type: cloudify.relationships.contained_in
-  #     - target: router
-  #       type: cloudify.openstack.subnet_connected_to_router
+  public_ip:
+    type: cloudify.openstack.nodes.FloatingIP
+    properties:
+      openstack_config: *openstack_config
+      floatingip:
+        floating_network_name: { get_property: [ external_network, resource_id ] }
 
-  # public_network:
-  #   type: cloudify.openstack.nodes.Network
-  #   properties:
-  #     openstack_config: *openstack_config
-  #     # use_external_resource: true
-  #     # resource_id: { get_input: public_network_name }
+  public_subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      openstack_config: *openstack_config
+      subnet:
+        ip_version: 4
+        cidr: { get_input: public_subnet_cidr }
+      # use_external_resource: true
+      # resource_id: { get_input: public_subnet_name }
+    relationships:
+      - target: public_network
+        type: cloudify.relationships.contained_in
+      - target: router
+        type: cloudify.openstack.subnet_connected_to_router
+
+  public_network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      openstack_config: *openstack_config
+      # use_external_resource: true
+      # resource_id: { get_input: public_network_name }
 
   router:
     type: cloudify.openstack.nodes.Router

@@ -13,6 +13,8 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+import copy
+
 from cloudify import ctx
 from cloudify.decorators import operation
 from openstack_plugin_common import (
@@ -44,6 +46,8 @@ def create(nova_client, args, **kwargs):
         'name': get_resource_id(ctx, SERVER_GROUP_OPENSTACK_TYPE),
         'policies': [ctx.node.properties['policy']]
     }
+    server_grp.update(copy.deepcopy(ctx.node.properties['server_group']))
+    server_grp.update(copy.deepcopy(args))
     transform_resource_name(ctx, server_grp)
 
     server_grp = nova_client.server_groups.create(**server_grp)

@@ -28,7 +28,8 @@ setup(
         'neutron_plugin',
         'cinder_plugin',
         'glance_plugin',
-        'keystone_plugin'
+        'keystone_plugin',
+        'heat_plugin'
     ],
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
@@ -40,6 +41,7 @@ setup(
         'python-neutronclient==6.0.0',
         'python-cinderclient==1.9.0',
         'python-glanceclient==2.5.0',
+        'python-heatclient==1.13.0',
         'IPy==0.81'
     ]
 )

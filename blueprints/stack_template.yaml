@@ -1,0 +1,27 @@
+heat_template_version: 2015-04-30
+
+description: Simple template to deploy a single compute instance
+
+parameters:
+  key_name:
+    type: string
+    default: heat_key
+  instance_type:
+    type: string
+    default: m1.small
+  image_id:
+    type: string
+    default: "CentOS 7.4 (official)"
+  network_id:
+    type: string
+    default: network0
+      
+resources:
+  my_instance:
+    type: OS::Nova::Server
+    properties:
+      key_name: { get_param: key_name }
+      image: { get_param: image_id }
+      flavor: { get_param: instance_type }
+      networks:
+          - network: { get_param: network_id }

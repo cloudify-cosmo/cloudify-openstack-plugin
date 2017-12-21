@@ -879,6 +879,36 @@ node_types:
             openstack_config:
               default: {}
 
+  cloudify.openstack.nodes.Stack:
+    derived_from: cloudify.nodes.Root
+    properties:
+      template:
+        description: >
+          Heat template file
+      parameters:
+        description: >
+          Parameters for heat template
+        default: {}
+      openstack_config:
+        default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.heat_plugin.stack.create
+          inputs:
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.heat_plugin.stack.delete
+          inputs:
+            openstack_config:
+              default: {}
+
+
 relationships:
   cloudify.openstack.port_connected_to_security_group:
     derived_from: cloudify.relationships.connected_to

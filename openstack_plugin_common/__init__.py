@@ -30,6 +30,8 @@ import novaclient.client as nova_client
 import novaclient.exceptions as nova_exceptions
 import glanceclient.client as glance_client
 import glanceclient.exc as glance_exceptions
+import heatclient.client as heat_client
+import heatclient.exc as heat_exceptions
 
 import cloudify
 from cloudify import context, ctx
@@ -748,6 +750,21 @@ def with_keystone_client(f):
     return wrapper
 
 
+def with_heat_client(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        _put_client_in_kw('heat_client', HeatClientWithSugar, kw)
+
+        try:
+            return f(*args, **kw)
+        except heat_exceptions.HTTPError, e:
+            if e.http_status in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.http_status)
+            else:
+                raise
+    return wrapper
+
+
 def _put_client_in_kw(client_name, client_class, kw):
     if client_name in kw:
         return
@@ -1003,3 +1020,25 @@ class GlanceClientWithSugar(OpenStackClient):
 
     def get_quota(self, obj_type_single):
         return self.GLANCE_INIFINITE_RESOURCE_QUOTA
+
+
+class HeatClientWithSugar(OpenStackClient):
+
+    def __init__(self, *args, **kw):
+        super(HeatClientWithSugar, self).__init__(
+            'heat_client', partial(heat_client.Client, '1'), *args, **kw)
+
+    def cosmo_list(self, obj_type_single, **kw):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        for obj in getattr(self, obj_type_plural).list(**kw):
+            yield obj
+
+    def cosmo_delete_resource(self, obj_type_single, obj_id):
+        obj_type_plural = self.cosmo_plural(obj_type_single)
+        getattr(self, obj_type_plural).delete(obj_id)
+
+    def get_id_from_resource(self, resource):
+        return resource.id
+
+    def get_name_from_resource(self, resource):
+        return resource.name

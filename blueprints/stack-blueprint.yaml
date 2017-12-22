@@ -29,3 +29,5 @@ node_templates:
     properties:      
       openstack_config: *openstack_config
       template: {get_input: stack_template }
+      parameters:
+        network_id: network1

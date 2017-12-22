@@ -885,6 +885,10 @@ node_types:
       template:
         description: >
           Heat template file
+      template_url:
+        description: >
+          A URI to the location containing the stack template
+        default: ''
       parameters:
         description: >
           Parameters for heat template

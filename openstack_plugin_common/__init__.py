@@ -757,9 +757,9 @@ def with_heat_client(f):
 
         try:
             return f(*args, **kw)
-        except heat_exceptions.HTTPError, e:
-            if e.http_status in _non_recoverable_error_codes:
-                _re_raise(e, recoverable=False, status_code=e.http_status)
+        except heat_exceptions.HTTPException, e:
+            if e.code in _non_recoverable_error_codes:
+                _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
     return wrapper

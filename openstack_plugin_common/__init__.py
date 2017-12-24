@@ -826,7 +826,9 @@ class NovaClientWithSugar(OpenStackClient):
             nova_client_version = str(nova_client_version)
 
         super(NovaClientWithSugar, self).__init__(
-            'nova_client', partial(nova_client.Client, nova_client_version), *args, **kw)
+            'nova_client',
+            partial(nova_client.Client, nova_client_version),
+            *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for xxx.findall() - not using xxx.list() because findall

@@ -1,3 +1,5 @@
+2.5.1
+    - Allow passing version parameter to nova client.
 2.5
     - Add Server Groups Node type
 2.4.1.1

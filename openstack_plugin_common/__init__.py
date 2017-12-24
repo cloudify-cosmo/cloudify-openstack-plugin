@@ -814,8 +814,19 @@ class NovaClientWithSugar(OpenStackClient):
         if config.get('nova_url'):
             config['endpoint_override'] = config.pop('nova_url')
 
+        try:
+            nova_client_version = \
+                config['custom_configuration']['nova_client'].pop(
+                    'version')
+        except KeyError:
+            nova_client_version = '2'
+
+        # In case someone provides an int.
+        if not isinstance(nova_client_version, basestring):
+            nova_client_version = str(nova_client_version)
+
         super(NovaClientWithSugar, self).__init__(
-            'nova_client', partial(nova_client.Client, '2'), *args, **kw)
+            'nova_client', partial(nova_client.Client, nova_client_version), *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for xxx.findall() - not using xxx.list() because findall

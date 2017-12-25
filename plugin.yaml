@@ -888,14 +888,6 @@ node_types:
       template_file:
         description: >
           Heat template file. Content of stack parameters "template" overrides content of this file.
-      template_url:
-        description: >
-          A URI to the location containing the stack template. Stack parameters "template_url" overrides this property.
-        default: ''
-      parameters:
-        description: >
-          Parameters for heat template
-        default: {}
       openstack_config:
         default: {}
         description: >

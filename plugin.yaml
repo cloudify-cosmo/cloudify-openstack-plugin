@@ -882,12 +882,15 @@ node_types:
   cloudify.openstack.nodes.Stack:
     derived_from: cloudify.nodes.Root
     properties:
-      template:
+      stack:
         description: >
-          Heat template file
+          key-value security_group configuration as described in https://developer.openstack.org/api-ref/orchestration/v1/index.html#id6
+      template_file:
+        description: >
+          Heat template file. Content of stack parameters "template" overrides content of this file.
       template_url:
         description: >
-          A URI to the location containing the stack template
+          A URI to the location containing the stack template. Stack parameters "template_url" overrides this property.
         default: ''
       parameters:
         description: >
@@ -904,11 +907,15 @@ node_types:
         create:
           implementation: openstack.heat_plugin.stack.create
           inputs:
+            args:
+              default: {}
             openstack_config:
               default: {}
         delete:
           implementation: openstack.heat_plugin.stack.delete
           inputs:
+            args:
+              default: {}
             openstack_config:
               default: {}
 

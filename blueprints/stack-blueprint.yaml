@@ -28,6 +28,7 @@ node_templates:
     type: cloudify.openstack.nodes.Stack
     properties:      
       openstack_config: *openstack_config
-      template: {get_input: stack_template }
-      parameters:
-        network_id: network1
+      template_file: {get_input: stack_template }
+      stack:
+        parameters:
+          network_id: network1

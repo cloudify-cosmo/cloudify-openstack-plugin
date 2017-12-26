@@ -885,6 +885,7 @@ node_types:
       stack:
         description: >
           key-value stack configuration as described in https://developer.openstack.org/api-ref/orchestration/v1/index.html#id6
+        default: {}
       template_file:
         description: >
           Heat template file. Content of stack parameters "template" overrides content of this file.
@@ -906,8 +907,6 @@ node_types:
         delete:
           implementation: openstack.heat_plugin.stack.delete
           inputs:
-            args:
-              default: {}
             openstack_config:
               default: {}
 

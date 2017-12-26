@@ -1,4 +1,3 @@
-
 #########
 # Copyright (c) 2014 GigaSpaces Technologies Ltd. All rights reserved
 #
@@ -45,24 +44,20 @@ def _check_status(heat_client, stack_id):
 
 @operation
 @with_heat_client
-def create(heat_client, **kwargs):
+def create(heat_client, args, **kwargs):
     stack_id = ctx.instance.runtime_properties.get('stack_id')
-    stack_name = ctx.node.id
     if stack_id:
         return _check_status(heat_client, stack_id)
     else:
-        template = ctx.node.properties.get('template')
-        template_url = ctx.node.properties.get('template_url')
-        parameters = ctx.node.properties.get('parameters', {})
-        if not template and not template_url:
-            raise NonRecoverableError("Template and template_url not foud")
-        downloaded_file_path = ctx.download_resource(template)
-        template_content = open(downloaded_file_path).read()
-        data = {"stack_name": stack_name,
-                "parameters": parameters,
-                "template": template_content,
-                "template_url": template_url}
-        result = heat_client.stacks.create(**data)
+        stack = ctx.node.properties['stack']
+        stack.update(ctx.node.properties['stack'], **args)
+        if not stack.get('stack_name'):
+            stack['stack_name'] = ctx.node.id
+        if not stack.get('template'):
+            template_file = ctx.node.properties.get('template_file')
+            downloaded_file_path = ctx.download_resource(template_file)
+            stack['template'] = open(downloaded_file_path).read()
+        result = heat_client.stacks.create(**stack)
         ctx.instance.runtime_properties['stack_id'] = result['stack']['id']
         return _check_status(heat_client, result['stack']['id'])
 

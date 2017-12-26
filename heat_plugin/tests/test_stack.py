@@ -31,41 +31,42 @@ def ctx_mock(prop_dict):
 
 class TestStack(unittest.TestCase):
     @mock.patch('heat_plugin.stack.ctx',
-                ctx_mock({}))
+                ctx_mock({"stack": {}}))
+    @mock.patch('heat_plugin.stack.open', mock.MagicMock())
     def test_stack_create_with_empty_template(self):
-        c_mock = ctx_mock({})
+        c_mock = ctx_mock({"stack": {}})
         with mock.patch('openstack_plugin_common.HeatClientWithSugar'):
             with self.assertRaises(NonRecoverableError):
-                heat_plugin.stack.create(ctx=c_mock)
+                heat_plugin.stack.create(ctx=c_mock, args={})
 
     @mock.patch('heat_plugin.stack.ctx',
-                ctx_mock({"template": "template"}))
+                ctx_mock({"stack": {}}))
     @mock.patch('heat_plugin.stack.open', mock.MagicMock())
     @mock.patch('heat_plugin.stack._check_status', mock.MagicMock())
     def test_stack_create_with_template(self):
-        c_mock = ctx_mock({})
+        c_mock = ctx_mock({"stack": {}})
         with mock.patch('openstack_plugin_common.HeatClientWithSugar'):
-            heat_plugin.stack.create(ctx=c_mock)
+            heat_plugin.stack.create(ctx=c_mock, args={})
 
     def test_stack_create_retry(self):
-        c_mock = ctx_mock({})
+        c_mock = ctx_mock({"stack": {}})
         with mock.patch('openstack_plugin_common.HeatClientWithSugar') as c:
             with mock.patch('heat_plugin.stack.ctx', ctx_mock({})) as m:
                     m.instance.runtime_properties['stack_id'] = 1
                     c.return_value.stacks.get.return_value.stack_status =\
                         "CREATE_COMPLETE"
-                    heat_plugin.stack.create(ctx=c_mock)
+                    heat_plugin.stack.create(ctx=c_mock, args={})
 
     @mock.patch('heat_plugin.stack.ctx',
-                ctx_mock({}))
+                ctx_mock({"stack": {}}))
     def test_stack_delete_empty_stack_id(self):
-        c_mock = ctx_mock({})
+        c_mock = ctx_mock({"stack": {}})
         with mock.patch('openstack_plugin_common.HeatClientWithSugar'):
             with self.assertRaises(NonRecoverableError):
                 heat_plugin.stack.delete(ctx=c_mock)
 
     def test_stack_delete_with_stack_id(self):
-        c_mock = ctx_mock({})
+        c_mock = ctx_mock({"stack": {}})
         with mock.patch('openstack_plugin_common.HeatClientWithSugar'):
             with mock.patch('heat_plugin.stack.ctx', ctx_mock({})) as m:
                 m.instance.runtime_properties['stack_id'] = 1

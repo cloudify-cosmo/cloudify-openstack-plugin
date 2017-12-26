@@ -18,6 +18,7 @@ from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     with_heat_client)
+import heatclient.exc as heat_exceptions
 
 
 COMPLETE = 'CREATE_COMPLETE'
@@ -55,11 +56,22 @@ def create(heat_client, args, **kwargs):
             stack['stack_name'] = ctx.node.id
         if not stack.get('template'):
             template_file = ctx.node.properties.get('template_file')
+            if not template_file:
+                raise NonRecoverableError("Template file name is empty")
             downloaded_file_path = ctx.download_resource(template_file)
             stack['template'] = open(downloaded_file_path).read()
         result = heat_client.stacks.create(**stack)
         ctx.instance.runtime_properties['stack_id'] = result['stack']['id']
-        return _check_status(heat_client, result['stack']['id'])
+
+
+@operation
+@with_heat_client
+def start(heat_client, **kwargs):
+    stack_id = ctx.instance.runtime_properties.get('stack_id')
+    if stack_id:
+        return _check_status(heat_client, stack_id)
+    else:
+        raise NonRecoverableError("Stack doesn't created")
 
 
 @operation
@@ -68,4 +80,8 @@ def delete(heat_client, **kwargs):
     stack_id = ctx.instance.runtime_properties.get('stack_id')
     if not stack_id:
         raise NonRecoverableError("Stack_id not foud")
-    heat_client.stacks.delete(stack_id)
+    try:
+        heat_client.stacks.delete(stack_id)
+    except heat_exceptions.HTTPException, e:
+        ctx.logger.error(
+            "Delete stack error: {}".format(e.error['explanation']))

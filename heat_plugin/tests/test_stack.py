@@ -40,11 +40,11 @@ class TestStack(unittest.TestCase):
                 heat_plugin.stack.create(ctx=c_mock, args={})
 
     @mock.patch('heat_plugin.stack.ctx',
-                ctx_mock({"stack": {}}))
+                ctx_mock({"stack": {}, "template_file": "file"}))
     @mock.patch('heat_plugin.stack.open', mock.MagicMock())
     @mock.patch('heat_plugin.stack._check_status', mock.MagicMock())
     def test_stack_create_with_template(self):
-        c_mock = ctx_mock({"stack": {}})
+        c_mock = ctx_mock({"stack": {}, "template_file": "file"})
         with mock.patch('openstack_plugin_common.HeatClientWithSugar'):
             heat_plugin.stack.create(ctx=c_mock, args={})
 
@@ -71,6 +71,22 @@ class TestStack(unittest.TestCase):
             with mock.patch('heat_plugin.stack.ctx', ctx_mock({})) as m:
                 m.instance.runtime_properties['stack_id'] = 1
                 heat_plugin.stack.delete(ctx=c_mock)
+
+    @mock.patch('heat_plugin.stack.ctx',
+                ctx_mock({"stack": {}}))
+    def test_stack_start_empty_stack_id(self):
+        c_mock = ctx_mock({"stack": {}})
+        with mock.patch('openstack_plugin_common.HeatClientWithSugar'):
+            with self.assertRaises(NonRecoverableError):
+                heat_plugin.stack.start(ctx=c_mock)
+
+    @mock.patch('heat_plugin.stack._check_status', mock.MagicMock())
+    def test_stack_start_with_stack_id(self):
+        c_mock = ctx_mock({"stack": {}})
+        with mock.patch('openstack_plugin_common.HeatClientWithSugar'):
+            with mock.patch('heat_plugin.stack.ctx', ctx_mock({})) as m:
+                m.instance.runtime_properties['stack_id'] = 1
+                heat_plugin.stack.start(ctx=c_mock)
 
     def test_check_status(self):
         stats = mock.MagicMock()

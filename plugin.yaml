@@ -888,7 +888,8 @@ node_types:
         default: {}
       template_file:
         description: >
-          Heat template file. Content of stack parameters "template" overrides content of this file.
+          Name of heat template file. Content of stack parameters "template" overrides content of this file.
+        default: ''
       openstack_config:
         default: {}
         description: >
@@ -902,6 +903,11 @@ node_types:
           inputs:
             args:
               default: {}
+            openstack_config:
+              default: {}
+        start:
+          implementation: openstack.heat_plugin.stack.start
+          inputs:
             openstack_config:
               default: {}
         delete:

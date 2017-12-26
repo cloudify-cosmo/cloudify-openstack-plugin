@@ -50,7 +50,7 @@ def create(heat_client, args, **kwargs):
         return _check_status(heat_client, stack_id)
     else:
         stack = ctx.node.properties['stack']
-        stack.update(ctx.node.properties['stack'], **args)
+        stack.update(**args)
         if not stack.get('stack_name'):
             stack['stack_name'] = ctx.node.id
         if not stack.get('template'):

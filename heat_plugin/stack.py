@@ -19,6 +19,7 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     with_heat_client)
 import heatclient.exc as heat_exceptions
+import requests
 
 
 COMPLETE = 'CREATE_COMPLETE'
@@ -26,7 +27,6 @@ FAILED = 'CREATE_FAILED'
 IN_PROGRESS = 'CREATE_IN_PROGRESS'
 
 RETRY_AFTER = 10
-NOT_FOUND = 404
 
 
 def _check_status(heat_client, stack_id):
@@ -83,8 +83,8 @@ def delete(heat_client, **kwargs):
         raise NonRecoverableError("Stack has not been created")
     try:
         heat_client.stacks.delete(stack_id)
-    except heat_exceptions.HTTPException, e:
-        if e.error['code'] == NOT_FOUND:
+    except heat_exceptions.HTTPException as e:
+        if e.error['code'] == requests.codes.not_found:
             ctx.logger.warning('The Stack could not be found')
         else:
             raise NonRecoverableError("Delete stack error: {}".format(e))

@@ -26,6 +26,7 @@ FAILED = 'CREATE_FAILED'
 IN_PROGRESS = 'CREATE_IN_PROGRESS'
 
 RETRY_AFTER = 10
+NOT_FOUND = 404
 
 
 def _check_status(heat_client, stack_id):
@@ -71,7 +72,7 @@ def start(heat_client, **kwargs):
     if stack_id:
         return _check_status(heat_client, stack_id)
     else:
-        raise NonRecoverableError("Stack doesn't created")
+        raise NonRecoverableError("Stack has not been created")
 
 
 @operation
@@ -79,9 +80,11 @@ def start(heat_client, **kwargs):
 def delete(heat_client, **kwargs):
     stack_id = ctx.instance.runtime_properties.get('stack_id')
     if not stack_id:
-        raise NonRecoverableError("Stack_id not foud")
+        raise NonRecoverableError("Stack has not been created")
     try:
         heat_client.stacks.delete(stack_id)
     except heat_exceptions.HTTPException, e:
-        ctx.logger.error(
-            "Delete stack error: {}".format(e.error['explanation']))
+        if e.error['code'] == NOT_FOUND:
+            ctx.logger.warning('The Stack could not be found')
+        else:
+            raise NonRecoverableError("Delete stack error: {}".format(e))

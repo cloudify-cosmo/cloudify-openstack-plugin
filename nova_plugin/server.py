@@ -53,6 +53,7 @@ from openstack_plugin_common import (
     COMMON_RUNTIME_PROPERTIES_KEYS,
     with_neutron_client)
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
+from nova_plugin.server_group import SERVER_GROUP_OPENSTACK_TYPE
 from nova_plugin import userdata
 from openstack_plugin_common.floatingip import (IP_ADDRESS_PROPERTY,
                                                 get_server_floating_ip)
@@ -287,16 +288,11 @@ def create(nova_client, neutron_client, args, **kwargs):
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
 
-    for key in 'block_device_mapping', 'block_device_mapping_v2':
-        if key in server:
-            # if there is a connected boot volume, don't require the `image`
-            # property.
-            # However, python-novaclient requires an `image` input anyway, and
-            # checks it for truthiness when deciding whether to pass it along
-            # to the API
-            if 'image' not in server:
-                server['image'] = ctx.node.properties.get('image')
-            break
+    if ('block_device_mapping' in server or
+            'block_device_mapping_v2' in server) \
+            and 'image' not in server:
+        # python-novaclient requires an image field even if BDM is used.
+        server['image'] = ctx.node.properties.get('image')
     else:
         _handle_image_or_flavor(server, nova_client, 'image')
     _handle_image_or_flavor(server, nova_client, 'flavor')
@@ -346,6 +342,15 @@ def create(nova_client, neutron_client, args, **kwargs):
         'server')
 
     _prepare_server_nics(neutron_client, ctx, server)
+
+    # server group handling
+    server_group_id = \
+        get_openstack_id_of_single_connected_node_by_openstack_type(
+            ctx, SERVER_GROUP_OPENSTACK_TYPE, True)
+    if server_group_id:
+        scheduler_hints = server.get('scheduler_hints', {})
+        scheduler_hints['group'] = server_group_id
+        server['scheduler_hints'] = scheduler_hints
 
     ctx.logger.debug(
         "server.create() server after transformations: {0}".format(server))

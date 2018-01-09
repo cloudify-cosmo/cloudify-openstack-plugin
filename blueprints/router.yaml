@@ -6,33 +6,40 @@ imports:
 
 inputs:
 
-  username:
-    description: OS_USERNAME as specified in Openstack RC file.
+  keystone_username:
+    default: { get_secret: keystone_username }
 
-  password:
-    description: Openstack user password.
+  keystone_password:
+    default: { get_secret: keystone_password }
 
-  tenant_name:
-    description: OS_TENANT_NAME as specified in Openstack RC file.
+  keystone_tenant_name:
+    default: { get_secret: keystone_tenant_name }
 
-  auth_url:
-    description: OS_AUTH_URL as specified in Openstack RC file.
+  keystone_url:
+    default: { get_secret: keystone_url }
 
   region:
-    description: OS_REGION_NAME as specified in Openstack RC file.
+    default: { get_secret: region }
 
   external_network_name:
     description: Openstack tenant external network name.
 
 dsl_definitions:
   openstack_config: &OPENSTACK_CONFIG
-    username: { get_input: username }
-    password: { get_input: password }
-    tenant_name: { get_input: tenant_name }
-    auth_url: { get_input: auth_url }
+    username: { get_input: keystone_username }
+    password: { get_input: keystone_password }
+    tenant_name: { get_input: keystone_tenant_name }
+    auth_url: { get_input: keystone_url }
     region: { get_input: region }
 
 node_templates:
+
+  external_network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      use_external_resource: true
+      resource_id: { get_input: external_network_name }
+      openstack_config: *OPENSTACK_CONFIG
 
   network:
     type: cloudify.openstack.nodes.Network
@@ -52,6 +59,9 @@ node_templates:
         use_external_resource: false  
         resource_id: external_router_add_route
         openstack_config: *OPENSTACK_CONFIG
+    relationships:
+      - target: external_network
+        type: cloudify.relationships.connected_to
 
   subnet2:
     type: cloudify.openstack.nodes.Subnet

@@ -63,6 +63,9 @@ COMMON_RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
 MISSING_RESOURCE_MESSAGE = "Couldn't find a resource of " \
                            "type {0} with the name or id {1}"
 
+AUTH_PARAM_INSECURE = 'insecure'
+AUTH_PARM_CA_CERT = 'ca_cert'
+
 
 class ProviderContext(object):
 
@@ -498,7 +501,7 @@ class OpenStackClient(object):
         COMMON | {'project_id', 'project_name', 'user_domain_name'},
         COMMON | {'project_name', 'user_domain_name', 'project_domain_name'},
     ]
-    OPTIONAL_AUTH_PARAMS = {'insecure'}
+    OPTIONAL_AUTH_PARAMS = {AUTH_PARAM_INSECURE, AUTH_PARM_CA_CERT}
 
     def __init__(self, client_name, client_class, config=None, *args, **kw):
         cfg = Config.get()
@@ -586,15 +589,39 @@ class OpenStackClient(object):
 
     @staticmethod
     def _authenticate(cfg):
+        # 'verify' will contain one of the following:
+        #
+        # True: perform certificate validation against the underlying
+        #       CA certs bundle (note: this is the certs bundle used
+        #       by the 'requests' library, which is different from the
+        #       OS-provided one).
+        #
+        #       To get that, specify 'insecure: True'.
+        #
+        # False: disable certificate validation altogether.
+        #
+        #       To get that, specify 'insecure: False' (or any value
+        #       other than True).
+        #
+        # Any other string: path to the CA cert (or bundle) to verify
+        #                   against.
+        #
+        #                   To get that, specify 'ca_cert: path_to_file'
+        #                   and ensure 'insecure' is NOT specified.
         verify = True
-        if 'insecure' in cfg:
+        if AUTH_PARAM_INSECURE in cfg:
             cfg = cfg.copy()
             # NOTE: Next line will evaluate to False only when insecure is set
             # to True. Any other value (string etc.) will force verify to True.
             # This is done on purpose, since we do not wish to use insecure
             # connection by mistake.
-            verify = not (cfg['insecure'] is True)
-            del cfg['insecure']
+            verify = not (cfg[AUTH_PARAM_INSECURE] is True)
+            del cfg[AUTH_PARAM_INSECURE]
+        elif AUTH_PARM_CA_CERT in cfg:
+            cfg = cfg.copy()
+            verify = cfg[AUTH_PARM_CA_CERT]
+            del cfg[AUTH_PARM_CA_CERT]
+
         loader = loading.get_plugin_loader("password")
         auth = loader.load_from_options(**cfg)
         sess = session.Session(auth=auth, verify=verify)

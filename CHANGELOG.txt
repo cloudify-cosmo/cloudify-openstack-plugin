@@ -1,4 +1,4 @@
-tbd:
+2.5.1:
     - Added ability to provide CA cert for connecting to OpenStack.
 2.4.1.1:
     - Fix router overwrite bug introduced in 2.4.1.

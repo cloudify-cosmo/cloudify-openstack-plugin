@@ -1,19 +1,19 @@
-2.5.1
+2.5.2:
+    - Added ability to provide CA cert for connecting to OpenStack.
+2.5.1:
     - Allow passing version parameter to nova client.
-2.5
-    - Add Server Groups Node type
-2.4.1.1
+2.4.1.1:
     - Fix router overwrite bug introduced in 2.4.1.
-2.4.1
+2.4.1:
     - Improve router update (configure step).
-2.4.0
+2.4.0:
     - Add Router Update (configure step).
 2.3.0:
     - Remove requirement on management_network_name property.
-2.2.0 :
+2.2.0:
     - Fix duplicated mapping key in plugin.yaml.
     - Create Server with security groups from instance relationships. This prevents a window of time when a server can
-    be unsecured. (OPENSTACK-38)
+      be unsecured. (OPENSTACK-38)
     - Fix floating IP detach issue. (OPENSTACK-12)
     - Allow openstack_config as runtime property. (OPENSTACK-112)
     - Fix key creation when folders don't exist.  (OPENSTACK-7)

@@ -1,5 +1,7 @@
-2.5.1:
+2.5.2:
     - Added ability to provide CA cert for connecting to OpenStack.
+2.5.1:
+    - Allow passing version parameter to nova client.
 2.4.1.1:
     - Fix router overwrite bug introduced in 2.4.1.
 2.4.1:

@@ -17,7 +17,7 @@ node_types:
       server:
         default: {}
         description: >
-          key-value server configuration as described in OpenStack compute create server API. (DEPRECATED - Use the args input in create operation instead)
+          key-value server configuration as described in OpenStack compute create server API.
       use_external_resource:
         type: boolean
         default: false
@@ -202,7 +202,7 @@ node_types:
       subnet:
         default: {}
         description: >
-          key-value subnet configuration as described at http://developer.openstack.org/api-ref-networking-v2.html#subnets. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value subnet configuration as described at http://developer.openstack.org/api-ref-networking-v2.html#subnets.
       use_external_resource:
         type: boolean
         default: false
@@ -253,7 +253,7 @@ node_types:
       security_group:
         default: {}
         description: >
-          key-value security_group configuration as described in http://developer.openstack.org/api-ref-networking-v2-ext.html#createSecGroup. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value security_group configuration as described in http://developer.openstack.org/api-ref-networking-v2-ext.html#createSecGroup.
       description:
         type: string
         default: ''
@@ -315,7 +315,7 @@ node_types:
       router:
         default: {}
         description: >
-          key-value router configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value router configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3.
       external_network:
         default: ''
         description: >
@@ -373,7 +373,7 @@ node_types:
       port:
         default: {}
         description: >
-          key-value port configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#ports. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value port configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#ports.
       fixed_ip:
         default: ''
         description: >
@@ -429,7 +429,7 @@ node_types:
       network:
         default: {}
         description: >
-          key-value network configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#networks. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value network configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#networks.
       use_external_resource:
         type: boolean
         default: false
@@ -478,7 +478,7 @@ node_types:
       floatingip:
         default: {}
         description: >
-          key-value floatingip configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value floatingip configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3.
       use_external_resource:
         type: boolean
         default: false
@@ -526,7 +526,7 @@ node_types:
       volume:
         default: {}
         description: >
-          key-value volume configuration as described in http://developer.openstack.org/api-ref-blockstorage-v1.html#volumes-v1. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value volume configuration as described in http://developer.openstack.org/api-ref-blockstorage-v1.html#volumes-v1.
       use_external_resource:
         type: boolean
         default: false
@@ -602,7 +602,7 @@ node_types:
       floatingip:
         default: {}
         description: >
-          key-value floatingip configuration as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-floating-ips. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value floatingip configuration as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-floating-ips.
       use_external_resource:
         type: boolean
         default: false
@@ -650,7 +650,7 @@ node_types:
       security_group:
         default: {}
         description: >
-          key-value security_group configuration as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-security-groups. (**DEPRECATED - Use the `args` input in create operation instead**)
+          key-value security_group configuration as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-security-groups.
       use_external_resource:
         type: boolean
         default: false

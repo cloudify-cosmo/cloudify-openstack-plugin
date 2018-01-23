@@ -1,3 +1,6 @@
+2.5.3:
+    - Added ability to configure how log records, emitted by the underlying OpenStack client libraries,
+      are handled. By default, these are now also emitted to Cloudify's context logger (in debug level).
 2.5.2:
     - Added ability to provide CA cert for connecting to OpenStack.
 2.5.1:

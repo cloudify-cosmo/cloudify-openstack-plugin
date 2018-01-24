@@ -17,6 +17,8 @@ from functools import wraps, partial
 import json
 import os
 import sys
+import logging
+import copy
 
 from IPy import IP
 from keystoneauth1 import loading, session
@@ -65,6 +67,61 @@ MISSING_RESOURCE_MESSAGE = "Couldn't find a resource of " \
 
 AUTH_PARAM_INSECURE = 'insecure'
 AUTH_PARM_CA_CERT = 'ca_cert'
+
+KEY_USE_CFY_LOGGER = 'use_cfy_logger'
+KEY_GROUPS = 'groups'
+KEY_LOGGERS = 'loggers'
+
+DEFAULT_LOGGING_CONFIG = {
+    KEY_USE_CFY_LOGGER: True,
+    KEY_GROUPS: {
+        'nova': logging.DEBUG,
+        'neutron': logging.DEBUG,
+        'cinder': logging.DEBUG,
+        'keystone': logging.DEBUG,
+        'glance': logging.DEBUG
+    },
+    KEY_LOGGERS: {
+        'keystoneauth.session': logging.DEBUG
+    }
+}
+
+LOGGING_GROUPS = {
+    'nova': ['novaclient.client', 'novaclient.v2.client'],
+    'neutron': ['neutronclient.client', 'neutronclient.v2_0.client'],
+    'cinder': ['cinderclient.client', 'cinderclient.v1.client',
+               'cinderclient.v2.client', 'cinderclient.v3.client'],
+    'keystone': ['keystoneclient.client', 'keystoneclient.v2_0.client',
+                 'keystoneclient.v3.client'],
+    'glance': ['glanceclient.client', 'glanceclient.v1.client',
+               'glanceclient.v2.client']
+}
+
+
+# TODO: Move this to cloudify-plugins-common (code freeze currently
+# in effect).
+class CloudifyCtxLogHandler(logging.Handler):
+    """
+    A logging handler for Cloudify.
+    A logger attached to this handler will result in logging being passed
+    through to the Cloudify logger.
+    """
+    def __init__(self, ctx):
+        """
+        Constructor.
+        :param ctx: current Cloudify context
+        """
+        logging.Handler.__init__(self)
+        self.ctx = ctx
+
+    def emit(self, record):
+        """
+        Callback to emit a log record.
+        :param record: log record to write
+        :type record: logging.LogRecord
+        """
+        message = self.format(record)
+        self.ctx.logger.log(record.levelno, message)
 
 
 class ProviderContext(object):
@@ -526,6 +583,39 @@ class OpenStackClient(object):
             for key in 'user_domain_name', 'project_domain_name':
                 auth_params.setdefault(key, 'default')
 
+        # Calculate effective logging policy.
+        # Note that we don't use dict's update() function at the dict's
+        # root because it will overwrite nested dicts.
+
+        logging_config = cfg.get('logging', dict())
+        use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
+        groups_config = logging_config.get(KEY_GROUPS, {})
+        loggers_config = logging_config.get(KEY_LOGGERS, {})
+
+        final_logging_cfg = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
+
+        if use_cfy_logger:
+            final_logging_cfg[KEY_USE_CFY_LOGGER] = use_cfy_logger
+        else:
+            use_cfy_logger = final_logging_cfg[KEY_USE_CFY_LOGGER]
+        final_logging_cfg[KEY_GROUPS].update(groups_config)
+        final_logging_cfg[KEY_LOGGERS].update(loggers_config)
+
+        # Prepare mapping between logger names and logging levels.
+        configured_loggers = {v: final_logging_cfg[KEY_GROUPS][k] for
+                              k, values in LOGGING_GROUPS.items() for v
+                              in values}
+        configured_loggers.update(final_logging_cfg[KEY_LOGGERS])
+
+        ctx_log_handler = CloudifyCtxLogHandler(ctx) if use_cfy_logger \
+            else None
+
+        for logger_name, logger_level in configured_loggers.items():
+            logger = logging.getLogger(logger_name)
+            if ctx_log_handler:
+                logger.addHandler(ctx_log_handler)
+            logger.setLevel(logger_level)
+
         client_params['session'] = self._authenticate(auth_params)
         self._client = client_class(**client_params)
 
@@ -854,8 +944,7 @@ class NovaClientWithSugar(OpenStackClient):
 
         super(NovaClientWithSugar, self).__init__(
             'nova_client',
-            partial(nova_client.Client, nova_client_version),
-            *args, **kw)
+            partial(nova_client.Client, nova_client_version), *args, **kw)
 
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for xxx.findall() - not using xxx.list() because findall

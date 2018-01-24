@@ -9,6 +9,132 @@ plugins:
     package_name: cloudify-openstack-plugin
     package_version: '2.5.3'
 
+data_types:
+  cloudify.openstack.types.custom_configuration:
+    description: Custom configuration for OpenStack's API endpoints.
+    properties:
+      nova_client:
+        description: Parameters for Nova Client.
+        required: false
+      neutron_client:
+        description: Parameters for Neutron Client.
+        required: false
+      keystone_client:
+        description: Parameters for Keystone Client.
+        required: false
+      cinder_client:
+        description: Parameters for Cinder Client.
+        required: false
+      glance_client:
+        description: Parameters for Glance Client.
+        required: false
+
+  cloudify.openstack.types.logging.groups:
+    description: >
+      For logging groups' configuration. Each level can be one of the following values:
+      critical/error/warning/info/debug/notset
+    properties:
+      nova:
+        description: Default logging level for Nova.
+        type: string
+        required: false
+      neutron:
+        description: Default logging level for Neutron.
+        type: string
+        required: false
+      cinder:
+        description: Default logging level for Cinder.
+        type: string
+        required: false
+      keystone:
+        description: Default logging level for Keystone.
+        type: string
+        required: false
+      glance:
+        description: Default logging level for Glance.
+        type: string
+        required: false
+
+  cloudify.openstack.types.logging:
+    description: Logging configuration for OpenStack communication.
+    properties:
+      use_cfy_logger:
+        description: If true, a logging handler is added, which emits logs to the Cloudify logger.
+        type: boolean
+        default: true
+      groups:
+        description: Assigns logging level to logger groups.
+        type: cloudify.openstack.types.logging.groups
+        required: false
+      loggers:
+        description: Assigns logging level to custom loggers (dictionary of string -> logging level).
+        required: false
+
+  # Note: as per CFY-7824, this custom type cannot be used as an argument
+  # to the "type:" field of operation inputs.
+
+  cloudify.openstack.types.configuration:
+    description: Configuration for OpenStack communication.
+    properties:
+      username:
+        description: User to authenticate to KeyStone with.
+        type: string
+      password:
+        description: Password to authenticate to KeyStone with.
+        type: string
+      auth_url:
+        description: Keystone's URL (used for authentication).
+        type: string
+      tenant_name:
+        description: Name of tenant.
+        type: string
+        required: false
+      project_id:
+        description: ID of project to operate on.
+        type: string
+        required: false
+      project_name:
+        description: Name of project to operate on.
+        type: string
+        required: false
+      user_domain_name:
+        description: Domain name to operate on.
+        type: string
+        required: false
+      project_domain_name:
+        description: Project domain name to operate on.
+        type: string
+        required: false
+      region:
+        description: The region's name (optional if only one region exists).
+        type: string
+        required: false
+      insecure:
+        description: If true, SSL validation is skipped.
+        type: boolean
+        required: false
+        default: false
+      ca_cert:
+        description: Path to CA certificate to validate OpenStack's endpoint with.
+        type: string
+        required: false
+      nova_url:
+        description: DEPRECATED - use 'custom_configuration' and 'bypass_url' instead.
+        type: string
+        required: false
+      neutron_url:
+        description: DEPRECATED - use 'custom_configuration' and 'endpoint_url' instead.
+        type: string
+        required: false
+      custom_configuration:
+        description: Custom configuration for OpenStack's API endpoints.
+        type: cloudify.openstack.types.custom_configuration
+        required: false
+      logging:
+        description: Logging configuration.
+        type: cloudify.openstack.types.logging
+        required: false
+
 node_types:
 
   cloudify.openstack.nodes.Server:
@@ -25,15 +151,18 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       image:
+        type: string
         default: ''
         description: >
           The image for the server.
@@ -42,6 +171,7 @@ node_types:
           but will be modified to become a required property in future versions
           (Default: '').
       flavor:
+        type: string
         default: ''
         description: >
           The flavor for the server.
@@ -50,6 +180,7 @@ node_types:
           but will be modified to become a required property in future versions
           (Default: '').
       management_network_name:
+        type: string
         required: false
         description: >
           Old requirement called management network name. Not required. Leave blank. Retained for backward compatibility.
@@ -59,6 +190,7 @@ node_types:
           (See the Misc section for more information on the Openstack Provider Context).
           It is not required to set the value of this property to the management network name. As of Cloudify 4.0, it has no relationship to the bootstrap process.
       use_password:
+        type: boolean
         default: false
         description: >
           A boolean describing whether this server image supports user-password authentication.
@@ -66,6 +198,7 @@ node_types:
           The password would then be retrieved by the plugin,
           decrypted using the server's keypair and then saved in the server's runtime properties.
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           see Openstack Configuraion
@@ -117,11 +250,13 @@ node_types:
     derived_from: cloudify.openstack.nodes.Server
     properties:
       use_password:
+        type: boolean
         default: true
         description: >
           Default changed for derived type
           because Windows instances need a password for agent installation
       os_family:
+        type: string
         default: windows
         description: >
           (updates the os_family default as a convenience)
@@ -144,6 +279,7 @@ node_types:
           Note that in the case of keypair, the only nested parameter
           that can be used is "name".
       private_key_path:
+        type: string
         description: >
           the path (on the machine the plugin is running on) to
           where the private key should be stored. If
@@ -162,6 +298,7 @@ node_types:
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           the name that will be given to the resource on Openstack (excluding optional prefix).
@@ -170,6 +307,7 @@ node_types:
           value (without any prefixes applied) will be looked for
           as either the name or id of an existing keypair to be used.
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -210,15 +348,18 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -260,6 +401,7 @@ node_types:
         description: >
           SecurityGroup description.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
@@ -271,10 +413,12 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -285,6 +429,7 @@ node_types:
         description: >
           key-value security_group_rule configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#security_groups
       disable_default_egress_rules:
+        type: boolean
         default: false
         description: >
           a flag for removing the default rules which https://wiki.openstack.org/wiki/Neutron/SecurityGroups#Behavior. If not set to `true`, these rules will remain, and exist alongside any additional rules passed using the `rules` property.
@@ -317,11 +462,13 @@ node_types:
         description: >
           key-value router configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3.
       external_network:
+        type: string
         default: ''
         description: >
           An external network name or ID.
           If given, the router will use this external network as a gateway.
       default_to_managers_external_network:
+        type: boolean
         default: true
         description: >
           A boolean which determines whether to use the Cloudify Manager's external network if no other external network was given (whether by a relationship, by the `external_network` property or by the nested `external_gateway_info` key in the `router` property). This is only relevant if the manager's external network appears in the Provider-context. Defaults to `true`.
@@ -332,15 +479,18 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -375,6 +525,7 @@ node_types:
         description: >
           key-value port configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#ports.
       fixed_ip:
+        type: string
         default: ''
         description: >
           may be used to request a specific fixed IP for the port.
@@ -388,15 +539,18 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -437,15 +591,18 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -486,14 +643,17 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         description: IP address of the floating IP
         default: ''
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -534,15 +694,18 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       device_name:
+        type: string
         default: auto
         description: >
           The device name this volume will be attached to.
@@ -553,6 +716,7 @@ node_types:
           Sometimes the device requested will not be available and openstack will assign it to a different device,
           this is why we recommend using *auto*.
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -610,14 +774,17 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           TODO: CREATE. THIS IS MISSING
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -658,14 +825,17 @@ node_types:
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           TODO: CREATE. THIS IS MISSING
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -676,6 +846,7 @@ node_types:
         description: >
           key-value security group rule as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-security-group-default-rules.
       description:
+        type: string
         description: security group description
     interfaces:
       cloudify.interfaces.lifecycle:
@@ -721,24 +892,29 @@ node_types:
           in data parameter.
         default: {}
       image_url:
+        type: string
         default: ''
         description: >
           The openstack resource URL for the image.
       use_external_resource:
+        type: boolean
         default: false
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -755,6 +931,7 @@ node_types:
           implementation: openstack.glance_plugin.image.start
           inputs:
             start_retry_interval:
+              type: integer
               default: 30
             openstack_config:
               default: {}
@@ -769,7 +946,6 @@ node_types:
           inputs:
             openstack_config:
               default: {}
-
 
   cloudify.openstack.nodes.Project:
     derived_from: cloudify.nodes.Root
@@ -794,20 +970,24 @@ node_types:
               neutron: <quota>
               nova: <quota>
       use_external_resource:
+        type: boolean
         default: false
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.
@@ -841,11 +1021,13 @@ node_types:
           created or rather that it already exists on Openstack
           and should be used as-is.
       create_if_missing:
+        type: boolean
         default: false
         description: >
           If use_external_resource is ``true`` and the resource is missing,
           create it instead of failing.
       resource_id:
+        type: string
         default: ''
         description: >
           the name that will be given to the resource on Openstack (excluding optional prefix).
@@ -854,6 +1036,7 @@ node_types:
           value (without any prefixes applied) will be looked for
           as either the name or id of an existing server group to be used.
       openstack_config:
+        type: cloudify.openstack.types.configuration
         default: {}
         description: >
           endpoints and authentication configuration for Openstack.

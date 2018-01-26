@@ -20,15 +20,14 @@ from openstack_plugin_common import (with_keystone_client,
                                      with_nova_client,
                                      with_cinder_client,
                                      with_neutron_client,
-                                     get_resource_id,
+                                     get_openstack_id,
                                      use_external_resource,
                                      delete_resource_and_runtime_properties,
                                      add_list_to_runtime_properties,
                                      validate_resource,
                                      create_object_dict,
                                      set_openstack_runtime_properties,
-                                     COMMON_RUNTIME_PROPERTIES_KEYS,
-                                     OPENSTACK_ID_PROPERTY)
+                                     COMMON_RUNTIME_PROPERTIES_KEYS)
 
 
 PROJECT_OPENSTACK_TYPE = 'project'
@@ -37,6 +36,14 @@ PROJECT_QUOTA_TYPE = 'quota'
 
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
+NOVA = 'nova'
+CINDER = 'cinder'
+NEUTRON = 'neutron'
+
+QUOTA = 'quota'
+USERS = 'users'
+ROLES = 'roles'
+
 
 @operation
 @with_keystone_client
@@ -44,7 +51,7 @@ def create(keystone_client, args, **kwargs):
     if use_external_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE):
         return
 
-    project_dict = create_object_dict(PROJECT_OPENSTACK_TYPE, args)
+    project_dict = create_object_dict(ctx, PROJECT_OPENSTACK_TYPE, args)
     project_dict['domain'] = 'default'
 
     project = keystone_client.projects.create(**project_dict)
@@ -53,7 +60,7 @@ def create(keystone_client, args, **kwargs):
 
 @operation
 def start(quota_dict, **kwargs):
-    users = ctx.node.properties['users']
+    users = ctx.node.properties[USERS]
     validate_users(users, **kwargs)
     assign_users(users, **kwargs)
     quota = ctx.node.properties[PROJECT_QUOTA_TYPE]
@@ -68,11 +75,11 @@ def start(quota_dict, **kwargs):
 @with_neutron_client
 def delete(keystone_client, nova_client, cinder_client,
            neutron_client, **kwargs):
-    tenant_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    project_id = get_openstack_id(ctx)
     quota = ctx.node.properties[PROJECT_QUOTA_TYPE]
-    delete_quota(tenant_id, quota, nova_client, 'nova')
-    delete_quota(tenant_id, quota, neutron_client, 'neutron')
-    delete_quota(tenant_id, quota, cinder_client, 'cinder')
+    delete_quota(project_id, quota, nova_client, NOVA)
+    delete_quota(project_id, quota, neutron_client, NEUTRON)
+    delete_quota(project_id, quota, cinder_client, CINDER)
     delete_resource_and_runtime_properties(ctx, keystone_client,
                                            RUNTIME_PROPERTIES_KEYS)
 
@@ -85,9 +92,9 @@ def creation_validation(keystone_client, **kwargs):
 
 @with_keystone_client
 def assign_users(users, keystone_client, **kwargs):
-    project_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    project_id = get_openstack_id(ctx)
     for user in users:
-        roles = user['roles']
+        roles = user[ROLES]
         u = keystone_client.users.find(name=user['name'])
         for role in roles:
             r = keystone_client.roles.find(name=role)
@@ -106,21 +113,32 @@ def validate_users(users, keystone_client, **kwargs):
         keystone_client.users.find(name=user_name)
 
     for user in users:
-        if len(user['roles']) > len(set(user['roles'])):
+        if len(user[ROLES]) > len(set(user[ROLES])):
             msg = 'Roles for user {} are not unique'
             raise NonRecoverableError(msg.format(user['name']))
 
-    role_names = {role for user in users for role in user['roles']}
+    role_names = {role for user in users for role in user[ROLES]}
     for role_name in role_names:
         keystone_client.roles.find(name=role_name)
+
+
+def get_quota(tenant_id, client, what_quota):
+    if what_quota == NEUTRON:
+        quota = client.get_quotas_tenant(tenant=tenant_id)
+        return quota
+    else:
+        quota = client.quotas.get(tenant_id=tenant_id)
+    ctx.logger.info(
+        'Got {0} quota: {1}'.format(what_quota, str(quota)))
+    return quota.to_dict()
 
 
 def update_quota(tenant_id, quota, client, what_quota):
     updated_quota = quota.get(what_quota)
     if updated_quota:
-        if what_quota == 'neutron':
+        if what_quota == NEUTRON:
             new_quota = client.update_quota(tenant_id=tenant_id,
-                                            body={'quota': updated_quota})
+                                            body={QUOTA: updated_quota})
         else:
             new_quota = client.quotas.update(tenant_id=tenant_id,
                                              **updated_quota)
@@ -131,7 +149,7 @@ def update_quota(tenant_id, quota, client, what_quota):
 def delete_quota(project_id, quota, client, what_quota):
     deleting_quota = quota.get(what_quota)
     if deleting_quota:
-        if what_quota == 'neutron':
+        if what_quota == NEUTRON:
             client.delete_quota(tenant_id=project_id)
         else:
             client.quotas.delete(tenant_id=project_id)
@@ -145,29 +163,39 @@ def update_project_quota(nova_client,
                          neutron_client,
                          quota,
                          **kwargs):
-    project_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    update_quota(project_id, quota, nova_client, 'nova')
-    update_quota(project_id, quota, neutron_client, 'neutron')
-    update_quota(project_id, quota, cinder_client, 'cinder')
+    project_id = get_openstack_id(ctx)
+    update_quota(project_id, quota, nova_client, NOVA)
+    update_quota(project_id, quota, neutron_client, NEUTRON)
+    update_quota(project_id, quota, cinder_client, CINDER)
 
 
 @with_keystone_client
 def list_projects(keystone_client,
-                  add_to_runtime_properties=True,
                   **kwargs):
     projects_list = keystone_client.projects.list()
-    if add_to_runtime_properties:
-        add_list_to_runtime_properties(ctx,
-                                       PROJECT_OPENSTACK_TYPE,
-                                       projects_list)
+    add_list_to_runtime_properties(ctx, PROJECT_OPENSTACK_TYPE, projects_list)
+
+
+@with_nova_client
+@with_neutron_client
+@with_cinder_client
+def get_project_quota(nova_client,
+                      cinder_client,
+                      neutron_client,
+                      **kwargs):
+    project_id = get_openstack_id(ctx)
+    quota = ctx.instance.runtime_properties.get(QUOTA, {})
+    quota[NOVA] = get_quota(project_id, nova_client, NOVA)
+    quota[NEUTRON] = get_quota(project_id, neutron_client, NEUTRON)
+    quota[CINDER] = get_quota(project_id, cinder_client, CINDER)
+    ctx.instance.runtime_properties[QUOTA] = quota
 
 
 @with_keystone_client
 def update_project(keystone_client, args, **kwargs):
 
-    project_dict = create_object_dict(PROJECT_OPENSTACK_TYPE, args)
+    project_dict = create_object_dict(ctx, PROJECT_OPENSTACK_TYPE, args)
     project_dict['domain'] = 'default'
-    project_dict[PROJECT_OPENSTACK_TYPE] = \
-        ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    project_dict[PROJECT_OPENSTACK_TYPE] = get_openstack_id(ctx)
     project = keystone_client.projects.update(**project_dict)
     set_openstack_runtime_properties(ctx, project, PROJECT_OPENSTACK_TYPE)

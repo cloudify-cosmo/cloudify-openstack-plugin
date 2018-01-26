@@ -1024,6 +1024,11 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+        get_quota:
+          implementation: openstack.keystone_plugin.project.get_project_quota
+          inputs:
+            openstack_config:
+              default: {}
         update_quota:
           implementation: openstack.keystone_plugin.project.update_project_quota
           inputs:

@@ -21,10 +21,10 @@ from openstack_plugin_common import (with_keystone_client,
                                      delete_resource_and_runtime_properties,
                                      validate_resource,
                                      create_object_dict,
+                                     get_openstack_id,
                                      add_list_to_runtime_properties,
                                      set_openstack_runtime_properties,
-                                     COMMON_RUNTIME_PROPERTIES_KEYS,
-                                     OPENSTACK_ID_PROPERTY)
+                                     COMMON_RUNTIME_PROPERTIES_KEYS)
 
 USER_OPENSTACK_TYPE = 'user'
 
@@ -37,7 +37,7 @@ def create(keystone_client, args, **kwargs):
     if use_external_resource(ctx, keystone_client, USER_OPENSTACK_TYPE):
         return
 
-    user_dict = create_object_dict(USER_OPENSTACK_TYPE, args)
+    user_dict = create_object_dict(ctx, USER_OPENSTACK_TYPE, args)
     user = keystone_client.users.create(**user_dict)
 
     set_openstack_runtime_properties(ctx, user, USER_OPENSTACK_TYPE)
@@ -53,9 +53,8 @@ def delete(keystone_client, **kwargs):
 @operation
 @with_keystone_client
 def update(keystone_client, args, **kwargs):
-    user_dict = create_object_dict(USER_OPENSTACK_TYPE, args)
-    user_dict[USER_OPENSTACK_TYPE] = \
-        ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    user_dict = create_object_dict(ctx, USER_OPENSTACK_TYPE, args)
+    user_dict[USER_OPENSTACK_TYPE] = get_openstack_id(ctx)
     user = keystone_client.users.update(**user_dict)
     set_openstack_runtime_properties(ctx, user, USER_OPENSTACK_TYPE)
 

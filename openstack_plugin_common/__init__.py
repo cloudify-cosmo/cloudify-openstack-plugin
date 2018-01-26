@@ -510,7 +510,11 @@ def validate_ip_or_range_syntax(ctx, address, is_range=True):
         raise NonRecoverableError(err)
 
 
-def create_object_dict(object_name, args):
+def get_openstack_id(ctx):
+    return ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+
+def create_object_dict(ctx, object_name, args):
     object_dict = {'name': get_resource_id(ctx, object_name)}
     object_dict.update(ctx.node.properties[object_name], **args)
     return object_dict

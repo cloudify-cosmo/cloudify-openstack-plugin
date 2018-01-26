@@ -12,7 +12,6 @@
 #  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
-
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
@@ -24,57 +23,42 @@ from openstack_plugin_common import (with_keystone_client,
                                      get_resource_id,
                                      use_external_resource,
                                      delete_resource_and_runtime_properties,
+                                     add_list_to_runtime_properties,
                                      validate_resource,
+                                     create_object_dict,
+                                     set_openstack_runtime_properties,
                                      COMMON_RUNTIME_PROPERTIES_KEYS,
-                                     OPENSTACK_ID_PROPERTY,
-                                     OPENSTACK_TYPE_PROPERTY,
-                                     OPENSTACK_NAME_PROPERTY)
+                                     OPENSTACK_ID_PROPERTY)
 
 
 PROJECT_OPENSTACK_TYPE = 'project'
 
-TENANT_QUOTA_TYPE = 'quota'
+PROJECT_QUOTA_TYPE = 'quota'
 
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation
 @with_keystone_client
-def create(keystone_client, **kwargs):
+def create(keystone_client, args, **kwargs):
     if use_external_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE):
         return
 
-    project_dict = {
-        'name': get_resource_id(ctx, PROJECT_OPENSTACK_TYPE),
-        'domain': 'default'
-    }
+    project_dict = create_object_dict(PROJECT_OPENSTACK_TYPE, args)
+    project_dict['domain'] = 'default'
 
-    project_dict.update(ctx.node.properties['project'])
     project = keystone_client.projects.create(**project_dict)
-
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = project.id
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-        PROJECT_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = project.name
+    set_openstack_runtime_properties(ctx, project, PROJECT_OPENSTACK_TYPE)
 
 
 @operation
-@with_keystone_client
-@with_nova_client
-@with_cinder_client
-@with_neutron_client
-def start(keystone_client, nova_client, cinder_client, neutron_client,
-          **kwargs):
-    project_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+def start(quota_dict, **kwargs):
     users = ctx.node.properties['users']
-    validate_users(users, keystone_client)
-
-    assign_users(project_id, users, keystone_client)
-
-    quota = ctx.node.properties[TENANT_QUOTA_TYPE]
-    update_quota(project_id, quota, nova_client, 'nova')
-    update_quota(project_id, quota, neutron_client, 'neutron')
-    update_quota(project_id, quota, cinder_client, 'cinder')
+    validate_users(users, **kwargs)
+    assign_users(users, **kwargs)
+    quota = ctx.node.properties[PROJECT_QUOTA_TYPE]
+    quota.update(quota_dict)
+    update_project_quota(quota=quota, **kwargs)
 
 
 @operation
@@ -85,7 +69,7 @@ def start(keystone_client, nova_client, cinder_client, neutron_client,
 def delete(keystone_client, nova_client, cinder_client,
            neutron_client, **kwargs):
     tenant_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    quota = ctx.node.properties[TENANT_QUOTA_TYPE]
+    quota = ctx.node.properties[PROJECT_QUOTA_TYPE]
     delete_quota(tenant_id, quota, nova_client, 'nova')
     delete_quota(tenant_id, quota, neutron_client, 'neutron')
     delete_quota(tenant_id, quota, cinder_client, 'cinder')
@@ -99,7 +83,9 @@ def creation_validation(keystone_client, **kwargs):
     validate_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE)
 
 
-def assign_users(project_id, users, keystone_client):
+@with_keystone_client
+def assign_users(users, keystone_client, **kwargs):
+    project_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     for user in users:
         roles = user['roles']
         u = keystone_client.users.find(name=user['name'])
@@ -110,7 +96,8 @@ def assign_users(project_id, users, keystone_client):
                                         role=r.id)
 
 
-def validate_users(users, keystone_client):
+@with_keystone_client
+def validate_users(users, keystone_client, **kwargs):
     user_names = [user['name'] for user in users]
     if len(user_names) > len(set(user_names)):
         raise NonRecoverableError('Users are not unique')
@@ -148,3 +135,39 @@ def delete_quota(project_id, quota, client, what_quota):
             client.delete_quota(tenant_id=project_id)
         else:
             client.quotas.delete(tenant_id=project_id)
+
+
+@with_nova_client
+@with_neutron_client
+@with_cinder_client
+def update_project_quota(nova_client,
+                         cinder_client,
+                         neutron_client,
+                         quota,
+                         **kwargs):
+    project_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    update_quota(project_id, quota, nova_client, 'nova')
+    update_quota(project_id, quota, neutron_client, 'neutron')
+    update_quota(project_id, quota, cinder_client, 'cinder')
+
+
+@with_keystone_client
+def list_projects(keystone_client,
+                  add_to_runtime_properties=True,
+                  **kwargs):
+    projects_list = keystone_client.projects.list()
+    if add_to_runtime_properties:
+        add_list_to_runtime_properties(ctx,
+                                       PROJECT_OPENSTACK_TYPE,
+                                       projects_list)
+
+
+@with_keystone_client
+def update_project(keystone_client, args, **kwargs):
+
+    project_dict = create_object_dict(PROJECT_OPENSTACK_TYPE, args)
+    project_dict['domain'] = 'default'
+    project_dict[PROJECT_OPENSTACK_TYPE] = \
+        ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    project = keystone_client.projects.update(**project_dict)
+    set_openstack_runtime_properties(ctx, project, PROJECT_OPENSTACK_TYPE)

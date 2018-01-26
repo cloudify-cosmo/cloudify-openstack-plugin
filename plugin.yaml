@@ -144,6 +144,8 @@ node_types:
         default: {}
         description: >
           key-value server configuration as described in OpenStack compute create server API.
+          http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1.servers.html
+          #novaclient.v1_1.servers.ServerManager.create
       use_external_resource:
         type: boolean
         default: false

@@ -510,6 +510,28 @@ def validate_ip_or_range_syntax(ctx, address, is_range=True):
         raise NonRecoverableError(err)
 
 
+def create_object_dict(object_name, args):
+    object_dict = {'name': get_resource_id(ctx, object_name)}
+    object_dict.update(ctx.node.properties[object_name], **args)
+    return object_dict
+
+
+def add_list_to_runtime_properties(ctx, openstack_type_name, object_list):
+    object_list = [obj.to_dict() for obj in object_list]
+    ctx.instance.runtime_properties[openstack_type_name + '_list'] \
+        = object_list
+    return object_list
+
+
+def set_openstack_runtime_properties(ctx, openstack_object, openstack_type):
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
+        openstack_object.id
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        openstack_type
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+        openstack_object.name
+
+
 class Config(object):
 
     OPENSTACK_CONFIG_PATH_ENV_VAR = 'OPENSTACK_CONFIG_PATH'

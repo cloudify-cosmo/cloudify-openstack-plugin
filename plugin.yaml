@@ -882,6 +882,57 @@ node_types:
             openstack_config:
               default: {}
 
+  cloudify.openstack.nodes.Flavor:
+    derived_from: cloudify.nodes.Root
+    properties:
+      flavor:
+        default: {}
+        description: >
+          key-value user configuration, according to:
+          https://developer.openstack.org/api-ref/compute/#create-flavor
+      use_external_resource:
+        default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+      create_if_missing:
+        default: false
+        description: >
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
+      resource_id:
+        default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
+      openstack_config:
+        default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.flavor.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.nova_plugin.flavor.delete
+          inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.nova_plugin.flavor.list_flavors
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+
   cloudify.openstack.nodes.Image:
     derived_from: cloudify.nodes.Root
     properties:
@@ -1046,6 +1097,7 @@ node_types:
       cloudify.interfaces.validation:
         creation: openstack.keystone_plugin.project.creation_validation
 
+
   cloudify.openstack.nodes.User:
     derived_from: cloudify.nodes.Root
     properties:
@@ -1103,6 +1155,7 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+
 
   cloudify.openstack.nodes.ServerGroup:
     derived_from: cloudify.nodes.Root

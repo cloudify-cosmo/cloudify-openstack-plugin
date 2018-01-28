@@ -573,21 +573,11 @@ class OpenStackClient(object):
         if v3 and region:
             cfg['region_name'] = region
 
-        cfg = self._merge_custom_configuration(cfg, client_name)
-
-        auth_params, client_params = OpenStackClient._split_config(cfg)
-        OpenStackClient._validate_auth_params(auth_params)
-
-        if v3:
-            # keystone v3 complains if these aren't set.
-            for key in 'user_domain_name', 'project_domain_name':
-                auth_params.setdefault(key, 'default')
-
         # Calculate effective logging policy.
         # Note that we don't use dict's update() function at the dict's
         # root because it will overwrite nested dicts.
 
-        logging_config = cfg.get('logging', dict())
+        logging_config = cfg.pop('logging', dict())
         use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
         groups_config = logging_config.get(KEY_GROUPS, {})
         loggers_config = logging_config.get(KEY_LOGGERS, {})
@@ -615,6 +605,16 @@ class OpenStackClient(object):
             if ctx_log_handler:
                 logger.addHandler(ctx_log_handler)
             logger.setLevel(logger_level)
+
+        cfg = self._merge_custom_configuration(cfg, client_name)
+
+        auth_params, client_params = OpenStackClient._split_config(cfg)
+        OpenStackClient._validate_auth_params(auth_params)
+
+        if v3:
+            # keystone v3 complains if these aren't set.
+            for key in 'user_domain_name', 'project_domain_name':
+                auth_params.setdefault(key, 'default')
 
         client_params['session'] = self._authenticate(auth_params)
         self._client = client_class(**client_params)

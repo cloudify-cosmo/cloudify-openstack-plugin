@@ -61,10 +61,6 @@ def update(keystone_client, args, **kwargs):
 
 @with_keystone_client
 def list_users(keystone_client,
-               add_to_runtime_properties=True,
                **kwargs):
     users_list = keystone_client.users.list()
-    if add_to_runtime_properties:
-        add_list_to_runtime_properties(ctx,
-                                       USER_OPENSTACK_TYPE,
-                                       users_list)
+    add_list_to_runtime_properties(ctx, USER_OPENSTACK_TYPE, users_list)

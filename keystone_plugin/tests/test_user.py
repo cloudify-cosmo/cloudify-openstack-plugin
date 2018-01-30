@@ -45,7 +45,7 @@ class TestUser(unittest.TestCase):
     def mock_keystone_client(self, mock_user):
         keystone_client = mock.MagicMock()
         keystone_client.users.create.return_value = mock_user
-        keystone_client.users.list.return_value = {'users': [mock_user]}
+        keystone_client.users.list.return_value = [mock_user]
         keystone_client.users.find.return_value = mock.MagicMock(
             id=self.test_name)
         keystone_client.users.update.return_value = self.MockUserOS(

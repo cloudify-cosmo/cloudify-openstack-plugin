@@ -170,9 +170,9 @@ def update_project_quota(nova_client,
 
 
 @with_keystone_client
-def list_projects(keystone_client,
-                  **kwargs):
-    projects_list = keystone_client.projects.list()
+def list_projects(keystone_client, args, **kwargs):
+    projects_list = keystone_client.projects.list(**args)
+    projects_list = projects_list.get('projects')
     add_list_to_runtime_properties(ctx, PROJECT_OPENSTACK_TYPE, projects_list)
 
 

@@ -59,7 +59,8 @@ class TestProject(unittest.TestCase):
     def mock_keystone_client(self, mock_project):
         keystone_client = mock.MagicMock()
         keystone_client.projects.create.return_value = mock_project
-        keystone_client.projects.list.return_value = [mock_project]
+        keystone_client.projects.list.return_value = \
+            {'projects': [mock_project]}
         keystone_client.users.find.return_value = mock.MagicMock(
             id=self.test_user)
         keystone_client.projects.update.return_value = self.MockProjectOS(
@@ -226,7 +227,8 @@ class TestProject(unittest.TestCase):
         mock_project = self.MockProjectOS(self.test_id, self.test_name)
         keystone_client = self.mock_keystone_client(mock_project)
         keystone_plugin.project.ctx = ctx
-        keystone_plugin.project.list_projects(keystone_client=keystone_client)  # keystone_client
+        keystone_plugin.project.list_projects(args={},
+                                              keystone_client=keystone_client)  # keystone_client
         project_list = PROJECT_OPENSTACK_TYPE + '_list'
         self.assertIn(project_list, ctx.instance.runtime_properties)
         self.assertEqual(1,

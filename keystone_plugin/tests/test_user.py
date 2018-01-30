@@ -45,7 +45,7 @@ class TestUser(unittest.TestCase):
     def mock_keystone_client(self, mock_user):
         keystone_client = mock.MagicMock()
         keystone_client.users.create.return_value = mock_user
-        keystone_client.users.list.return_value = [mock_user]
+        keystone_client.users.list.return_value = {'users': [mock_user]}
         keystone_client.users.find.return_value = mock.MagicMock(
             id=self.test_name)
         keystone_client.users.update.return_value = self.MockUserOS(
@@ -124,7 +124,8 @@ class TestUser(unittest.TestCase):
         mock_user = self.MockUserOS(self.test_id, self.test_name)
         keystone_client = self.mock_keystone_client(mock_user)
         keystone_plugin.user.ctx = ctx
-        keystone_plugin.user.list_users(keystone_client=keystone_client)
+        keystone_plugin.user.list_users(args={},
+                                        keystone_client=keystone_client)
         user_list = USER_OPENSTACK_TYPE + '_list'
         self.assertIn(user_list, ctx.instance.runtime_properties)
         self.assertEqual(1, len(ctx.instance.runtime_properties[user_list]))

@@ -17,9 +17,7 @@ from openstack_plugin_common import (
 from keystone_plugin.project import (
     PROJECT_OPENSTACK_TYPE,
     QUOTA,
-    NOVA,
-    CINDER,
-    NEUTRON
+    NOVA
 )
 import keystone_plugin
 
@@ -207,7 +205,7 @@ class TestProject(unittest.TestCase):
         keystone_client = self.mock_keystone_client(mock_project)
         keystone_plugin.project.ctx = ctx
         keystone_plugin.project.update_project(args={},
-                                               keystone_client=keystone_client)  # keystone_client
+                                               keystone_client=keystone_client)
         self.assertEqual(self.updated_name,
                          ctx.instance.runtime_properties[
                              OPENSTACK_NAME_PROPERTY])
@@ -228,7 +226,7 @@ class TestProject(unittest.TestCase):
         keystone_client = self.mock_keystone_client(mock_project)
         keystone_plugin.project.ctx = ctx
         keystone_plugin.project.list_projects(args={},
-                                              keystone_client=keystone_client)  # keystone_client
+                                              keystone_client=keystone_client)
         project_list = PROJECT_OPENSTACK_TYPE + '_list'
         self.assertIn(project_list, ctx.instance.runtime_properties)
         self.assertEqual(1,
@@ -254,11 +252,11 @@ class TestProject(unittest.TestCase):
         keystone_plugin.project.get_quota = mock.MagicMock(
             return_value=nova_quota)
 
-        keystone_plugin.project.get_project_quota(nova_client=mock.MagicMock(),  # nova_client
-                                                  cinder_client=mock.MagicMock(),  # cinder_client
-                                                  neutron_client=mock.MagicMock())  # neutron_client
+        keystone_plugin.project.get_project_quota(
+            nova_client=mock.MagicMock(),
+            cinder_client=mock.MagicMock(),
+            neutron_client=mock.MagicMock())
 
         self.assertIn(QUOTA, ctx.instance.runtime_properties)
-        self.assertDictEqual(quota[NOVA], ctx.instance.runtime_properties[QUOTA][NOVA])
-
-
+        self.assertDictEqual(quota[NOVA],
+                             ctx.instance.runtime_properties[QUOTA][NOVA])

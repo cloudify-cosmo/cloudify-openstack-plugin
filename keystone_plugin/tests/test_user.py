@@ -2,7 +2,6 @@ import mock
 import unittest
 
 from cloudify.context import NODE_INSTANCE
-from cloudify.exceptions import NonRecoverableError
 
 from cloudify.mocks import (
     MockContext,
@@ -129,4 +128,3 @@ class TestUser(unittest.TestCase):
         user_list = USER_OPENSTACK_TYPE + '_list'
         self.assertIn(user_list, ctx.instance.runtime_properties)
         self.assertEqual(1, len(ctx.instance.runtime_properties[user_list]))
-

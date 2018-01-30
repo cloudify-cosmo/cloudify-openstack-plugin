@@ -19,7 +19,6 @@ from cloudify.decorators import operation
 from openstack_plugin_common import (with_keystone_client,
                                      use_external_resource,
                                      delete_resource_and_runtime_properties,
-                                     validate_resource,
                                      create_object_dict,
                                      get_openstack_id,
                                      add_list_to_runtime_properties,

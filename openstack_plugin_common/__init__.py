@@ -289,6 +289,13 @@ def get_resource_id(ctx, type_name):
     return "{0}_{1}_{2}".format(type_name, ctx.deployment.id, ctx.instance.id)
 
 
+def get_property(ctx, property_name, kwargs={}, default=None):
+    return kwargs.get(
+        property_name,
+        ctx.node.properties.get(property_name, default)
+    )
+
+
 def transform_resource_name(ctx, res):
 
     if isinstance(res, basestring):

@@ -1104,6 +1104,70 @@ node_types:
             openstack_config:
               default: {}
 
+  cloudify.openstack.nodes.HostAggregate:
+    derived_from: cloudify.nodes.Root
+    properties:
+      aggregate:
+        default: {}
+        description: >
+          key-value host aggregate configuration, according to:
+          https://developer.openstack.org/api-ref/compute/#host-aggregates-os-aggregates
+      hosts:
+        required: false
+        description: >
+          list of hosts IDs, which will be a members of host aggregate
+      metadata:
+        required: false
+        description: >
+          metadata entries in <key>:<value> format
+      use_external_resource:
+        default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+      create_if_missing:
+        default: false
+        description: >
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
+      resource_id:
+        default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
+      openstack_config:
+        default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.host_aggregate.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.nova_plugin.host_aggregate.delete
+          inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        update:
+          implementation: openstack.nova_plugin.host_aggregate.update
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        list:
+          implementation: openstack.nova_plugin.host_aggregate.list_host_aggregates
+          inputs:
+            openstack_config:
+              default: {}
+
   cloudify.openstack.nodes.ServerGroup:
     derived_from: cloudify.nodes.Root
     properties:

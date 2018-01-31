@@ -101,11 +101,12 @@ def create(nova_client, args, **kwargs):
 def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
         _remove_hosts(ctx, nova_client, get_openstack_id(ctx), kwargs)
-        delete_resource_and_runtime_properties(
-            ctx,
-            nova_client,
-            RUNTIME_PROPERTIES_KEYS
-        )
+
+    delete_resource_and_runtime_properties(
+        ctx,
+        nova_client,
+        RUNTIME_PROPERTIES_KEYS
+    )
 
 
 @operation
@@ -133,14 +134,11 @@ def update(nova_client, args, **kwargs):
 
 
 @with_nova_client
-def list_host_aggregates(nova_client,
-                         add_to_runtime_properties=True,
-                         **kwargs):
+def list_host_aggregates(nova_client, **kwargs):
     host_aggregates_list = nova_client.aggregates.list()
 
-    if add_to_runtime_properties:
-        add_list_to_runtime_properties(
-            ctx,
-            HOST_AGGREGATE_OPENSTACK_TYPE,
-            host_aggregates_list
-        )
+    add_list_to_runtime_properties(
+        ctx,
+        HOST_AGGREGATE_OPENSTACK_TYPE,
+        host_aggregates_list
+    )

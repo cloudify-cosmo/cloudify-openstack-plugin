@@ -48,9 +48,14 @@ Node Types
 
 .. cfy:node:: cloudify.openstack.nodes.Project
 
+
 .. cfy:node:: cloudify.openstack.nodes.User
 
+
 .. cfy:node:: cloudify.openstack.nodes.ServerGroup
+
+
+.. cfy:node:: cloudify.openstack.nodes.HostAggregate
 
 
 Types' Common Behaviors

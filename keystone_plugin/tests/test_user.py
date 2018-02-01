@@ -2,6 +2,8 @@ import mock
 import unittest
 
 from cloudify.context import NODE_INSTANCE
+from cloudify.context import BootstrapContext
+import openstack_plugin_common.tests.test as common_test
 
 from cloudify.mocks import (
     MockContext,
@@ -55,6 +57,8 @@ class TestUser(unittest.TestCase):
                  test_deployment_id, runtime_properties=None):
         ctx = MockContext()
         ctx.node = MockNodeContext(properties=test_vars)
+        ctx.bootstrap_context = BootstrapContext(
+            common_test.BOOTSTRAP_CONTEXTS_WITHOUT_PREFIX[0])
         ctx.instance = MockNodeInstanceContext(
             id=test_id, runtime_properties=runtime_properties or {})
         ctx.deployment = mock.Mock()

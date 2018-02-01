@@ -30,6 +30,8 @@ from openstack_plugin_common import (
     provider,
     transform_resource_name,
     get_resource_id,
+    get_openstack_id,
+    add_list_to_runtime_properties,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     with_nova_client,
     with_cinder_client,
@@ -481,6 +483,12 @@ def delete(nova_client, **kwargs):
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
 
 
+@with_nova_client
+def list_servers(nova_client, args, **kwargs):
+    server_list = nova_client.servers.list(**args)
+    add_list_to_runtime_properties(ctx, SERVER_OPENSTACK_TYPE, server_list)
+
+
 def _wait_for_server_to_be_deleted(nova_client,
                                    server,
                                    timeout=120,
@@ -500,8 +508,7 @@ def _wait_for_server_to_be_deleted(nova_client,
 
 
 def get_server_by_context(nova_client):
-    return nova_client.servers.get(
-        ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY])
+    return nova_client.servers.get(get_openstack_id(ctx))
 
 
 def _set_network_and_ip_runtime_properties(server):
@@ -533,9 +540,8 @@ def _set_network_and_ip_runtime_properties(server):
 @operation
 @with_nova_client
 def connect_floatingip(nova_client, fixed_ip, **kwargs):
-    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    floating_ip_id = ctx.target.instance.runtime_properties[
-        OPENSTACK_ID_PROPERTY]
+    server_id = get_openstack_id(ctx.source)
+    floating_ip_id = get_openstack_id(ctx.target)
 
     if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external floatingip and server '
@@ -569,7 +575,7 @@ def disconnect_floatingip(nova_client, neutron_client, **kwargs):
                         'external floatingip and server are being used')
         return
 
-    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = get_openstack_id(ctx.source)
     ctx.logger.info("Remove floating ip {0}".format(
         ctx.target.instance.runtime_properties[IP_ADDRESS_PROPERTY]))
     server_floating_ip = get_server_floating_ip(neutron_client, server_id)
@@ -583,9 +589,8 @@ def disconnect_floatingip(nova_client, neutron_client, **kwargs):
 @operation
 @with_nova_client
 def connect_security_group(nova_client, **kwargs):
-    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    security_group_id = ctx.target.instance.runtime_properties[
-        OPENSTACK_ID_PROPERTY]
+    server_id = get_openstack_id(ctx.source)
+    security_group_id = get_openstack_id(ctx.target)
     security_group_name = ctx.target.instance.runtime_properties[
         OPENSTACK_NAME_PROPERTY]
 
@@ -627,9 +632,8 @@ def disconnect_security_group(nova_client, **kwargs):
                         'external security group and server are being used')
         return
 
-    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    security_group_id = ctx.target.instance.runtime_properties[
-        OPENSTACK_ID_PROPERTY]
+    server_id = get_openstack_id(ctx.source)
+    security_group_id = get_openstack_id(ctx.target)
     security_group_name = ctx.target.instance.runtime_properties[
         OPENSTACK_NAME_PROPERTY]
     server = nova_client.servers.get(server_id)
@@ -653,8 +657,8 @@ def disconnect_security_group(nova_client, **kwargs):
 @with_cinder_client
 def attach_volume(nova_client, cinder_client, status_attempts,
                   status_timeout, **kwargs):
-    server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = get_openstack_id(ctx.target)
+    volume_id = get_openstack_id(ctx.source)
 
     if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external volume and server '
@@ -749,8 +753,8 @@ def detach_volume(nova_client, cinder_client, status_attempts,
                         'external volume and server are being used')
         return
 
-    server_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    volume_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = get_openstack_id(ctx.target)
+    volume_id = get_openstack_id(ctx.source)
 
     _detach_volume(nova_client, cinder_client, server_id, volume_id,
                    status_attempts, status_timeout)
@@ -816,7 +820,7 @@ def _validate_external_server_nics(neutron_client, network_ids, port_ids):
     if not network_ids and not port_ids:
         return
 
-    server_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    server_id = get_openstack_id(ctx)
     connected_ports = neutron_client.list_ports(device_id=server_id)['ports']
 
     # not counting networks connected by a connected port since allegedly

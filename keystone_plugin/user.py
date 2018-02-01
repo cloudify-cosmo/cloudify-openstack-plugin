@@ -36,7 +36,7 @@ def create(keystone_client, args, **kwargs):
     if use_external_resource(ctx, keystone_client, USER_OPENSTACK_TYPE):
         return
 
-    user_dict = create_object_dict(ctx, USER_OPENSTACK_TYPE, args)
+    user_dict = create_object_dict(ctx, USER_OPENSTACK_TYPE, args, {})
     user = keystone_client.users.create(**user_dict)
 
     set_openstack_runtime_properties(ctx, user, USER_OPENSTACK_TYPE)
@@ -52,7 +52,7 @@ def delete(keystone_client, **kwargs):
 @operation
 @with_keystone_client
 def update(keystone_client, args, **kwargs):
-    user_dict = create_object_dict(ctx, USER_OPENSTACK_TYPE, args)
+    user_dict = create_object_dict(ctx, USER_OPENSTACK_TYPE, args, {})
     user_dict[USER_OPENSTACK_TYPE] = get_openstack_id(ctx)
     user = keystone_client.users.update(**user_dict)
     set_openstack_runtime_properties(ctx, user, USER_OPENSTACK_TYPE)

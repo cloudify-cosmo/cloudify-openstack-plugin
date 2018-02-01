@@ -35,7 +35,7 @@ def create(nova_client, args, **kwargs):
     if use_external_resource(ctx, nova_client, FLAVOR_OPENSTACK_TYPE):
         return
 
-    flavor_dict = create_object_dict(ctx, FLAVOR_OPENSTACK_TYPE, args)
+    flavor_dict = create_object_dict(ctx, FLAVOR_OPENSTACK_TYPE, args, {})
     flavor = nova_client.flavors.create(**flavor_dict)
     set_openstack_runtime_properties(ctx, flavor, FLAVOR_OPENSTACK_TYPE)
 

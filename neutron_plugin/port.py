@@ -20,19 +20,18 @@ from cloudify.exceptions import NonRecoverableError
 import neutronclient.common.exceptions as neutron_exceptions
 
 from openstack_plugin_common import (
-    transform_resource_name,
     with_neutron_client,
     with_nova_client,
-    get_resource_id,
     get_openstack_id_of_single_connected_node_by_openstack_type,
     delete_resource_and_runtime_properties,
     delete_runtime_properties,
     use_external_resource,
     is_external_relationship,
+    add_list_to_runtime_properties,
     validate_resource,
-    OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY,
-    OPENSTACK_NAME_PROPERTY,
+    get_openstack_id,
+    set_neutron_runtime_properties,
+    create_object_dict,
     COMMON_RUNTIME_PROPERTIES_KEYS,
     is_external_relationship_not_conditionally_created)
 
@@ -64,11 +63,10 @@ def create(neutron_client, args, **kwargs):
                     ctx, NETWORK_OPENSTACK_TYPE, True)
 
             if net_id:
-                port_id = ctx.instance.runtime_properties[
-                    OPENSTACK_ID_PROPERTY]
+                port_id = get_openstack_id(ctx)
 
                 if neutron_client.show_port(
-                        port_id)['port']['network_id'] != net_id:
+                        port_id)[PORT_OPENSTACK_TYPE]['network_id'] != net_id:
                     raise NonRecoverableError(
                         'Expected external resources port {0} and network {1} '
                         'to be connected'.format(port_id, net_id))
@@ -85,21 +83,16 @@ def create(neutron_client, args, **kwargs):
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
 
-    port = {
-        'name': get_resource_id(ctx, PORT_OPENSTACK_TYPE),
-        'network_id': net_id,
-        'security_groups': [],
-    }
-
+    port = create_object_dict(ctx,
+                              PORT_OPENSTACK_TYPE,
+                              args,
+                              {'network_id': net_id, 'security_groups': []})
     _handle_fixed_ips(port)
-    port.update(ctx.node.properties['port'], **args)
-    transform_resource_name(ctx, port)
 
-    p = neutron_client.create_port({'port': port})['port']
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = p['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
-        PORT_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = p['name']
+    p = neutron_client.create_port(
+        {PORT_OPENSTACK_TYPE: port})[PORT_OPENSTACK_TYPE]
+
+    set_neutron_runtime_properties(ctx, p, PORT_OPENSTACK_TYPE)
     ctx.instance.runtime_properties[FIXED_IP_ADDRESS_PROPERTY] = \
         _get_fixed_ip(p)
     ctx.instance.runtime_properties[MAC_ADDRESS_PROPERTY] = p['mac_address']
@@ -129,8 +122,8 @@ def detach(nova_client, neutron_client, **kwargs):
                         'external port and server are being used')
         return
 
-    port_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    server_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    port_id = get_openstack_id(ctx.target)
+    server_id = get_openstack_id(ctx.source)
 
     server_floating_ip = get_server_floating_ip(neutron_client, server_id)
     if server_floating_ip:
@@ -145,7 +138,7 @@ def detach(nova_client, neutron_client, **kwargs):
                             server_id),
             retry_after=10)
     change = {
-        'port': {
+        PORT_OPENSTACK_TYPE: {
             'device_id': '',
             'device_owner': ''
         }
@@ -158,9 +151,8 @@ def detach(nova_client, neutron_client, **kwargs):
 @operation
 @with_neutron_client
 def connect_security_group(neutron_client, **kwargs):
-    port_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    security_group_id = ctx.target.instance.runtime_properties[
-        OPENSTACK_ID_PROPERTY]
+    port_id = get_openstack_id(ctx.source)
+    security_group_id = get_openstack_id(ctx.target)
 
     if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external port and security-group are '
@@ -173,12 +165,13 @@ def connect_security_group(neutron_client, **kwargs):
             'be connected'.format(port_id, security_group_id))
 
     # WARNING: non-atomic operation
-    port = neutron_client.cosmo_get('port', id=port_id)
+    port = neutron_client.cosmo_get(PORT_OPENSTACK_TYPE, id=port_id)
     ctx.logger.info(
         "connect_security_group(): source_id={0} target={1}".format(
             port_id, ctx.target.instance.runtime_properties))
     sgs = port['security_groups'] + [security_group_id]
-    neutron_client.update_port(port_id, {'port': {'security_groups': sgs}})
+    neutron_client.update_port(port_id,
+                               {PORT_OPENSTACK_TYPE: {'security_groups': sgs}})
 
     # Double check if SG has been actually updated (a race-condition
     # in OpenStack):
@@ -191,6 +184,14 @@ def connect_security_group(neutron_client, **kwargs):
                                                         security_group_id),
             retry_after=NO_SG_PORT_CONNECTION_RETRY_INTERVAL
         )
+
+
+@with_neutron_client
+def list_ports(neutron_client, args, **kwargs):
+    port_list = neutron_client.list_ports(**args)
+    add_list_to_runtime_properties(ctx,
+                                   PORT_OPENSTACK_TYPE,
+                                   port_list.get('ports', []))
 
 
 @operation

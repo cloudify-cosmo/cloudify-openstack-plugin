@@ -521,20 +521,29 @@ def get_openstack_id(ctx):
     return ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
 
 
-def create_object_dict(ctx, object_name, args):
-    object_dict = {'name': get_resource_id(ctx, object_name)}
+def get_openstack_type(ctx):
+    return ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY]
+
+
+def create_object_dict(ctx, object_name, args, object_dict):
+    object_dict['name'] = get_resource_id(ctx, object_name)
     object_dict.update(ctx.node.properties[object_name], **args)
+    transform_resource_name(ctx, object_dict)
     return object_dict
 
 
 def add_list_to_runtime_properties(ctx, openstack_type_name, object_list):
-    object_list = [obj.to_dict() for obj in object_list]
-    ctx.instance.runtime_properties[openstack_type_name + '_list'] \
-        = object_list
 
-    ctx.logger.debug('Added {0} list: {1} to runtime properties'.format(
-        openstack_type_name, object_list))
-    return object_list
+    objects = []
+
+    for obj in object_list:
+        if type(obj) not in [str, dict]:
+            obj = obj.to_dict()
+        objects.append(obj)
+
+    ctx.instance.runtime_properties[openstack_type_name + '_list'] \
+        = objects
+    return objects
 
 
 def set_openstack_runtime_properties(ctx, openstack_object, openstack_type):
@@ -544,6 +553,15 @@ def set_openstack_runtime_properties(ctx, openstack_object, openstack_type):
         openstack_type
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
         openstack_object.name
+
+
+def set_neutron_runtime_properties(ctx, openstack_object, openstack_type):
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
+        openstack_object['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        openstack_type
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+        openstack_object['name']
 
 
 class Config(object):

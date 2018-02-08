@@ -246,6 +246,14 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.nova_plugin.server.list_servers
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nodes.WindowsServer:
     derived_from: cloudify.openstack.nodes.Server
@@ -333,6 +341,14 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.nova_plugin.keypair.list_keypairs
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nodes.Subnet:
     derived_from: cloudify.nodes.Subnet
@@ -383,6 +399,14 @@ node_types:
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.neutron_plugin.subnet.creation_validation
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.neutron_plugin.subnet.list_subnets
           inputs:
             args:
               default: {}
@@ -456,6 +480,14 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.neutron_plugin.security_group.list_security_groups
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nodes.Router:
     derived_from: cloudify.nodes.Router
@@ -520,6 +552,14 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.neutron_plugin.router.list_routers
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nodes.Port:
     derived_from: cloudify.nodes.Port
@@ -581,6 +621,14 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.neutron_plugin.port.list_ports
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nodes.Network:
     derived_from: cloudify.nodes.Network
@@ -634,6 +682,14 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.neutron_plugin.network.list_networks
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nodes.FloatingIP:
     derived_from: cloudify.nodes.VirtualIP
@@ -684,6 +740,14 @@ node_types:
         creation:
           implementation: openstack.neutron_plugin.floatingip.creation_validation
           inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.neutron_plugin.floatingip.list_floatingips
+          inputs:
+            args:
+              default: {}
             openstack_config:
               default: {}
 
@@ -767,6 +831,14 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.cinder_plugin.volume.list_volumes
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nova_net.nodes.FloatingIP:
     derived_from: cloudify.nodes.VirtualIP
@@ -819,6 +891,7 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+
 
   cloudify.openstack.nova_net.nodes.SecurityGroup:
     derived_from: cloudify.nodes.SecurityGroup
@@ -986,6 +1059,8 @@ node_types:
         create:
           implementation: openstack.glance_plugin.image.create
           inputs:
+            args:
+              default: {}
             openstack_config:
               default: {}
         start:
@@ -1005,6 +1080,21 @@ node_types:
         creation:
           implementation: openstack.glance_plugin.image.creation_validation
           inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        update:
+          implementation: openstack.glance_plugin.image.update
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        list:
+          implementation: openstack.glance_plugin.image.list_images
+          inputs:
+            args:
+              default: {}
             openstack_config:
               default: {}
 
@@ -1289,6 +1379,14 @@ node_types:
         creation:
           implementation: openstack.nova_plugin.server_group.creation_validation
           inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.nova_plugin.server_group.list_servergroups
+          inputs:
+            args:
+              default: {}
             openstack_config:
               default: {}
 

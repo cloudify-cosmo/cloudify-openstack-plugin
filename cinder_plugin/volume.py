@@ -21,10 +21,10 @@ from cloudify import exceptions as cfy_exc
 
 from openstack_plugin_common import (delete_resource_and_runtime_properties,
                                      with_cinder_client,
-                                     get_resource_id,
-                                     transform_resource_name,
                                      use_external_resource,
                                      validate_resource,
+                                     add_list_to_runtime_properties,
+                                     create_object_dict,
                                      COMMON_RUNTIME_PROPERTIES_KEYS,
                                      OPENSTACK_AZ_PROPERTY,
                                      OPENSTACK_ID_PROPERTY,
@@ -58,12 +58,8 @@ def create(cinder_client, status_attempts, status_timeout, args, **kwargs):
                              'name'):
         return
 
-    name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)
-    volume_dict = {'name': name}
-    volume_dict.update(ctx.node.properties['volume'], **args)
+    volume_dict = create_object_dict(ctx, VOLUME_OPENSTACK_TYPE, args, {})
     handle_image_from_relationship(volume_dict, 'imageRef', ctx)
-    volume_dict['name'] = transform_resource_name(
-        ctx, volume_dict['name'])
 
     v = cinder_client.volumes.create(**volume_dict)
 
@@ -123,3 +119,9 @@ def get_attachment(cinder_client, volume_id, server_id):
 def creation_validation(cinder_client, **kwargs):
     validate_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
                       'name')
+
+
+@with_cinder_client
+def list_volumes(cinder_client, args, **kwargs):
+    volume_list = cinder_client.volumes.list(**args)
+    add_list_to_runtime_properties(ctx, VOLUME_OPENSTACK_TYPE, volume_list)

@@ -21,15 +21,15 @@ from cloudify.exceptions import NonRecoverableError
 
 from openstack_plugin_common import (
     with_glance_client,
-    get_resource_id,
+    get_openstack_id,
     use_external_resource,
+    create_object_dict,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     delete_resource_and_runtime_properties,
     validate_resource,
-    COMMON_RUNTIME_PROPERTIES_KEYS,
-    OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY,
-    OPENSTACK_NAME_PROPERTY)
+    add_list_to_runtime_properties,
+    set_openstack_runtime_properties,
+    COMMON_RUNTIME_PROPERTIES_KEYS)
 
 
 IMAGE_OPENSTACK_TYPE = 'image'
@@ -41,19 +41,14 @@ REQUIRED_PROPERTIES = ['container_format', 'disk_format']
 
 @operation
 @with_glance_client
-def create(glance_client, **kwargs):
+def create(glance_client, args, **kwargs):
     if use_external_resource(ctx, glance_client, IMAGE_OPENSTACK_TYPE):
         return
 
-    img_dict = {
-        'name': get_resource_id(ctx, IMAGE_OPENSTACK_TYPE)
-    }
     _validate_image_dictionary()
-    img_properties = ctx.node.properties['image']
-    img_dict.update({key: value for key, value in img_properties.iteritems()
-                    if key != 'data'})
+    img_dict = create_object_dict(ctx, IMAGE_OPENSTACK_TYPE, args, {})
+    img_path = img_dict.pop('data', '')
     img = glance_client.images.create(**img_dict)
-    img_path = img_properties.get('data', '')
     img_url = ctx.node.properties.get('image_url')
     try:
         _validate_image()
@@ -69,15 +64,12 @@ def create(glance_client, **kwargs):
         glance_client.images.delete(image_id=img.id)
         raise
 
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = img.id
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-        IMAGE_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = img.name
+    set_openstack_runtime_properties(ctx, img, IMAGE_OPENSTACK_TYPE)
 
 
 def _get_image_by_ctx(glance_client, ctx):
     return glance_client.images.get(
-        image_id=ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY])
+        image_id=get_openstack_id(ctx))
 
 
 @operation
@@ -98,6 +90,22 @@ def delete(glance_client, **kwargs):
                                            RUNTIME_PROPERTIES_KEYS)
 
 
+@with_glance_client
+def list_images(glance_client, args, **kwargs):
+    image_list = glance_client.images.list(**args)
+    add_list_to_runtime_properties(ctx,
+                                   IMAGE_OPENSTACK_TYPE,
+                                   image_list.get('images', []))
+
+
+@with_glance_client
+def update(glance_client, args, **kwargs):
+    image_dict = create_object_dict(ctx, IMAGE_OPENSTACK_TYPE, args)
+    image_dict[IMAGE_OPENSTACK_TYPE] = get_openstack_id(ctx)
+    image = glance_client.images.update(**image_dict)
+    set_openstack_runtime_properties(ctx, image, IMAGE_OPENSTACK_TYPE)
+
+
 @operation
 @with_glance_client
 def creation_validation(glance_client, **kwargs):
@@ -107,7 +115,7 @@ def creation_validation(glance_client, **kwargs):
 
 
 def _validate_image_dictionary():
-    img = ctx.node.properties['image']
+    img = ctx.node.properties[IMAGE_OPENSTACK_TYPE]
     missing = ''
     try:
         for prop in REQUIRED_PROPERTIES:
@@ -122,7 +130,7 @@ def _validate_image_dictionary():
 
 
 def _validate_image():
-    img = ctx.node.properties['image']
+    img = ctx.node.properties[IMAGE_OPENSTACK_TYPE]
     img_path = img.get('data')
     img_url = ctx.node.properties.get('image_url')
     if not img_url and not img_path:
@@ -146,7 +154,7 @@ def _check_url(url):
 
 
 def _check_path():
-    img = ctx.node.properties['image']
+    img = ctx.node.properties[IMAGE_OPENSTACK_TYPE]
     img_path = img.get('data')
     try:
         with open(img_path, 'rb'):
@@ -163,9 +171,10 @@ def _remove_protected(glance_client):
     if use_external_resource(ctx, glance_client, IMAGE_OPENSTACK_TYPE):
         return
 
-    is_protected = ctx.node.properties['image'].get('protected', False)
+    is_protected = ctx.node.properties[IMAGE_OPENSTACK_TYPE].get('protected',
+                                                                 False)
     if is_protected:
-        img_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+        img_id = get_openstack_id(ctx)
         glance_client.images.update(img_id, protected=False)
 
 

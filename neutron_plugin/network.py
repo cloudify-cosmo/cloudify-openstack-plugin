@@ -17,21 +17,21 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
-    transform_resource_name,
     with_neutron_client,
-    get_resource_id,
     is_external_resource,
     is_external_resource_not_conditionally_created,
     delete_resource_and_runtime_properties,
     use_external_resource,
     validate_resource,
-    OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY,
-    OPENSTACK_NAME_PROPERTY,
+    create_object_dict,
+    get_openstack_id,
+    set_neutron_runtime_properties,
+    add_list_to_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
 
 NETWORK_OPENSTACK_TYPE = 'network'
+ADMIN_STATE_UP = 'admin_state_up'
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
@@ -43,30 +43,25 @@ def create(neutron_client, args, **kwargs):
 
     if use_external_resource(ctx, neutron_client, NETWORK_OPENSTACK_TYPE):
         return
+    network = create_object_dict(ctx,
+                                 NETWORK_OPENSTACK_TYPE,
+                                 args,
+                                 {ADMIN_STATE_UP: True})
 
-    network = {
-        'admin_state_up': True,
-        'name': get_resource_id(ctx, NETWORK_OPENSTACK_TYPE),
-    }
-    network.update(ctx.node.properties['network'], **args)
-    transform_resource_name(ctx, network)
-
-    net = neutron_client.create_network({'network': network})['network']
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = net['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
-        NETWORK_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = net['name']
+    net = neutron_client.create_network(
+        {NETWORK_OPENSTACK_TYPE: network})[NETWORK_OPENSTACK_TYPE]
+    set_neutron_runtime_properties(ctx, net, NETWORK_OPENSTACK_TYPE)
 
 
 @operation
 @with_neutron_client
 def start(neutron_client, **kwargs):
-    network_id = ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    network_id = get_openstack_id(ctx)
 
     if is_external_resource_not_conditionally_created(ctx):
         ctx.logger.info('Validating external network is started')
         if not neutron_client.show_network(
-                network_id)['network']['admin_state_up']:
+                network_id)[NETWORK_OPENSTACK_TYPE][ADMIN_STATE_UP]:
             raise NonRecoverableError(
                 'Expected external resource network {0} to be in '
                 '"admin_state_up"=True'.format(network_id))
@@ -74,8 +69,8 @@ def start(neutron_client, **kwargs):
 
     neutron_client.update_network(
         network_id, {
-            'network': {
-                'admin_state_up': True
+            NETWORK_OPENSTACK_TYPE: {
+                ADMIN_STATE_UP: True
             }
         })
 
@@ -88,10 +83,9 @@ def stop(neutron_client, **kwargs):
                         'being used')
         return
 
-    neutron_client.update_network(
-        ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY], {
-            'network': {
-                'admin_state_up': False
+    neutron_client.update_network(get_openstack_id(ctx), {
+            NETWORK_OPENSTACK_TYPE: {
+                ADMIN_STATE_UP: False
             }
         })
 
@@ -101,6 +95,14 @@ def stop(neutron_client, **kwargs):
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
+
+
+@with_neutron_client
+def list_networks(neutron_client, args, **kwargs):
+    net_list = neutron_client.list_networks(**args)
+    add_list_to_runtime_properties(ctx,
+                                   NETWORK_OPENSTACK_TYPE,
+                                   net_list.get('networks', []))
 
 
 @operation

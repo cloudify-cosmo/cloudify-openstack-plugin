@@ -19,9 +19,10 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     with_neutron_client,
     provider,
+    get_openstack_id,
+    add_list_to_runtime_properties,
     is_external_relationship,
-    is_external_relationship_not_conditionally_created,
-    OPENSTACK_ID_PROPERTY
+    is_external_relationship_not_conditionally_created
 )
 from openstack_plugin_common.floatingip import (
     use_external_floatingip,
@@ -29,6 +30,8 @@ from openstack_plugin_common.floatingip import (
     delete_floatingip,
     floatingip_creation_validation
 )
+
+FLOATINGIP_OPENSTACK_TYPE = 'floatingip'
 
 
 @operation
@@ -42,7 +45,7 @@ def create(neutron_client, args, **kwargs):
     floatingip = {
         # No defaults
     }
-    floatingip.update(ctx.node.properties['floatingip'], **args)
+    floatingip.update(ctx.node.properties[FLOATINGIP_OPENSTACK_TYPE], **args)
 
     # Sugar: floating_network_name -> (resolve) -> floating_network_id
     if 'floating_network_name' in floatingip:
@@ -59,7 +62,7 @@ def create(neutron_client, args, **kwargs):
                 'Missing floating network id, name or external network')
 
     fip = neutron_client.create_floatingip(
-        {'floatingip': floatingip})['floatingip']
+        {FLOATINGIP_OPENSTACK_TYPE: floatingip})[FLOATINGIP_OPENSTACK_TYPE]
     set_floatingip_runtime_properties(fip['id'], fip['floating_ip_address'])
 
     ctx.logger.info('Floating IP creation response: {0}'.format(fip))
@@ -69,6 +72,14 @@ def create(neutron_client, args, **kwargs):
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_floatingip(neutron_client)
+
+
+@with_neutron_client
+def list_floatingips(neutron_client, args, **kwargs):
+    fip_list = neutron_client.list_floatingips(**args)
+    add_list_to_runtime_properties(ctx,
+                                   FLOATINGIP_OPENSTACK_TYPE,
+                                   fip_list.get('floatingips', []))
 
 
 @operation
@@ -83,11 +94,11 @@ def connect_port(neutron_client, **kwargs):
     if is_external_relationship_not_conditionally_created(ctx):
         return
 
-    port_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    floating_ip_id = ctx.target.instance.runtime_properties[
-        OPENSTACK_ID_PROPERTY]
+    port_id = get_openstack_id(ctx.source)
+    floating_ip_id = get_openstack_id(ctx.target)
     fip = {'port_id': port_id}
-    neutron_client.update_floatingip(floating_ip_id, {'floatingip': fip})
+    neutron_client.update_floatingip(
+        floating_ip_id, {FLOATINGIP_OPENSTACK_TYPE: fip})
 
 
 @operation
@@ -98,7 +109,7 @@ def disconnect_port(neutron_client, **kwargs):
                         'external floatingip and port are being used')
         return
 
-    floating_ip_id = ctx.target.instance.runtime_properties[
-        OPENSTACK_ID_PROPERTY]
+    floating_ip_id = get_openstack_id(ctx.target)
     fip = {'port_id': None}
-    neutron_client.update_floatingip(floating_ip_id, {'floatingip': fip})
+    neutron_client.update_floatingip(floating_ip_id,
+                                     {FLOATINGIP_OPENSTACK_TYPE: fip})

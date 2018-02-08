@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 from cloudify import ctx
+
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
@@ -51,8 +52,10 @@ def create(keystone_client, args, **kwargs):
     if use_external_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE):
         return
 
-    project_dict = create_object_dict(ctx, PROJECT_OPENSTACK_TYPE, args)
-    project_dict['domain'] = 'default'
+    project_dict = create_object_dict(ctx,
+                                      PROJECT_OPENSTACK_TYPE,
+                                      args,
+                                      {'domain': 'default'})
 
     project = keystone_client.projects.create(**project_dict)
     set_openstack_runtime_properties(ctx, project, PROJECT_OPENSTACK_TYPE)
@@ -176,7 +179,6 @@ def update_project_quota(nova_client,
 @with_keystone_client
 def list_projects(keystone_client, args, **kwargs):
     projects_list = keystone_client.projects.list(**args)
-    projects_list = projects_list.get('projects')
     add_list_to_runtime_properties(ctx, PROJECT_OPENSTACK_TYPE, projects_list)
 
 
@@ -198,8 +200,10 @@ def get_project_quota(nova_client,
 @with_keystone_client
 def update_project(keystone_client, args, **kwargs):
 
-    project_dict = create_object_dict(ctx, PROJECT_OPENSTACK_TYPE, args)
-    project_dict['domain'] = 'default'
+    project_dict = create_object_dict(ctx,
+                                      PROJECT_OPENSTACK_TYPE,
+                                      args,
+                                      {'domain': 'default'})
     project_dict[PROJECT_OPENSTACK_TYPE] = get_openstack_id(ctx)
     project = keystone_client.projects.update(**project_dict)
     set_openstack_runtime_properties(ctx, project, PROJECT_OPENSTACK_TYPE)

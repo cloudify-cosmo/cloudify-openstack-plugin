@@ -25,8 +25,8 @@ except ImportError:
 
 from openstack_plugin_common import (
     provider,
-    transform_resource_name,
-    get_resource_id,
+    get_openstack_id,
+    get_openstack_type,
     with_neutron_client,
     use_external_resource,
     is_external_relationship,
@@ -36,10 +36,10 @@ from openstack_plugin_common import (
     delete_resource_and_runtime_properties,
     get_resource_by_name_or_id,
     validate_resource,
-    COMMON_RUNTIME_PROPERTIES_KEYS,
-    OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY,
-    OPENSTACK_NAME_PROPERTY
+    create_object_dict,
+    set_neutron_runtime_properties,
+    add_list_to_runtime_properties,
+    COMMON_RUNTIME_PROPERTIES_KEYS
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
@@ -60,8 +60,7 @@ def create(neutron_client, args, **kwargs):
             ext_net_id_by_rel = _get_connected_ext_net_id(neutron_client)
 
             if ext_net_id_by_rel:
-                router_id = \
-                    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+                router_id = get_openstack_id(ctx)
 
                 router = neutron_client.show_router(router_id)['router']
                 if not (router['external_gateway_info'] and 'network_id' in
@@ -77,21 +76,15 @@ def create(neutron_client, args, **kwargs):
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
             raise
 
-    router = {
-        'name': get_resource_id(ctx, ROUTER_OPENSTACK_TYPE),
-    }
-    router.update(ctx.node.properties['router'], **args)
+    router = create_object_dict(ctx, ROUTER_OPENSTACK_TYPE, args, {})
     ctx.logger.info('router: {0}'.format(router))
-    transform_resource_name(ctx, router)
 
     _handle_external_network_config(router, neutron_client)
 
-    r = neutron_client.create_router({'router': router})['router']
+    r = neutron_client.create_router(
+        {ROUTER_OPENSTACK_TYPE: router})[ROUTER_OPENSTACK_TYPE]
 
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = r['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] =\
-        ROUTER_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = r['name']
+    set_neutron_runtime_properties(ctx, r, ROUTER_OPENSTACK_TYPE)
 
 
 @operation
@@ -121,13 +114,9 @@ def update_router(neutron_client, args, **kwargs):
     # Find out if the update script is being called
     # from a relationship or a node operation.
     if ctx.type == RELATIONSHIP_INSTANCE:
-        if ROUTER_OPENSTACK_TYPE in \
-                ctx.source.instance.runtime_properties.get(
-                    OPENSTACK_TYPE_PROPERTY):
+        if ROUTER_OPENSTACK_TYPE in get_openstack_type(ctx.source):
             subject = ctx.source
-        elif ROUTER_OPENSTACK_TYPE in \
-                ctx.target.instance.runtime_properties.get(
-                    OPENSTACK_TYPE_PROPERTY):
+        elif ROUTER_OPENSTACK_TYPE in get_openstack_type(ctx.target):
             subject = ctx.target
         else:
             raise NonRecoverableError(
@@ -137,8 +126,7 @@ def update_router(neutron_client, args, **kwargs):
         subject = ctx
 
     try:
-        router = neutron_client.show_router(
-            subject.instance.runtime_properties[OPENSTACK_ID_PROPERTY])
+        router = neutron_client.show_router(get_openstack_id(subject))
     except NeutronClientException as e:
         raise NonRecoverableError('Error: {0}'.format(str(e)))
     if not isinstance(router, dict) or \
@@ -167,8 +155,8 @@ def update_router(neutron_client, args, **kwargs):
 @operation
 @with_neutron_client
 def connect_subnet(neutron_client, **kwargs):
-    router_id = ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    subnet_id = ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+    router_id = get_openstack_id(ctx.target)
+    subnet_id = get_openstack_id(ctx.source)
 
     if is_external_relationship_not_conditionally_created(ctx):
         ctx.logger.info('Validating external subnet and router '
@@ -196,10 +184,8 @@ def disconnect_subnet(neutron_client, update_args=None, **kwargs):
                         'subnet and router are being used')
         return
 
-    neutron_client.remove_interface_router(
-        ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY], {
-            'subnet_id': ctx.source.instance.runtime_properties[
-                OPENSTACK_ID_PROPERTY]
+    neutron_client.remove_interface_router(get_openstack_id(ctx.target), {
+            'subnet_id': get_openstack_id(ctx.source)
         }
     )
 
@@ -209,6 +195,14 @@ def disconnect_subnet(neutron_client, update_args=None, **kwargs):
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
+
+
+@with_neutron_client
+def list_routers(neutron_client, args, **kwargs):
+    router_list = neutron_client.list_routers(**args)
+    add_list_to_runtime_properties(ctx,
+                                   ROUTER_OPENSTACK_TYPE,
+                                   router_list.get('routers', []))
 
 
 @operation

@@ -289,6 +289,13 @@ def get_resource_id(ctx, type_name):
     return "{0}_{1}_{2}".format(type_name, ctx.deployment.id, ctx.instance.id)
 
 
+def get_property(ctx, property_name, kwargs={}, default=None):
+    return kwargs.get(
+        property_name,
+        ctx.node.properties.get(property_name, default)
+    )
+
+
 def transform_resource_name(ctx, res):
 
     if isinstance(res, basestring):
@@ -508,6 +515,54 @@ def validate_ip_or_range_syntax(ctx, address, is_range=True):
             address, range_suffix, e.message))
         ctx.logger.error('VALIDATION ERROR:' + err)
         raise NonRecoverableError(err)
+
+
+def get_openstack_id(ctx):
+    return ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+
+
+def get_openstack_type(ctx):
+    return ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY]
+
+
+def create_object_dict(ctx, object_name, args, object_dict=None):
+    object_dict = object_dict if object_dict is not None else {}
+    object_dict['name'] = get_resource_id(ctx, object_name)
+    object_dict.update(ctx.node.properties[object_name], **args)
+    transform_resource_name(ctx, object_dict)
+    return object_dict
+
+
+def add_list_to_runtime_properties(ctx, openstack_type_name, object_list):
+
+    objects = []
+
+    for obj in object_list:
+        if type(obj) not in [str, dict]:
+            obj = obj.to_dict()
+        objects.append(obj)
+
+    ctx.instance.runtime_properties[openstack_type_name + '_list'] \
+        = objects
+    return objects
+
+
+def set_openstack_runtime_properties(ctx, openstack_object, openstack_type):
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
+        openstack_object.id
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        openstack_type
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+        openstack_object.name
+
+
+def set_neutron_runtime_properties(ctx, openstack_object, openstack_type):
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
+        openstack_object['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        openstack_type
+    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
+        openstack_object['name']
 
 
 class Config(object):

@@ -24,6 +24,7 @@ from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
     delete_resource_and_runtime_properties,
+    add_list_to_runtime_properties
 )
 from openstack_plugin_common.security_group import (
     build_sg_data,
@@ -44,6 +45,8 @@ DEFAULT_RULE_VALUES = {
     'remote_group_id': None,
     'remote_ip_prefix': '0.0.0.0/0',
 }
+
+SG_OPENSTACK_TYPE = 'security_group'
 
 
 @operation
@@ -70,7 +73,7 @@ def create(
     transform_resource_name(ctx, security_group)
 
     sg = neutron_client.create_security_group(
-        {'security_group': security_group})['security_group']
+        {SG_OPENSTACK_TYPE: security_group})[SG_OPENSTACK_TYPE]
 
     for attempt in range(max(status_attempts, 1)):
         sleep(status_timeout)
@@ -112,6 +115,14 @@ def create(
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_sg(neutron_client)
+
+
+@with_neutron_client
+def list_security_groups(neutron_client, args, **kwargs):
+    sg_list = neutron_client.list_security_groups(**args)
+    add_list_to_runtime_properties(ctx,
+                                   SG_OPENSTACK_TYPE,
+                                   sg_list.get('security_groups', []))
 
 
 @operation

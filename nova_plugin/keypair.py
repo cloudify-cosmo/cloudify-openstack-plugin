@@ -24,15 +24,14 @@ from openstack_plugin_common import (
     with_nova_client,
     validate_resource,
     use_external_resource,
-    transform_resource_name,
+    create_object_dict,
     is_external_resource,
     is_external_resource_not_conditionally_created,
     delete_runtime_properties,
-    get_resource_id,
+    get_openstack_id,
+    add_list_to_runtime_properties,
     delete_resource_and_runtime_properties,
-    OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY,
-    OPENSTACK_NAME_PROPERTY,
+    set_openstack_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
 
@@ -65,18 +64,12 @@ def create(nova_client, args, **kwargs):
             "Can't create keypair - private key path already exists: {0}"
             .format(private_key_path))
 
-    keypair = {
-        'name': get_resource_id(ctx, KEYPAIR_OPENSTACK_TYPE),
-    }
-    keypair.update(ctx.node.properties['keypair'], **args)
-    transform_resource_name(ctx, keypair)
+    keypair = create_object_dict(ctx, KEYPAIR_OPENSTACK_TYPE, args, {})
 
     keypair = nova_client.keypairs.create(keypair['name'],
                                           keypair.get('public_key'))
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = keypair.id
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-        KEYPAIR_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = keypair.name
+
+    set_openstack_runtime_properties(ctx, KEYPAIR_OPENSTACK_TYPE, keypair)
 
     try:
         # write private key file
@@ -99,13 +92,18 @@ def delete(nova_client, **kwargs):
 
         _delete_private_key_file()
 
-        nova_client.keypairs.delete(
-            ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY])
+        nova_client.keypairs.delete(get_openstack_id(ctx))
     else:
         ctx.logger.info('not deleting keypair since an external keypair is '
                         'being used')
 
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
+
+
+@with_nova_client
+def list_keypairs(nova_client, args, **kwargs):
+    keypair_list = nova_client.keypairs.list(**args)
+    add_list_to_runtime_properties(ctx, KEYPAIR_OPENSTACK_TYPE, keypair_list)
 
 
 @operation

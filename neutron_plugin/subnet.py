@@ -18,23 +18,24 @@ from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     with_neutron_client,
-    transform_resource_name,
-    get_resource_id,
     get_openstack_id_of_single_connected_node_by_openstack_type,
     delete_resource_and_runtime_properties,
     delete_runtime_properties,
     use_external_resource,
     validate_resource,
     validate_ip_or_range_syntax,
-    OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY,
-    OPENSTACK_NAME_PROPERTY,
+    create_object_dict,
+    get_openstack_id,
+    set_neutron_runtime_properties,
+    add_list_to_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 
 SUBNET_OPENSTACK_TYPE = 'subnet'
+NETWORK_ID = 'network_id'
+CIDR = 'cidr'
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
@@ -51,11 +52,11 @@ def create(neutron_client, args, **kwargs):
                     ctx, NETWORK_OPENSTACK_TYPE, True)
 
             if net_id:
-                subnet_id = \
-                    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+                subnet_id = get_openstack_id(ctx)
 
                 if neutron_client.show_subnet(
-                        subnet_id)['subnet']['network_id'] != net_id:
+                        subnet_id)[SUBNET_OPENSTACK_TYPE][NETWORK_ID] \
+                        != net_id:
                     raise NonRecoverableError(
                         'Expected external resources subnet {0} and network'
                         ' {1} to be connected'.format(subnet_id, net_id))
@@ -66,18 +67,14 @@ def create(neutron_client, args, **kwargs):
 
     net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
         ctx, NETWORK_OPENSTACK_TYPE)
-    subnet = {
-        'name': get_resource_id(ctx, SUBNET_OPENSTACK_TYPE),
-        'network_id': net_id,
-    }
-    subnet.update(ctx.node.properties['subnet'], **args)
-    transform_resource_name(ctx, subnet)
+    subnet = create_object_dict(ctx,
+                                SUBNET_OPENSTACK_TYPE,
+                                args,
+                                {NETWORK_ID: net_id})
 
-    s = neutron_client.create_subnet({'subnet': subnet})['subnet']
-    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = s['id']
-    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
-        SUBNET_OPENSTACK_TYPE
-    ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = subnet['name']
+    s = neutron_client.create_subnet(
+        {SUBNET_OPENSTACK_TYPE: subnet})[SUBNET_OPENSTACK_TYPE]
+    set_neutron_runtime_properties(ctx, s, SUBNET_OPENSTACK_TYPE)
 
 
 @operation
@@ -87,15 +84,23 @@ def delete(neutron_client, **kwargs):
                                            RUNTIME_PROPERTIES_KEYS)
 
 
+@with_neutron_client
+def list_subnets(neutron_client, args, **kwargs):
+    subnet_list = neutron_client.list_subnets(**args)
+    add_list_to_runtime_properties(ctx,
+                                   SUBNET_OPENSTACK_TYPE,
+                                   subnet_list.get('subnets', []))
+
+
 @operation
 @with_neutron_client
 def creation_validation(neutron_client, args, **kwargs):
     validate_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE)
-    subnet = dict(ctx.node.properties['subnet'], **args)
+    subnet = dict(ctx.node.properties[SUBNET_OPENSTACK_TYPE], **args)
 
-    if 'cidr' not in subnet:
+    if CIDR not in subnet:
         err = '"cidr" property must appear under the "subnet" property of a ' \
               'subnet node'
         ctx.logger.error('VALIDATION ERROR: ' + err)
         raise NonRecoverableError(err)
-    validate_ip_or_range_syntax(ctx, subnet['cidr'])
+    validate_ip_or_range_syntax(ctx, subnet[CIDR])

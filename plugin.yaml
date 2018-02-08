@@ -143,9 +143,8 @@ node_types:
       server:
         default: {}
         description: >
-          key-value server configuration as described in OpenStack compute create server API.
-          http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1.servers.html
-          #novaclient.v1_1.servers.ServerManager.create
+          The keypair object as described in OpenStack compute API (create server method):
+          https://developer.openstack.org/api-ref/compute/#servers-servers
       use_external_resource:
         type: boolean
         default: false
@@ -283,11 +282,10 @@ node_types:
       keypair:
         default: {}
         description: >
-          the keypair object as described by Openstack. This
-          parameter can be used to override and pass parameters
-          directly to Nova client.
-          Note that in the case of keypair, the only nested parameter
-          that can be used is "name".
+          The keypair object as described in Openstack compute API (create keypair method):
+          https://developer.openstack.org/api-ref/compute/#keypairs-keypairs.
+          This parameter can be used to override and pass parameters directly to Nova client.
+          Note that in the case of keypair, the only nested parameter that can be used is "name".
       private_key_path:
         type: string
         description: >
@@ -358,7 +356,8 @@ node_types:
       subnet:
         default: {}
         description: >
-          key-value subnet configuration as described at http://developer.openstack.org/api-ref-networking-v2.html#subnets.
+          The subnet object as described in Openstack networking API (create subnet method):
+          https://developer.openstack.org/api-ref/network/v2/index.html#subnets.
       use_external_resource:
         type: boolean
         default: false
@@ -420,7 +419,8 @@ node_types:
       security_group:
         default: {}
         description: >
-          key-value security_group configuration as described in http://developer.openstack.org/api-ref-networking-v2-ext.html#createSecGroup.
+          The security-group object as described in Openstack networking API (create security-group method):
+          https://developer.openstack.org/api-ref/network/v2/index.html#security-groups-security-groups.
       description:
         type: string
         default: ''
@@ -453,7 +453,8 @@ node_types:
       rules:
         default: []
         description: >
-          key-value security_group_rule configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#security_groups
+          key-value security_group_rule configuration as described in:
+          https://developer.openstack.org/api-ref/network/v2/index.html#security-group-rules-security-group-rules.
       disable_default_egress_rules:
         type: boolean
         default: false
@@ -494,7 +495,8 @@ node_types:
       router:
         default: {}
         description: >
-          key-value router configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3.
+          The router object as described in Openstack networking API (create router method):
+          https://developer.openstack.org/api-ref/network/v2/index.html#routers-routers.
       external_network:
         type: string
         default: ''
@@ -565,7 +567,8 @@ node_types:
       port:
         default: {}
         description: >
-          key-value port configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#ports.
+          The port object as described in Openstack networking API (create port method):
+          https://developer.openstack.org/api-ref-networking-v2.html#ports.
       fixed_ip:
         type: string
         default: ''
@@ -633,7 +636,8 @@ node_types:
       network:
         default: {}
         description: >
-          key-value network configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#networks.
+          The network object as described in Openstack networking API (create network method):
+          https://developer.openstack.org/api-ref-networking-v2.html#networks.
       use_external_resource:
         type: boolean
         default: false
@@ -693,7 +697,8 @@ node_types:
       floatingip:
         default: {}
         description: >
-          key-value floatingip configuration as described in http://developer.openstack.org/api-ref-networking-v2.html#layer3.
+          The floatingip object as described in Openstack networking API (create floatingip method):
+          https://developer.openstack.org/api-ref/network/v2/index.html#floating-ips-floatingips
       use_external_resource:
         type: boolean
         default: false
@@ -752,7 +757,8 @@ node_types:
       volume:
         default: {}
         description: >
-          key-value volume configuration as described in http://developer.openstack.org/api-ref-blockstorage-v1.html#volumes-v1.
+          The volume object as described in Openstack block-storage API (create volume method):
+          https://developer.openstack.org/api-ref/block-storage/v2/index.html#volumes-volumes.
       use_external_resource:
         type: boolean
         default: false
@@ -840,7 +846,8 @@ node_types:
       floatingip:
         default: {}
         description: >
-          key-value floatingip configuration as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-floating-ips.
+          The os-floating-ip object as described in Openstack compute API (create os-floating-ip method):
+          https://developer.openstack.org/api-ref/compute/#floating-ips-os-floating-ips-deprecated.
       use_external_resource:
         type: boolean
         default: false
@@ -892,7 +899,8 @@ node_types:
       security_group:
         default: {}
         description: >
-          key-value security_group configuration as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-security-groups.
+          The os-security-group object as described in Openstack compute API (create os-security-group method):
+          https://developer.openstack.org/api-ref/compute/#security-groups-os-security-groups-deprecated
       use_external_resource:
         type: boolean
         default: false
@@ -919,7 +927,8 @@ node_types:
       rules:
         default: []
         description: >
-          key-value security group rule as described in http://developer.openstack.org/api-ref-compute-v2-ext.html#ext-os-security-group-default-rules.
+          key-value security group rule as described in:
+          https://developer.openstack.org/api-ref/compute/#rules-for-security-group-os-security-group-rules-deprecated.
       description:
         type: string
         description: security group description
@@ -1011,11 +1020,10 @@ node_types:
     properties:
       image:
         description: >
-          Required parameters are (container_format, disk_format). Accepted
-          types are available on
-          http://docs.openstack.org/developer/glance/formats.html
-          To create an image from the local file its path should be added
-          in data parameter.
+          The image object as described in Openstack image API (create image method):
+          https://developer.openstack.org/api-ref/image/v2/index.html#images
+          Required parameters are (container_format, disk_format).
+          To create an image from the local file its path should be added in data parameter.
         default: {}
       image_url:
         type: string
@@ -1096,7 +1104,8 @@ node_types:
       project:
         default: {}
         description: >
-          key-value project configuration.
+          The project object as described in Openstack identity API (create project method):
+          https://developer.openstack.org/api-ref/identity/v3/#projects
       users:
         default: []
         description: >
@@ -1105,7 +1114,7 @@ node_types:
       quota:
         default: {}
         description: |
-          A dictionary mapping service names to quota definitions for a proejct
+          A dictionary mapping service names to quota definitions for a projct
 
           e.g::
 
@@ -1194,8 +1203,8 @@ node_types:
       user:
         default: {}
         description: >
-          key-value user configuration, according to:
-          https://developer.openstack.org/api-ref/identity/v3/#create-user
+          The user object as described in Openstack identity API (create user method):
+          https://developer.openstack.org/api-ref/identity/v3/#users
       use_external_resource:
         default: false
         description: >
@@ -1246,13 +1255,77 @@ node_types:
             openstack_config:
               default: {}
 
+  cloudify.openstack.nodes.HostAggregate:
+    derived_from: cloudify.nodes.Root
+    properties:
+      aggregate:
+        default: {}
+        description: >
+          The host-aggregate object as described in Openstack compute API (create host-aggregate method):
+          https://developer.openstack.org/api-ref/compute/#host-aggregates-os-aggregates
+      hosts:
+        required: false
+        description: >
+          list of hosts IDs, which will be a members of host aggregate
+      metadata:
+        required: false
+        description: >
+          metadata entries in <key>:<value> format
+      use_external_resource:
+        default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+      create_if_missing:
+        default: false
+        description: >
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
+      resource_id:
+        default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
+      openstack_config:
+        default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.host_aggregate.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.nova_plugin.host_aggregate.delete
+          inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        update:
+          implementation: openstack.nova_plugin.host_aggregate.update
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        list:
+          implementation: openstack.nova_plugin.host_aggregate.list_host_aggregates
+          inputs:
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nodes.ServerGroup:
     derived_from: cloudify.nodes.Root
     properties:
       server_group:
         description: >
-          A dictionary representing the server group API object.
+          The server-group object as described in Openstack compute API (create server-group method):
+          https://developer.openstack.org/api-ref/compute/#server-groups-os-server-groups
         default: {}
       policy:
         type: string

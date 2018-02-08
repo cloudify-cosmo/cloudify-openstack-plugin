@@ -82,6 +82,8 @@ class TestHostAggregate(unittest.TestCase):
         )
         ctx.deployment = mock.Mock()
         ctx.deployment.id = test_deployment_id
+        ctx.bootstrap_context = mock.Mock()
+        setattr(ctx.bootstrap_context, 'resources_prefix', '')
         ctx.type = NODE_INSTANCE
         ctx.logger = mock.Mock()
 

@@ -144,6 +144,8 @@ node_types:
         default: {}
         description: >
           key-value server configuration as described in OpenStack compute create server API.
+          http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1.servers.html
+          #novaclient.v1_1.servers.ServerManager.create
       use_external_resource:
         type: boolean
         default: false
@@ -995,11 +997,112 @@ node_types:
           username, password, tenant_name, auth_url, region.
     interfaces:
       cloudify.interfaces.lifecycle:
-        create: openstack.keystone_plugin.project.create
-        start: openstack.keystone_plugin.project.start
-        delete: openstack.keystone_plugin.project.delete
+        create:
+          implementation: openstack.keystone_plugin.project.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        start:
+          implementation: openstack.keystone_plugin.project.start
+          inputs:
+            quota_dict:
+              default: {}
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.keystone_plugin.project.delete
+          inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        update_project:
+          implementation: openstack.keystone_plugin.project.update_project
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        get_quota:
+          implementation: openstack.keystone_plugin.project.get_project_quota
+          inputs:
+            openstack_config:
+              default: {}
+        update_quota:
+          implementation: openstack.keystone_plugin.project.update_project_quota
+          inputs:
+            quota:
+              default: {}
+            openstack_config:
+              default: {}
+        list:
+          implementation: openstack.keystone_plugin.project.list_projects
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
       cloudify.interfaces.validation:
         creation: openstack.keystone_plugin.project.creation_validation
+
+  cloudify.openstack.nodes.User:
+    derived_from: cloudify.nodes.Root
+    properties:
+      user:
+        default: {}
+        description: >
+          key-value user configuration, according to:
+          https://developer.openstack.org/api-ref/identity/v3/#create-user
+      use_external_resource:
+        default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+      create_if_missing:
+        default: false
+        description: >
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
+      resource_id:
+        default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
+      openstack_config:
+        default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.keystone_plugin.user.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.keystone_plugin.user.delete
+          inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.operations:
+        update:
+          implementation: openstack.keystone_plugin.user.update
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        list:
+          implementation: openstack.keystone_plugin.user.list_users
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
 
   cloudify.openstack.nodes.ServerGroup:
     derived_from: cloudify.nodes.Root

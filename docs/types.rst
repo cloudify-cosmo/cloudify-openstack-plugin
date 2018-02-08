@@ -52,6 +52,8 @@ Node Types
 
 .. cfy:node:: cloudify.openstack.nodes.ServerGroup
 
+.. cfy:node:: cloudify.openstack.nodes.Flavor
+
 
 Types' Common Behaviors
 =======================

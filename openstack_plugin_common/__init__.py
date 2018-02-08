@@ -525,7 +525,8 @@ def get_openstack_type(ctx):
     return ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY]
 
 
-def create_object_dict(ctx, object_name, args, object_dict):
+def create_object_dict(ctx, object_name, args, object_dict=None):
+    object_dict = object_dict if object_dict is not None else {}
     object_dict['name'] = get_resource_id(ctx, object_name)
     object_dict.update(ctx.node.properties[object_name], **args)
     transform_resource_name(ctx, object_dict)

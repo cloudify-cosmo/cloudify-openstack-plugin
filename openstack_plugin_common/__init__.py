@@ -531,6 +531,9 @@ def add_list_to_runtime_properties(ctx, openstack_type_name, object_list):
     object_list = [obj.to_dict() for obj in object_list]
     ctx.instance.runtime_properties[openstack_type_name + '_list'] \
         = object_list
+
+    ctx.logger.debug('Added {0} list: {1} to runtime properties'.format(
+        openstack_type_name, object_list))
     return object_list
 
 

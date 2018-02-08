@@ -101,6 +101,8 @@ def assign_users(users, keystone_client, **kwargs):
             keystone_client.roles.grant(user=u.id,
                                         project=project_id,
                                         role=r.id)
+            ctx.logger.debug("Assigned user {0} to project {1} with role {2}"
+                             .format(u.id, project_id, r.id))
 
 
 @with_keystone_client
@@ -128,7 +130,7 @@ def get_quota(tenant_id, client, what_quota):
         return quota
     else:
         quota = client.quotas.get(tenant_id=tenant_id)
-    ctx.logger.info(
+    ctx.logger.debug(
         'Got {0} quota: {1}'.format(what_quota, str(quota)))
     return quota.to_dict()
 
@@ -142,7 +144,7 @@ def update_quota(tenant_id, quota, client, what_quota):
         else:
             new_quota = client.quotas.update(tenant_id=tenant_id,
                                              **updated_quota)
-        ctx.logger.info(
+        ctx.logger.debug(
             'Updated {0} quota: {1}'.format(what_quota, str(new_quota)))
 
 
@@ -153,6 +155,8 @@ def delete_quota(project_id, quota, client, what_quota):
             client.delete_quota(tenant_id=project_id)
         else:
             client.quotas.delete(tenant_id=project_id)
+        ctx.logger.debug(
+            'Deleted {0} quota'.format(what_quota))
 
 
 @with_nova_client

@@ -1,5 +1,5 @@
 #########
-# Copyright (c) 2018 GigaSpaces Technologies Ltd. All rights reserved
+# Copyright (c) 2015 GigaSpaces Technologies Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,49 +16,38 @@
 from cloudify import ctx
 from cloudify.decorators import operation
 
-from openstack_plugin_common import (with_keystone_client,
+from openstack_plugin_common import (with_nova_client,
                                      use_external_resource,
                                      delete_resource_and_runtime_properties,
                                      create_object_dict,
-                                     get_openstack_id,
                                      add_list_to_runtime_properties,
                                      set_openstack_runtime_properties,
                                      COMMON_RUNTIME_PROPERTIES_KEYS)
 
-USER_OPENSTACK_TYPE = 'user'
+FLAVOR_OPENSTACK_TYPE = 'flavor'
 
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation
-@with_keystone_client
-def create(keystone_client, args, **kwargs):
-    if use_external_resource(ctx, keystone_client, USER_OPENSTACK_TYPE):
+@with_nova_client
+def create(nova_client, args, **kwargs):
+    if use_external_resource(ctx, nova_client, FLAVOR_OPENSTACK_TYPE):
         return
 
-    user_dict = create_object_dict(ctx, USER_OPENSTACK_TYPE, args)
-    user = keystone_client.users.create(**user_dict)
-
-    set_openstack_runtime_properties(ctx, user, USER_OPENSTACK_TYPE)
+    flavor_dict = create_object_dict(ctx, FLAVOR_OPENSTACK_TYPE, args)
+    flavor = nova_client.flavors.create(**flavor_dict)
+    set_openstack_runtime_properties(ctx, flavor, FLAVOR_OPENSTACK_TYPE)
 
 
 @operation
-@with_keystone_client
-def delete(keystone_client, **kwargs):
-    delete_resource_and_runtime_properties(ctx, keystone_client,
+@with_nova_client
+def delete(nova_client, **kwargs):
+    delete_resource_and_runtime_properties(ctx, nova_client,
                                            RUNTIME_PROPERTIES_KEYS)
 
 
-@operation
-@with_keystone_client
-def update(keystone_client, args, **kwargs):
-    user_dict = create_object_dict(ctx, USER_OPENSTACK_TYPE, args)
-    user_dict[USER_OPENSTACK_TYPE] = get_openstack_id(ctx)
-    user = keystone_client.users.update(**user_dict)
-    set_openstack_runtime_properties(ctx, user, USER_OPENSTACK_TYPE)
-
-
-@with_keystone_client
-def list_users(keystone_client, args, **kwargs):
-    users_list = keystone_client.users.list(**args)
-    add_list_to_runtime_properties(ctx, USER_OPENSTACK_TYPE, users_list)
+@with_nova_client
+def list_flavors(nova_client, args, **kwargs):
+    flavor_list = nova_client.flavors.list(**args)
+    add_list_to_runtime_properties(ctx, FLAVOR_OPENSTACK_TYPE, flavor_list)

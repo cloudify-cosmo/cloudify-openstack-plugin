@@ -1,5 +1,5 @@
 #########
-# Copyright (c) 2014 GigaSpaces Technologies Ltd. All rights reserved
+# Copyright (c) 2018 GigaSpaces Technologies Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ from setuptools import setup
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='2.6.0',
+    version='2.7.0',
     author='Cloudify',
     author_email='hello@cloudify.co',
     packages=[

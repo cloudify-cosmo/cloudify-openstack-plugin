@@ -1,3 +1,7 @@
+2.7.0:
+    - Add support user type, adding users to projects, and providing quotas for users.
+    - Add support flavor type.
+    - Add support host aggregate type.
 2.6.0:
     - Added ability to configure how log records, emitted by the underlying OpenStack client libraries,
       are handled. By default, these are now also emitted to Cloudify's context logger (in debug level).

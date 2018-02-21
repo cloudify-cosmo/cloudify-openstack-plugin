@@ -92,10 +92,11 @@ def delete(glance_client, **kwargs):
 
 @with_glance_client
 def list_images(glance_client, args, **kwargs):
-    image_list = glance_client.images.list(**args)
-    add_list_to_runtime_properties(ctx,
-                                   IMAGE_OPENSTACK_TYPE,
-                                   image_list.get('images', []))
+    image_list_generator = glance_client.images.list(**args)
+    add_list_to_runtime_properties(
+        ctx,
+        IMAGE_OPENSTACK_TYPE,
+        [dict(item) for item in image_list_generator])
 
 
 @with_glance_client

@@ -1,3 +1,6 @@
+2.7.1:
+    - Support identify floating ip network via relationship in floating ip.
+    - Improve list images in glance image type.
 2.7.0:
     - Add support user type, adding users to projects, and providing quotas for users.
     - Add support flavor type.

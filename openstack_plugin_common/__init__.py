@@ -1150,6 +1150,14 @@ class KeystoneClientWithSugar(OpenStackClient):
         for obj in getattr(self, obj_type_plural).list(**kw):
             yield obj
 
+    def cosmo_get_if_exists(self, obj_type_single, **kw):
+        try:
+            return self._cosmo_get(obj_type_single, True, **kw)
+        except TypeError:
+            obj_type_plural = self.cosmo_plural(obj_type_single)
+            kw[obj_type_single] = kw.pop('id')
+            return getattr(self, obj_type_plural).get(**kw)
+
     def cosmo_delete_resource(self, obj_type_single, obj_id):
         obj_type_plural = self.cosmo_plural(obj_type_single)
         getattr(self, obj_type_plural).delete(obj_id)

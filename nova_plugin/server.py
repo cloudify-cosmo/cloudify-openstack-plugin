@@ -363,7 +363,7 @@ def create(nova_client, neutron_client, args, **kwargs):
     # Store the server dictionary contents in runtime properties
     assign_payload_as_runtime_properties(ctx, SERVER_OPENSTACK_TYPE, server)
     ctx.logger.debug(
-        "Asking Nova to create server. All possible parameters are: {0})"
+        "Asking Nova to create server. All possible parameters are: [{0}]"
         .format(','.join(server.keys())))
 
     try:

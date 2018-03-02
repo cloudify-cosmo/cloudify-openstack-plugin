@@ -840,130 +840,6 @@ node_types:
             openstack_config:
               default: {}
 
-  cloudify.openstack.nova_net.nodes.FloatingIP:
-    derived_from: cloudify.nodes.VirtualIP
-    properties:
-      floatingip:
-        default: {}
-        description: >
-          The os-floating-ip object as described in Openstack compute API (create os-floating-ip method):
-          https://developer.openstack.org/api-ref/compute/#floating-ips-os-floating-ips-deprecated.
-      use_external_resource:
-        type: boolean
-        default: false
-        description: >
-          a boolean for setting whether to create the resource or use an existing one.
-          See the using existing resources section.
-      create_if_missing:
-        type: boolean
-        default: false
-        description: >
-          TODO: CREATE. THIS IS MISSING
-      resource_id:
-        type: string
-        default: ''
-        description: >
-          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
-      openstack_config:
-        type: cloudify.openstack.types.configuration
-        default: {}
-        description: >
-          endpoints and authentication configuration for Openstack.
-          Expected to contain the following nested fields:
-          username, password, tenant_name, auth_url, region.
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.nova_plugin.floatingip.create
-          inputs:
-            args:
-              default: {}
-            openstack_config:
-              default: {}
-        delete:
-          implementation: openstack.nova_plugin.floatingip.delete
-          inputs:
-            openstack_config:
-              default: {}
-      cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.nova_plugin.floatingip.creation_validation
-          inputs:
-            openstack_config:
-              default: {}
-
-
-  cloudify.openstack.nova_net.nodes.SecurityGroup:
-    derived_from: cloudify.nodes.SecurityGroup
-    properties:
-      security_group:
-        default: {}
-        description: >
-          The os-security-group object as described in Openstack compute API (create os-security-group method):
-          https://developer.openstack.org/api-ref/compute/#security-groups-os-security-groups-deprecated
-      use_external_resource:
-        type: boolean
-        default: false
-        description: >
-          a boolean for setting whether to create the resource or use an existing one.
-          See the using existing resources section.
-      create_if_missing:
-        type: boolean
-        default: false
-        description: >
-          TODO: CREATE. THIS IS MISSING
-      resource_id:
-        type: string
-        default: ''
-        description: >
-          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
-      openstack_config:
-        type: cloudify.openstack.types.configuration
-        default: {}
-        description: >
-          endpoints and authentication configuration for Openstack.
-          Expected to contain the following nested fields:
-          username, password, tenant_name, auth_url, region.
-      rules:
-        default: []
-        description: >
-          key-value security group rule as described in:
-          https://developer.openstack.org/api-ref/compute/#rules-for-security-group-os-security-group-rules-deprecated.
-      description:
-        type: string
-        description: security group description
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: openstack.nova_plugin.security_group.create
-          inputs:
-            args:
-              default: {}
-            openstack_config:
-              default: {}
-            status_attempts:
-              description: >
-                Number of times to check for the attachment's status before failing
-              type: integer
-              default: 10
-            status_timeout:
-              description: >
-                Interval (in seconds) between subsequent inquiries of the attachment's
-                status
-              type: integer
-              default: 2
-        delete:
-          implementation: openstack.nova_plugin.security_group.delete
-          inputs:
-            openstack_config:
-              default: {}
-      cloudify.interfaces.validation:
-        creation:
-          implementation: openstack.nova_plugin.security_group.creation_validation
-          inputs:
-            openstack_config:
-              default: {}
-
   cloudify.openstack.nodes.Flavor:
     derived_from: cloudify.nodes.Root
     properties:
@@ -1416,6 +1292,7 @@ relationships:
             openstack_config:
               default: {}
 
+  # DEPRECATED - use "cloudify.openstack.port_connected_to_floating_ip" instead
   cloudify.openstack.server_connected_to_floating_ip:
     derived_from: cloudify.relationships.connected_to
     source_interfaces:

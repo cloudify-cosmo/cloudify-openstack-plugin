@@ -1,0 +1,365 @@
+#Blueprint used for testing list operations for these node_types:
+#
+#* cloudify.openstack.nodes.Server
+#* cloudify.openstack.nodes.KeyPair
+#* cloudify.openstack.nodes.Subnet
+#* cloudify.openstack.nodes.SecurityGroup
+#* cloudify.openstack.nodes.Router
+#* cloudify.openstack.nodes.Port
+#* cloudify.openstack.nodes.Network
+#* cloudify.openstack.nodes.FloatingIP
+#* cloudify.openstack.nodes.Volume
+#* cloudify.openstack.nodes.ServerGroup
+#* cloudify.openstack.nodes.Image
+#* cloudify.openstack.nodes.Flavor
+#* cloudify.openstack.nodes.HostAggregate
+#* cloudify.openstack.nodes.User
+#* cloudify.openstack.nodes.Project
+#
+
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/master/plugin.yaml
+
+inputs:
+  openstack_username:
+    type: string
+    default: { get_secret: keystone_username }
+
+  openstack_password:
+    type: string
+    default: { get_secret: keystone_password }
+
+  openstack_auth_url:
+    type: string
+    default: { get_secret: keystone_url }
+
+  openstack_region:
+    type: string
+    default: { get_secret: keystone_region }
+
+  openstack_project_id:
+    type: string
+    default: 'b5a748ef817c4333b48380a239374472'
+
+  openstack_project_name:
+    type: string
+    default:  { get_secret: keystone_tenant_name }
+
+dsl_definitions:
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_project_name }
+    auth_url: { get_input: openstack_auth_url }
+    region: { get_input: openstack_region }
+    custom_configuration:
+      keystone_client:
+        interface: public
+
+node_types:
+  cloudify.openstack.nodes.list.Resources:
+    derived_from: cloudify.nodes.Root
+    properties:
+      openstack_config:
+        default: {}
+
+  cloudify.openstack.nodes.list.NeutronResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    properties:
+      tenant_id:
+        type: string
+
+  cloudify.openstack.nodes.list.ServerResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.server.list_servers
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.KeyPairResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.keypair.list_keypairs
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.SubnetResources:
+    derived_from: cloudify.openstack.nodes.list.NeutronResources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.neutron_plugin.subnet.list_subnets
+          inputs:
+            args:
+              default:
+                tenant_id: { get_property: [ SELF, tenant_id ] }
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.SecurityGroupResources:
+    derived_from: cloudify.openstack.nodes.list.NeutronResources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.neutron_plugin.security_group.list_security_groups
+          inputs:
+            args:
+              default:
+                tenant_id: { get_property: [ SELF, tenant_id ] }
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.RouterResources:
+    derived_from: cloudify.openstack.nodes.list.NeutronResources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.neutron_plugin.router.list_routers
+          inputs:
+            args:
+              default:
+                tenant_id: { get_property: [ SELF, tenant_id ] }
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.PortResources:
+    derived_from: cloudify.openstack.nodes.list.NeutronResources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.neutron_plugin.port.list_ports
+          inputs:
+            args:
+              default:
+                tenant_id: { get_property: [ SELF, tenant_id ] }
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.NetworkResources:
+    derived_from: cloudify.openstack.nodes.list.NeutronResources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.neutron_plugin.network.list_networks
+          inputs:
+            args:
+              default:
+                tenant_id: { get_property: [ SELF, tenant_id ] }
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.FloatingIPResources:
+    derived_from: cloudify.openstack.nodes.list.NeutronResources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.neutron_plugin.floatingip.list_floatingips
+          inputs:
+            args:
+              default:
+                tenant_id: { get_property: [ SELF, tenant_id ] }
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.VolumeResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.cinder_plugin.volume.list_volumes
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.FlavorResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.flavor.list_flavors
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.ImageResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.glance_plugin.image.list_images
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.HostAggregateResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.host_aggregate.list_host_aggregates
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+              
+  cloudify.openstack.nodes.list.ServerGroupResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.nova_plugin.server_group.list_servergroups
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.UserResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.keystone_plugin.user.list_users
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+  cloudify.openstack.nodes.list.ProjectResources:
+    derived_from: cloudify.openstack.nodes.list.Resources
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.keystone_plugin.project.list_projects
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: { get_property: [ SELF, openstack_config ] }
+
+node_templates:
+  servers:
+    type: cloudify.openstack.nodes.list.ServerResources
+    properties:
+      openstack_config: *openstack_config
+
+  key_pairs:
+    type: cloudify.openstack.nodes.list.KeyPairResources
+    properties:
+      openstack_config: *openstack_config
+
+  subnets:
+    type: cloudify.openstack.nodes.list.SubnetResources
+    properties:
+      tenant_id: { get_input: openstack_project_id }
+      openstack_config: *openstack_config
+
+  security_groups:
+    type: cloudify.openstack.nodes.list.SecurityGroupResources
+    properties:
+      tenant_id: { get_input: openstack_project_id }
+      openstack_config: *openstack_config
+
+  routers:
+    type: cloudify.openstack.nodes.list.RouterResources
+    properties:
+      tenant_id: { get_input: openstack_project_id }
+      openstack_config: *openstack_config
+
+  ports:
+    type: cloudify.openstack.nodes.list.PortResources
+    properties:
+      tenant_id: { get_input: openstack_project_id }
+      openstack_config: *openstack_config
+
+  networks:
+    type: cloudify.openstack.nodes.list.NetworkResources
+    properties:
+      tenant_id: { get_input: openstack_project_id }
+      openstack_config: *openstack_config
+
+  floating_ips:
+    type: cloudify.openstack.nodes.list.FloatingIPResources
+    properties:
+      tenant_id: { get_input: openstack_project_id }
+      openstack_config: *openstack_config
+
+  volumes:
+    type: cloudify.openstack.nodes.list.VolumeResources
+    properties:
+      openstack_config: *openstack_config
+
+  flavors:
+    type: cloudify.openstack.nodes.list.FlavorResources
+    properties:
+      openstack_config: *openstack_config
+
+  images:
+    type: cloudify.openstack.nodes.list.ImageResources
+    properties:
+      openstack_config: *openstack_config
+
+  host_aggregates:
+    type: cloudify.openstack.nodes.list.HostAggregateResources
+    properties:
+      openstack_config: *openstack_config
+
+  server_groups:
+    type: cloudify.openstack.nodes.list.ServerGroupResources
+    properties:
+      openstack_config: *openstack_config
+
+  users:
+    type: cloudify.openstack.nodes.list.UserResources
+    properties:
+      openstack_config: *openstack_config
+
+  projects:
+    type: cloudify.openstack.nodes.list.ProjectResources
+    properties:
+      openstack_config: *openstack_config
+
+outputs:
+  usage:
+    value:
+      cinder:
+        volume: { get_attribute: [ volumes, volume_list] }
+      glance:
+        image: { get_attribute: [ images, image_list] }
+      neutron:
+        subnets: { get_attribute: [ subnets, subnet_list] }
+        security_group: { get_attribute: [ security_groups, security_group_list] }
+        router: { get_attribute: [ routers, router_list] }
+        port: { get_attribute: [ ports, port_list] }
+        network: { get_attribute: [ networks, network_list] }
+        floating_ip: { get_attribute: [ floating_ips, floatingip_list] }
+      nova:
+        server: { get_attribute: [ servers, server_list] }
+        key_pair: { get_attribute: [ key_pairs, keypair_list] }
+        flavor: { get_attribute: [ flavors, flavor_list] }
+        host_aggregate: { get_attribute: [ host_aggregates, aggregate_list] }
+        server_group: { get_attribute: [ server_groups, server_group_list] }
+      keystone:
+        users: { get_attribute: [ users, user_list] }
+        projects:  { get_attribute: [ projects, project_list] }

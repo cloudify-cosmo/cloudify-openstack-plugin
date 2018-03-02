@@ -25,7 +25,7 @@ Tips
 
 * Public keys, unlike the rest of the Openstack resources, are user-based rather than tenant-based. When errors indicate a missing keypair, make sure you're using the correct user rather than tenant.
 
-* ICMP rules show up on Horizon (Openstack GUI) as ones defined using ``type`` and ``code`` fields, rather than a port range. However, in the actual Neutron (and Nova, in case of Nova-net security groups) service, these fields are represented using the standard port range fields (i.e., ``type`` and ``code`` correspond to ``port_range_min`` and ``port_range_max`` (respectively) on Neutron security groups, and to ``from_port`` and ``to_port`` (respectively) on Nova-net security groups).
+* ICMP rules show up on Horizon (Openstack GUI) as ones defined using ``type`` and ``code`` fields, rather than a port range. However, in the actual Neutron service, these fields are represented using the standard port range fields (i.e., ``type`` and ``code`` correspond to ``port_range_min`` and ``port_range_max`` (respectively) on Neutron security groups).
 
   ** For example, to set a security group rule which allows **ping** from anywhere, the following setting may be declared in the blueprint:
     * ``protocol``: ``icmp``

@@ -17,8 +17,6 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
-import neutronclient.common.exceptions as neutron_exceptions
-
 from openstack_plugin_common import (
     with_neutron_client,
     with_nova_client,
@@ -35,9 +33,13 @@ from openstack_plugin_common import (
     COMMON_RUNTIME_PROPERTIES_KEYS,
     is_external_relationship_not_conditionally_created)
 
+from neutronclient.common.exceptions import NeutronClientException
+from neutron_plugin.floatingip import (
+    FLOATINGIP_OPENSTACK_TYPE,
+    get_server_floating_ip
+)
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
-from openstack_plugin_common.floatingip import get_server_floating_ip
 
 PORT_OPENSTACK_TYPE = 'port'
 
@@ -104,7 +106,7 @@ def delete(neutron_client, **kwargs):
     try:
         delete_resource_and_runtime_properties(ctx, neutron_client,
                                                RUNTIME_PROPERTIES_KEYS)
-    except neutron_exceptions.NeutronClientException, e:
+    except NeutronClientException, e:
         if e.status_code == 404:
             # port was probably deleted when an attached device was deleted
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
@@ -127,10 +129,16 @@ def detach(nova_client, neutron_client, **kwargs):
 
     server_floating_ip = get_server_floating_ip(neutron_client, server_id)
     if server_floating_ip:
-        ctx.logger.info('We have floating ip {0} attached to server'
-                        .format(server_floating_ip['floating_ip_address']))
-        server = nova_client.servers.get(server_id)
-        server.remove_floating_ip(server_floating_ip['floating_ip_address'])
+        ctx.logger.info(
+            'We have floating ip {0} attached to server'
+            .format(server_floating_ip['floating_ip_address'])
+        )
+
+        neutron_client.update_floatingip(
+            server_floating_ip['id'],
+            {FLOATINGIP_OPENSTACK_TYPE: {'port_id': None}}
+        )
+
         return ctx.operation.retry(
             message='Waiting for the floating ip {0} to '
                     'detach from server {1}..'

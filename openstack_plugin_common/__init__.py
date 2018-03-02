@@ -373,7 +373,7 @@ def use_external_resource(ctx, sugared_client, openstack_type,
         sugared_client.get_id_from_resource(resource)
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
 
-    from openstack_plugin_common.floatingip import FLOATINGIP_OPENSTACK_TYPE
+    from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
     # store openstack name runtime property, unless it's a floating IP type,
     # in which case the ip will be stored in the runtime properties instead.
     if openstack_type != FLOATINGIP_OPENSTACK_TYPE:
@@ -549,7 +549,9 @@ def add_list_to_runtime_properties(ctx, openstack_type_name, object_list):
 
 def set_openstack_runtime_properties(ctx, openstack_object, openstack_type):
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
-        openstack_object.id
+        openstack_object.id \
+        if hasattr(openstack_object, 'id') \
+        else openstack_object.name
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         openstack_type
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
@@ -1004,12 +1006,12 @@ class NovaClientWithSugar(OpenStackClient):
     def cosmo_list(self, obj_type_single, **kw):
         """ Sugar for xxx.findall() - not using xxx.list() because findall
         can receive filtering parameters, and it's common for all types"""
-        obj_type_plural = self._get_nova_field_name_for_type(obj_type_single)
+        obj_type_plural = self.cosmo_plural(obj_type_single)
         for obj in getattr(self, obj_type_plural).findall(**kw):
             yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
-        obj_type_plural = self._get_nova_field_name_for_type(obj_type_single)
+        obj_type_plural = self.cosmo_plural(obj_type_single)
         getattr(self, obj_type_plural).delete(obj_id)
 
     def get_id_from_resource(self, resource):
@@ -1032,16 +1034,6 @@ class NovaClientWithSugar(OpenStackClient):
         tenant_id = self.client.service_catalog.get_tenant_id()
         quotas = self.quotas.get(tenant_id)
         return getattr(quotas, self.cosmo_plural(obj_type_single))
-
-    def _get_nova_field_name_for_type(self, obj_type_single):
-        from openstack_plugin_common.floatingip import \
-            FLOATINGIP_OPENSTACK_TYPE
-        if obj_type_single == FLOATINGIP_OPENSTACK_TYPE:
-            # since we use the same 'openstack type' property value for both
-            # neutron and nova floating-ips, this adjustment must be made
-            # for nova client, as fields names differ between the two clients
-            obj_type_single = 'floating_ip'
-        return self.cosmo_plural(obj_type_single)
 
 
 class NeutronClientWithSugar(OpenStackClient):

@@ -613,13 +613,33 @@ class OpenStackClient(object):
         COMMON | {'project_id', 'project_name', 'user_domain_name'},
         COMMON | {'project_name', 'user_domain_name', 'project_domain_name'},
     ]
+
+    NON_AUTH_ITEMS = ['region', 'insecure',
+                      'ca_cert', 'nova_url',
+                      'neutron_url', 'custom_configuration', 'logging']
+
     OPTIONAL_AUTH_PARAMS = {AUTH_PARAM_INSECURE, AUTH_PARM_CA_CERT}
 
     def __init__(self, client_name, client_class, config=None, *args, **kw):
         cfg = Config.get()
-
         if config:
             Config.update_config(cfg, config)
+
+            # This check to make sure that blueprint openstack config
+            # contains all the required auth params + any non-auth param
+            if set(config.keys())\
+                    in self.AUTH_SETS and config.keys() in self.NON_AUTH_ITEMS:
+
+                # Check if there is any value exists on ``cfg``
+                # that does not exist on ``config`` then these extra params
+                # should be removed to prevent any merging conflicts
+                removed_keys = []
+                for k, v in cfg.iteritems():
+                    if k not in config:
+                        removed_keys.append(k)
+
+                for key in removed_keys:
+                    del cfg[key]
 
         v3 = '/v3' in cfg['auth_url']
         # Newer libraries expect the region key to be `region_name`, not

@@ -42,7 +42,7 @@ inputs:
 
   openstack_project_id:
     type: string
-    default: 'b5a748ef817c4333b48380a239374472'
+    default: { get_secret: keystone_tenant_id }
 
   openstack_project_name:
     type: string

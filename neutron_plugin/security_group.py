@@ -155,7 +155,7 @@ def _rules_for_sg_id(neutron_client, id):
 def process_rules(client, sgr_default_values, cidr_field_name,
                   remote_group_field_name, min_port_field_name,
                   max_port_field_name):
-    rules_to_apply = ctx.node.properties['rules']
+    rules_to_apply = ctx.node.properties.get('rules', [])
     security_group_rules = []
     for rule in rules_to_apply:
         security_group_rules.append(

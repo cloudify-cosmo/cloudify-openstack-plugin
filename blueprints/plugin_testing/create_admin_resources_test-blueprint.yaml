@@ -34,6 +34,14 @@ inputs:
     type: string
     default: 'admin'
 
+dsl_definitions:
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_admin_tenant_name }
+    auth_url: { get_input: openstack_auth_url }
+    region: { get_input: openstack_region }
+
 node_templates:
   test_user:
     type: cloudify.openstack.nodes.User
@@ -42,12 +50,7 @@ node_templates:
         name: 'openstack_plugin_test_user'
       use_external_resource: false
       resource_id: 'openstack_plugin_test_user'
-      openstack_config:
-        username: { get_input: openstack_username }
-        password: { get_input: openstack_password }
-        auth_url: { get_input: openstack_auth_url }
-        region: { get_input: openstack_region }
-        tenant_name: { get_input: openstack_admin_tenant_name }
+      openstack_config: *openstack_config
 
   test_project:
     type: cloudify.openstack.nodes.Project
@@ -68,12 +71,7 @@ node_templates:
           cores: 10
       use_external_resource: false
       resource_id: 'openstack_plugin_test_project'
-      openstack_config:
-        username: { get_input: openstack_username }
-        password: { get_input: openstack_password }
-        auth_url: { get_input: openstack_auth_url }
-        region: { get_input: openstack_region }
-        tenant_name: { get_input: openstack_admin_tenant_name }
+      openstack_config: *openstack_config
     relationships:
       - type: cloudify.relationships.depends_on
         target: test_user

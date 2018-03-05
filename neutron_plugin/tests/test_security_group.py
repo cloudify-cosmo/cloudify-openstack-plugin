@@ -37,7 +37,6 @@ class TestSecurityGroup(unittest.TestCase):
 
     def setUp(self):
         super(TestSecurityGroup, self).setUp()
-        self.nova_client = Mock()
 
         self.ctx = MockCloudifyContext(
             node_id='test',
@@ -67,17 +66,37 @@ class TestSecurityGroup(unittest.TestCase):
         self.addCleanup(findctx.stop)
 
     def test_set_sg_runtime_properties(self, mock_nc, *_):
+        security_group_name = 'test_name'
+        security_group_id = 'test_id'
+
+        mocked_neutron_client = Mock()
+        mocked_neutron_client.create_security_group = Mock(
+            return_value={
+                'security_group': {
+                    'id': security_group_id,
+                    'name': security_group_name
+                }
+            }
+        )
+
+        neutron_client_patch = patch(
+            'openstack_plugin_common.NeutronClientWithSugar',
+            return_value=mocked_neutron_client
+        )
+        neutron_client_patch.start()
+
         security_group.create(
-            nova_client=self.nova_client,
             ctx=self.ctx,
-            args={},
+            args={}
             )
+
+        neutron_client_patch.stop()
 
         self.assertEqual(
             {
                 'external_type': 'security_group',
-                'external_id': mock_nc().get_id_from_resource(),
-                'external_name': mock_nc().get_name_from_resource(),
+                'external_id': security_group_id,
+                'external_name': security_group_name,
             },
             self.ctx.instance.runtime_properties
         )
@@ -87,7 +106,6 @@ class TestSecurityGroup(unittest.TestCase):
 
         with self.assertRaises(NonRecoverableError):
             security_group.create(
-                nova_client=self.nova_client,
                 ctx=self.ctx,
                 args={},
                 status_attempts=3,
@@ -107,9 +125,7 @@ class TestSecurityGroup(unittest.TestCase):
 
         with self.assertRaises(NonRecoverableError) as e:
             security_group.create(
-                nova_client=self.nova_client,
                 ctx=self.ctx,
-                args={},
-                )
+                args={})
 
         self.assertIn('the 2nd', str(e.exception))

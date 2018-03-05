@@ -17,7 +17,6 @@ Contents:
 
     configuration
     types
-    nova-net
     examples
     misc
     changelog
@@ -47,12 +46,12 @@ Compatibility
 
 The Openstack plugin uses various Openstack clients packages. The versions used in Openstack Plugin are as follows:
 
-* `keystoneauth1 <https://github.com/openstack/keystoneauth>`_ - 2.12.1
-* `Keystone client <https://github.com/openstack/python-keystoneclient>`_ - 3.5.0
-* `Nova client <https://github.com/openstack/python-novaclient>`_ - 7.0.0
-* `Neutron client <https://github.com/openstack/python-neutronclient>`_ - 6.0.0
-* `Cinder client <https://github.com/openstack/python-cinderclient>`_ - 1.9.0
-* `Glance client <https://github.com/openstack/python-glanceclient>`_ - 2.5.0
+* `keystoneauth1 <https://github.com/openstack/keystoneauth>`_ - 2.16.0
+* `Keystone client <https://github.com/openstack/python-keystoneclient>`_ - 3.15.0
+* `Nova client <https://github.com/openstack/python-novaclient>`_ - 10.1.0
+* `Neutron client <https://github.com/openstack/python-neutronclient>`_ - 6.7.0
+* `Cinder client <https://github.com/openstack/python-cinderclient>`_ - 3.5.0
+* `Glance client <https://github.com/openstack/python-glanceclient>`_ - 2.9.1
 
 
 Indices and tables

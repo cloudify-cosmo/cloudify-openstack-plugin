@@ -18,20 +18,20 @@ from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
     with_neutron_client,
+    use_external_resource,
+    delete_resource_and_runtime_properties,
+    validate_resource,
     provider,
     get_openstack_id,
+    get_single_connected_node_by_openstack_type,
     add_list_to_runtime_properties,
     is_external_relationship,
     is_external_relationship_not_conditionally_created,
-    get_single_connected_node_by_openstack_type,
-    OPENSTACK_ID_PROPERTY
+    OPENSTACK_ID_PROPERTY,
+    OPENSTACK_TYPE_PROPERTY,
+    COMMON_RUNTIME_PROPERTIES_KEYS
 )
-from openstack_plugin_common.floatingip import (
-    use_external_floatingip,
-    set_floatingip_runtime_properties,
-    delete_floatingip,
-    floatingip_creation_validation
-)
+
 from network import NETWORK_OPENSTACK_TYPE
 
 FLOATINGIP_OPENSTACK_TYPE = 'floatingip'
@@ -42,6 +42,11 @@ FLOATING_NETWORK_ERROR_SUFFIX = \
     '(provided: network from relationships={}, floatingip={})'
 FLOATING_NETWORK_ERROR_MSG = FLOATING_NETWORK_ERROR_PREFIX +\
                              FLOATING_NETWORK_ERROR_SUFFIX
+
+# Runtime properties
+IP_ADDRESS_PROPERTY = 'floating_ip_address'  # the actual ip address
+RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
+    [IP_ADDRESS_PROPERTY]
 
 
 @operation
@@ -100,7 +105,7 @@ def create(neutron_client, args, **kwargs):
 
     fip = neutron_client.create_floatingip(
         {FLOATINGIP_OPENSTACK_TYPE: floatingip})[FLOATINGIP_OPENSTACK_TYPE]
-    set_floatingip_runtime_properties(fip['id'], fip['floating_ip_address'])
+    set_floatingip_runtime_properties(fip)
 
     ctx.logger.info('Floating IP creation response: {0}'.format(fip))
 
@@ -108,7 +113,8 @@ def create(neutron_client, args, **kwargs):
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
-    delete_floatingip(neutron_client)
+    delete_resource_and_runtime_properties(ctx, neutron_client,
+                                           RUNTIME_PROPERTIES_KEYS)
 
 
 @with_neutron_client
@@ -122,7 +128,8 @@ def list_floatingips(neutron_client, args, **kwargs):
 @operation
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
-    floatingip_creation_validation(neutron_client, 'floating_ip_address')
+    validate_resource(ctx, neutron_client, FLOATINGIP_OPENSTACK_TYPE,
+                      'floating_ip_address')
 
 
 @operation
@@ -150,3 +157,46 @@ def disconnect_port(neutron_client, **kwargs):
     fip = {'port_id': None}
     neutron_client.update_floatingip(floating_ip_id,
                                      {FLOATINGIP_OPENSTACK_TYPE: fip})
+
+
+def use_external_floatingip(client, ip_field_name, ext_fip_ip_extractor):
+    external_fip = use_external_resource(
+        ctx, client, FLOATINGIP_OPENSTACK_TYPE, ip_field_name)
+    if external_fip:
+        ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
+            ext_fip_ip_extractor(external_fip)
+        return True
+
+    return False
+
+
+def set_floatingip_runtime_properties(fip):
+    ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = fip['id']
+    ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
+        FLOATINGIP_OPENSTACK_TYPE
+    ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
+        fip['floating_ip_address']
+
+
+def get_server_floating_ip(neutron_client, server_id):
+    floating_ips = neutron_client.list_floatingips()
+
+    floating_ips = floating_ips.get('floatingips')
+    if not floating_ips:
+        return None
+
+    for floating_ip in floating_ips:
+        port_id = floating_ip.get('port_id')
+        if not port_id:
+            # this floating ip is not attached to any port
+            continue
+
+        port = neutron_client.show_port(port_id)['port']
+        device_id = port.get('device_id')
+        if not device_id:
+            # this port is not attached to any server
+            continue
+
+        if server_id == device_id:
+            return floating_ip
+    return None

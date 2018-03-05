@@ -1,4 +1,4 @@
-#########
+
 # Copyright (c) 2014 GigaSpaces Technologies Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,8 +33,10 @@ from openstack_plugin_common import (
     get_openstack_id,
     add_list_to_runtime_properties,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
-    with_nova_client,
     with_cinder_client,
+    with_glance_client,
+    with_neutron_client,
+    with_nova_client,
     assign_payload_as_runtime_properties,
     get_openstack_id_of_single_connected_node_by_openstack_type,
     get_openstack_names_of_connected_nodes_by_openstack_type,
@@ -52,18 +54,21 @@ from openstack_plugin_common import (
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
-    COMMON_RUNTIME_PROPERTIES_KEYS,
-    with_neutron_client)
+    COMMON_RUNTIME_PROPERTIES_KEYS)
+from neutronclient.common.exceptions import NotFound as \
+    ExternalNetworkNotReachableError
 from nova_plugin.keypair import KEYPAIR_OPENSTACK_TYPE
 from nova_plugin.server_group import SERVER_GROUP_OPENSTACK_TYPE
 from nova_plugin import userdata
-from openstack_plugin_common.floatingip import (IP_ADDRESS_PROPERTY,
-                                                get_server_floating_ip)
+from neutron_plugin.floatingip import (FLOATINGIP_OPENSTACK_TYPE,
+                                       IP_ADDRESS_PROPERTY,
+                                       get_server_floating_ip)
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
-from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
-from openstack_plugin_common.security_group import \
+from neutron_plugin.security_group import \
     SECURITY_GROUP_OPENSTACK_TYPE
+from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+
 from glance_plugin.image import handle_image_from_relationship
 
 SERVER_OPENSTACK_TYPE = 'server'
@@ -236,7 +241,8 @@ def _handle_boot_volume(server, ctx):
 @operation
 @with_nova_client
 @with_neutron_client
-def create(nova_client, neutron_client, args, **kwargs):
+@with_glance_client
+def create(nova_client, neutron_client, glance_client, args, **kwargs):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
@@ -296,7 +302,7 @@ def create(nova_client, neutron_client, args, **kwargs):
         # python-novaclient requires an image field even if BDM is used.
         server['image'] = ctx.node.properties.get('image')
     else:
-        _handle_image_or_flavor(server, nova_client, 'image')
+        _handle_image_or_flavor(server, glance_client, 'image')
     _handle_image_or_flavor(server, nova_client, 'flavor')
 
     if provider_context.agents_security_group:
@@ -539,31 +545,81 @@ def _set_network_and_ip_runtime_properties(server):
 
 @operation
 @with_nova_client
-def connect_floatingip(nova_client, fixed_ip, **kwargs):
+@with_neutron_client
+def connect_floatingip(nova_client, neutron_client, fixed_ip, **kwargs):
+    ctx.logger.warn(
+        '"cloudify.openstack.server_connected_to_floating_ip" relationship is '
+        'DEPRECATED, you should use '
+        '"cloudify.openstack.port_connected_to_floating_ip" instead'
+    )
+
     server_id = get_openstack_id(ctx.source)
     floating_ip_id = get_openstack_id(ctx.target)
 
     if is_external_relationship_not_conditionally_created(ctx):
-        ctx.logger.info('Validating external floatingip and server '
-                        'are associated')
-        if nova_client.floating_ips.get(floating_ip_id).instance_id ==\
-                server_id:
-            return
+        ctx.logger.info(
+            'Validating external floating IP and server are associated'
+        )
+
+        floating_ip_port = neutron_client.show_floatingip(floating_ip_id) \
+            .get(FLOATINGIP_OPENSTACK_TYPE) \
+            .get('port_id')
+
+        for port in nova_client.servers.interface_list(server_id):
+            if port.port_id == floating_ip_port:
+                return
+
         raise NonRecoverableError(
-            'Expected external resources server {0} and floating-ip {1} to be '
-            'connected'.format(server_id, floating_ip_id))
+            'Expected external resources server {0} '
+            'and floating-ip {1} to be connected'
+            .format(server_id, floating_ip_id)
+        )
 
-    floating_ip_address = ctx.target.instance.runtime_properties[
-        IP_ADDRESS_PROPERTY]
-    server = nova_client.servers.get(server_id)
-    server.add_floating_ip(floating_ip_address, fixed_ip or None)
+    is_floating_ip_connected = bool(
+        ctx.source.instance.runtime_properties.get(
+            FLOATINGIP_OPENSTACK_TYPE,
+            None
+        )
+    )
 
-    server = nova_client.servers.get(server_id)
-    all_server_ips = reduce(operator.add, server.networks.values())
-    if floating_ip_address not in all_server_ips:
-        return ctx.operation.retry(message='Failed to assign floating ip {0}'
-                                           ' to machine {1}.'
-                                   .format(floating_ip_address, server_id))
+    if not is_floating_ip_connected:
+        is_floating_ip_connected = \
+            _connect_floating_ip_to_port_with_fixed_ip(
+                ctx.logger,
+                nova_client,
+                neutron_client,
+                server_id,
+                floating_ip_id,
+                fixed_ip
+            )
+
+    if not is_floating_ip_connected:
+        is_floating_ip_connected = \
+            _connect_floating_ip_to_suitable_server_port(
+                ctx.logger,
+                nova_client,
+                neutron_client,
+                server_id,
+                floating_ip_id
+            )
+
+    if not is_floating_ip_connected:
+        raise NonRecoverableError(
+            'There are no suitable ports attached to server ({0}) '
+            'to which floating IP ({1}) may be connected.'
+            'Probably none of server ports is plugged into network '
+            'which is floating network defined for this floating IP'
+            .format(server_id, floating_ip_id)
+        )
+
+    ctx.source.instance.runtime_properties[FLOATINGIP_OPENSTACK_TYPE] = \
+        floating_ip_id
+
+    _verify_floating_ip_connection(
+        nova_client,
+        server_id,
+        ctx.target.instance.runtime_properties[IP_ADDRESS_PROPERTY]
+    )
 
 
 @operation
@@ -571,19 +627,35 @@ def connect_floatingip(nova_client, fixed_ip, **kwargs):
 @with_neutron_client
 def disconnect_floatingip(nova_client, neutron_client, **kwargs):
     if is_external_relationship(ctx):
-        ctx.logger.info('Not disassociating floatingip and server since '
-                        'external floatingip and server are being used')
+        ctx.logger.info('Not disassociating floating IP and server since '
+                        'external floating IP and server are being used')
         return
 
     server_id = get_openstack_id(ctx.source)
-    ctx.logger.info("Remove floating ip {0}".format(
-        ctx.target.instance.runtime_properties[IP_ADDRESS_PROPERTY]))
     server_floating_ip = get_server_floating_ip(neutron_client, server_id)
+
     if server_floating_ip:
-        server = nova_client.servers.get(server_id)
-        server.remove_floating_ip(server_floating_ip['floating_ip_address'])
-        ctx.logger.info("Floating ip {0} detached from server"
-                        .format(server_floating_ip['floating_ip_address']))
+        ctx.logger.info(
+            'Disconnecting floating IP {0}'
+            .format(server_floating_ip['floating_ip_address'])
+        )
+
+        neutron_client.update_floatingip(
+            server_floating_ip['id'],
+            {FLOATINGIP_OPENSTACK_TYPE: {'port_id': None}}
+        )
+
+        ctx.logger.info(
+            'Floating IP {0} disconnected from server'
+            .format(server_floating_ip['floating_ip_address'])
+        )
+
+        return
+
+    ctx.logger.warn(
+        'No floating IPs which can be disconnected from server {} found'
+        .format(server_id)
+    )
 
 
 @operation
@@ -940,7 +1012,7 @@ def _validate_security_group_and_server_connection_status(
                 'connected to' if is_connected else 'disconnected from'))
 
 
-def _handle_image_or_flavor(server, nova_client, prop_name):
+def _handle_image_or_flavor(server, client, prop_name):
     if prop_name not in server and '{0}_name'.format(prop_name) not in server:
         # setting image or flavor - looking it up by name; if not found, then
         # the value is assumed to be the id
@@ -955,13 +1027,111 @@ def _handle_image_or_flavor(server, nova_client, prop_name):
                 'property'.format(prop_name))
 
         image_or_flavor = \
-            nova_client.cosmo_get_if_exists(prop_name, name=server[prop_name])
+            client.cosmo_get_if_exists(prop_name, name=server[prop_name])
         if image_or_flavor:
             server[prop_name] = image_or_flavor.id
     else:  # Deprecated sugar
         if '{0}_name'.format(prop_name) in server:
-            prop_name_plural = nova_client.cosmo_plural(prop_name)
+            prop_name_plural = client.cosmo_plural(prop_name)
             server[prop_name] = \
-                getattr(nova_client, prop_name_plural).find(
+                getattr(client, prop_name_plural).find(
                     name=server['{0}_name'.format(prop_name)]).id
             del server['{0}_name'.format(prop_name)]
+
+
+def _find_port_by_fixedip(nova_client, server_id, fixed_ip):
+    for port in nova_client.servers.interface_list(server_id):
+        for fixed_ip_object in port.fixed_ips:
+            if fixed_ip_object.ip_address == fixed_ip:
+                return port.port_id
+
+    return None
+
+
+def _connect_floating_ip_to_port(logger,
+                                 neutron_client,
+                                 floating_ip_id,
+                                 port_id):
+    result = False
+
+    if port_id:
+        try:
+            neutron_client.update_floatingip(
+                floating_ip_id,
+                {FLOATINGIP_OPENSTACK_TYPE: {'port_id': port_id}}
+            )
+        except ExternalNetworkNotReachableError:
+            pass
+        else:
+            result = True
+
+    logger.info(
+        'Attempt of connection floating IP {0} to port {1}: {2}'
+        .format(floating_ip_id, port_id, 'SUCCESS' if result else 'FAILURE')
+    )
+
+    return result
+
+
+def _connect_floating_ip_to_port_with_fixed_ip(logger,
+                                               nova_client,
+                                               neutron_client,
+                                               server_id,
+                                               floating_ip_id,
+                                               fixed_ip):
+    if fixed_ip:
+        logger.info(
+            'Trying to find port to which floating IP {0} '
+            'may be connected using fixed IP {1}'
+            .format(floating_ip_id, fixed_ip)
+        )
+
+        port_id = _find_port_by_fixedip(nova_client, server_id, fixed_ip)
+        return _connect_floating_ip_to_port(
+            logger,
+            neutron_client,
+            floating_ip_id,
+            port_id
+        )
+
+    return False
+
+
+def _connect_floating_ip_to_suitable_server_port(logger,
+                                                 nova_client,
+                                                 neutron_client,
+                                                 server_id,
+                                                 floating_ip_id):
+    logger.info(
+        'Trying to find server port to which floating IP {0} may be '
+        'connected. All ports currently attached to server will be checked'
+        .format(floating_ip_id)
+    )
+
+    result = False
+    for port in nova_client.servers.interface_list(server_id):
+        if not result:
+            result = _connect_floating_ip_to_port(
+                logger,
+                neutron_client,
+                floating_ip_id,
+                port.port_id
+            )
+
+    return result
+
+
+def _verify_floating_ip_connection(nova_client,
+                                   server_id,
+                                   floating_ip_address):
+
+    server = nova_client.servers.get(server_id)
+    all_server_ips = reduce(operator.add, server.networks.values())
+
+    if floating_ip_address not in all_server_ips:
+        return ctx.operation.retry(
+            message='It seems that floating IP {0} '
+                    'is not yet connected to machine {1}. '
+                    'It may take some time, so verification will be retried.'
+            .format(floating_ip_address, server_id)
+        )

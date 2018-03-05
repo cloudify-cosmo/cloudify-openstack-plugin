@@ -1,0 +1,328 @@
+#Blueprint used for testing creation, deletion and other operations for these node_types:
+#
+#* cloudify.openstack.nodes.Server
+#* cloudify.openstack.nodes.KeyPair
+#* cloudify.openstack.nodes.Subnet
+#* cloudify.openstack.nodes.SecurityGroup
+#* cloudify.openstack.nodes.Router
+#* cloudify.openstack.nodes.Port
+#* cloudify.openstack.nodes.Network
+#* cloudify.openstack.nodes.FloatingIP
+#* cloudify.openstack.nodes.Volume
+#* cloudify.openstack.nodes.ServerGroup
+#
+#... and relationships:
+#
+#* cloudify.openstack.port_connected_to_security_group
+#* cloudify.openstack.subnet_connected_to_router
+#* cloudify.openstack.server_connected_to_floating_ip
+#* cloudify.openstack.port_connected_to_floating_ip
+#* cloudify.openstack.server_connected_to_port
+#* cloudify.openstack.server_connected_to_keypair
+#* cloudify.openstack.port_connected_to_subnet
+#* cloudify.openstack.volume_attached_to_server
+#* cloudify.openstack.server_connected_to_server_group
+#
+
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/master/plugin.yaml
+
+inputs:
+  openstack_username:
+    type: string
+    default: { get_secret: keystone_username }
+
+  openstack_password:
+    type: string
+    default: { get_secret: keystone_password }
+
+  openstack_auth_url:
+    type: string
+    default: { get_secret: keystone_url }
+
+  openstack_region:
+    type: string
+    default: { get_secret: keystone_region }
+
+  openstack_project_name:
+    type: string
+    default:  { get_secret: keystone_tenant_name }
+
+  private_key_path:
+    type: string
+    default: '/etc/cloudify/.ssh/os-test.pem'
+
+  external_network_name:
+    type: string
+    default: { get_secret: external_network_name }
+
+  image:
+    type: string
+    default: { get_secret: centos_core_image }
+
+  flavor:
+    type: string
+    default: { get_secret: small_image_flavor }
+
+  management_network_name:
+    type: string
+    default: { get_secret: public_network_name }
+
+
+  subnet_a_cidr:
+    type: string
+    default: '192.168.1.0/24'
+
+  subnet_b_cidr:
+    type: string
+    default: '192.168.2.0/24'
+
+dsl_definitions:
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_project_name }
+    auth_url: { get_input: openstack_auth_url }
+    region: { get_input: openstack_region }
+
+node_templates:
+  test_keypair:
+    type: cloudify.openstack.nodes.KeyPair
+    properties:
+      private_key_path: { get_input: private_key_path }
+      use_external_resource: false
+      resource_id: 'openstack_plugin_test_keypair'
+      openstack_config: *openstack_config
+
+  test_security_group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      rules:
+        - protocol: icmp
+          port_range_min: null
+          port_range_max: null
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          port: 22
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          port: 80
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          port: 443
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: udp
+          port: 161
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: udp
+          port: 162
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          port: 5671
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          port: 5672
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          port: 8080
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          port: 8181
+          remote_ip_prefix: 0.0.0.0/0
+      use_external_resource: false
+      resource_id: 'openstack_plugin_test_security_group'
+      openstack_config: *openstack_config
+
+  test_volume:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      volume:
+        size: 20
+        name: 'openstack_plugin_test_volume'
+      boot: false
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_volume'
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.openstack.volume_attached_to_server
+        target: test_server_A
+
+  test_floating_ip_A:
+    type: cloudify.openstack.nodes.FloatingIP
+    properties:
+      floatingip:
+        floating_network_name: { get_input: external_network_name }
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_floating_ip_A'
+      openstack_config: *openstack_config
+
+  test_network_A_internal:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_network_A_internal'
+      openstack_config: *openstack_config
+
+  test_subnet_A_internal:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      subnet:
+        ip_version: 4
+        cidr: { get_input: subnet_a_cidr }
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_subnet_A_internal'
+      openstack_config: *openstack_config
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              dns_nameservers: [8.8.8.8]
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: test_network_A_internal
+
+  test_port_A_internal:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_port_A_internal'
+      openstack_config: *openstack_config
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              allowed_address_pairs:
+                - ip_address: '0.0.0.0/0'
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: test_network_A_internal
+      - type: cloudify.openstack.port_connected_to_subnet
+        target: test_subnet_A_internal
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: test_security_group
+
+  test_server_A:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      agent_config:
+        install_method: none
+      image: { get_input: image }
+      flavor: { get_input: flavor }
+      management_network_name: { get_input: management_network_name }
+      use_external_resource: false
+      resource_id: 'openstack_plugin_test_server_A'
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.openstack.server_connected_to_port
+        target: test_port_A_internal
+      - type: cloudify.openstack.server_connected_to_floating_ip
+        target: test_floating_ip_A
+      - type: cloudify.openstack.server_connected_to_security_group
+        target: test_security_group
+      - type: cloudify.openstack.server_connected_to_keypair
+        target: test_keypair
+      - type: cloudify.openstack.server_connected_to_server_group
+        target: test_server_group
+
+  test_floating_ip_B:
+    type: cloudify.openstack.nodes.FloatingIP
+    properties:
+      floatingip:
+        floating_network_name: { get_input: external_network_name }
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_floating_ip_B'
+      openstack_config: *openstack_config
+
+  test_network_B_external:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_network_B_external'
+      openstack_config: *openstack_config
+
+  test_subnet_B_external:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      subnet:
+        ip_version: 4
+        cidr: { get_input: subnet_b_cidr }
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_subnet_B_external'
+      openstack_config: *openstack_config
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              dns_nameservers: [8.8.8.8]
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: test_network_B_external
+      - type: cloudify.openstack.subnet_connected_to_router
+        target: test_router_B
+
+  test_port_B_external:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      use_external_resource : false
+      resource_id: 'openstack_plugin_test_port_B_external'
+      openstack_config: *openstack_config
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              allowed_address_pairs:
+                - ip_address: '0.0.0.0/0'
+    relationships:
+      - type: cloudify.openstack.port_connected_to_floating_ip
+        target: test_floating_ip_B
+      - type: cloudify.relationships.connected_to
+        target: test_network_B_external
+      - type: cloudify.openstack.port_connected_to_subnet
+        target: test_subnet_B_external
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: test_security_group
+
+  test_server_B:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      agent_config:
+        install_method: none
+      image: { get_input: image }
+      flavor: { get_input: flavor }
+      use_external_resource: false
+      resource_id: 'openstack_plugin_test_server_B'
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.openstack.server_connected_to_port
+        target: test_port_B_external
+      - type: cloudify.openstack.server_connected_to_security_group
+        target: test_security_group
+      - type: cloudify.openstack.server_connected_to_keypair
+        target: test_keypair
+      - type: cloudify.openstack.server_connected_to_server_group
+        target: test_server_group
+
+  test_router_B:
+    type: cloudify.openstack.nodes.Router
+    properties:
+      external_network: { get_input: external_network_name }
+      use_external_resource: false
+      resource_id: 'openstack_plugin_test_router_B'
+      openstack_config: *openstack_config
+
+  test_server_group:
+    type: cloudify.openstack.nodes.ServerGroup
+    properties:
+      server_group:
+        name: 'openstack_plugin_test_image'
+      policy: 'affinity'
+      use_external_resource: false
+      resource_id: 'openstack_plugin_test_image'
+      openstack_config: *openstack_config

@@ -44,7 +44,6 @@ PRIVATE_KEY_PATH_PROP = 'private_key_path'
 @operation
 @with_nova_client
 def create(nova_client, args, **kwargs):
-
     private_key_path = _get_private_key_path()
     pk_exists = _check_private_key_exists(private_key_path)
 
@@ -69,7 +68,7 @@ def create(nova_client, args, **kwargs):
     keypair = nova_client.keypairs.create(keypair['name'],
                                           keypair.get('public_key'))
 
-    set_openstack_runtime_properties(ctx, KEYPAIR_OPENSTACK_TYPE, keypair)
+    set_openstack_runtime_properties(ctx, keypair, KEYPAIR_OPENSTACK_TYPE)
 
     try:
         # write private key file

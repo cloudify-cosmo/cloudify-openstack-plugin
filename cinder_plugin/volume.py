@@ -50,17 +50,17 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 @operation
 @with_cinder_client
-def create(cinder_client, args, **kwargs):
+def create(cinder_client, status_attempts, status_timeout, args, **kwargs):
 
     if use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
-                             'display_name'):
+                             'name'):
         return
 
     name = get_resource_id(ctx, VOLUME_OPENSTACK_TYPE)
-    volume_dict = {'display_name': name}
+    volume_dict = {'name': name}
     volume_dict.update(ctx.node.properties['volume'], **args)
-    volume_dict['display_name'] = transform_resource_name(
-        ctx, volume_dict['display_name'])
+    volume_dict['name'] = transform_resource_name(
+        ctx, volume_dict['name'])
 
     v = cinder_client.volumes.create(**volume_dict)
 
@@ -68,10 +68,12 @@ def create(cinder_client, args, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         VOLUME_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
-        volume_dict['display_name']
+        volume_dict['name']
     wait_until_status(cinder_client=cinder_client,
                       volume_id=v.id,
-                      status=VOLUME_STATUS_AVAILABLE)
+                      status=VOLUME_STATUS_AVAILABLE,
+                      num_tries=status_attempts,
+                      timeout=status_timeout)
 
 
 @operation
@@ -82,8 +84,8 @@ def delete(cinder_client, **kwargs):
 
 
 @with_cinder_client
-def wait_until_status(cinder_client, volume_id, status, num_tries=10,
-                      timeout=2):
+def wait_until_status(cinder_client, volume_id, status, num_tries,
+                      timeout):
     for _ in range(num_tries):
         volume = cinder_client.volumes.get(volume_id)
 
@@ -114,4 +116,4 @@ def get_attachment(cinder_client, volume_id, server_id):
 @with_cinder_client
 def creation_validation(cinder_client, **kwargs):
     validate_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
-                      'display_name')
+                      'name')

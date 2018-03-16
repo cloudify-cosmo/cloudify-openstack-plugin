@@ -11,8 +11,9 @@ from cloudify.mocks import (
 from openstack_plugin_common import (
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY
-    )
+    OPENSTACK_TYPE_PROPERTY,
+    OPENSTACK_RESOURCE_PROPERTY
+)
 from nova_plugin.host_aggregate import (
     HOST_AGGREGATE_OPENSTACK_TYPE,
     HOSTS_PROPERTY
@@ -228,6 +229,9 @@ class TestHostAggregate(unittest.TestCase):
         self.assertEqual(
             HOST_AGGREGATE_OPENSTACK_TYPE,
             ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY]
+        )
+        self.assertTrue(
+            ctx.instance.runtime_properties[OPENSTACK_RESOURCE_PROPERTY]
         )
         nova_client.aggregates.create.assert_not_called()
         nova_client.aggregates.add_host.assert_not_called()

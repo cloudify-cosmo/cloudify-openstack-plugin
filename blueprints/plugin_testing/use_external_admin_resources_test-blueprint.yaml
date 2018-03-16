@@ -49,11 +49,13 @@ node_templates:
       use_external_resource: true
       resource_id: 'openstack_plugin_test_user'
       openstack_config: *openstack_config
+
   test_project:
     type: cloudify.openstack.nodes.Project
     properties:
       use_external_resource: true
       resource_id: 'openstack_plugin_test_project'
+    relationships:
       openstack_config: *openstack_config
       - type: cloudify.relationships.depends_on
         target: test_user

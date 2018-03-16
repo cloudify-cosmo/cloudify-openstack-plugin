@@ -49,6 +49,7 @@ OPENSTACK_AZ_PROPERTY = 'availability_zone'
 OPENSTACK_ID_PROPERTY = 'external_id'  # resource's openstack id
 OPENSTACK_TYPE_PROPERTY = 'external_type'  # resource's openstack type
 OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name
+OPENSTACK_RESOURCE_PROPERTY = 'external_resource'  # resource's parameters
 CONDITIONALLY_CREATED = 'conditionally_created'  # resource was
 # conditionally created
 CONFIG_RUNTIME_PROPERTY = CONFIG_PROPERTY   # openstack configuration
@@ -60,6 +61,7 @@ CONFIG_INPUT = CONFIG_PROPERTY
 COMMON_RUNTIME_PROPERTIES_KEYS = [OPENSTACK_ID_PROPERTY,
                                   OPENSTACK_TYPE_PROPERTY,
                                   OPENSTACK_NAME_PROPERTY,
+                                  OPENSTACK_RESOURCE_PROPERTY,
                                   CONDITIONALLY_CREATED]
 
 MISSING_RESOURCE_MESSAGE = "Couldn't find a resource of " \
@@ -372,6 +374,8 @@ def use_external_resource(ctx, sugared_client, openstack_type,
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
         sugared_client.get_id_from_resource(resource)
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = openstack_type
+    ctx.instance.runtime_properties[OPENSTACK_RESOURCE_PROPERTY] = \
+        resource if isinstance(resource, dict) else resource.to_dict()
 
     from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
     # store openstack name runtime property, unless it's a floating IP type,

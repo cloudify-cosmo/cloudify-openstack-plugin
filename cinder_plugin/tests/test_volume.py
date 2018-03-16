@@ -23,7 +23,8 @@ from cinder_plugin import volume
 from nova_plugin import server
 from openstack_plugin_common import (OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY,
-                                     OPENSTACK_NAME_PROPERTY)
+                                     OPENSTACK_NAME_PROPERTY,
+                                     OPENSTACK_RESOURCE_PROPERTY)
 
 
 class TestCinderVolume(unittest.TestCase):
@@ -111,6 +112,9 @@ class TestCinderVolume(unittest.TestCase):
         self.assertEqual(
             volume.VOLUME_OPENSTACK_TYPE,
             ctx_m.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY])
+        self.assertTrue(
+            ctx_m.instance.runtime_properties[OPENSTACK_RESOURCE_PROPERTY]
+        )
 
     def test_delete(self):
         volume_id = '00000000-0000-0000-0000-000000000000'

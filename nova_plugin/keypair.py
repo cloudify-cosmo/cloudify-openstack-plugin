@@ -69,7 +69,7 @@ def create(nova_client, args, **kwargs):
     keypair = nova_client.keypairs.create(keypair['name'],
                                           keypair.get('public_key'))
 
-    set_openstack_runtime_properties(ctx, KEYPAIR_OPENSTACK_TYPE, keypair)
+    set_openstack_runtime_properties(ctx, keypair, KEYPAIR_OPENSTACK_TYPE)
 
     try:
         # write private key file

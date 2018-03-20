@@ -1,5 +1,6 @@
 2.7.2:
     - Allow openstack_config keys to be empty, in case these values are taken from `openstack-config.json`.
+    - Fix bug where key type runtime properties were incorrectly assigned.
 2.7.1:
     - Support identify floating ip network via relationship in floating ip.
     - Improve list images in glance image type.

@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.7.1.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.7.2.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.7.1'
+    package_version: '2.7.2'
 
 data_types:
   cloudify.openstack.types.custom_configuration:
@@ -79,12 +79,15 @@ data_types:
       username:
         description: User to authenticate to KeyStone with.
         type: string
+        required: false
       password:
         description: Password to authenticate to KeyStone with.
         type: string
+        required: false
       auth_url:
         description: Keystone's URL (used for authentication).
         type: string
+        required: false
       tenant_name:
         description: Name of tenant.
         type: string

@@ -760,6 +760,13 @@ class OpenStackClient(object):
             # to True. Any other value (string etc.) will force verify to True.
             # This is done on purpose, since we do not wish to use insecure
             # connection by mistake.
+            # Update: We are adding handling for casting 'True' or 'true' as a
+            # bool because if this value is set via an instrinsic function
+            # it will always be a string.
+            cfg_insecure = cfg[AUTH_PARAM_INSECURE]
+            if isinstance(cfg_insecure, basestring) and \
+                    cfg_insecure.capitalize() == 'True':
+                cfg[AUTH_PARAM_INSECURE] = True
             verify = not (cfg[AUTH_PARAM_INSECURE] is True)
             del cfg[AUTH_PARAM_INSECURE]
         elif AUTH_PARM_CA_CERT in cfg:

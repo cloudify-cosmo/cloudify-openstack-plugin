@@ -1,3 +1,5 @@
+2.7.4:
+    - Allow passing 'true' string for True boolean for authentication parameters.
 2.7.3:
     - Resolve issue with merging openstack config
 2.7.2:

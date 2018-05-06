@@ -8,4 +8,4 @@ Cloudify OpenStack Plugin
 
 ## Usage
 
-See [Openstack Plugin](http://docs.getcloudify.org/latest/plugins/openstack/)
+See [Openstack Plugin](https://docs.cloudify.co/latest/developer/official_plugins/openstack/)

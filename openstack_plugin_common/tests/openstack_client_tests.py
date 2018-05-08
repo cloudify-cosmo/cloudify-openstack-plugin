@@ -740,10 +740,12 @@ class UseExternalResourceTests(unittest.TestCase):
     def _test_use_external_resource(self,
                                     is_external,
                                     create_if_missing,
-                                    exists):
+                                    exists,
+                                    use_runtime_property=False):
         properties = {'create_if_missing': create_if_missing,
                       'use_external_resource': is_external,
-                      'resource_id': 'resource_id'}
+                      'resource_id': None}
+        runtime_properties = {}
         client_mock = mock.MagicMock()
         os_type = 'test'
 
@@ -754,13 +756,17 @@ class UseExternalResourceTests(unittest.TestCase):
             return mock.MagicMock()
 
         return_value = _return_something if exists else _raise_error
-        if exists:
-            properties.update({'resource_id': 'rid'})
+
+        if use_runtime_property:
+            properties['resource_id'] = 'resource_id'
+        else:
+            runtime_properties['resource_id'] = 'resource_id'
 
         node_context = MockCloudifyContext(node_id='a20847',
-                                           properties=properties)
+                                           properties=properties,
+                                           runtime_properties=runtime_properties)
         with mock.patch(
-                'openstack_plugin_common._get_resource_by_name_or_id_from_ctx',
+                'openstack_plugin_common.get_resource_by_name_or_id',
                 new=return_value):
             return common.use_external_resource(node_context,
                                                 client_mock, os_type)
@@ -770,6 +776,9 @@ class UseExternalResourceTests(unittest.TestCase):
                                                               True))
         self.assertIsNotNone(self._test_use_external_resource(True, False,
                                                               True))
+        self.assertIsNotNone(
+            self._test_use_external_resource(True, True, True,
+                                             use_runtime_property=True))
 
     def test_create_resource(self):
         self.assertIsNone(self._test_use_external_resource(False, True, False))

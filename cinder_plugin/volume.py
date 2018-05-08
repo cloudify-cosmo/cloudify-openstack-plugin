@@ -26,6 +26,7 @@ from openstack_plugin_common import (delete_resource_and_runtime_properties,
                                      add_list_to_runtime_properties,
                                      create_object_dict,
                                      COMMON_RUNTIME_PROPERTIES_KEYS,
+                                     RESOURCE_ID_RUNTIME_PROPERTY,
                                      OPENSTACK_AZ_PROPERTY,
                                      OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY,
@@ -52,7 +53,10 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 @operation
 @with_cinder_client
-def create(cinder_client, status_attempts, status_timeout, args, **kwargs):
+def create(cinder_client, status_attempts, status_timeout, args,
+           resource_id=None, **kwargs):
+    ctx.instance.runtime_properties[RESOURCE_ID_RUNTIME_PROPERTY] = resource_id
+    ctx.instance.update()
 
     if use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
                              'name'):

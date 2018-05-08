@@ -823,6 +823,11 @@ node_types:
                 status
               type: integer
               default: 15
+            resource_id:
+              type: string
+              default: ''
+              description: >
+                name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
         delete:
           implementation: openstack.cinder_plugin.volume.delete
           inputs:

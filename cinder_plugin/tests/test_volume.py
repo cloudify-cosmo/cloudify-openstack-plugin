@@ -81,13 +81,20 @@ class TestCinderVolume(unittest.TestCase):
             volume.VOLUME_OPENSTACK_TYPE,
             ctx_m.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY])
 
-    def test_create_use_existing(self):
+    def _test_create_use_existing(self, use_runtime_property=False):
         volume_id = '00000000-0000-0000-0000-000000000000'
+
+        if use_runtime_property:
+            (resource_id_property,
+             resource_id_runtime_property) = (None, volume_id)
+        else:
+            (resource_id_property,
+             resource_id_runtime_property) = (volume_id, None)
 
         volume_properties = {
             'use_external_resource': True,
             'device_name': '/dev/fake',
-            'resource_id': volume_id,
+            'resource_id': resource_id_property,
         }
         existing_volume_m = mock.Mock()
         existing_volume_m.id = volume_id
@@ -102,7 +109,8 @@ class TestCinderVolume(unittest.TestCase):
         ctx_m = self._mock(node_id='a', properties=volume_properties)
 
         volume.create(cinder_client=cinder_client_m, args={}, ctx=ctx_m,
-                      status_attempts=10, status_timeout=2)
+                      status_attempts=10, status_timeout=2,
+                      resource_id=resource_id_runtime_property)
 
         self.assertFalse(cinder_client_m.volumes.create.called)
         self.assertEqual(
@@ -111,6 +119,12 @@ class TestCinderVolume(unittest.TestCase):
         self.assertEqual(
             volume.VOLUME_OPENSTACK_TYPE,
             ctx_m.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY])
+
+    def test_create_use_existing_with_property(self):
+        self._test_create_use_existing()
+
+    def test_create_use_existing_with_input(self):
+        self._test_create_use_existing(use_runtime_property=True)
 
     def test_delete(self):
         volume_id = '00000000-0000-0000-0000-000000000000'

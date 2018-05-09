@@ -762,9 +762,11 @@ class UseExternalResourceTests(unittest.TestCase):
         else:
             runtime_properties['resource_id'] = 'resource_id'
 
-        node_context = MockCloudifyContext(node_id='a20847',
-                                           properties=properties,
-                                           runtime_properties=runtime_properties)
+        node_context = MockCloudifyContext(
+            node_id='a20847',
+            properties=properties,
+            runtime_properties=runtime_properties)
+
         with mock.patch(
                 'openstack_plugin_common.get_resource_by_name_or_id',
                 new=return_value):

@@ -1,0 +1,53 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
+  - ../plugin.yaml
+
+inputs:
+
+  username:
+    type: string
+
+  keystone_password:
+    type: string
+
+  tenant_name:
+    type: string
+
+  auth_url:
+    type: string
+
+  region:
+    type: string
+
+dsl_definitions:
+
+  openstack_config: &openstack_config
+    username: { get_input: username }
+    password: { get_input: keystone_password }
+    tenant_name: { get_input: tenant_name }
+    auth_url: { get_input: auth_url }
+    region: { get_input: region }
+
+node_templates:
+
+  volume:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      use_external_resource: true
+      # # resource_id: 1a914c31-a940-4352-9d17-cb1bffd1c086
+      resource_id: 0000000-a940-4352-9d17-cb1bffd1c086
+      create_if_missing: true
+      openstack_config: *openstack_config
+      volume:
+        size: 20
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.cinder_plugin.volume.create
+          inputs:
+            args: {}
+            status_attempts: 20
+            status_timeout: 15
+            resource_id: { get_property: [ SELF, resource_id ] }

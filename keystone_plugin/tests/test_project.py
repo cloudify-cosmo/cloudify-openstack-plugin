@@ -18,8 +18,7 @@ from openstack_plugin_common import (
 )
 from keystone_plugin.project import (
     PROJECT_OPENSTACK_TYPE,
-    QUOTA,
-    NOVA
+    QUOTA
 )
 import keystone_plugin
 
@@ -238,29 +237,57 @@ class TestProject(unittest.TestCase):
 
     def test_get_quota(self, *_):
         nova_quota = {'cpu': 120}
-        quota = {'nova': nova_quota}
+        cinder_quota = {'volumes': 30}
+        neutron_quota = {'networks': 100}
+
+        quota = {
+            'nova': nova_quota,
+            'neutron': neutron_quota,
+            'cinder': cinder_quota
+        }
+
         test_vars = {
             'project': {},
             'resource_id': '',
-            'quota': quota,
+            'quota': {},
             'users': [{'name': self.test_user,
                        'roles': [self.test_role]}]
         }
-        quota = {'nova': {'cpu': 120}, 'neutron': {'networks': 100}}
+
         ctx = self.mock_ctx(test_vars,
                             self.test_id,
                             self.test_deployment_id,
                             {OPENSTACK_ID_PROPERTY: self.test_id})
         keystone_plugin.project.ctx = ctx
 
-        keystone_plugin.project.get_quota = mock.MagicMock(
-            return_value=nova_quota)
+        nova_quota_response_mock = mock.MagicMock()
+        nova_quota_response_mock.to_dict = mock.MagicMock(
+            return_value=nova_quota
+        )
+        nova_client = mock.MagicMock()
+        nova_client.quotas.get = mock.MagicMock(
+            return_value=nova_quota_response_mock
+        )
+
+        cinder_quota_response_mock = mock.MagicMock()
+        cinder_quota_response_mock.to_dict = mock.MagicMock(
+            return_value=cinder_quota
+        )
+        cinder_client = mock.MagicMock()
+        cinder_client.quotas.get = mock.MagicMock(
+            return_value=cinder_quota_response_mock
+        )
+
+        neutron_client = mock.MagicMock()
+        neutron_client.show_quota = mock.MagicMock(
+            return_value={'quota': neutron_quota}
+            # format of neutron client 'show_quota' response
+        )
 
         keystone_plugin.project.get_project_quota(
-            nova_client=mock.MagicMock(),
-            cinder_client=mock.MagicMock(),
-            neutron_client=mock.MagicMock())
+            nova_client=nova_client,
+            cinder_client=cinder_client,
+            neutron_client=neutron_client)
 
         self.assertIn(QUOTA, ctx.instance.runtime_properties)
-        self.assertDictEqual(quota[NOVA],
-                             ctx.instance.runtime_properties[QUOTA][NOVA])
+        self.assertDictEqual(quota, ctx.instance.runtime_properties[QUOTA])

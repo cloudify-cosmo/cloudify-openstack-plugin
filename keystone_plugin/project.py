@@ -129,13 +129,14 @@ def validate_users(users, keystone_client, **kwargs):
 
 def get_quota(tenant_id, client, what_quota):
     if what_quota == NEUTRON:
-        quota = client.get_quotas_tenant(tenant=tenant_id)
-        return quota
+        quota = dict(client.show_quota(tenant_id=tenant_id)).get('quota')
     else:
-        quota = client.quotas.get(tenant_id=tenant_id)
+        quota = client.quotas.get(tenant_id=tenant_id).to_dict()
+
     ctx.logger.debug(
         'Got {0} quota: {1}'.format(what_quota, str(quota)))
-    return quota.to_dict()
+
+    return quota
 
 
 def update_quota(tenant_id, quota, client, what_quota):

@@ -1,3 +1,5 @@
+2.7.6:
+    - Improve Handling of fixed IPs on Ports.
 2.7.5:
     - Improve Quota retrieval.
 2.7.4:

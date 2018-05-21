@@ -18,11 +18,13 @@ import unittest
 import mock
 
 import neutron_plugin.port
+from neutron_plugin.security_group import SG_OPENSTACK_TYPE
 from cloudify.mocks import (MockCloudifyContext,
                             MockNodeInstanceContext,
                             MockRelationshipSubjectContext)
 from openstack_plugin_common import (NeutronClientWithSugar,
-                                     OPENSTACK_ID_PROPERTY)
+                                     OPENSTACK_ID_PROPERTY,
+                                     OPENSTACK_TYPE_PROPERTY)
 from cloudify.exceptions import OperationRetry
 
 
@@ -131,8 +133,12 @@ class TestPortSG(unittest.TestCase):
         ctx = MockCloudifyContext(
             source=MockRelationshipSubjectContext(node=mock.MagicMock(),
                                                   instance=mock.MagicMock()),
-            target=MockRelationshipSubjectContext(node=mock.MagicMock(),
-                                                  instance=mock.MagicMock()))
+            target=MockRelationshipSubjectContext(
+                node=mock.MagicMock(),
+                instance=MockNodeInstanceContext(
+                    runtime_properties={
+                        OPENSTACK_ID_PROPERTY: 'test-sg-id',
+                        OPENSTACK_TYPE_PROPERTY: SG_OPENSTACK_TYPE})))
 
         with mock.patch('neutron_plugin.port.ctx', ctx):
             neutron_plugin.port.connect_security_group(mock_neutron)
@@ -149,7 +155,8 @@ class TestPortSG(unittest.TestCase):
                 node=mock.MagicMock(),
                 instance=MockNodeInstanceContext(
                     runtime_properties={
-                        OPENSTACK_ID_PROPERTY: 'test-sg-id'})))
+                        OPENSTACK_ID_PROPERTY: 'test-sg-id',
+                        OPENSTACK_TYPE_PROPERTY: SG_OPENSTACK_TYPE})))
         with mock.patch('neutron_plugin.port.ctx', ctx):
             neutron_plugin.port.connect_security_group(mock_neutron, ctx=ctx)
             self.assertIsInstance(ctx.operation._operation_retry,

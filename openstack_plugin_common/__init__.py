@@ -43,6 +43,7 @@ INFINITE_RESOURCE_QUOTA = -1
 USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
 CREATE_IF_MISSING_PROPERTY = 'create_if_missing'
 CONFIG_PROPERTY = 'openstack_config'
+RESOURCE_ID = 'resource_id'
 
 # runtime properties
 OPENSTACK_AZ_PROPERTY = 'availability_zone'
@@ -52,6 +53,7 @@ OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name
 CONDITIONALLY_CREATED = 'conditionally_created'  # resource was
 # conditionally created
 CONFIG_RUNTIME_PROPERTY = CONFIG_PROPERTY   # openstack configuration
+RESOURCE_ID_RUNTIME_PROPERTY = 'resource_id'
 
 # operation inputs
 CONFIG_INPUT = CONFIG_PROPERTY
@@ -325,7 +327,9 @@ def transform_resource_name(ctx, res):
 
 def _get_resource_by_name_or_id_from_ctx(ctx, name_field_name, openstack_type,
                                          sugared_client):
-    resource_id = ctx.node.properties['resource_id']
+    resource_id = ctx.node.properties[RESOURCE_ID] \
+        or ctx.instance.runtime_properties.get(RESOURCE_ID_RUNTIME_PROPERTY)
+
     if not resource_id:
         raise NonRecoverableError(
             "Can't set '{0}' to True without supplying a value for "

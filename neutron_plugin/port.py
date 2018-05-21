@@ -23,6 +23,7 @@ from openstack_plugin_common import (
     with_neutron_client,
     with_nova_client,
     get_openstack_id_of_single_connected_node_by_openstack_type,
+    get_openstack_ids_of_connected_nodes_by_openstack_type,
     delete_resource_and_runtime_properties,
     delete_runtime_properties,
     use_external_resource,
@@ -37,6 +38,7 @@ from openstack_plugin_common import (
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
+from neutron_plugin.security_group import SG_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import get_server_floating_ip
 
 PORT_OPENSTACK_TYPE = 'port'
@@ -86,8 +88,9 @@ def create(neutron_client, args, **kwargs):
     port = create_object_dict(ctx,
                               PORT_OPENSTACK_TYPE,
                               args,
-                              {'network_id': net_id, 'security_groups': []})
+                              {'network_id': net_id})
     _handle_fixed_ips(port)
+    _handle_security_groups(port)
 
     p = neutron_client.create_port(
         {PORT_OPENSTACK_TYPE: port})[PORT_OPENSTACK_TYPE]
@@ -169,7 +172,13 @@ def connect_security_group(neutron_client, **kwargs):
     ctx.logger.info(
         "connect_security_group(): source_id={0} target={1}".format(
             port_id, ctx.target.instance.runtime_properties))
-    sgs = port['security_groups'] + [security_group_id]
+    # We could just pass the port['security_groups']
+    # dict here with a new element, however we need to test
+    # a race condition in Openstack so we need to copy the security
+    # group list.
+    sgs = port['security_groups'][:]
+    if security_group_id not in port['security_groups']:
+        sgs.append(security_group_id)
     neutron_client.update_port(port_id,
                                {PORT_OPENSTACK_TYPE: {'security_groups': sgs}})
 
@@ -221,3 +230,10 @@ def _handle_fixed_ips(port):
     # applying fixed ip parameter, if available
     if fixed_ips_element:
         port['fixed_ips'] = [fixed_ips_element]
+
+
+def _handle_security_groups(port):
+    security_groups = get_openstack_ids_of_connected_nodes_by_openstack_type(
+        ctx, SG_OPENSTACK_TYPE)
+    if security_groups:
+        port['security_groups'] = security_groups

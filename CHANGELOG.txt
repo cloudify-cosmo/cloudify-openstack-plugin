@@ -1,3 +1,5 @@
+2.8.0:
+    - Add Support for resource_id in operation inputs.
 2.7.6:
     - Improve Handling of fixed IPs on Ports.
 2.7.5:

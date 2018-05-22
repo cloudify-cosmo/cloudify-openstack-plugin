@@ -127,7 +127,7 @@ class MockNeutronClient(NeutronClientWithSugar):
 
 
 class TestPortSG(unittest.TestCase):
-    @mock.patch('openstack_plugin_common._put_client_in_kw')
+    @mock.patch('openstack_plugin_common._handle_kw')
     def test_connect_sg_to_port(self, *_):
         mock_neutron = MockNeutronClient(update=True)
         ctx = MockCloudifyContext(
@@ -144,7 +144,7 @@ class TestPortSG(unittest.TestCase):
             neutron_plugin.port.connect_security_group(mock_neutron)
             self.assertIsNone(ctx.operation._operation_retry)
 
-    @mock.patch('openstack_plugin_common._put_client_in_kw')
+    @mock.patch('openstack_plugin_common._handle_kw')
     def test_connect_sg_to_port_race_condition(self, *_):
         mock_neutron = MockNeutronClient(update=False)
 

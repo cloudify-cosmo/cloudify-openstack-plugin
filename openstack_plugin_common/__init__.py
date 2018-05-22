@@ -325,7 +325,8 @@ def transform_resource_name(ctx, res):
 
 def _get_resource_by_name_or_id_from_ctx(ctx, name_field_name, openstack_type,
                                          sugared_client):
-    resource_id = ctx.node.properties['resource_id']
+    resource_id = ctx.instance.runtime_properties.get(
+        OPENSTACK_ID_PROPERTY, ctx.node.properties['resource_id'])
     if not resource_id:
         raise NonRecoverableError(
             "Can't set '{0}' to True without supplying a value for "
@@ -871,7 +872,7 @@ def _find_context_in_kw(kw):
 def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('neutron_client', NeutronClientWithSugar, kw)
+        _handle_kw('neutron_client', NeutronClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -886,7 +887,7 @@ def with_neutron_client(f):
 def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('nova_client', NovaClientWithSugar, kw)
+        _handle_kw('nova_client', NovaClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -903,7 +904,7 @@ def with_nova_client(f):
 def with_cinder_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('cinder_client', CinderClientWithSugar, kw)
+        _handle_kw('cinder_client', CinderClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -918,7 +919,7 @@ def with_cinder_client(f):
 def with_glance_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('glance_client', GlanceClientWithSugar, kw)
+        _handle_kw('glance_client', GlanceClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -933,7 +934,7 @@ def with_glance_client(f):
 def with_keystone_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
-        _put_client_in_kw('keystone_client', KeystoneClientWithSugar, kw)
+        _handle_kw('keystone_client', KeystoneClientWithSugar, kw)
 
         try:
             return f(*args, **kw)
@@ -947,24 +948,31 @@ def with_keystone_client(f):
     return wrapper
 
 
-def _put_client_in_kw(client_name, client_class, kw):
-    if client_name in kw:
-        return
+def _handle_kw(client_name, client_class, kw):
 
-    ctx = _find_context_in_kw(kw)
-    if ctx.type == context.NODE_INSTANCE:
-        config = ctx.node.properties.get(CONFIG_PROPERTY)
-        rt_config = ctx.instance.runtime_properties.get(
+    resource_id = kw.pop('resource_id', '')
+
+    _ctx = _find_context_in_kw(kw) or ctx
+    if _ctx.type == context.NODE_INSTANCE:
+        config = _ctx.node.properties.get(CONFIG_PROPERTY)
+        rt_config = _ctx.instance.runtime_properties.get(
             CONFIG_RUNTIME_PROPERTY)
-    elif ctx.type == context.RELATIONSHIP_INSTANCE:
-        config = ctx.source.node.properties.get(CONFIG_PROPERTY)
-        rt_config = ctx.source.instance.runtime_properties.get(
+        if resource_id and OPENSTACK_ID_PROPERTY not in \
+                _ctx.instance.runtime_properties:
+            _ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
+                resource_id
+    elif _ctx.type == context.RELATIONSHIP_INSTANCE:
+        config = _ctx.source.node.properties.get(CONFIG_PROPERTY)
+        rt_config = _ctx.source.instance.runtime_properties.get(
             CONFIG_RUNTIME_PROPERTY)
         if not config:
-            config = ctx.target.node.properties.get(CONFIG_PROPERTY)
-            rt_config = ctx.target.instance.runtime_properties.get(
+            config = _ctx.target.node.properties.get(CONFIG_PROPERTY)
+            rt_config = _ctx.target.instance.runtime_properties.get(
                 CONFIG_RUNTIME_PROPERTY)
-
+        if resource_id and OPENSTACK_ID_PROPERTY not in \
+                _ctx.source.instance.runtime_properties:
+            _ctx.source.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = \
+                resource_id
     else:
         config = None
         rt_config = None
@@ -977,6 +985,8 @@ def _put_client_in_kw(client_name, client_class, kw):
         else:
             config = rt_config
 
+    if client_name in kw:
+        return
     if CONFIG_INPUT in kw:
         if config:
             config = config.copy()

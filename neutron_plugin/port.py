@@ -119,6 +119,7 @@ def attach(nova_client, neutron_client, **kwargs):
         ctx.logger.info('We will attach floating ip {0} to server'
                         .format(server_floating_ip['floating_ip_address']))
         server = nova_client.servers.get(server_id)
+        ctx.logger.debug('Server: {0}'.format(server))
         server.add_floating_ip(server_floating_ip['floating_ip_address'])
         return ctx.operation.retry(
             message='Waiting for the floating ip {0} to '

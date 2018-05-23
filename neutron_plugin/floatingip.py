@@ -56,37 +56,35 @@ def create(neutron_client, args, **kwargs):
     }
     floatingip.update(ctx.node.properties[FLOATINGIP_OPENSTACK_TYPE], **args)
 
-    # Do we have a relationship with a network?
-
     network_from_rel = \
         get_openstack_id_of_single_connected_node_by_openstack_type(
             ctx, NETWORK_OPENSTACK_TYPE, True)
 
-    # TODO: Should we check whether this is really an "external" network?
-
-    network_name_provided = 'floating_network_name' in floatingip
-    network_id_provided = 'floating_network_id' in floatingip
-    provided = [network_name_provided,
-                network_id_provided,
-                network_from_rel is not None].count(True)
-
-    # At most one is expected.
-
-    if provided > 1:
-        raise NonRecoverableError(FLOATING_NETWORK_ERROR_MSG.format(
-            network_from_rel, floatingip))
-
-    if network_name_provided:
+    if 'floating_network_id' in floatingip:
+        ctx.logger.debug(
+            'Using floating ip network {0}.'.format(
+                floatingip['floating_network_id']))
+    elif 'floating_network_name' in floatingip:
         floatingip['floating_network_id'] = neutron_client.cosmo_get_named(
             'network', floatingip['floating_network_name'])['id']
+        ctx.logger.debug(
+            'Using floating ip network {0} from name {1} provided.'.format(
+                floatingip['floating_network_id'],
+                floatingip['floating_network_name']))
         del floatingip['floating_network_name']
     elif network_from_rel:
         floatingip['floating_network_id'] = network_from_rel
-    elif not network_id_provided:
+        ctx.logger.debug(
+            'Using floating ip network {0} from relationship.'.format(
+                floatingip['floating_network_id']))
+    else:
         provider_context = provider(ctx)
         ext_network = provider_context.ext_network
         if ext_network:
             floatingip['floating_network_id'] = ext_network['id']
+            ctx.logger.debug(
+                'Using floating ip network {0} from provider context.'.format(
+                    floatingip['floating_network_id']))
         else:
             raise NonRecoverableError(FLOATING_NETWORK_ERROR_MSG.format(
                 None, None))

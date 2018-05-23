@@ -23,8 +23,7 @@ from openstack_plugin_common import (
     add_list_to_runtime_properties,
     is_external_relationship,
     is_external_relationship_not_conditionally_created,
-    get_single_connected_node_by_openstack_type,
-    OPENSTACK_ID_PROPERTY
+    get_openstack_id_of_single_connected_node_by_openstack_type,
 )
 from openstack_plugin_common.floatingip import (
     use_external_floatingip,
@@ -59,15 +58,9 @@ def create(neutron_client, args, **kwargs):
 
     # Do we have a relationship with a network?
 
-    connected_network = \
-        get_single_connected_node_by_openstack_type(
+    network_from_rel = \
+        get_openstack_id_of_single_connected_node_by_openstack_type(
             ctx, NETWORK_OPENSTACK_TYPE, True)
-
-    if connected_network:
-        network_from_rel = connected_network.runtime_properties[
-            OPENSTACK_ID_PROPERTY]
-    else:
-        network_from_rel = None
 
     # TODO: Should we check whether this is really an "external" network?
 
@@ -83,12 +76,12 @@ def create(neutron_client, args, **kwargs):
         raise NonRecoverableError(FLOATING_NETWORK_ERROR_MSG.format(
             network_from_rel, floatingip))
 
-    if network_from_rel:
-        floatingip['floating_network_id'] = network_from_rel
-    elif network_name_provided:
+    if network_name_provided:
         floatingip['floating_network_id'] = neutron_client.cosmo_get_named(
             'network', floatingip['floating_network_name'])['id']
         del floatingip['floating_network_name']
+    elif network_from_rel:
+        floatingip['floating_network_id'] = network_from_rel
     elif not network_id_provided:
         provider_context = provider(ctx)
         ext_network = provider_context.ext_network

@@ -102,6 +102,41 @@ def create(neutron_client, args, **kwargs):
 
 
 @operation
+@with_nova_client
+@with_neutron_client
+def attach(nova_client, neutron_client, **kwargs):
+
+    if is_external_relationship(ctx):
+        ctx.logger.info('Not attaching port from server since '
+                        'external port and server are being used')
+        return
+
+    port_id = get_openstack_id(ctx.target)
+    server_id = get_openstack_id(ctx.source)
+
+    server_floating_ip = get_server_floating_ip(neutron_client, server_id)
+    if server_floating_ip:
+        ctx.logger.info('We will attach floating ip {0} to server'
+                        .format(server_floating_ip['floating_ip_address']))
+        server = nova_client.servers.get(server_id)
+        server.add_floating_ip(server_floating_ip['floating_ip_address'])
+        return ctx.operation.retry(
+            message='Waiting for the floating ip {0} to '
+                    'attach to server {1}..'
+                    .format(server_floating_ip['floating_ip_address'],
+                            server_id),
+            retry_after=10)
+    change = {
+        PORT_OPENSTACK_TYPE: {
+            'device_id': server_id,
+        }
+    }
+    ctx.logger.info('Attaching port {0}...'.format(port_id))
+    neutron_client.update_port(port_id, change)
+    ctx.logger.info('Successfully attached port {0}'.format(port_id))
+
+
+@operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     try:

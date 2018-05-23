@@ -1619,9 +1619,6 @@ relationships:
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.subnet_connected_to_router:
     derived_from: cloudify.relationships.connected_to
@@ -1632,17 +1629,11 @@ relationships:
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
         unlink:
           implementation: openstack.neutron_plugin.router.disconnect_subnet
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.server_connected_to_floating_ip:
     derived_from: cloudify.relationships.connected_to
@@ -1659,17 +1650,11 @@ relationships:
               default: ''
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
         unlink:
           implementation: openstack.nova_plugin.server.disconnect_floatingip
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.port_connected_to_floating_ip:
     derived_from: cloudify.relationships.connected_to
@@ -1680,17 +1665,11 @@ relationships:
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
         unlink:
           implementation: openstack.neutron_plugin.floatingip.disconnect_port
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.server_connected_to_security_group:
     derived_from: cloudify.relationships.connected_to
@@ -1701,17 +1680,11 @@ relationships:
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
         unlink:
           implementation: openstack.nova_plugin.server.disconnect_security_group
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.server_connected_to_port:
     derived_from: cloudify.relationships.connected_to
@@ -1722,9 +1695,6 @@ relationships:
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.server_connected_to_keypair:
     derived_from: cloudify.relationships.connected_to
@@ -1741,9 +1711,6 @@ relationships:
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
             status_attempts:
               description: >
                 Number of times to check for the attachment's status before failing
@@ -1760,9 +1727,6 @@ relationships:
           inputs:
             openstack_config:
               default: {}
-            resource_id:
-              type: string
-              default: { get_property: [ SELF, resource_id ] }
             status_attempts:
               description: >
                 Number of times to check for the detachment's status before failing

@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.7.6.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.8.0.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.7.6'
+    package_version: '2.8.0'
 
 data_types:
   cloudify.openstack.types.custom_configuration:
@@ -215,6 +215,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         start:
           implementation: openstack.nova_plugin.server.start
           inputs:
@@ -231,16 +234,25 @@ node_types:
               default: ''
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         stop:
           implementation: openstack.nova_plugin.server.stop
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.nova_plugin.server.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.nova_plugin.server.creation_validation
@@ -249,6 +261,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.nova_plugin.server.list_servers
@@ -257,6 +272,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.WindowsServer:
     derived_from: cloudify.openstack.nodes.Server
@@ -333,17 +351,26 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.nova_plugin.keypair.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.nova_plugin.keypair.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.nova_plugin.keypair.list_keypairs
@@ -352,6 +379,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.Subnet:
     derived_from: cloudify.nodes.Subnet
@@ -394,11 +424,17 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.neutron_plugin.subnet.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.neutron_plugin.subnet.creation_validation
@@ -407,6 +443,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.neutron_plugin.subnet.list_subnets
@@ -415,6 +454,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.SecurityGroup:
     derived_from: cloudify.nodes.SecurityGroup
@@ -472,17 +514,26 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.neutron_plugin.security_group.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.neutron_plugin.security_group.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.neutron_plugin.security_group.list_security_groups
@@ -491,6 +542,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.Router:
     derived_from: cloudify.nodes.Router
@@ -544,17 +598,26 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.neutron_plugin.router.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.neutron_plugin.router.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.neutron_plugin.router.list_routers
@@ -563,6 +626,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.Port:
     derived_from: cloudify.nodes.Port
@@ -613,17 +679,26 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.neutron_plugin.port.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.neutron_plugin.port.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.neutron_plugin.port.list_ports
@@ -632,6 +707,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.Network:
     derived_from: cloudify.nodes.Network
@@ -674,17 +752,26 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.neutron_plugin.network.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.neutron_plugin.network.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.neutron_plugin.network.list_networks
@@ -693,6 +780,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.FloatingIP:
     derived_from: cloudify.nodes.VirtualIP
@@ -734,17 +824,26 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.neutron_plugin.floatingip.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.neutron_plugin.floatingip.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.neutron_plugin.floatingip.list_floatingips
@@ -753,6 +852,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.Volume:
     derived_from: cloudify.nodes.Volume
@@ -812,6 +914,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
             status_attempts:
               description: >
                 Number of times to check for the creation's status before failing
@@ -828,12 +933,18 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.cinder_plugin.volume.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.cinder_plugin.volume.list_volumes
@@ -842,6 +953,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nova_net.nodes.FloatingIP:
     derived_from: cloudify.nodes.VirtualIP
@@ -883,17 +997,26 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.nova_plugin.floatingip.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.nova_plugin.floatingip.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
 
   cloudify.openstack.nova_net.nodes.SecurityGroup:
@@ -944,6 +1067,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
             status_attempts:
               description: >
                 Number of times to check for the attachment's status before failing
@@ -960,12 +1086,18 @@ node_types:
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.nova_plugin.security_group.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.Flavor:
     derived_from: cloudify.nodes.Root
@@ -1004,11 +1136,17 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.nova_plugin.flavor.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.nova_plugin.flavor.list_flavors
@@ -1017,6 +1155,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.Image:
     derived_from: cloudify.nodes.Root
@@ -1066,6 +1207,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         start:
           implementation: openstack.glance_plugin.image.start
           inputs:
@@ -1074,17 +1218,26 @@ node_types:
               default: 30
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.glance_plugin.image.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.glance_plugin.image.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         update:
           implementation: openstack.glance_plugin.image.update
@@ -1093,6 +1246,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         list:
           implementation: openstack.glance_plugin.image.list_images
           inputs:
@@ -1100,6 +1256,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.Project:
     derived_from: cloudify.nodes.Root
@@ -1157,6 +1316,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         start:
           implementation: openstack.keystone_plugin.project.start
           inputs:
@@ -1164,11 +1326,17 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.keystone_plugin.project.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         update_project:
           implementation: openstack.keystone_plugin.project.update_project
@@ -1177,11 +1345,17 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         get_quota:
           implementation: openstack.keystone_plugin.project.get_project_quota
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         update_quota:
           implementation: openstack.keystone_plugin.project.update_project_quota
           inputs:
@@ -1189,6 +1363,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         list:
           implementation: openstack.keystone_plugin.project.list_projects
           inputs:
@@ -1196,6 +1373,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation: openstack.keystone_plugin.project.creation_validation
 
@@ -1237,11 +1417,17 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.keystone_plugin.user.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         update:
           implementation: openstack.keystone_plugin.user.update
@@ -1250,6 +1436,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         list:
           implementation: openstack.keystone_plugin.user.list_users
           inputs:
@@ -1257,6 +1446,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.HostAggregate:
     derived_from: cloudify.nodes.Root
@@ -1303,11 +1495,17 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.nova_plugin.host_aggregate.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         update:
           implementation: openstack.nova_plugin.host_aggregate.update
@@ -1316,11 +1514,17 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         list:
           implementation: openstack.nova_plugin.host_aggregate.list_host_aggregates
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
   cloudify.openstack.nodes.ServerGroup:
     derived_from: cloudify.nodes.Root
@@ -1373,17 +1577,26 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         delete:
           implementation: openstack.nova_plugin.server_group.delete
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.nova_plugin.server_group.creation_validation
           inputs:
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
         list:
           implementation: openstack.nova_plugin.server_group.list_servergroups
@@ -1392,6 +1605,9 @@ node_types:
               default: {}
             openstack_config:
               default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
 
 relationships:
   cloudify.openstack.port_connected_to_security_group:

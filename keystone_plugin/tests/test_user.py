@@ -3,6 +3,7 @@ import unittest
 
 from cloudify.context import NODE_INSTANCE
 from cloudify.context import BootstrapContext
+from cloudify.state import current_ctx
 import openstack_plugin_common.tests.test as common_test
 
 from cloudify.mocks import (
@@ -65,9 +66,10 @@ class TestUser(unittest.TestCase):
         ctx.deployment.id = test_deployment_id
         ctx.type = NODE_INSTANCE
         ctx.logger = mock.Mock()
+        current_ctx.set(ctx)
         return ctx
 
-    @mock.patch('openstack_plugin_common._put_client_in_kw',
+    @mock.patch('openstack_plugin_common._handle_kw',
                 autospec=True, return_value=None)
     def test_keystone_user_create_and_delete(self, *_):
         test_vars = {

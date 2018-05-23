@@ -99,7 +99,7 @@ class TestHostAggregate(unittest.TestCase):
         pass
 
     @mock.patch(
-        'openstack_plugin_common._put_client_in_kw',
+        'openstack_plugin_common._handle_kw',
         autospec=True,
         return_value=None
     )
@@ -189,7 +189,7 @@ class TestHostAggregate(unittest.TestCase):
         )
 
     @mock.patch(
-        'openstack_plugin_common._put_client_in_kw',
+        'openstack_plugin_common._handle_kw',
         autospec=True,
         return_value=None
     )
@@ -254,7 +254,7 @@ class TestHostAggregate(unittest.TestCase):
         )
 
     @mock.patch(
-        'openstack_plugin_common._put_client_in_kw',
+        'openstack_plugin_common._handle_kw',
         autospec=True,
         return_value=None
     )
@@ -345,7 +345,7 @@ class TestHostAggregate(unittest.TestCase):
         )
 
     @mock.patch(
-        'openstack_plugin_common._put_client_in_kw',
+        'openstack_plugin_common._handle_kw',
         autospec=True,
         return_value=None
     )

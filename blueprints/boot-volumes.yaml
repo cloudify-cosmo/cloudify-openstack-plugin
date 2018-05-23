@@ -1,8 +1,9 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
-  - http://www.getcloudify.org/spec/openstack-plugin/2.5.2/plugin.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.6.0/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/backup_workflow/plugin.yaml
 
 inputs:
 
@@ -82,14 +83,14 @@ node_templates:
               flavor: { get_input: flavor }
               availability_zone: nova
               block_device_mapping_v2:
-              - device_name: vda
-                boot_index: "0"
+              - device_name: vdb
+                boot_index: "1"
                 uuid: { get_attribute: [volume1, external_id ] }
                 source_type: volume
                 volume_size: { get_property: [ volume1, volume, size ] }
                 delete_on_termination: false
-              - device_name: vda
-                boot_index: "1"
+              - device_name: vdc
+                boot_index: "2"
                 uuid: { get_attribute: [volume2, external_id ] }
                 source_type: volume
                 volume_size: { get_property: [ volume2, volume, size ] }

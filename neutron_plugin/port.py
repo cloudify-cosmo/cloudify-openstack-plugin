@@ -155,7 +155,7 @@ def delete(neutron_client, **kwargs):
     try:
         delete_resource_and_runtime_properties(ctx, neutron_client,
                                                RUNTIME_PROPERTIES_KEYS)
-    except neutron_exceptions.NeutronClientException, e:
+    except neutron_exceptions.NeutronClientException as e:
         if e.status_code == 404:
             # port was probably deleted when an attached device was deleted
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)

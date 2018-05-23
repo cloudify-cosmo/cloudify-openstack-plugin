@@ -15,7 +15,7 @@
 
 import unittest
 
-from mock import patch
+from mock import patch, Mock
 
 import neutron_plugin.router
 from cloudify.mocks import MockCloudifyContext
@@ -34,6 +34,11 @@ class TestRouter(unittest.TestCase):
         node_props = {}
         ctx = self._get_mock_ctx_with_node_properties(node_props)
         current_ctx.set(ctx=ctx)
+        mock_nc.show_router = Mock(return_value={
+            'router': {
+                'id': 'id'
+            }
+        })
 
         neutron_plugin.router.update(
             neutron_client=mock_nc, args=args)

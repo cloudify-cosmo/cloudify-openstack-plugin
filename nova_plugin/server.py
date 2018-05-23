@@ -33,6 +33,7 @@ from openstack_plugin_common import (
     get_openstack_id,
     add_list_to_runtime_properties,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
+    with_glance_client,
     with_nova_client,
     with_cinder_client,
     assign_payload_as_runtime_properties,
@@ -68,10 +69,12 @@ from glance_plugin.image import handle_image_from_relationship
 
 SERVER_OPENSTACK_TYPE = 'server'
 
-# server status constants. Full lists here: http://docs.openstack.org/api/openstack-compute/2/content/List_Servers-d1e2078.html  # NOQA
+# server status constants.
+# Full lists here: http://docs.openstack.org/api/openstack-compute/2/content/List_Servers-d1e2078.html  # NOQA
 SERVER_STATUS_ACTIVE = 'ACTIVE'
 SERVER_STATUS_BUILD = 'BUILD'
 SERVER_STATUS_SHUTOFF = 'SHUTOFF'
+SERVER_STATUS_SUSPENDED = 'SUSPENDED'
 
 OS_EXT_STS_TASK_STATE = 'OS-EXT-STS:task_state'
 SERVER_TASK_STATE_POWERING_ON = 'powering-on'
@@ -461,11 +464,246 @@ def stop(nova_client, **kwargs):
         return
 
     server = get_server_by_context(nova_client)
+    _server_stop(nova_client, server)
 
+
+def _server_stop(nova_client, server):
     if server.status != SERVER_STATUS_SHUTOFF:
         nova_client.servers.stop(server)
+
+        # wait 10 seconds before next check
+        time.sleep(10)
+
+        server = nova_client.servers.get(server.id)
+        if server.status != SERVER_STATUS_SHUTOFF:
+            return ctx.operation.retry(
+                    message="Server has {} state."
+                            .format(server.status),
+                    retry_after=30)
     else:
         ctx.logger.info('Server is already stopped')
+
+
+def _server_start(nova_client, server):
+    if server.status != SERVER_STATUS_ACTIVE:
+        nova_client.servers.start(server)
+
+        # wait 10 seconds before next check
+        time.sleep(10)
+
+        server = nova_client.servers.get(server.id)
+        if server.status != SERVER_STATUS_SHUTOFF:
+            return ctx.operation.retry(
+                    message="Server has {} state."
+                            .format(server.status),
+                    retry_after=30)
+    else:
+        ctx.logger.info('Server is already started?')
+
+
+def _server_suspend(nova_client, server):
+    if server.status == SERVER_STATUS_ACTIVE:
+        nova_client.servers.suspend(server)
+    else:
+        ctx.logger.info('Server is already suspended?')
+
+
+def _server_resume(nova_client, server):
+    if server.status == SERVER_STATUS_SUSPENDED:
+        nova_client.servers.resume(server)
+    else:
+        ctx.logger.info('Server is already resumed?')
+
+
+def _get_snapshot_name(ctx, kwargs):
+    return "vm-{}-{}-{}".format(
+        get_openstack_id(ctx), kwargs["snapshot_name"],
+        "increment" if kwargs["snapshot_incremental"] else "backup"
+    )
+
+
+def _check_finished_upload(nova_client, server, waiting_list):
+    # check that we created images
+    ctx.logger.info("Check upload state....")
+
+    server = nova_client.servers.get(server.id)
+    state = getattr(server, OS_EXT_STS_TASK_STATE)
+    if state not in waiting_list:
+        return
+
+    return ctx.operation.retry(
+            message="Server has {}/{} state."
+                    .format(server.status, state),
+            retry_after=30)
+
+
+@operation
+@with_nova_client
+def freeze_suspend(nova_client, **kwargs):
+    """
+    Create server backup.
+    """
+    server = get_server_by_context(nova_client)
+    ctx.logger.info("Suspend VM {}".format(server.human_id))
+    _server_suspend(nova_client, server)
+
+
+@operation
+@with_nova_client
+def freeze_resume(nova_client, **kwargs):
+    """
+    Create server backup.
+    """
+    server = get_server_by_context(nova_client)
+    ctx.logger.info("Resume VM {}".format(server.human_id))
+    _server_resume(nova_client, server)
+
+
+@operation
+@with_nova_client
+@with_glance_client
+def snapshot_create(nova_client, glance_client, **kwargs):
+    """
+    Create server backup.
+    """
+    server = get_server_by_context(nova_client)
+
+    ctx.logger.info("Create snapshot for {}".format(server.human_id))
+
+    snapshot_name = _get_snapshot_name(ctx, kwargs)
+    snapshot_rotation = int(kwargs["snapshot_rotation"])
+    snapshot_incremental = kwargs["snapshot_incremental"]
+
+    image_id, _ = _get_image(glance_client, snapshot_name,
+                             snapshot_incremental)
+    if image_id:
+        raise NonRecoverableError("Snapshot {} already exists."
+                                  .format(snapshot_name))
+
+    # check current state before upload
+    _check_finished_upload(nova_client, server, ['image_uploading'])
+
+    # we save backupstate for get last state of creation
+    backupstate = ctx.instance.runtime_properties.get("backupstate")
+    if backupstate != snapshot_name:
+        if not snapshot_incremental:
+            server.backup(snapshot_name, kwargs["snapshot_type"],
+                          snapshot_rotation)
+            ctx.logger.info("Server backup {} creation started"
+                            .format(repr(snapshot_name)))
+        else:
+            server.create_image(snapshot_name)
+            ctx.logger.info("Server snapshot {} creation started"
+                            .format(repr(snapshot_name)))
+        ctx.instance.runtime_properties["backupstate"] = snapshot_name
+
+    # wait for finish upload
+    _check_finished_upload(nova_client, server, ['image_uploading'])
+    ctx.instance.runtime_properties["backupstate"] = "done"
+
+
+def _get_image(glance_client, snapshot_name, snapshot_incremental):
+    backtype = 'snapshot' if snapshot_incremental else 'backup'
+
+    for image in glance_client.images.list(filters={"name": snapshot_name}):
+        ctx.logger.info("Found image {}".format(repr(image)))
+        if image['name'] != snapshot_name:
+            continue
+
+        if image['image_type'] != backtype:
+            continue
+
+        return image['id'], image['status']
+    return None, None
+
+
+@operation
+@with_nova_client
+@with_glance_client
+def snapshot_apply(nova_client, glance_client, **kwargs):
+    """
+    Create server backup.
+    """
+    server = get_server_by_context(nova_client)
+    snapshot_name = _get_snapshot_name(ctx, kwargs)
+
+    snapshot_incremental = kwargs["snapshot_incremental"]
+
+    if snapshot_incremental:
+        ctx.logger.info("Apply snapshot {} for {}"
+                        .format(snapshot_name, server.human_id))
+    else:
+        ctx.logger.info("Apply backup {} for {}"
+                        .format(snapshot_name, server.human_id))
+
+    image_id, _ = _get_image(glance_client, snapshot_name,
+                             snapshot_incremental)
+    if not image_id:
+        raise NonRecoverableError("No snapshots found with name: {}."
+                                  .format(snapshot_name))
+
+    _check_finished_upload(nova_client, server, ['image_uploading',
+                                                 'rebuild_spawning'])
+
+    restorestate = ctx.instance.runtime_properties.get("restorestate")
+    if restorestate != snapshot_name:
+        # we stop before restore
+        _server_stop(nova_client, server)
+
+        ctx.logger.info("Rebuild {} with {}"
+                        .format(server.human_id, snapshot_name))
+        server.rebuild(image_id)
+        ctx.instance.runtime_properties["restorestate"] = snapshot_name
+
+    # we have applied backup so we can start instance
+    server = nova_client.servers.get(server.id)
+    _check_finished_upload(nova_client, server, ['rebuild_spawning'])
+
+    _server_start(nova_client, server)
+    ctx.instance.runtime_properties["restorestate"] = "done"
+
+
+def _image_delete(glance_client, snapshot_name, snapshot_incremental):
+    image_id, status = _get_image(glance_client, snapshot_name,
+                                  snapshot_incremental)
+    if not image_id:
+        ctx.logger.info("No snapshots found with name: {}."
+                        .format(snapshot_name))
+        return
+
+    if status == 'active':
+        glance_client.images.delete(image_id)
+        time.sleep(10)
+
+    # check that we deleted any backups with such name
+    image_id, _ = _get_image(glance_client, snapshot_name,
+                             snapshot_incremental)
+    if image_id:
+        return ctx.operation.retry(message='{} is still alive'
+                                           .format(image_id),
+                                   retry_after=30)
+
+
+@operation
+@with_nova_client
+@with_glance_client
+def snapshot_delete(nova_client, glance_client, **kwargs):
+    """
+    Delete server backup.
+    """
+    server = get_server_by_context(nova_client)
+    snapshot_name = _get_snapshot_name(ctx, kwargs)
+
+    snapshot_incremental = kwargs["snapshot_incremental"]
+
+    if snapshot_incremental:
+        ctx.logger.info("Remove snapshot {} for {}"
+                        .format(snapshot_name, server.human_id))
+    else:
+        ctx.logger.info("Remove backup {} for {}"
+                        .format(snapshot_name, server.human_id))
+
+    return _image_delete(glance_client, snapshot_name, snapshot_incremental)
 
 
 @operation
@@ -483,6 +721,7 @@ def delete(nova_client, **kwargs):
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
 
 
+@operation
 @with_nova_client
 def list_servers(nova_client, args, **kwargs):
     server_list = nova_client.servers.list(**args)
@@ -490,13 +729,13 @@ def list_servers(nova_client, args, **kwargs):
 
 
 def _wait_for_server_to_be_deleted(nova_client,
-                                   server,
+                                   server_id,
                                    timeout=120,
                                    sleep_interval=5):
-    timeout = time.time() + timeout
-    while time.time() < timeout:
+    wait_time = time.time() + timeout
+    while time.time() < wait_time:
         try:
-            server = nova_client.servers.get(server)
+            server = nova_client.servers.get(server_id)
             ctx.logger.debug('Waiting for server "{}" to be deleted. current'
                              ' status: {}'.format(server.id, server.status))
             time.sleep(sleep_interval)
@@ -504,7 +743,7 @@ def _wait_for_server_to_be_deleted(nova_client,
             return
     # recoverable error
     raise RuntimeError('Server {} has not been deleted. waited for {} seconds'
-                       .format(server.id, timeout))
+                       .format(server_id, timeout))
 
 
 def get_server_by_context(nova_client):
@@ -707,7 +946,7 @@ def attach_volume(nova_client, cinder_client, status_attempts,
                             .format(volume_id, server_id, device_name))
             ctx.source.instance.runtime_properties[
                 volume.DEVICE_NAME_PROPERTY] = device_name
-    except Exception, e:
+    except Exception as e:
         if not isinstance(e, NonRecoverableError):
             _prepare_attach_volume_to_be_repeated(
                 nova_client, cinder_client, server_id, volume_id,
@@ -723,7 +962,7 @@ def _prepare_attach_volume_to_be_repeated(
     try:
         _detach_volume(nova_client, cinder_client, server_id, volume_id,
                        status_attempts, status_timeout)
-    except Exception, e:
+    except Exception as e:
         ctx.logger.error('Cleaning after a failed attach_volume() call failed '
                          'raising a \'{0}\' exception.'.format(e))
         raise NonRecoverableError(e)

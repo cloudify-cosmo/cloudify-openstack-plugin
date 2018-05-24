@@ -102,6 +102,54 @@ def create(neutron_client, args, **kwargs):
 
 
 @operation
+@with_nova_client
+@with_neutron_client
+def attach(nova_client, neutron_client, **kwargs):
+
+    if is_external_relationship(ctx):
+        ctx.logger.info('Not attaching port from server since '
+                        'external port and server are being used')
+        return
+
+    port_id = get_openstack_id(ctx.target)
+    server_id = get_openstack_id(ctx.source)
+    port = neutron_client.show_port(port_id)
+    network = neutron_client.show_network(port['port']['network_id'])
+    network_name = network['network']['name']
+    server = nova_client.servers.get(server_id)
+    server_floating_ip = get_server_floating_ip(neutron_client, server_id)
+    floating_ip = server_floating_ip['floating_ip_address']
+    server_addresses = \
+        [addr['addr'] for addr in server.addresses[network_name]]
+
+    if server_floating_ip and floating_ip not in server_addresses:
+        ctx.logger.info('We will attach floating ip {0} to server'
+                        .format(server_floating_ip['floating_ip_address']))
+        server.add_floating_ip(server_floating_ip['floating_ip_address'])
+        return ctx.operation.retry(
+            message='Waiting for the floating ip {0} to '
+                    'attach to server {1}..'
+                    .format(server_floating_ip['floating_ip_address'],
+                            server_id),
+            retry_after=10)
+    change = {
+        PORT_OPENSTACK_TYPE: {
+            'device_id': server_id,
+        }
+    }
+    device_id = port['port'].get('device_id')
+    if not device_id or device_id != server_id:
+        ctx.logger.info('Attaching port {0}...'.format(port_id))
+        neutron_client.update_port(port_id, change)
+        ctx.logger.info('Successfully attached port {0}'.format(port_id))
+    else:
+        ctx.logger.info(
+            'Skipping port {0} attachment, '
+            'because it is already attached '
+            'to device (server) id {1}.'.format(port_id, device_id))
+
+
+@operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     try:

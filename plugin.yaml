@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.8.0.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.8.2.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.8.0'
+    package_version: '2.8.2'
 
 data_types:
   cloudify.openstack.types.custom_configuration:
@@ -1690,6 +1690,11 @@ relationships:
     derived_from: cloudify.relationships.connected_to
     source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
+        establish:
+          implementation: openstack.neutron_plugin.port.attach
+          inputs:
+            openstack_config:
+              default: {}
         unlink:
           implementation: openstack.neutron_plugin.port.detach
           inputs:

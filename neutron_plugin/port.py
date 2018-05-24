@@ -43,6 +43,7 @@ from neutron_plugin.security_group import SG_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import get_server_floating_ip
 
 PORT_OPENSTACK_TYPE = 'port'
+PORT_ADDRESS_REL_TYPE = 'cloudify.openstack.port_connected_to_floating_ip'
 
 # Runtime properties
 FIXED_IP_ADDRESS_PROPERTY = 'fixed_ip_address'  # the fixed ip address
@@ -112,20 +113,26 @@ def attach(nova_client, neutron_client, **kwargs):
                         'external port and server are being used')
         return
 
-    port_id = get_openstack_id(ctx.target)
     server_id = get_openstack_id(ctx.source)
+    port_id = get_openstack_id(ctx.target)
     port = neutron_client.show_port(port_id)
+    server = nova_client.servers.get(server_id)
     network = neutron_client.show_network(port['port']['network_id'])
     network_name = network['network']['name']
-    server = nova_client.servers.get(server_id)
-    floating_ip_id = \
-        ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-    floating_ip = neutron_client.show_floatingip(floating_ip_id)
-    floating_ip_address = floating_ip['floating_ip_address']
+
+    floating_ip_address = None
+    for target in ctx.target.instance.relationships:
+        floatingip_id = \
+            target.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
+        if target.type == PORT_ADDRESS_REL_TYPE:
+            floating_ip = neutron_client.show_floatingip(floatingip_id)
+            floating_ip_address = \
+                floating_ip['floatingip']['floating_ip_address']
+
     server_addresses = \
         [addr['addr'] for addr in server.addresses[network_name]]
 
-    if floating_ip_id and floating_ip_address not in server_addresses:
+    if floating_ip_address and floating_ip_address not in server_addresses:
         ctx.logger.info('We will attach floating ip {0} to server {1}'
                         .format(floating_ip_address, server_id))
         server.add_floating_ip(floating_ip_address)

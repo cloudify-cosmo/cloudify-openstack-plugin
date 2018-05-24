@@ -481,12 +481,6 @@ class TestCinderVolume(unittest.TestCase):
         )
 
     @mock.patch('openstack_plugin_common.CinderClientWithSugar')
-    def test_creation_validation(self, cinder_m):
-        volume_ctx, volume_id = self._simple_volume_ctx()
-
-        volume.creation_validation(ctx=volume_ctx)
-
-    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
     @mock.patch('time.sleep', mock.Mock())
     def test_delete_snapshot(self, cinder_m):
         cinder_instance = cinder_m.return_value

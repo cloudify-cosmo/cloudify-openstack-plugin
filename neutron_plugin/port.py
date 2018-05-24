@@ -122,9 +122,10 @@ def attach(nova_client, neutron_client, **kwargs):
 
     floating_ip_address = None
     for target in ctx.target.instance.relationships:
-        floatingip_id = \
-            target.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
         if target.type == PORT_ADDRESS_REL_TYPE:
+            target_instance = target.target.instance
+            floatingip_id = \
+                target_instance.runtime_properties[OPENSTACK_ID_PROPERTY]
             floating_ip = neutron_client.show_floatingip(floatingip_id)
             floating_ip_address = \
                 floating_ip['floatingip']['floating_ip_address']

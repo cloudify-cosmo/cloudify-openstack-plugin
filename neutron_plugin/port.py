@@ -34,12 +34,12 @@ from openstack_plugin_common import (
     set_neutron_runtime_properties,
     create_object_dict,
     COMMON_RUNTIME_PROPERTIES_KEYS,
+    OPENSTACK_ID_PROPERTY,
     is_external_relationship_not_conditionally_created)
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
 from neutron_plugin.security_group import SG_OPENSTACK_TYPE
-from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import get_server_floating_ip
 
 PORT_OPENSTACK_TYPE = 'port'
@@ -119,8 +119,7 @@ def attach(nova_client, neutron_client, **kwargs):
     network_name = network['network']['name']
     server = nova_client.servers.get(server_id)
     floating_ip_id = \
-        get_openstack_id_of_single_connected_node_by_openstack_type(
-            ctx, FLOATINGIP_OPENSTACK_TYPE, if_exists=True)
+        ctx.target.instance.runtime_properties[OPENSTACK_ID_PROPERTY]
     floating_ip = neutron_client.show_floatingip(floating_ip_id)
     floating_ip_address = floating_ip['floating_ip_address']
     server_addresses = \

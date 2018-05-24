@@ -39,6 +39,7 @@ from openstack_plugin_common import (
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
 from neutron_plugin.security_group import SG_OPENSTACK_TYPE
+from neutron_plugin.floatingip import FLOATINGIP_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import get_server_floating_ip
 
 PORT_OPENSTACK_TYPE = 'port'
@@ -117,19 +118,22 @@ def attach(nova_client, neutron_client, **kwargs):
     network = neutron_client.show_network(port['port']['network_id'])
     network_name = network['network']['name']
     server = nova_client.servers.get(server_id)
-    server_floating_ip = get_server_floating_ip(neutron_client, server_id)
-    floating_ip = server_floating_ip['floating_ip_address']
+    floating_ip_id = \
+        get_openstack_id_of_single_connected_node_by_openstack_type(
+            ctx, FLOATINGIP_OPENSTACK_TYPE, if_exists=True)
+    floating_ip = neutron_client.show_floatingip(floating_ip_id)
+    floating_ip_address = floating_ip['floating_ip_address']
     server_addresses = \
         [addr['addr'] for addr in server.addresses[network_name]]
 
-    if server_floating_ip and floating_ip not in server_addresses:
-        ctx.logger.info('We will attach floating ip {0} to server'
-                        .format(server_floating_ip['floating_ip_address']))
-        server.add_floating_ip(server_floating_ip['floating_ip_address'])
+    if floating_ip_id and floating_ip_address not in server_addresses:
+        ctx.logger.info('We will attach floating ip {0} to server {1}'
+                        .format(floating_ip_address, server_id))
+        server.add_floating_ip(floating_ip_address)
         return ctx.operation.retry(
             message='Waiting for the floating ip {0} to '
                     'attach to server {1}..'
-                    .format(server_floating_ip['floating_ip_address'],
+                    .format(floating_ip_address,
                             server_id),
             retry_after=10)
     change = {

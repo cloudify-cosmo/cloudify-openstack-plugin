@@ -30,7 +30,7 @@ from nova_plugin.tests.test_relationships import RelationshipsTestBase
 from nova_plugin.server import _prepare_server_nics
 from novaclient import exceptions as nova_exceptions
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
-from cloudify.exceptions import NonRecoverableError
+from cloudify.exceptions import NonRecoverableError, RecoverableError
 from cloudify.state import current_ctx
 
 from cloudify.utils import setup_logger
@@ -71,7 +71,7 @@ class TestServer(unittest.TestCase):
 
         with mock.patch('nova_plugin.server.get_server_by_context',
                         new=mock_get_server_by_context):
-            cfy_local.execute('install', task_retries=3)
+                cfy_local.execute('install', task_retries=3)
 
         self.assertEqual(2, test_vars['counter'])
         self.assertEqual(0, test_vars['server'].start.call_count)
@@ -189,6 +189,538 @@ class TestServer(unittest.TestCase):
                     'CloudifyAgent.agent_key_path',
                     new_callable=mock.PropertyMock, return_value=key_path):
                 cfy_local.execute('install', task_retries=5)
+
+    def tearDown(self):
+        current_ctx.clear()
+
+    def _prepare_mocks(self, nova_instance):
+        nova_instance.servers.stop = mock.Mock()
+        nova_instance.servers.start = mock.Mock()
+        nova_instance.servers.resume = mock.Mock()
+        nova_instance.servers.suspend = mock.Mock()
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_stop(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # use external resource
+        server_ctx = MockCloudifyContext(
+            node_id="node_id",
+            node_name="node_name",
+            properties={'use_external_resource': True},
+            runtime_properties={}
+        )
+        current_ctx.set(server_ctx)
+        nova_plugin.server.stop(ctx=server_ctx)
+
+        # use internal already stoped vm
+        server_ctx = self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_SHUTOFF
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        nova_plugin.server.stop(ctx=server_ctx)
+
+        # use internal slow stop
+        server_ctx = self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        self._prepare_mocks(nova_instance)
+
+        nova_plugin.server.stop(ctx=server_ctx)
+
+        nova_instance.servers.stop.assert_has_calls([mock.call(server_mock)])
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_server_stop(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # use internal already stoped vm
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_SHUTOFF
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+
+        nova_plugin.server._server_stop(nova_instance, server_mock)
+
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+
+        # use internal slow stop
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        self._prepare_mocks(nova_instance)
+
+        nova_plugin.server._server_stop(nova_instance, server_mock)
+
+        nova_instance.servers.stop.assert_has_calls([mock.call(server_mock)])
+        nova_instance.servers.start.assert_not_called()
+
+        # stop on first call
+        self._simplectx()
+        self.func_called = False
+
+        def _server_get(server_id):
+            server_mock = mock.Mock()
+
+            if not self.func_called:
+                server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+                self.func_called = True
+            else:
+                server_mock.status = nova_plugin.server.SERVER_STATUS_SHUTOFF
+            return server_mock
+
+        nova_instance.servers.get = _server_get
+        self._prepare_mocks(nova_instance)
+
+        nova_plugin.server._server_stop(nova_instance, server_mock)
+
+        nova_instance.servers.stop.assert_has_calls([mock.call(server_mock)])
+        nova_instance.servers.start.assert_not_called()
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_server_start(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # use internal already started vm
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+
+        nova_plugin.server._server_start(nova_instance, server_mock)
+
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+
+        # use internal slow start
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_SHUTOFF
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        self._prepare_mocks(nova_instance)
+
+        nova_plugin.server._server_start(nova_instance, server_mock)
+
+        nova_instance.servers.start.assert_has_calls([mock.call(server_mock)])
+        nova_instance.servers.stop.assert_not_called()
+
+        # start on first call
+        self._simplectx()
+        self.func_called = False
+
+        def _server_get(server_id):
+            server_mock = mock.Mock()
+
+            if not self.func_called:
+                server_mock.status = nova_plugin.server.SERVER_STATUS_SHUTOFF
+                self.func_called = True
+            else:
+                server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+            return server_mock
+
+        nova_instance.servers.get = _server_get
+        self._prepare_mocks(nova_instance)
+
+        nova_plugin.server._server_start(nova_instance, server_mock)
+
+        nova_instance.servers.start.assert_has_calls([mock.call(server_mock)])
+        nova_instance.servers.stop.assert_not_called()
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_server_resume(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # use internal already resumed vm
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=None)
+
+        nova_plugin.server._server_resume(nova_instance, server_mock)
+
+        nova_instance.servers.get.assert_not_called()
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+
+        # use internal run resume
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_SUSPENDED
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        self._prepare_mocks(nova_instance)
+
+        nova_plugin.server._server_resume(nova_instance, server_mock)
+
+        nova_instance.servers.resume.assert_has_calls([mock.call(server_mock)])
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.get.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+        nova_instance.servers.stop.assert_not_called()
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_server_suspend(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # use internal already resumed vm
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_SUSPENDED
+        nova_instance.servers.get = mock.Mock(return_value=None)
+
+        nova_plugin.server._server_suspend(nova_instance, server_mock)
+
+        nova_instance.servers.get.assert_not_called()
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+
+        # use internal run resume
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        self._prepare_mocks(nova_instance)
+
+        nova_plugin.server._server_suspend(nova_instance, server_mock)
+
+        nova_instance.servers.suspend.assert_has_calls(
+            [mock.call(server_mock)])
+        nova_instance.servers.resume.assert_not_called()
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.get.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+        nova_instance.servers.stop.assert_not_called()
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_freeze_suspend(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # use internal already suspended vm
+        server_ctx = self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_SUSPENDED
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        nova_plugin.server.freeze_suspend(ctx=server_ctx)
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_freeze_resume(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # use internal already resumed vm
+        server_ctx = self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        nova_plugin.server.freeze_resume(ctx=server_ctx)
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_check_finished_upload(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # ready for actions
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.id = 'server_id'
+        setattr(server_mock, nova_plugin.server.OS_EXT_STS_TASK_STATE,
+                'ready')
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+
+        nova_plugin.server._check_finished_upload(nova_instance, server_mock,
+                                                  ['image_uploading'])
+
+        # still uploading
+        setattr(server_mock, nova_plugin.server.OS_EXT_STS_TASK_STATE,
+                'image_uploading')
+
+        nova_plugin.server._check_finished_upload(nova_instance, server_mock,
+                                                  ['image_uploading'])
+
+    def _simplectx(self):
+        server_ctx = MockCloudifyContext(
+            node_id="node_id",
+            node_name="node_name",
+            properties={},
+            runtime_properties={'external_id': 'server_id'}
+        )
+        current_ctx.set(server_ctx)
+        return server_ctx
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('openstack_plugin_common.GlanceClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_snapshot_create(self, glance_m, nova_m):
+        nova_instance = nova_m.return_value
+        glance_instance = glance_m.return_value
+
+        server_ctx = self._simplectx()
+
+        # snapshot
+        server_mock = mock.Mock()
+        server_mock.backup = mock.Mock()
+        server_mock.create_image = mock.Mock()
+        server_mock.id = 'server_id'
+        setattr(server_mock, nova_plugin.server.OS_EXT_STS_TASK_STATE,
+                'ready')
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        glance_instance.images.list = mock.Mock(return_value=[])
+
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        mock.Mock(return_value=server_ctx)):
+            nova_plugin.server.snapshot_create(ctx=server_ctx,
+                                               snapshot_name='snapshot_name',
+                                               snapshot_rotation=10,
+                                               snapshot_incremental=True,
+                                               snapshot_type='week')
+
+        nova_instance.servers.get.assert_has_calls(
+            [mock.call('server_id')] * 3)
+        server_mock.create_image.assert_called_once_with(
+            'vm-server_id-snapshot_name-increment')
+        server_mock.backup.assert_not_called()
+
+        # backup
+        server_mock = mock.Mock()
+        server_mock.backup = mock.Mock()
+        server_mock.create_image = mock.Mock()
+        server_mock.id = 'server_id'
+        setattr(server_mock, nova_plugin.server.OS_EXT_STS_TASK_STATE,
+                'ready')
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        glance_instance.images.list = mock.Mock(return_value=[])
+
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        mock.Mock(return_value=server_ctx)):
+            nova_plugin.server.snapshot_create(ctx=server_ctx,
+                                               snapshot_name='snapshot_name',
+                                               snapshot_rotation=10,
+                                               snapshot_incremental=False,
+                                               snapshot_type='week')
+
+        nova_instance.servers.get.assert_has_calls(
+            [mock.call('server_id')] * 3)
+        server_mock.create_image.assert_not_called()
+        server_mock.backup.assert_called_once_with(
+            'vm-server_id-snapshot_name-backup', 'week', 10)
+        glance_instance.images.list.assert_called_once_with(filters={
+            'name': 'vm-server_id-snapshot_name-backup'})
+
+        # we already has such backup
+        glance_instance.images.list = mock.Mock(return_value=[{
+            'name': 'others',
+            'image_type': 'raw',
+            'id': 'a',
+            'status': 'active'
+        }, {
+            'name': 'vm-server_id-snapshot_name-backup',
+            'image_type': 'raw',
+            'id': 'b',
+            'status': 'active'
+        }, {
+            'name': 'vm-server_id-snapshot_name-increment',
+            'image_type': 'snapshot',
+            'id': 'c',
+            'status': 'active'
+        }, {
+            'name': 'vm-server_id-snapshot_name-backup',
+            'image_type': 'backup',
+            'id': 'd',
+            'status': 'active'
+        }])
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        mock.Mock(return_value=server_ctx)):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                "Snapshot vm-server_id-snapshot_name-backup already exists."
+            ):
+                nova_plugin.server.snapshot_create(
+                    ctx=server_ctx, snapshot_name='snapshot_name',
+                    snapshot_rotation=10, snapshot_incremental=False,
+                    snapshot_type='week')
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('openstack_plugin_common.GlanceClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_snapshot_apply(self, glance_m, nova_m):
+        nova_instance = nova_m.return_value
+        glance_instance = glance_m.return_value
+
+        server_ctx = self._simplectx()
+
+        # snapshot
+        server_mock = mock.Mock()
+        server_mock.rebuild = mock.Mock()
+        server_mock.id = 'server_id'
+        setattr(server_mock, nova_plugin.server.OS_EXT_STS_TASK_STATE,
+                'ready')
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        glance_instance.images.list = mock.Mock(return_value=[
+            {
+                'name': 'vm-server_id-snapshot_name-increment',
+                'image_type': 'snapshot',
+                'id': 'abc',
+                'status': 'active'
+            }
+        ])
+
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        mock.Mock(return_value=server_ctx)):
+            nova_plugin.server.snapshot_apply(ctx=server_ctx,
+                                              snapshot_name='snapshot_name',
+                                              snapshot_incremental=True)
+
+        nova_instance.servers.get.assert_has_calls(
+            [mock.call('server_id')] * 3)
+        server_mock.rebuild.assert_called_once_with("abc")
+
+        # backup
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        mock.Mock(return_value=server_ctx)):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'No snapshots found with name: vm-server_id-snapshot_name.'
+            ):
+                nova_plugin.server.snapshot_apply(
+                    ctx=server_ctx, snapshot_name='snapshot_name',
+                    snapshot_incremental=False)
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_image_delete(self, glance_m):
+        glance_instance = glance_m.return_value
+        server_ctx = self._simplectx()
+
+        # still alive
+        glance_instance.images.list = mock.Mock(return_value=[
+            {
+                'name': 'vm-server_id-snapshot_name-increment',
+                'image_type': 'snapshot',
+                'id': 'abc',
+                'status': 'active'
+            }
+        ])
+
+        server_ctx.operation.retry = mock.Mock(
+            side_effect=RecoverableError())
+        with self.assertRaises(RecoverableError):
+            nova_plugin.server._image_delete(
+                glance_instance,
+                snapshot_name='vm-server_id-snapshot_name-increment',
+                snapshot_incremental=True)
+        server_ctx.operation.retry.assert_called_with(
+            message='abc is still alive', retry_after=30)
+
+        # removed
+        glance_instance.images.list = mock.Mock(return_value=[])
+
+        nova_plugin.server._image_delete(
+            glance_instance, snapshot_name='snapshot_name',
+            snapshot_incremental=True)
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('openstack_plugin_common.GlanceClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_snapshot_delete(self, glance_m, nova_m):
+        nova_instance = nova_m.return_value
+        glance_instance = glance_m.return_value
+
+        server_ctx = self._simplectx()
+
+        # snapshot
+        server_mock = mock.Mock()
+        server_mock.id = 'server_id'
+        setattr(server_mock, nova_plugin.server.OS_EXT_STS_TASK_STATE,
+                'ready')
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+        glance_instance.images.delete = mock.Mock()
+        glance_instance.images.list = mock.Mock(return_value=[
+            {
+                'name': 'vm-server_id-snapshot_name-increment',
+                'image_type': 'snapshot',
+                'id': 'abc',
+                'status': 'active'
+            }
+        ])
+
+        server_ctx.operation.retry = mock.Mock(
+            side_effect=RecoverableError('still alive'))
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        mock.Mock(return_value=server_ctx)):
+            with self.assertRaisesRegexp(
+                RecoverableError,
+                'still alive'
+            ):
+                nova_plugin.server.snapshot_delete(
+                    ctx=server_ctx, snapshot_name='snapshot_name',
+                    snapshot_incremental=True)
+        server_ctx.operation.retry.assert_called_with(
+            message='abc is still alive', retry_after=30)
+
+        glance_instance.images.list.assert_has_calls([
+            mock.call(filters={"name": "vm-server_id-snapshot_name-increment"})
+        ])
+        glance_instance.images.delete.assert_called_once_with("abc")
+
+        # backup, if image does not exist - ignore
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        mock.Mock(return_value=server_ctx)):
+            nova_plugin.server.snapshot_delete(
+                ctx=server_ctx, snapshot_name='snapshot_name',
+                snapshot_incremental=False)
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    def test_list_servers(self, nova_m):
+        nova_instance = nova_m.return_value
+        server_ctx = self._simplectx()
+
+        nova_instance.servers.list = mock.Mock(return_value=[])
+
+        nova_plugin.server.list_servers(ctx=server_ctx, args={"abc": "def"})
+
+        nova_instance.servers.list.assert_called_once_with(abc="def")
+        self.assertEqual(
+            {'external_id': 'server_id', 'server_list': []},
+            server_ctx.instance.runtime_properties
+        )
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    def test_wait_for_server_to_be_deleted(self, nova_m):
+        nova_instance = nova_m.return_value
+        self._simplectx()
+        # removed
+        nova_instance.servers.get = mock.Mock(
+            side_effect=nova_exceptions.NotFound("abc"))
+        nova_plugin.server._wait_for_server_to_be_deleted(
+            nova_instance, "unknown")
+        nova_instance.servers.get.assert_called_once_with("unknown")
+
+        # still have
+        server_mock = mock.Mock()
+        server_mock.id = "a"
+        server_mock.status = "b"
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+
+        fake_time_values = [480, 240, 120, 60, 0]
+
+        def fake_time(*_):
+            return fake_time_values.pop()
+
+        with mock.patch('time.time', fake_time):
+            with self.assertRaisesRegexp(
+                RuntimeError,
+                'Server unknown has not been deleted. waited for 120 seconds'
+            ):
+                nova_plugin.server._wait_for_server_to_be_deleted(
+                    nova_instance, "unknown")
 
 
 class TestMergeNICs(unittest.TestCase):

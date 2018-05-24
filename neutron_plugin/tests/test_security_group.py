@@ -46,8 +46,7 @@ class TestSecurityGroup(unittest.TestCase):
                 'description': 'The best Security Group. Great',
                 'rules': [],
                 'resource_id': 'mock_sg',
-                'security_group': {
-                },
+                'security_group': {},
                 'server': {},
                 'openstack_config': {
                     'auth_url': 'things/v3',

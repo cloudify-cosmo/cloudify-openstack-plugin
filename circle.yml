@@ -20,6 +20,9 @@ test:
    #  - tox -e docs
     - tox -e flake8
     - tox -e py27
+  post:
+    - mkdir -p $CIRCLE_TEST_REPORTS/reports
+    - cp nosetests.xml $CIRCLE_TEST_REPORTS
 
 # Docs artifacts
 general:

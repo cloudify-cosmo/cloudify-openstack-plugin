@@ -122,6 +122,7 @@ class TestCinderVolume(unittest.TestCase):
 
         cinder_client_m = mock.Mock()
         cinder_client_m.cosmo_delete_resource = mock.Mock()
+        cinder_client_m.volume_snapshots.list = mock.Mock(return_value=[])
 
         ctx_m = self._mock(node_id='a', properties=volume_properties)
         ctx_m.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = volume_id
@@ -339,4 +340,315 @@ class TestCinderVolume(unittest.TestCase):
             status=volume.VOLUME_STATUS_AVAILABLE,
             num_tries=10,
             timeout=2,
+        )
+
+    def _simple_volume_ctx(self):
+        volume_id = '1234-5678'
+        volume_ctx = cfy_mocks.MockCloudifyContext(
+            node_id="node_id",
+            node_name="node_name",
+            properties={},
+            runtime_properties={
+                OPENSTACK_ID_PROPERTY: volume_id,
+            }
+        )
+        current_ctx.set(volume_ctx)
+        return volume_ctx, volume_id
+
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    def test_snapshot_create(self, cinder_m):
+        cinder_instance = cinder_m.return_value
+        volume_ctx, volume_id = self._simple_volume_ctx()
+
+        # Snapshot
+        cinder_instance.backups.create = mock.Mock()
+        cinder_instance.volume_snapshots.create = mock.Mock()
+
+        volume.snapshot_create(ctx=volume_ctx, snapshot_name="snapshot_name",
+                               snapshot_incremental=True,
+                               snapshot_type="abc")
+
+        cinder_instance.backups.create.assert_not_called()
+        cinder_instance.volume_snapshots.create.assert_called_once_with(
+            '1234-5678', description='abc',
+            force=True, metadata=None,
+            name='vol-1234-5678-snapshot_name')
+
+        # Backup
+        cinder_instance.backups.create = mock.Mock()
+        cinder_instance.volume_snapshots.create = mock.Mock()
+
+        volume.snapshot_create(ctx=volume_ctx, snapshot_name="backup_name",
+                               snapshot_incremental=False)
+
+        cinder_instance.backups.create.assert_called_once_with(
+            '1234-5678',
+            name='vol-1234-5678-backup_name')
+        cinder_instance.volume_snapshots.create.assert_not_called()
+
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_snapshot_delete(self, cinder_m):
+        cinder_instance = cinder_m.return_value
+        volume_ctx, volume_id = self._simple_volume_ctx()
+
+        # Snapshot
+        cinder_instance.backups.list = mock.Mock(return_value=[])
+        cinder_instance.volume_snapshots.list = mock.Mock(return_value=[])
+
+        volume.snapshot_delete(ctx=volume_ctx, snapshot_name="snapshot_name",
+                               snapshot_incremental=True)
+
+        cinder_instance.backups.list.assert_not_called()
+        cinder_instance.volume_snapshots.list.assert_has_calls([
+            mock.call(search_opts={
+                'display_name': 'vol-1234-5678-snapshot_name',
+                'volume_id': '1234-5678'})])
+
+        # Backup
+        cinder_instance.backups.list = mock.Mock(return_value=[])
+        cinder_instance.volume_snapshots.list = mock.Mock(return_value=[])
+
+        volume.snapshot_delete(ctx=volume_ctx, snapshot_name="backup_name",
+                               snapshot_incremental=False)
+
+        cinder_instance.backups.list.assert_has_calls([
+            mock.call(search_opts={
+                'name': 'vol-1234-5678-backup_name',
+                'volume_id': '1234-5678'})])
+        cinder_instance.volume_snapshots.list.assert_not_called()
+
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    def test_snapshot_apply(self, cinder_m):
+        cinder_instance = cinder_m.return_value
+        volume_ctx, volume_id = self._simple_volume_ctx()
+
+        # Snapshot
+        cinder_instance.backups.list = mock.Mock(return_value=[])
+        cinder_instance.volume_snapshots.list = mock.Mock(return_value=[])
+
+        volume.snapshot_apply(ctx=volume_ctx, snapshot_name="snapshot_name",
+                              snapshot_incremental=True)
+
+        cinder_instance.backups.list.assert_not_called()
+        cinder_instance.volume_snapshots.list.assert_not_called()
+
+        # No such backup
+        cinder_instance.backups.list = mock.Mock(return_value=[])
+        cinder_instance.volume_snapshots.list = mock.Mock(return_value=[])
+
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            volume.snapshot_apply(ctx=volume_ctx, snapshot_name="backup_name",
+                                  snapshot_incremental=False)
+
+        cinder_instance.backups.list.assert_called_once_with(
+            search_opts={
+                'name': 'vol-1234-5678-backup_name',
+                'volume_id': '1234-5678'})
+        cinder_instance.volume_snapshots.list.assert_not_called()
+
+        # backup exist
+        backup_mock = mock.Mock()
+        backup_mock.name = 'vol-1234-5678-backup_name'
+        backup_mock.id = 'backup_id'
+        cinder_instance.restores.restore = mock.Mock()
+        cinder_instance.backups.list = mock.Mock(return_value=[backup_mock])
+
+        volume.snapshot_apply(ctx=volume_ctx, snapshot_name="backup_name",
+                              snapshot_incremental=False)
+
+        cinder_instance.backups.list.assert_called_once_with(
+            search_opts={
+                'name': 'vol-1234-5678-backup_name',
+                'volume_id': '1234-5678'})
+        cinder_instance.restores.restore.assert_called_once_with(
+            'backup_id', '1234-5678')
+        cinder_instance.volume_snapshots.list.assert_not_called()
+
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    def test_list_volumes(self, cinder_m):
+        cinder_instance = cinder_m.return_value
+        volume_ctx, volume_id = self._simple_volume_ctx()
+
+        cinder_instance.volumes.list = mock.Mock(return_value=[])
+
+        volume.list_volumes(ctx=volume_ctx, args={"abc": "def"})
+
+        cinder_instance.volumes.list.assert_called_once_with(abc="def")
+        self.assertEqual(
+            {'external_id': '1234-5678', 'volume_list': []},
+            volume_ctx.instance.runtime_properties
+        )
+
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    def test_creation_validation(self, cinder_m):
+        volume_ctx, volume_id = self._simple_volume_ctx()
+
+        volume.creation_validation(ctx=volume_ctx)
+
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_delete_snapshot(self, cinder_m):
+        cinder_instance = cinder_m.return_value
+        volume_ctx, volume_id = self._simple_volume_ctx()
+
+        # remove any, nothing
+        cinder_instance.backups.list = mock.Mock(return_value=[])
+        cinder_instance.volume_snapshots.list = mock.Mock(return_value=[])
+        volume._delete_snapshot(cinder_instance, {'volume_id': volume_id})
+
+        cinder_instance.backups.list.assert_not_called()
+        cinder_instance.volume_snapshots.list.assert_has_calls([
+            mock.call(search_opts={'volume_id': volume_id})])
+
+        # remove any, but we have other snapshot
+        snapshot_mock = mock.Mock()
+        snapshot_mock.delete = mock.Mock()
+        snapshot_mock.name = 'snapshot_other'
+        snapshot_mock.id = 'snapshot_id'
+
+        cinder_instance.backups.list = mock.Mock(return_value=[])
+        cinder_instance.volume_snapshots.list = mock.Mock(
+            return_value=[snapshot_mock])
+
+        volume._delete_snapshot(cinder_instance, {
+            'volume_id': volume_id, 'display_name': 'snapshot_name'
+        })
+
+        cinder_instance.backups.list.assert_not_called()
+        cinder_instance.volume_snapshots.list.assert_has_calls([
+            mock.call(search_opts={'volume_id': volume_id,
+                                   'display_name': 'snapshot_name'}),
+            mock.call(search_opts={'volume_id': volume_id,
+                                   'display_name': 'snapshot_name'})])
+        snapshot_mock.delete.assert_not_called()
+
+        # can't delete snapshot
+        snapshot_mock = mock.Mock()
+        snapshot_mock.delete = mock.Mock()
+        snapshot_mock.name = 'snapshot_name'
+        snapshot_mock.id = 'snapshot_id'
+        snapshot_mock.status = 'available'
+
+        cinder_instance.backups.list = mock.Mock(return_value=[])
+        cinder_instance.volume_snapshots.list = mock.Mock(
+            return_value=[snapshot_mock])
+
+        volume_ctx.operation.retry = mock.Mock(
+            side_effect=cfy_exc.RecoverableError())
+        with self.assertRaises(cfy_exc.RecoverableError):
+            volume._delete_snapshot(cinder_instance, {
+                'volume_id': volume_id, 'display_name': 'snapshot_name'
+            })
+
+        cinder_instance.backups.list.assert_not_called()
+        volume_ctx.operation.retry.assert_called_with(
+            message='snapshot_name is still alive', retry_after=30)
+        cinder_instance.volume_snapshots.list.assert_has_calls([
+            mock.call(search_opts={'volume_id': volume_id,
+                                   'display_name': 'snapshot_name'}),
+            mock.call(search_opts={'volume_id': volume_id,
+                                   'display_name': 'snapshot_name'})])
+        snapshot_mock.delete.assert_called_once_with()
+
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_delete_backup(self, cinder_m):
+        cinder_instance = cinder_m.return_value
+        volume_ctx, volume_id = self._simple_volume_ctx()
+
+        # remove any, nothing
+        cinder_instance.backups.list = mock.Mock(return_value=[])
+        cinder_instance.volume_snapshots.list = mock.Mock(return_value=[])
+        volume._delete_backup(cinder_instance, {'volume_id': volume_id})
+
+        cinder_instance.backups.list.assert_has_calls([
+            mock.call(search_opts={'volume_id': volume_id})])
+        cinder_instance.volume_snapshots.list.assert_not_called()
+
+        # remove any, but we have other backup
+        backup_mock = mock.Mock()
+        backup_mock.delete = mock.Mock()
+        backup_mock.name = 'backup_other'
+        backup_mock.id = 'backup_id'
+        backup_mock.status = 'available'
+
+        cinder_instance.backups.list = mock.Mock(return_value=[backup_mock])
+        cinder_instance.volume_snapshots.list = mock.Mock(return_value=[])
+
+        volume._delete_backup(cinder_instance, {'volume_id': volume_id,
+                                                'name': 'backup_name'})
+
+        cinder_instance.backups.list.assert_has_calls([
+            mock.call(search_opts={'volume_id': volume_id,
+                                   'name': 'backup_name'}),
+            mock.call(search_opts={'volume_id': volume_id,
+                                   'name': 'backup_name'})])
+        cinder_instance.volume_snapshots.list.assert_not_called()
+        backup_mock.delete.assert_not_called()
+
+        # can't delete snapshot
+        backup_mock = mock.Mock()
+        backup_mock.delete = mock.Mock()
+        backup_mock.name = 'backup_name'
+        backup_mock.id = 'backup_id'
+        backup_mock.status = 'available'
+
+        cinder_instance.backups.list = mock.Mock(return_value=[backup_mock])
+        cinder_instance.volume_snapshots.list = mock.Mock(return_value=[])
+
+        volume_ctx.operation.retry = mock.Mock(
+            side_effect=cfy_exc.RecoverableError())
+        with self.assertRaises(cfy_exc.RecoverableError):
+            volume._delete_backup(cinder_instance, {'volume_id': volume_id,
+                                                    'name': 'backup_name'})
+
+        cinder_instance.backups.list.assert_has_calls([
+            mock.call(search_opts={'volume_id': volume_id,
+                                   'name': 'backup_name'}),
+            mock.call(search_opts={'volume_id': volume_id,
+                                   'name': 'backup_name'})])
+        cinder_instance.volume_snapshots.list.assert_not_called()
+        backup_mock.delete.assert_called_once_with()
+
+    @mock.patch('openstack_plugin_common.CinderClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
+    def test_wait_until_status(self, cinder_m):
+        cinder_instance = cinder_m.return_value
+        volume_ctx, volume_id = self._simple_volume_ctx()
+
+        # ready by first call
+        volume_mock = mock.Mock()
+        volume_mock.status = "ready"
+        cinder_instance.volumes.get = mock.Mock(return_value=volume_mock)
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        return_value=volume_ctx):
+            volume.wait_until_status(volume_id=volume_id, status='ready',
+                                     num_tries=1, timeout=1)
+        cinder_instance.volumes.get.assert_called_once_with(volume_id)
+
+        # unready by first call
+        volume_mock = mock.Mock()
+        volume_mock.status = "unready"
+        cinder_instance.volumes.get = mock.Mock(return_value=volume_mock)
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        return_value=volume_ctx):
+            self.assertEqual(
+                volume.wait_until_status(volume_id=volume_id, status='ready',
+                                         num_tries=2, timeout=1),
+                (volume_mock, False)
             )
+        cinder_instance.volumes.get.assert_has_calls([
+            mock.call(volume_id),
+            mock.call(volume_id)])
+
+        # volume error
+        volume_mock = mock.Mock()
+        volume_mock.status = volume.VOLUME_STATUS_ERROR
+        cinder_instance.volumes.get = mock.Mock(return_value=volume_mock)
+        with mock.patch('openstack_plugin_common._find_context_in_kw',
+                        return_value=volume_ctx):
+            with self.assertRaises(cfy_exc.NonRecoverableError):
+                volume.wait_until_status(volume_id=volume_id, status='ready',
+                                         num_tries=2, timeout=1)
+        cinder_instance.volumes.get.assert_called_once_with(volume_id)

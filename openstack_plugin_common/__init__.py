@@ -876,7 +876,7 @@ def with_neutron_client(f):
 
         try:
             return f(*args, **kw)
-        except neutron_exceptions.NeutronClientException, e:
+        except neutron_exceptions.NeutronClientException as e:
             if e.status_code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.status_code)
             else:
@@ -891,9 +891,9 @@ def with_nova_client(f):
 
         try:
             return f(*args, **kw)
-        except nova_exceptions.OverLimit, e:
+        except nova_exceptions.OverLimit as e:
             _re_raise(e, recoverable=True, retry_after=e.retry_after)
-        except nova_exceptions.ClientException, e:
+        except nova_exceptions.ClientException as e:
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -908,7 +908,7 @@ def with_cinder_client(f):
 
         try:
             return f(*args, **kw)
-        except cinder_exceptions.ClientException, e:
+        except cinder_exceptions.ClientException as e:
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -923,7 +923,7 @@ def with_glance_client(f):
 
         try:
             return f(*args, **kw)
-        except glance_exceptions.ClientException, e:
+        except glance_exceptions.ClientException as e:
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -938,12 +938,12 @@ def with_keystone_client(f):
 
         try:
             return f(*args, **kw)
-        except keystone_exceptions.HTTPError, e:
+        except keystone_exceptions.HTTPError as e:
             if e.http_status in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.http_status)
             else:
                 raise
-        except keystone_exceptions.ClientException, e:
+        except keystone_exceptions.ClientException as e:
             _re_raise(e, recoverable=False)
     return wrapper
 

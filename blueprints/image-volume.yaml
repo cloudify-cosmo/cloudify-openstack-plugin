@@ -135,13 +135,13 @@ node_templates:
      type: cloudify.openstack.nodes.Image
      properties:
        image:
-         container_format: “bare”
-         disk_format: “qcow2"
+         container_format: "bare"
+         disk_format: "qcow2"
        openstack_config: *openstack_config
        image_url: {get_input : image_url }
        use_external_resource: true
        create_if_missing: true
-       resource_id: { concat: [{get_input: vnf_name}, “-image”] }
+       resource_id: { concat: [{get_input: vnf_name}, "-image"] }
 
   volume:
     type: cloudify.openstack.nodes.Volume
@@ -164,19 +164,19 @@ node_templates:
       - type: cloudify.relationships.depends_on
         target: image
 
-    public_subnet_nic:
-      type: cloudify.openstack.nodes.Port
-      properties:
-        openstack_config: *openstack_config
-      relationships:
-        - type: cloudify.relationships.contained_in
-          target: public_network
-        - type: cloudify.relationships.depends_on
-          target: public_subnet
-        - type: cloudify.openstack.port_connected_to_security_group
-          target: security_group
-        - type: cloudify.openstack.port_connected_to_floating_ip
-          target: public_ip
+  public_subnet_nic:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: public_network
+      - type: cloudify.relationships.depends_on
+        target: public_subnet
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: security_group
+      - type: cloudify.openstack.port_connected_to_floating_ip
+        target: public_ip
 
   private_subnet_nic:
     type: cloudify.openstack.nodes.Port

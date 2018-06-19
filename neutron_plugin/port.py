@@ -286,8 +286,19 @@ def _handle_fixed_ips(port):
     if subnet_id:
         fixed_ips_element['subnet_id'] = subnet_id
 
+    if 'fixed_ips' not in port and not fixed_ips_element:
+        return
+
+    elif 'fixed_ips' not in port and fixed_ips_element:
+        port['fixed_ips'] = [fixed_ips_element]
+
+    addresses = [ip.get('ip_address') for ip in port['fixed_ips']]
+    subnets = [net.get('subnet_id') for net in port['fixed_ips']]
+
     # applying fixed ip parameter, if available
-    if fixed_ips_element:
+    if fixed_ips_element and not \
+            (fixed_ips_element.get('ip_address') in addresses or
+             fixed_ips_element.get('subnet_id') in subnets):
         port['fixed_ips'] = [fixed_ips_element]
 
 

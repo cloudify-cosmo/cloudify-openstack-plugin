@@ -1,0 +1,41 @@
+version: 2
+
+checkout:
+  post:
+    - >
+      if [ -n "$CI_PULL_REQUEST" ]; then
+        PR_ID=${CI_PULL_REQUEST##*/}
+        git fetch origin +refs/pull/$PR_ID/merge:
+        git checkout -qf FETCH_HEAD
+      fi
+
+jobs:
+
+  unittests:
+    docker:
+      - image: circleci/python:2.7.15-stretch
+    steps:
+      - checkout
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user tox
+      - run: /home/circleci/.local/bin/tox -e flake8
+      - run: /home/circleci/.local/bin/tox -e py27
+
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - unittests

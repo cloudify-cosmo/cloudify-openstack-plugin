@@ -286,9 +286,18 @@ def _handle_fixed_ips(port):
     if subnet_id:
         fixed_ips_element['subnet_id'] = subnet_id
 
+    fixed_ips = port.get(
+        'fixed_ips',
+        [] if not fixed_ips_element else [fixed_ips_element])
+    addresses = [ip.get('ip_address') for ip in fixed_ips]
+    subnets = [net.get('subnet_id') for net in fixed_ips]
     # applying fixed ip parameter, if available
-    if fixed_ips_element:
-        port['fixed_ips'] = [fixed_ips_element]
+    if fixed_ips_element and not \
+            (fixed_ips_element.get('ip_address') in addresses or
+             fixed_ips_element.get('subnet_id') in subnets):
+        fixed_ips.append(fixed_ips_element)
+    if fixed_ips:
+        port['fixed_ips'] = fixed_ips
 
 
 def _handle_security_groups(port):

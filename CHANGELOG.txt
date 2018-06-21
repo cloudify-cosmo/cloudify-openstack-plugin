@@ -1,3 +1,6 @@
+2.9.1:
+    - Fix a bug introduced in 2.7.6 when setting fixed_ip via args.
+    - Update CircleCI v2.
 2.9.0:
     - Add Support for backup/restore actions.
     - Fix bug in server-port-floating-ip handling.

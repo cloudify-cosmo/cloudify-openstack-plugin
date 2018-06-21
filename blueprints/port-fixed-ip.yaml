@@ -53,6 +53,15 @@ node_templates:
         target: private_subnet
       - type: cloudify.openstack.port_connected_to_security_group
         target: security_group
+    # interfaces:
+    #   cloudify.interfaces.lifecycle:
+    #     create:
+    #       inputs:
+    #         args:
+    #           name: os_port
+    #           fixed_ips:
+    #           - ip_address: { get_input: fixed_ip }
+    #             subnet_id: { get_attribute: [ private_subnet, external_id ] }
 
   security_group:
     type: cloudify.openstack.nodes.SecurityGroup

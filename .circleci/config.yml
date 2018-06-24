@@ -84,14 +84,17 @@ jobs:
       - attach_workspace:
           at: workspace
       - run:
+          name: install cloudify
+          command: pip install cloudify==4.3.2
+      - run:
           name: install openstack plugin from branch
           command: pip install -e .
       - run:
-          name: install cloudify
-          command: pip install cloudify==4.3.2 -U --no-deps --force-reinstall PyYAML==3.10
+          name: install pyyaml
+          command: pip install -U --no-deps --force-reinstall PyYAML===3.10 
       - run:
           name: install test requirements
-          command: pip install nose testtools https://github.com/cloudify-cosmo/cloudify-fabric-plugin/archive/1.5.1.zip https://github.com/cloudify-incubator/cloudify-utilities-plugin/archive/1.7.1.zip https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/8f7c75fa0c1c1b79907bbb228c5ef5a755bfbd65.zip
+          command: pip install nose testtools https://github.com/cloudify-cosmo/cloudify-fabric-plugin/archive/1.5.1.zip https://github.com/cloudify-incubator/cloudify-utilities-plugin/archive/1.7.1.zip https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/5992738b5ba92bcf046b2c46b1e6ec2a6c26fdee.zip
       - run:
           name: execute test
           command: nosetests -s manager_tests/test_openstack.py

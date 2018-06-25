@@ -9,27 +9,35 @@ inputs:
 
   username:
     type: string
+    default: { get_secret: keystone_username }
 
   keystone_password:
     type: string
+    default: { get_secret: keystone_password }
 
   tenant_name:
     type: string
+    default: { get_secret: keystone_tenant_name }
 
   auth_url:
     type: string
+    default: { get_secret: keystone_url }
 
   region:
     type: string
+    default: { get_secret: region }
 
   network_id:
     type: string
+    default: { get_secret: public_network_name }
 
   subnet_id:
     type: string
+    default: { get_secret: public_subnet_name }
 
   fixed_ip:
     type: string
+    default: 192.168.120.200
 
 dsl_definitions:
 

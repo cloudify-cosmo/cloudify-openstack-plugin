@@ -7,7 +7,7 @@ plugins:
     executor: central_deployment_agent
     source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.9.2.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.9.2'
+    package_version: '2.9.3'
 
 data_types:
   cloudify.openstack.types.custom_configuration:

@@ -78,6 +78,7 @@ SERVER_STATUS_SUSPENDED = 'SUSPENDED'
 
 OS_EXT_STS_TASK_STATE = 'OS-EXT-STS:task_state'
 SERVER_TASK_STATE_POWERING_ON = 'powering-on'
+SERVER_TASK_STATE_POWERING_OFF = 'powering-off'
 
 MUST_SPECIFY_NETWORK_EXCEPTION_TEXT = 'More than one possible network found.'
 SERVER_DELETE_CHECK_SLEEP = 2
@@ -468,7 +469,13 @@ def stop(nova_client, **kwargs):
 
 
 def _server_stop(nova_client, server):
-    if server.status != SERVER_STATUS_SHUTOFF:
+    server_task_state = getattr(server, OS_EXT_STS_TASK_STATE)
+
+    if server_task_state == SERVER_TASK_STATE_POWERING_OFF:
+        return ctx.operation.retry(
+            message="Server is stopping",
+            retry_after=30)
+    elif server.status != SERVER_STATUS_SHUTOFF:
         nova_client.servers.stop(server)
 
         # wait 10 seconds before next check

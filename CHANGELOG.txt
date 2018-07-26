@@ -1,3 +1,7 @@
+2.9.4: Backporting change from 3.0.0 dev branch.
+2.9.3: Improve Host Aggregate members handling.
+2.9.2:
+    - Handle servers that are in a powering off state during stop operation.
 2.9.1:
     - Fix a bug introduced in 2.7.6 when setting fixed_ip via args.
     - Update CircleCI v2.

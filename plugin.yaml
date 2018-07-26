@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.9.1.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.9.4.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.9.1'
+    package_version: '2.9.4'
 
 data_types:
   cloudify.openstack.types.custom_configuration:
@@ -1555,6 +1555,26 @@ node_types:
             resource_id:
               type: string
               default: { get_property: [ SELF, resource_id ] }
+        add_hosts:
+          implementation: openstack.nova_plugin.host_aggregate.add_hosts
+          inputs:
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
+            hosts:
+              default: []
+        remove_hosts:
+          implementation: openstack.nova_plugin.host_aggregate.remove_hosts
+          inputs:
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
+            hosts:
+              default: []
 
   cloudify.openstack.nodes.ServerGroup:
     derived_from: cloudify.nodes.Root

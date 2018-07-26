@@ -11,8 +11,9 @@ from cloudify.mocks import (
 from openstack_plugin_common import (
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_NAME_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY
-    )
+    OPENSTACK_TYPE_PROPERTY,
+    OPENSTACK_RESOURCE_PROPERTY
+)
 from nova_plugin.host_aggregate import (
     HOST_AGGREGATE_OPENSTACK_TYPE,
     HOSTS_PROPERTY
@@ -29,9 +30,10 @@ class TestHostAggregate(unittest.TestCase):
     test_deployment_id = 'test-deployment-id'
 
     class MockHostAggregateOS:
-        def __init__(self, id, name):
+        def __init__(self, id, name, hosts=None):
             self._id = id
             self._name = name
+            self._hosts = hosts
 
         @property
         def id(self):
@@ -40,6 +42,10 @@ class TestHostAggregate(unittest.TestCase):
         @property
         def name(self):
             return self._name
+
+        @property
+        def hosts(self):
+            return self._hosts or []
 
         def to_dict(self):
             return {'name': self.name, 'id': self.id}
@@ -50,6 +56,7 @@ class TestHostAggregate(unittest.TestCase):
         nova_client = mock.MagicMock()
 
         nova_client.aggregates.create.return_value = mock_host_aggregate
+        nova_client.aggregates.get.return_value = mock_host_aggregate
         nova_client.aggregates.list.return_value = [mock_host_aggregate]
         nova_client.aggregates.find.return_value = mock.MagicMock(
             id=self.test_name
@@ -89,14 +96,118 @@ class TestHostAggregate(unittest.TestCase):
 
         return ctx
 
+    @mock.patch(
+        'openstack_plugin_common._handle_kw',
+        autospec=True,
+        return_value=None
+    )
     def test_add_hosts(self, *_):
-        pass
+        # given
+        test_vars_host1 = 'cf4301'
+        test_vars_host2 = 'openstack-kilo-t2.novalocal'
+        test_vars_host3 = 'openstack-kilo-t2.novalocal-2'
+        test_vars_hosts_initial = [test_vars_host1]
+        test_vars_hosts_to_add = [test_vars_host2, test_vars_host3]
+        test_vars_hosts_expected = [
+            test_vars_host1, test_vars_host2, test_vars_host3
+        ]
 
-    def test_set_metadata(self, *_):
-        pass
+        test_vars = {
+            'aggregate': {
+                'name': self.test_name,
+                'availability_zone': 'internal'
+            },
+            'hosts': test_vars_hosts_initial,
+            'metadata': {},
+            'resource_id': ''
+        }
 
+        ctx = self.mock_ctx(
+            test_vars,
+            self.test_id,
+            self.test_deployment_id,
+            {
+                OPENSTACK_ID_PROPERTY: self.test_id,
+                OPENSTACK_NAME_PROPERTY: self.test_name,
+                OPENSTACK_TYPE_PROPERTY: HOST_AGGREGATE_OPENSTACK_TYPE,
+                HOSTS_PROPERTY: test_vars_hosts_initial
+            }
+        )
+        nova_plugin.host_aggregate.ctx = ctx
+
+        mocked_host_aggregate = self.MockHostAggregateOS(
+            self.test_id,
+            self.test_name
+        )
+        nova_client = self.mock_nova_client(mocked_host_aggregate)
+
+        # when
+        nova_plugin.host_aggregate.add_hosts(
+            nova_client,
+            test_vars_hosts_to_add
+        )
+
+        # then
+        self.assertEqual(
+            set(test_vars_hosts_expected),
+            set(ctx.instance.runtime_properties[HOSTS_PROPERTY])
+        )
+
+    @mock.patch(
+        'openstack_plugin_common._handle_kw',
+        autospec=True,
+        return_value=None
+    )
     def test_remove_hosts(self, *_):
-        pass
+        # given
+        test_vars_host1 = 'cf4301'
+        test_vars_host2 = 'openstack-kilo-t2.novalocal'
+        test_vars_host3 = 'openstack-kilo-t2.novalocal-2'
+        test_vars_hosts_initial = [
+            test_vars_host1, test_vars_host2, test_vars_host3
+        ]
+        test_vars_hosts_to_remove = [test_vars_host2, test_vars_host3]
+        test_vars_hosts_expected = [test_vars_host1]
+
+        test_vars = {
+            'aggregate': {
+                'name': self.test_name,
+                'availability_zone': 'internal'
+            },
+            'hosts': test_vars_hosts_initial,
+            'metadata': {},
+            'resource_id': ''
+        }
+
+        ctx = self.mock_ctx(
+            test_vars,
+            self.test_id,
+            self.test_deployment_id,
+            {
+                OPENSTACK_ID_PROPERTY: self.test_id,
+                OPENSTACK_NAME_PROPERTY: self.test_name,
+                OPENSTACK_TYPE_PROPERTY: HOST_AGGREGATE_OPENSTACK_TYPE,
+                HOSTS_PROPERTY: test_vars_hosts_initial
+            }
+        )
+        nova_plugin.host_aggregate.ctx = ctx
+
+        mocked_host_aggregate = self.MockHostAggregateOS(
+            self.test_id,
+            self.test_name
+        )
+        nova_client = self.mock_nova_client(mocked_host_aggregate)
+
+        # when
+        nova_plugin.host_aggregate.remove_hosts(
+            nova_client, test_vars_hosts_to_remove
+        )
+
+        # then
+        self.assertEqual(
+            set(test_vars_hosts_expected),
+            set(ctx.instance.runtime_properties[HOSTS_PROPERTY])
+        )
 
     @mock.patch(
         'openstack_plugin_common._handle_kw',
@@ -126,7 +237,8 @@ class TestHostAggregate(unittest.TestCase):
 
         mocked_host_aggregate = self.MockHostAggregateOS(
             self.test_id,
-            self.test_name
+            self.test_name,
+            test_vars_hosts
         )
         nova_client = self.mock_nova_client(mocked_host_aggregate)
 
@@ -187,6 +299,10 @@ class TestHostAggregate(unittest.TestCase):
             OPENSTACK_TYPE_PROPERTY,
             ctx.instance.runtime_properties
         )
+        self.assertNotIn(
+            HOSTS_PROPERTY,
+            ctx.instance.runtime_properties
+        )
 
     @mock.patch(
         'openstack_plugin_common._handle_kw',
@@ -229,6 +345,9 @@ class TestHostAggregate(unittest.TestCase):
             HOST_AGGREGATE_OPENSTACK_TYPE,
             ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY]
         )
+        self.assertTrue(
+            ctx.instance.runtime_properties[OPENSTACK_RESOURCE_PROPERTY]
+        )
         nova_client.aggregates.create.assert_not_called()
         nova_client.aggregates.add_host.assert_not_called()
         nova_client.aggregates.set_metadata.assert_not_called()
@@ -260,11 +379,7 @@ class TestHostAggregate(unittest.TestCase):
     )
     def test_update(self, *_):
         # given
-        test_vars_host1 = 'cf4301'
-        test_vars_host2 = 'openstack-kilo-t2.novalocal'
-        test_vars_host3 = 'new_host'
-        test_vars_old_hosts = [test_vars_host1, test_vars_host2]
-        test_vars_new_hosts = [test_vars_host3]
+        test_vars_hosts = ['cf4301', 'openstack-kilo-t2.novalocal']
         test_vars_metadata = {
             'test': 'value1'
         }
@@ -273,7 +388,7 @@ class TestHostAggregate(unittest.TestCase):
                 'name': self.test_name,
                 'availability_zone': 'internal'
             },
-            'hosts': test_vars_old_hosts,
+            'hosts': test_vars_hosts,
             'metadata': test_vars_metadata,
             'resource_id': ''
         }
@@ -286,7 +401,7 @@ class TestHostAggregate(unittest.TestCase):
                 OPENSTACK_ID_PROPERTY: self.test_id,
                 OPENSTACK_NAME_PROPERTY: self.test_name,
                 OPENSTACK_TYPE_PROPERTY: HOST_AGGREGATE_OPENSTACK_TYPE,
-                HOSTS_PROPERTY: test_vars_old_hosts
+                HOSTS_PROPERTY: test_vars_hosts
             }
         )
         nova_plugin.host_aggregate.ctx = ctx
@@ -306,8 +421,7 @@ class TestHostAggregate(unittest.TestCase):
         # when
         nova_plugin.host_aggregate.update(
             nova_client,
-            {},
-            hosts=test_vars_new_hosts
+            {'aggregate': mocked_updated_host_aggregate.to_dict()}
         )
 
         # then
@@ -324,23 +438,15 @@ class TestHostAggregate(unittest.TestCase):
             ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY]
         )
         self.assertEqual(
-            test_vars_new_hosts,
+            test_vars_hosts,
             ctx.instance.runtime_properties[HOSTS_PROPERTY]
         )
-        nova_client.aggregates.remove_host.assert_any_call(
+        nova_client.aggregates.update.assert_called_once_with(
             self.test_id,
-            test_vars_host1
-        )
-        nova_client.aggregates.remove_host.assert_any_call(
-            self.test_id,
-            test_vars_host2
-        )
-        nova_client.aggregates.add_host.assert_any_call(
-            mocked_updated_host_aggregate,
-            test_vars_host3
+            mocked_updated_host_aggregate.to_dict()
         )
         nova_client.aggregates.set_metadata.assert_called_once_with(
-            mocked_updated_host_aggregate,
+            self.test_id,
             test_vars_metadata
         )
 

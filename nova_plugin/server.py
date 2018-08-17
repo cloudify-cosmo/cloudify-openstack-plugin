@@ -851,17 +851,21 @@ def connect_security_group(nova_client, **kwargs):
             'Expected external resources server {0} and security-group {1} to '
             'be connected'.format(server_id, security_group_id))
 
+    def group_matches(security_group):
+        return (
+            security_group_id == security_group.id or
+            security_group_name == security_group.name
+        )
+    # Since some security groups are already attached in
+    # create this will ensure that they are not attached twice.
     server = nova_client.servers.get(server_id)
-    for security_group in server.list_security_group():
-        # Since some security groups are already attached in
-        # create this will ensure that they are not attached twice.
-        if security_group_id != security_group.id and \
-                security_group_name != security_group.name:
-            # to support nova security groups as well,
-            # we connect the security group by name
-            # (as connecting by id
-            # doesn't seem to work well for nova SGs)
-            server.add_security_group(security_group_name)
+    present = any(map(group_matches, server.list_security_group()))
+    # to support nova security groups as well,
+    # we connect the security group by name
+    # (as connecting by id
+    # doesn't seem to work well for nova SGs)
+    if not present:
+        server.add_security_group(security_group_name)
 
     _validate_security_group_and_server_connection_status(nova_client,
                                                           server_id,

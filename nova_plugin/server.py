@@ -855,7 +855,7 @@ def connect_security_group(nova_client, **kwargs):
     sec_group_ids = [sec_group.id for sec_group in server.list_security_group()];
     if security_group_id not in sec_group_ids:
         ctx.logger.info(
-            'Adding security group {0} to server {1}'.format(security_group_id,
+            'Attaching security group {0} to instance {1}'.format(security_group_id,
                                                              server_id))
         server.add_security_group(security_group_name)
 

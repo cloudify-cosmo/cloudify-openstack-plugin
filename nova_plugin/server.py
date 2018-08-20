@@ -852,16 +852,12 @@ def connect_security_group(nova_client, **kwargs):
             'be connected'.format(server_id, security_group_id))
 
     server = nova_client.servers.get(server_id)
-    for security_group in server.list_security_group():
-        # Since some security groups are already attached in
-        # create this will ensure that they are not attached twice.
-        if security_group_id != security_group.id and \
-                security_group_name != security_group.name:
-            # to support nova security groups as well,
-            # we connect the security group by name
-            # (as connecting by id
-            # doesn't seem to work well for nova SGs)
-            server.add_security_group(security_group_name)
+    sec_group_ids = [sec_group.id for sec_group in server.list_security_group()];
+    if security_group_id not in sec_group_ids:
+        ctx.logger.info(
+            'Adding security group {0} to server {1}'.format(security_group_id,
+                                                             server_id))
+        server.add_security_group(security_group_name)
 
     _validate_security_group_and_server_connection_status(nova_client,
                                                           server_id,

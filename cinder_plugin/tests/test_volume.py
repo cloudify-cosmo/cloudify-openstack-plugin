@@ -56,6 +56,7 @@ class TestCinderVolume(unittest.TestCase):
 
         creating_volume_m = mock.Mock()
         creating_volume_m.id = volume_id
+        creating_volume_m.bootable = False
         creating_volume_m.status = volume.VOLUME_STATUS_CREATING
         available_volume_m = mock.Mock()
         available_volume_m.id = volume_id
@@ -82,6 +83,8 @@ class TestCinderVolume(unittest.TestCase):
         self.assertEqual(
             volume.VOLUME_OPENSTACK_TYPE,
             ctx_m.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY])
+        self.assertFalse(
+            ctx_m.instance.runtime_properties[volume.VOLUME_BOOTABLE])
 
     def test_create_use_existing(self):
         volume_id = '00000000-0000-0000-0000-000000000000'

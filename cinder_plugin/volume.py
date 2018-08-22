@@ -48,16 +48,27 @@ DEVICE_NAME_PROPERTY = 'device_name'
 
 VOLUME_OPENSTACK_TYPE = 'volume'
 VOLUME_OPENSTACK_ID_KEY = 'name'
+VOLUME_BOOTABLE = 'bootable'
 
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 def _set_volume_runtime_properties(volume):
+
     try:
         ctx.instance.runtime_properties[OPENSTACK_AZ_PROPERTY] = \
             volume.availability_zone
     except AttributeError:
         ctx.logger.error('Volume availability_zone not found.')
+
+    try:
+        ctx.instance.runtime_properties[VOLUME_BOOTABLE] = \
+            volume.bootable
+    except AttributeError:
+        if ctx.node.properties.get('boot', False):
+            ctx.instance.runtime_properties[VOLUME_BOOTABLE] = True
+        else:
+            ctx.instance.runtime_properties[VOLUME_BOOTABLE] = False
 
 
 @operation

@@ -920,10 +920,11 @@ node_types:
           username, password, tenant_name, auth_url, region.
       boot:
         type: boolean
-        default: false
+        required: false
         description: >
           If a Server instance is connected to this Volume by a relationship,
           this volume will be used as the boot volume for that Server.
+          This option will be deprecated in the future.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:

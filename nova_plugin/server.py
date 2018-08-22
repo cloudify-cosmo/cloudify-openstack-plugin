@@ -62,7 +62,7 @@ from openstack_plugin_common.floatingip import (IP_ADDRESS_PROPERTY,
                                                 get_server_floating_ip)
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.port import PORT_OPENSTACK_TYPE
-from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE, VOLUME_BOOTABLE
 from openstack_plugin_common.security_group import \
     SECURITY_GROUP_OPENSTACK_TYPE
 from glance_plugin.image import handle_image_from_relationship
@@ -212,7 +212,7 @@ def _get_boot_volume_relationships(type_name, ctx):
             for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(
                 OPENSTACK_TYPE_PROPERTY) == type_name and
-            rel.target.node.properties.get('boot', False)]
+            rel.target.instance.runtime_properties.get(VOLUME_BOOTABLE, False)]
 
     if not targets:
         return None

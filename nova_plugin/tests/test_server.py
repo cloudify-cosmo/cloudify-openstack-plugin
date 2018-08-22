@@ -30,7 +30,7 @@ from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from nova_plugin.tests.test_relationships import RelationshipsTestBase
 from nova_plugin.server import _prepare_server_nics
 from novaclient import exceptions as nova_exceptions
-from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE
+from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE, VOLUME_BOOTABLE
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 from cloudify.state import current_ctx
 
@@ -1076,7 +1076,8 @@ class TestServerRelationships(unittest.TestCase):
                 properties={'boot': boot}), instance=MockNodeInstanceContext(
                 runtime_properties={
                     OPENSTACK_TYPE_PROPERTY: VOLUME_OPENSTACK_TYPE,
-                    OPENSTACK_ID_PROPERTY: instance_id
+                    OPENSTACK_ID_PROPERTY: instance_id,
+                    VOLUME_BOOTABLE: False
                 })))]
         ctx = mock.MagicMock()
         ctx.instance = MockNodeInstanceContext(relationships=rel_specs)
@@ -1086,6 +1087,8 @@ class TestServerRelationships(unittest.TestCase):
     def test_boot_volume_relationship(self):
         instance_id = 'test-id'
         ctx = self._get_ctx_mock(instance_id, True)
+        rel_target = ctx.instance.relationships[0].target
+        rel_target.instance.runtime_properties[VOLUME_BOOTABLE] = True
         result = nova_plugin.server._get_boot_volume_relationships(
             VOLUME_OPENSTACK_TYPE, ctx)
         self.assertEqual(

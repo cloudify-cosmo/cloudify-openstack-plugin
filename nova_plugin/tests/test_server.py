@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+import collections
 from os import path
 import tempfile
 
@@ -1009,6 +1010,9 @@ class TestImageFromRelationships(unittest.TestCase):
 
 @mock.patch('openstack_plugin_common.OpenStackClient._validate_auth_params')
 class TestServerSGAttachments(unittest.TestCase):
+    SecurityGroup = collections.namedtuple(
+        'SecurityGroup', ['id', 'name'], verbose=True)
+
     def setUp(self):
         ctx = MockCloudifyContext(
             target=MockContext({
@@ -1036,14 +1040,32 @@ class TestServerSGAttachments(unittest.TestCase):
         findctx.start()
         self.addCleanup(findctx.stop)
 
-    def test_detach_already_detached(self, *kwargs):
-        fake_client = mock.MagicMock()
-        fake_client().servers.get = mock.MagicMock()
-        fake_client().servers.get().remove_security_group = mock.MagicMock(
-            side_effect=nova_exceptions.NotFound('test'))
-        with mock.patch('openstack_plugin_common.NovaClientWithSugar',
-                        fake_client):
-            nova_plugin.server.disconnect_security_group()
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    def test_detach_already_detached(self, client, *kwargs):
+        server = client.return_value.servers.get.return_value
+        server.remove_security_group.side_effect = \
+            nova_exceptions.NotFound('test')
+        nova_plugin.server.disconnect_security_group()
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    def test_connect_not_connected(self, client, *kwargs):
+        security_groups = [self.SecurityGroup('test-sg-2', 'test-sg-2-name')]
+        server = client.return_value.servers.get.return_value
+        server.list_security_group.return_value = security_groups
+        server.add_security_group.side_effect = (
+            lambda _: security_groups.append(
+                self.SecurityGroup('test-sg', 'test-sg-name')))
+        nova_plugin.server.connect_security_group()
+        server.add_security_group.assert_called_once_with('test-sg-name')
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    def test_connect_already_connected(self, client, *kwargs):
+        security_groups = [self.SecurityGroup('test-sg', 'test-sg-name'),
+                           self.SecurityGroup('test-sg-2', 'test-sg-2-name')]
+        server = client.return_value.servers.get.return_value
+        server.list_security_group.return_value = security_groups
+        nova_plugin.server.connect_security_group()
+        server.add_security_group.assert_not_called()
 
 
 class TestServerRelationships(unittest.TestCase):

@@ -21,7 +21,8 @@ from cloudify import exceptions as cfy_exc
 from cloudify.state import current_ctx
 from cinder_plugin import volume
 from nova_plugin import server
-from openstack_plugin_common import (OPENSTACK_ID_PROPERTY,
+from openstack_plugin_common import (OPENSTACK_AZ_PROPERTY,
+                                     OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY,
                                      OPENSTACK_NAME_PROPERTY,
                                      OPENSTACK_RESOURCE_PROPERTY)
@@ -93,6 +94,7 @@ class TestCinderVolume(unittest.TestCase):
         existing_volume_m = mock.Mock()
         existing_volume_m.id = volume_id
         existing_volume_m.status = volume.VOLUME_STATUS_AVAILABLE
+        existing_volume_m.availability_zone = 'az'
         cinder_client_m = mock.Mock()
         cinder_client_m.volumes = mock.Mock()
         cinder_client_m.volumes.create = mock.Mock()
@@ -112,6 +114,9 @@ class TestCinderVolume(unittest.TestCase):
         self.assertEqual(
             volume.VOLUME_OPENSTACK_TYPE,
             ctx_m.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY])
+        self.assertEqual(
+            ctx_m.instance.runtime_properties[OPENSTACK_AZ_PROPERTY],
+            'az')
         self.assertTrue(
             ctx_m.instance.runtime_properties[OPENSTACK_RESOURCE_PROPERTY]
         )

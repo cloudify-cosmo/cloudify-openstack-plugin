@@ -47,16 +47,28 @@ VOLUME_ERROR_STATUSES = (VOLUME_STATUS_ERROR, VOLUME_STATUS_ERROR_DELETING)
 DEVICE_NAME_PROPERTY = 'device_name'
 
 VOLUME_OPENSTACK_TYPE = 'volume'
+VOLUME_OPENSTACK_ID_KEY = 'name'
 
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
+
+
+def _set_volume_runtime_properties(volume):
+    try:
+        ctx.instance.runtime_properties[OPENSTACK_AZ_PROPERTY] = \
+            volume.availability_zone
+    except AttributeError:
+        ctx.logger.error('Volume availability_zone not found.')
 
 
 @operation
 @with_cinder_client
 def create(cinder_client, status_attempts, status_timeout, args, **kwargs):
 
-    if use_external_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
-                             'name'):
+    external_volume = use_external_resource(
+        ctx, cinder_client, VOLUME_OPENSTACK_TYPE, VOLUME_OPENSTACK_ID_KEY)
+
+    if external_volume:
+        _set_volume_runtime_properties(external_volume)
         return
 
     volume_dict = create_object_dict(ctx, VOLUME_OPENSTACK_TYPE, args, {})
@@ -68,15 +80,14 @@ def create(cinder_client, status_attempts, status_timeout, args, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         VOLUME_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = \
-        volume_dict['name']
+        volume_dict[VOLUME_OPENSTACK_ID_KEY]
     wait_until_status(cinder_client=cinder_client,
                       volume_id=v.id,
                       status=VOLUME_STATUS_AVAILABLE,
                       num_tries=status_attempts,
                       timeout=status_timeout,
                       )
-    ctx.instance.runtime_properties[OPENSTACK_AZ_PROPERTY] = \
-        v.availability_zone
+    _set_volume_runtime_properties(v)
 
 
 def _delete_snapshot(cinder_client, search_opts):
@@ -115,8 +126,8 @@ def _delete_backup(cinder_client, search_opts):
         return
 
     for backup in backups:
-        if search_opts.get('name'):
-            if backup.name != search_opts['name']:
+        if search_opts.get(VOLUME_OPENSTACK_ID_KEY):
+            if backup.name != search_opts[VOLUME_OPENSTACK_ID_KEY]:
                 continue
             ctx.logger.debug("Check backup before delete: {}:{} with state {}"
                              .format(backup.id, backup.name, backup.status))
@@ -131,8 +142,8 @@ def _delete_backup(cinder_client, search_opts):
     for backup in backups:
         ctx.logger.debug("Check backup after delete: {}:{} with state {}"
                          .format(backup.id, backup.name, backup.status))
-        if search_opts.get('name'):
-            if backup.name == search_opts['name']:
+        if search_opts.get(VOLUME_OPENSTACK_ID_KEY):
+            if backup.name == search_opts[VOLUME_OPENSTACK_ID_KEY]:
                 return ctx.operation.retry(
                     message='{} is still alive'.format(backup.name),
                     retry_after=30)
@@ -214,7 +225,7 @@ def snapshot_apply(cinder_client, **kwargs):
         ctx.logger.info("Backup apply {} to {}".format(backup_name, volume_id))
         search_opts = {
             'volume_id': volume_id,
-            'name': backup_name
+            VOLUME_OPENSTACK_ID_KEY: backup_name
         }
 
         backups = cinder_client.backups.list(
@@ -245,7 +256,7 @@ def snapshot_delete(cinder_client, **kwargs):
         # search snaphot for delete
         search_opts = {
             'volume_id': volume_id,
-            'name': backup_name
+            VOLUME_OPENSTACK_ID_KEY: backup_name
         }
         _delete_backup(cinder_client, search_opts)
     else:
@@ -263,7 +274,7 @@ def snapshot_delete(cinder_client, **kwargs):
 @with_cinder_client
 def creation_validation(cinder_client, **kwargs):
     validate_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
-                      'name')
+                      VOLUME_OPENSTACK_ID_KEY)
 
 
 @operation

@@ -452,7 +452,7 @@ def delete_resource_and_runtime_properties(ctx, sugared_client,
                                            runtime_properties_keys):
     node_openstack_type = ctx.instance.runtime_properties[
         OPENSTACK_TYPE_PROPERTY]
-    if not is_external_resource(ctx):
+    if not is_external_resource_not_conditionally_created(ctx):
         ctx.logger.info('deleting {0}'.format(node_openstack_type))
         sugared_client.cosmo_delete_resource(
             node_openstack_type,

@@ -1218,6 +1218,15 @@ node_types:
         description: >
           key-value user configuration, according to:
           https://developer.openstack.org/api-ref/compute/#create-flavor
+      extra_specs:
+        default: {}
+        description: >
+          key-value user configuration, according to:
+          https://developer.openstack.org/api-ref/compute/#create-extra-specs-for-a-flavor
+      tenants:
+        default: []
+        description: >
+          List of tenants to add to flavor access
       use_external_resource:
         default: false
         description: >

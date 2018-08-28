@@ -14,7 +14,6 @@
 #    * limitations under the License.
 
 import unittest
-
 import mock
 
 import neutron_plugin.port
@@ -32,75 +31,79 @@ class TestPort(unittest.TestCase):
 
     def test_fixed_ips_no_fixed_ips(self):
         node_props = {'fixed_ip': ''}
+        mock_neutron = MockNeutronClient(update=True)
 
         with mock.patch(
                 'neutron_plugin.port.'
                 'get_openstack_id_of_single_connected_node_by_openstack_type',
-                self._get_connected_subnet_mock(return_empty=True)):
+                self._get_connected_subnets_mock(return_empty=True)):
             with mock.patch(
                     'neutron_plugin.port.ctx',
                     self._get_mock_ctx_with_node_properties(node_props)):
 
                 port = {}
-                neutron_plugin.port._handle_fixed_ips(port)
+                neutron_plugin.port._handle_fixed_ips(port, mock_neutron)
 
         self.assertNotIn('fixed_ips', port)
 
     def test_fixed_ips_subnet_only(self):
         node_props = {'fixed_ip': ''}
+        mock_neutron = MockNeutronClient(update=True)
 
         with mock.patch(
                 'neutron_plugin.port.'
-                'get_openstack_id_of_single_connected_node_by_openstack_type',
-                self._get_connected_subnet_mock(return_empty=False)):
+                'get_openstack_ids_of_connected_nodes_by_openstack_type',
+                self._get_connected_subnets_mock(return_empty=False)):
             with mock.patch(
                     'neutron_plugin.port.ctx',
                     self._get_mock_ctx_with_node_properties(node_props)):
 
                 port = {}
-                neutron_plugin.port._handle_fixed_ips(port)
+                neutron_plugin.port._handle_fixed_ips(port, mock_neutron)
 
         self.assertEquals([{'subnet_id': 'some-subnet-id'}],
                           port.get('fixed_ips'))
 
     def test_fixed_ips_ip_address_only(self):
         node_props = {'fixed_ip': '1.2.3.4'}
+        mock_neutron = MockNeutronClient(update=True)
 
         with mock.patch(
                 'neutron_plugin.port.'
                 'get_openstack_id_of_single_connected_node_by_openstack_type',
-                self._get_connected_subnet_mock(return_empty=True)):
+                self._get_connected_subnets_mock(return_empty=True)):
             with mock.patch(
                     'neutron_plugin.port.ctx',
                     self._get_mock_ctx_with_node_properties(node_props)):
 
                 port = {}
-                neutron_plugin.port._handle_fixed_ips(port)
+                neutron_plugin.port._handle_fixed_ips(port, mock_neutron)
 
         self.assertEquals([{'ip_address': '1.2.3.4'}],
                           port.get('fixed_ips'))
 
     def test_fixed_ips_subnet_and_ip_address(self):
         node_props = {'fixed_ip': '1.2.3.4'}
+        mock_neutron = MockNeutronClient(update=True)
 
         with mock.patch(
                 'neutron_plugin.port.'
-                'get_openstack_id_of_single_connected_node_by_openstack_type',
-                self._get_connected_subnet_mock(return_empty=False)):
+                'get_openstack_ids_of_connected_nodes_by_openstack_type',
+                self._get_connected_subnets_mock(return_empty=False)):
             with mock.patch(
                     'neutron_plugin.port.ctx',
                     self._get_mock_ctx_with_node_properties(node_props)):
 
                 port = {}
-                neutron_plugin.port._handle_fixed_ips(port)
+                neutron_plugin.port._handle_fixed_ips(port, mock_neutron)
 
         self.assertEquals([{'ip_address': '1.2.3.4',
                             'subnet_id': 'some-subnet-id'}],
                           port.get('fixed_ips'))
 
     @staticmethod
-    def _get_connected_subnet_mock(return_empty=True):
-        return lambda *args, **kw: None if return_empty else 'some-subnet-id'
+    def _get_connected_subnets_mock(return_empty=True):
+        return lambda *args, **kw: None if return_empty else ['some-subnet-id']
 
     @staticmethod
     def _get_mock_ctx_with_node_properties(properties):
@@ -124,6 +127,18 @@ class MockNeutronClient(NeutronClientWithSugar):
 
     def cosmo_get(self, *_, **__):
         return self.body['port']
+
+    def show_subnet(self, subnet_id=None):
+        subnet = {
+            'subnet': {
+                'id': subnet_id,
+            }
+        }
+        if subnet_id == 'some-subnet-id':
+            subnet['cidr'] = '1.2.3.0/24'
+        else:
+            subnet['cidr'] = '2.3.4.0/24'
+        return subnet
 
 
 class TestPortSG(unittest.TestCase):

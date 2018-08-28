@@ -1,3 +1,6 @@
+2.9.8:
+    - Add handling for bootable volume attribute.
+    - Change port fixed ip handling code to permit ports on more than one subnet.
 2.9.7:
     - Add IPv6 Example
     - Base internal volume bootable logic on API bootable flag.

@@ -13,6 +13,8 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+import netaddr
+
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
@@ -91,7 +93,7 @@ def create(neutron_client, args, **kwargs):
                               PORT_OPENSTACK_TYPE,
                               args,
                               {'network_id': net_id})
-    _handle_fixed_ips(port)
+    _handle_fixed_ips(port, neutron_client)
     _handle_security_groups(port)
 
     p = neutron_client.create_port(
@@ -273,29 +275,101 @@ def _get_fixed_ip(port):
     return port['fixed_ips'][0]['ip_address'] if port['fixed_ips'] else None
 
 
-def _handle_fixed_ips(port):
-    fixed_ips_element = {}
+def _valid_subnet_ip(ip_address, subnet_dict):
+    """Check if ip_address is valid for subnet_dict['cidr']
 
-    # checking for fixed ip property
-    if ctx.node.properties['fixed_ip']:
-        fixed_ips_element['ip_address'] = ctx.node.properties['fixed_ip']
+    :param ip_address: string
+    :param subnet_dict: dict with 'cidr' string
+    :return: bool
+    """
 
-    # checking for a connected subnet
-    subnet_id = get_openstack_id_of_single_connected_node_by_openstack_type(
-        ctx, SUBNET_OPENSTACK_TYPE, if_exists=True)
-    if subnet_id:
-        fixed_ips_element['subnet_id'] = subnet_id
+    try:
+        if netaddr.IPAddress(ip_address) in \
+                netaddr.IPNetwork(subnet_dict.get('cidr')):
+            return True
+    except TypeError:
+        pass
+    return False
 
-    fixed_ips = port.get(
-        'fixed_ips',
-        [] if not fixed_ips_element else [fixed_ips_element])
+
+def _handle_fixed_ips(port, neutron_client):
+    """Combine IPs and Subnets for the Port fixed IPs list.
+
+    The Port object looks something this:
+    {
+      'port': {
+        'id': 'some-id',
+        'fixed_ips': [
+          {'subnet_id': 'subnet1', 'ip_address': '1.2.3.4'},
+          {'ip_address': '1.2.3.5'},
+          {'subnet_id': 'subnet3'},
+        ]
+      ...snip...
+    }
+
+    We need to combine subnets and ips from three sources:
+    1) Fixed IPs and Subnets from the Port object.
+    2) Subnets from relationships to subnets.
+    3) A Fixed IP from node properties.
+
+    There are some issues:
+    1) Users can provide both subnets and relationships to subnets.
+    2) Recurrences of the subnet_id indicate a desire
+       for multiple IPs on that subnet.
+    3) If we provide a fixed_ip, we don't also know the
+       target subnet because of how the node properties are.
+       We should change that.
+       Have not yet changed that.
+       But will need to support both paths anyway.
+
+    :param port: An Openstack API Port Object.
+    :param neutron_client: Openstack Neutron Client.
+    :return: None
+    """
+
+    fixed_ips = port.get('fixed_ips', [])
+    subnet_ids_from_port = [net.get('subnet_id') for net in fixed_ips]
+    subnet_ids_from_rels = \
+        get_openstack_ids_of_connected_nodes_by_openstack_type(
+            ctx, SUBNET_OPENSTACK_TYPE)
+
+    # Add the subnets from relationships to the port subnets.
+    for subnet_from_rel in subnet_ids_from_rels:
+        if subnet_from_rel not in subnet_ids_from_port:
+            fixed_ips.append({'subnet_id': subnet_from_rel})
+
     addresses = [ip.get('ip_address') for ip in fixed_ips]
-    subnets = [net.get('subnet_id') for net in fixed_ips]
-    # applying fixed ip parameter, if available
-    if fixed_ips_element and not \
-            (fixed_ips_element.get('ip_address') in addresses or
-             fixed_ips_element.get('subnet_id') in subnets):
-        fixed_ips.append(fixed_ips_element)
+    fixed_ip_from_props = ctx.node.properties['fixed_ip']
+
+    # If we have a fixed_ip from node props, we need to add it,
+    # but first try to match it with one of our subnets.
+    # The fixed_ip_element should be one of:
+    # 1) {'ip_address': 'x.x.x.x'}
+    # 2) {'subnet_id': '....'}
+    # 3) {'ip_address': 'x.x.x.x', 'subnet_id': '....'}
+    # show_subnet returns something like this:
+    # subnet = {
+    #   'subnet': {
+    #     'id': 'subnet1',
+    #     'cidr': '1.2.3.4/24',
+    #     'allocation_pools': [],
+    #     ...snip...
+    #   }
+    # }
+    if fixed_ip_from_props and not (fixed_ip_from_props in addresses):
+        fixed_ip_element = {'ip_address': fixed_ip_from_props}
+        for fixed_ip in fixed_ips:
+            subnet_id = fixed_ip.get('subnet_id')
+            if not _valid_subnet_ip(
+                    fixed_ip_from_props,
+                    neutron_client.show_subnet(subnet_id)):
+                continue
+            fixed_ip_element['subnet_id'] = subnet_id
+            del fixed_ips[fixed_ips.index(fixed_ip)]
+            break
+        fixed_ips.append(fixed_ip_element)
+
+    # Finally update the object.
     if fixed_ips:
         port['fixed_ips'] = fixed_ips
 

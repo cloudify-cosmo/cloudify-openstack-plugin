@@ -875,6 +875,86 @@ node_types:
               type: string
               default: { get_property: [ SELF, resource_id ] }
 
+  cloudify.openstack.nodes.RBACPolicy:
+    derived_from: cloudify.nodes.Root
+    properties:
+      rbac_policy:
+        default: {}
+        description: >
+          The RBAC policy object as described in Openstack networking API (create RBAC policy method):
+          https://developer.openstack.org/api-ref/network/v2/#create-rbac-policy
+      use_external_resource:
+        type: boolean
+        default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+      create_if_missing:
+        type: boolean
+        default: false
+        description: >
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
+      resource_id:
+        type: string
+        default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
+      openstack_config:
+        type: cloudify.openstack.types.configuration
+        default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.neutron_plugin.rbac_policy.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
+        delete:
+          implementation: openstack.neutron_plugin.rbac_policy.delete
+          inputs:
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
+      cloudify.interfaces.validation:
+        creation:
+          implementation: openstack.neutron_plugin.rbac_policy.creation_validation
+          inputs:
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
+      cloudify.interfaces.operations:
+        list:
+          implementation: openstack.neutron_plugin.rbac_policy.list_rbac_policies
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
+        find_and_delete:
+          implementation: openstack.neutron_plugin.rbac_policy.find_and_delete
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+
   cloudify.openstack.nodes.Volume:
     derived_from: cloudify.nodes.Volume
     properties:
@@ -1138,6 +1218,15 @@ node_types:
         description: >
           key-value user configuration, according to:
           https://developer.openstack.org/api-ref/compute/#create-flavor
+      extra_specs:
+        default: {}
+        description: >
+          key-value user configuration, according to:
+          https://developer.openstack.org/api-ref/compute/#create-extra-specs-for-a-flavor
+      tenants:
+        default: []
+        description: >
+          List of tenants to add to flavor access
       use_external_resource:
         default: false
         description: >
@@ -1796,4 +1885,7 @@ relationships:
               default: 2
 
   cloudify.openstack.server_connected_to_server_group:
+    derived_from: cloudify.relationships.connected_to
+
+  cloudify.openstack.rbac_policy_applied_to:
     derived_from: cloudify.relationships.connected_to

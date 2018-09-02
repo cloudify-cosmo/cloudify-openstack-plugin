@@ -1,3 +1,6 @@
+2.10.0:
+    - RBAC policy support added
+    - Flavor access and flavor extra-specs support added
 2.9.8:
     - Add handling for bootable volume attribute.
     - Change port fixed ip handling code to permit ports on more than one subnet.

@@ -86,8 +86,12 @@ def create(neutron_client, args, **kwargs):
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
             raise
 
-    net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
-        ctx, NETWORK_OPENSTACK_TYPE)
+    net_id = ctx.node.properties.get(
+        PORT_OPENSTACK_TYPE, {}).get('network_id')
+    if not net_id:
+        net_id = \
+            get_openstack_id_of_single_connected_node_by_openstack_type(
+                ctx, NETWORK_OPENSTACK_TYPE)
 
     port = create_object_dict(ctx,
                               PORT_OPENSTACK_TYPE,

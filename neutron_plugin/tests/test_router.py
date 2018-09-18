@@ -29,28 +29,37 @@ from cloudify.exceptions import NonRecoverableError
 @patch('openstack_plugin_common.NeutronClientWithSugar')
 class TestRouter(unittest.TestCase):
 
-    def test_update_router(self, mock_nc):
-        args = {'router': {}}
-        node_props = {}
-        ctx = self._get_mock_ctx_with_node_properties(node_props)
+    def update_router(self, mock_nc):
+        node_routes_props = {
+            'routes': [
+                {
+                    'nexthop': '192.168.120.123',
+                    'destination': '192.168.121.0/24',
+                }
+            ]
+        }
+        ctx = self._get_mock_ctx_with_node_properties(node_routes_props)
         current_ctx.set(ctx=ctx)
         mock_nc.show_router = Mock(return_value={
             'router': {
-                'id': 'id'
+                'id': 'id',
+                'routes': [
+                    {
+                        'nexthop': '192.168.120.123',
+                        'destination': '192.168.121.0/24',
+                    }
+                ]
             }
         })
 
-        neutron_plugin.router.update(
-            neutron_client=mock_nc, args=args)
+        neutron_plugin.router.add_routes(neutron_client=mock_nc)
 
     def test_update_router_wrong_type(self, mock_nc):
-        args = {'router': {'routes': ''}}
         node_props = {}
         ctx = self._get_mock_ctx_with_node_properties(node_props)
         current_ctx.set(ctx=ctx)
         with self.assertRaises(NonRecoverableError):
-            neutron_plugin.router.update(
-                neutron_client=mock_nc, args=args)
+            neutron_plugin.router.add_routes(neutron_client=mock_nc)
 
     @staticmethod
     def _get_mock_ctx_with_node_properties(properties):

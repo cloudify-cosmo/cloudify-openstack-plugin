@@ -21,7 +21,9 @@ from cloudify.exceptions import NonRecoverableError
 try:
     from cloudify.context import RELATIONSHIP_INSTANCE
 except ImportError:
-    from cloudify.constants import RELATIONSHIP_INSTANCE
+    from cloudify.constants import (
+        RELATIONSHIP_INSTANCE,
+    )
 
 from openstack_plugin_common import (
     provider,
@@ -31,7 +33,9 @@ from openstack_plugin_common import (
     use_external_resource,
     is_external_relationship,
     is_external_relationship_not_conditionally_created,
+    is_external_resource_not_conditionally_created,
     delete_runtime_properties,
+    get_relationships_by_relationship_type,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
     delete_resource_and_runtime_properties,
     get_resource_by_name_or_id,
@@ -39,13 +43,17 @@ from openstack_plugin_common import (
     create_object_dict,
     set_neutron_runtime_properties,
     add_list_to_runtime_properties,
-    COMMON_RUNTIME_PROPERTIES_KEYS
+    COMMON_RUNTIME_PROPERTIES_KEYS,
+    OPENSTACK_TYPE_PROPERTY,
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutronclient.common.exceptions import NeutronClientException
 
 ROUTER_OPENSTACK_TYPE = 'router'
+ROUTES_OPENSTACK_TYPE = 'routes'
+ROUTES_OPENSTACK_NODE_TYPE = 'cloudify.openstack.nodes.Routes'
+ROUTES_OPENSTACK_RELATIONSHIP = 'cloudify.openstack.route_connected_to_router'
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
@@ -87,69 +95,76 @@ def create(neutron_client, args, **kwargs):
     set_neutron_runtime_properties(ctx, r, ROUTER_OPENSTACK_TYPE)
 
 
+# @operation
+# @with_neutron_client
+# def update(neutron_client, args, **kwargs):
+#     # TODO This need should be implemented later on
+#     # This method task should be invoked via "execute_operation"
+#     pass
+
 @operation
 @with_neutron_client
-def update(neutron_client, args, **kwargs):
-    update_router(neutron_client, args, **kwargs)
+def update_routes(neutron_client, args, **kwargs):
+    routes = args.get(ROUTES_OPENSTACK_TYPE)
+    if not routes:
+        raise NonRecoverableError('routes param is required and must be '
+                                  'provided when creating static routes !!')
+    # Force to pass only the "routes" provided by the node properties
+    routes_args = {'routes': routes}
 
-
-def update_router(neutron_client, args, **kwargs):
-
-    from copy import deepcopy
-
-    def dict_merge(a, b):
-        if isinstance(a, list) and isinstance(b, list):
-            a.append(b)
-            return a
-        if not isinstance(b, dict):
-            return b
-        result = deepcopy(a)
-        for k, v in b.iteritems():
-            if k in result and isinstance(result[k], dict):
-                    result[k] = dict_merge(result[k], v)
-            else:
-                result[k] = deepcopy(v)
-        return result
-
-    # Find out if the update script is being called
-    # from a relationship or a node operation.
-    if ctx.type == RELATIONSHIP_INSTANCE:
-        if ROUTER_OPENSTACK_TYPE in get_openstack_type(ctx.source):
-            subject = ctx.source
-        elif ROUTER_OPENSTACK_TYPE in get_openstack_type(ctx.target):
-            subject = ctx.target
+    # This will update the router and add new static routes based on the
+    # routes param provided by the "cloudify.openstack.nodes.Routes"
+    r = _update_router_routes(neutron_client, routes_args, **kwargs)
+    router = r.get(ROUTER_OPENSTACK_TYPE)
+    if r and router:
+        # If the current context type is a relationship then update the
+        # source instance "runtime_properties" otherwise just update the
+        # current instance "runtime_properties"
+        if ctx.type == RELATIONSHIP_INSTANCE:
+            ctx.source.instance.\
+                runtime_properties[ROUTES_OPENSTACK_TYPE] = routes
         else:
-            raise NonRecoverableError(
-                'Neither target nor source is {0}'.format(
-                    ROUTER_OPENSTACK_TYPE))
+            ctx.instance.runtime_properties[ROUTES_OPENSTACK_TYPE] = routes
     else:
-        subject = ctx
-
-    try:
-        router = neutron_client.show_router(get_openstack_id(subject))
-    except NeutronClientException as e:
-        raise NonRecoverableError('Error: {0}'.format(str(e)))
-    if not isinstance(router, dict) or \
-            'router' not in router.keys() or \
-            'id' not in router['router'].keys():
         raise NonRecoverableError(
-            'API returned unexpected structure.: {0}'.format(router))
+            'Failed while trying to retrieve router instance')
 
-    router_id = router['router'].pop('id')
 
-    new_router = {'router': {}}
-    for key, value in args.items():
-        new_router['router'][key] = value
+@operation
+@with_neutron_client
+def add_routes(neutron_client, args, **kwargs):
 
-    for ro_attribute in ['status', 'tenant_id']:
-        try:
-            del router['router'][ro_attribute]
-        except KeyError:
-            pass
+    # Since routes is part of router and not single API resource for routes
+    # "router" resource is used
+    router = use_external_resource(ctx, neutron_client, ROUTER_OPENSTACK_TYPE)
+    if router:
+        # Update routes as part of runtime properties
+        ctx.instance.runtime_properties[ROUTES_OPENSTACK_TYPE]\
+            = router[ROUTES_OPENSTACK_TYPE]
+        # Update type to match it as routes types
+        ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY]\
+            = ROUTES_OPENSTACK_TYPE
+        return
 
-    dict_merge(new_router, router)
-    ctx.logger.info(new_router)
-    neutron_client.update_router(router_id, new_router)
+    routes = ctx.node.properties.get(ROUTES_OPENSTACK_TYPE, {})
+
+    if not routes:
+        raise NonRecoverableError('routes param is required and must be '
+                                  'provided when creating static routes !!')
+
+    # Force to pass only the "routes" provided by the node properties
+    routes_args = {'routes': routes}
+
+    # This will update the router and add new static routes based on the
+    # routes param provided by the "cloudify.openstack.nodes.Routes"
+    r = _update_router_routes(neutron_client, routes_args, **kwargs)
+    router = r.get(ROUTER_OPENSTACK_TYPE)
+    if r and router:
+        set_neutron_runtime_properties(ctx, router, ROUTES_OPENSTACK_TYPE)
+        ctx.instance.runtime_properties[ROUTES_OPENSTACK_TYPE] = routes
+    else:
+        raise NonRecoverableError(
+            'Failed while trying to retrieve router instance')
 
 
 @operation
@@ -174,15 +189,17 @@ def connect_subnet(neutron_client, **kwargs):
 
 @operation
 @with_neutron_client
-def disconnect_subnet(neutron_client, update_args=None, **kwargs):
-
-    if update_args is not None and isinstance(update_args, dict):
-        update_router(neutron_client, args=update_args, ctx=ctx)
-
+def disconnect_subnet(neutron_client, **kwargs):
     if is_external_relationship(ctx):
         ctx.logger.info('Not connecting subnet and router since external '
                         'subnet and router are being used')
         return
+    node_routes = ctx.source.instance.runtime_properties.get(
+        ROUTES_OPENSTACK_TYPE)
+
+    # Only delete routes only if it has "routes" as runtime properties
+    if node_routes:
+        _delete_routes(neutron_client)
 
     neutron_client.remove_interface_router(get_openstack_id(ctx.target), {
             'subnet_id': get_openstack_id(ctx.source)
@@ -195,6 +212,14 @@ def disconnect_subnet(neutron_client, update_args=None, **kwargs):
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
+
+
+@operation
+@with_neutron_client
+def delete_routes(neutron_client, **kwargs):
+
+    _delete_routes(neutron_client)
+    delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
 
 
 @with_neutron_client
@@ -287,3 +312,126 @@ def _get_connected_ext_net_id(neutron_client):
                 ext_net_ids))
 
     return ext_net_ids[0] if ext_net_ids else None
+
+
+def _update_router_routes(neutron_client, args, **kwargs):
+
+    from copy import deepcopy
+
+    def dict_merge(a, b):
+        if isinstance(a, list) and isinstance(b, list):
+            a.extend(b)
+            return a
+        if not isinstance(b, dict):
+            return b
+        result = deepcopy(a)
+        for k, v in b.iteritems():
+            if k in result:
+                ctx.logger.info('Match {0}'.format(k))
+                result[k] = dict_merge(result[k], v)
+                ctx.logger.info('Match Routes {0}'.format(k))
+        return result
+
+    # Find out if the update script is being called
+    # from a relationship or a node operation.
+    router = _get_router_from_relationship(neutron_client)
+
+    router_id = router[ROUTER_OPENSTACK_TYPE].pop('id')
+    new_router = {ROUTER_OPENSTACK_TYPE: {}}
+    for key, value in args.items():
+        new_router['router'][key] = value
+
+    for ro_attribute in ['status', 'tenant_id']:
+        try:
+            del router[ROUTER_OPENSTACK_TYPE][ro_attribute]
+        except KeyError:
+            pass
+
+    new_router = dict_merge(new_router, router)
+    return neutron_client.update_router(router_id, new_router)
+
+
+def _get_router_from_relationship(neutron_client):
+    # Find out if the update script is being called
+    # from a relationship or a node operation.
+
+    # Only get the "router_rel" if it is not a relationship instance
+    if ctx.type != RELATIONSHIP_INSTANCE:
+        router_rel = get_relationships_by_relationship_type(
+            ctx, ROUTES_OPENSTACK_RELATIONSHIP)
+
+    if ctx.type == RELATIONSHIP_INSTANCE:
+        if ROUTER_OPENSTACK_TYPE in get_openstack_type(ctx.source):
+            subject = ctx.source
+        elif ROUTER_OPENSTACK_TYPE in get_openstack_type(ctx.target):
+            subject = ctx.target
+        else:
+            raise NonRecoverableError(
+                'Neither target nor source is {0}'.format(
+                    ROUTER_OPENSTACK_TYPE))
+
+    elif router_rel and ROUTER_OPENSTACK_TYPE\
+            in get_openstack_type(router_rel[0].target):
+
+        subject = router_rel[0].target
+
+    else:
+        subject = ctx
+
+    try:
+        router = neutron_client.show_router(get_openstack_id(subject))
+    except NeutronClientException as e:
+        raise NonRecoverableError('Error: {0}'.format(str(e)))
+    if not isinstance(router, dict) or \
+            ROUTER_OPENSTACK_TYPE not in router.keys() or \
+            'id' not in router['router'].keys():
+        raise NonRecoverableError(
+            'API returned unexpected structure.: {0}'.format(router))
+
+    return router
+
+
+def _prepare_delete_routes_request(neutron_client):
+    # Empty the "static routes" for the router connected to the routes
+
+    if ctx.type != RELATIONSHIP_INSTANCE:
+        node_routes =\
+            ctx.instance.runtime_properties.get(ROUTES_OPENSTACK_TYPE)
+    else:
+        node_routes =\
+            ctx.source.instance.runtime_properties.get(ROUTES_OPENSTACK_TYPE)
+
+    if node_routes is None:
+        raise NonRecoverableError('Unable to get routes from instance !!')
+
+    router = _get_router_from_relationship(neutron_client)
+    routes = router[ROUTER_OPENSTACK_TYPE].get(ROUTES_OPENSTACK_TYPE)
+
+    new_router = {ROUTER_OPENSTACK_TYPE: {}}
+
+    for index, main_route in enumerate(routes):
+        for node_route in node_routes:
+            if main_route == node_route:
+                del routes[index]
+
+    new_router[ROUTER_OPENSTACK_TYPE]['id'] =\
+        router[ROUTER_OPENSTACK_TYPE].get('id')
+    new_router[ROUTER_OPENSTACK_TYPE]['routes'] = routes
+    return new_router
+
+
+def _delete_routes(neutron_client):
+    new_router = _prepare_delete_routes_request(neutron_client)
+    if new_router and new_router.get(ROUTER_OPENSTACK_TYPE):
+        router_id = new_router[ROUTER_OPENSTACK_TYPE].pop('id')
+    else:
+        raise NonRecoverableError(
+            'Failed while trying to retrieve router instance')
+
+    subject = ctx.source if ctx.type == RELATIONSHIP_INSTANCE else ctx
+    if not is_external_resource_not_conditionally_created(subject):
+        ctx.logger.info('deleting {0}'.format(ROUTES_OPENSTACK_TYPE))
+        neutron_client.update_router(router_id, new_router)
+    else:
+        ctx.logger.info('not deleting {0} since an external {0} is '
+                        'being used'.format(ROUTES_OPENSTACK_TYPE))

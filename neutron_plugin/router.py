@@ -45,6 +45,7 @@ from openstack_plugin_common import (
     add_list_to_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS,
     OPENSTACK_TYPE_PROPERTY,
+    OPENSTACK_ID_PROPERTY,
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
@@ -57,6 +58,43 @@ ROUTES_OPENSTACK_RELATIONSHIP = 'cloudify.openstack.route_connected_to_router'
 
 # Runtime properties
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
+
+
+def _update_router_routes(neutron_client, args, **kwargs):
+
+    from copy import deepcopy
+
+    def dict_merge(a, b):
+        if isinstance(a, list) and isinstance(b, list):
+            a.extend(b)
+            return a
+        if not isinstance(b, dict):
+            return b
+        result = deepcopy(a)
+        for k, v in b.iteritems():
+            if k in result:
+                ctx.logger.info('Match {0}'.format(k))
+                result[k] = dict_merge(result[k], v)
+                ctx.logger.info('Match Routes {0}'.format(k))
+        return result
+
+    # Find out if the update script is being called
+    # from a relationship or a node operation.
+    router = _get_router_from_relationship(neutron_client)
+
+    router_id = router[ROUTER_OPENSTACK_TYPE].pop('id')
+    new_router = {ROUTER_OPENSTACK_TYPE: {}}
+    for key, value in args.items():
+        new_router['router'][key] = value
+
+    for ro_attribute in ['status', 'tenant_id']:
+        try:
+            del router[ROUTER_OPENSTACK_TYPE][ro_attribute]
+        except KeyError:
+            pass
+
+    new_router = dict_merge(new_router, router)
+    return neutron_client.update_router(router_id, new_router)
 
 
 @operation
@@ -95,12 +133,23 @@ def create(neutron_client, args, **kwargs):
     set_neutron_runtime_properties(ctx, r, ROUTER_OPENSTACK_TYPE)
 
 
-# @operation
-# @with_neutron_client
-# def update(neutron_client, args, **kwargs):
-#     # TODO This need should be implemented later on
-#     # This method task should be invoked via "execute_operation"
-#     pass
+@operation
+@with_neutron_client
+def update(neutron_client, args, **kwargs):
+    if not args:
+        raise NonRecoverableError(
+            'args must be provided to update '
+            'router {0}'.format(kwargs.get('resource_id'))
+        )
+
+    router_id = ctx.instance.runtime_properties.get(OPENSTACK_ID_PROPERTY)
+    if not router_id:
+        raise NonRecoverableError(
+            'Router {0} is missing '.format(OPENSTACK_ID_PROPERTY)
+        )
+
+    return neutron_client.update_router(router_id, args)
+
 
 @operation
 @with_neutron_client
@@ -314,53 +363,23 @@ def _get_connected_ext_net_id(neutron_client):
     return ext_net_ids[0] if ext_net_ids else None
 
 
-def _update_router_routes(neutron_client, args, **kwargs):
-
-    from copy import deepcopy
-
-    def dict_merge(a, b):
-        if isinstance(a, list) and isinstance(b, list):
-            a.extend(b)
-            return a
-        if not isinstance(b, dict):
-            return b
-        result = deepcopy(a)
-        for k, v in b.iteritems():
-            if k in result:
-                ctx.logger.info('Match {0}'.format(k))
-                result[k] = dict_merge(result[k], v)
-                ctx.logger.info('Match Routes {0}'.format(k))
-        return result
-
-    # Find out if the update script is being called
-    # from a relationship or a node operation.
-    router = _get_router_from_relationship(neutron_client)
-
-    router_id = router[ROUTER_OPENSTACK_TYPE].pop('id')
-    new_router = {ROUTER_OPENSTACK_TYPE: {}}
-    for key, value in args.items():
-        new_router['router'][key] = value
-
-    for ro_attribute in ['status', 'tenant_id']:
-        try:
-            del router[ROUTER_OPENSTACK_TYPE][ro_attribute]
-        except KeyError:
-            pass
-
-    new_router = dict_merge(new_router, router)
-    return neutron_client.update_router(router_id, new_router)
-
-
 def _get_router_from_relationship(neutron_client):
     # Find out if the update script is being called
     # from a relationship or a node operation.
 
     # Only get the "router_rel" if it is not a relationship instance
     if ctx.type != RELATIONSHIP_INSTANCE:
+
         router_rel = get_relationships_by_relationship_type(
             ctx, ROUTES_OPENSTACK_RELATIONSHIP)
 
-    if ctx.type == RELATIONSHIP_INSTANCE:
+        if router_rel and ROUTER_OPENSTACK_TYPE in get_openstack_type(
+                router_rel[0].target):
+            subject = router_rel[0].target
+        else:
+            subject = ctx
+
+    elif ctx.type == RELATIONSHIP_INSTANCE:
         if ROUTER_OPENSTACK_TYPE in get_openstack_type(ctx.source):
             subject = ctx.source
         elif ROUTER_OPENSTACK_TYPE in get_openstack_type(ctx.target):
@@ -369,14 +388,6 @@ def _get_router_from_relationship(neutron_client):
             raise NonRecoverableError(
                 'Neither target nor source is {0}'.format(
                     ROUTER_OPENSTACK_TYPE))
-
-    elif router_rel and ROUTER_OPENSTACK_TYPE\
-            in get_openstack_type(router_rel[0].target):
-
-        subject = router_rel[0].target
-
-    else:
-        subject = ctx
 
     try:
         router = neutron_client.show_router(get_openstack_id(subject))

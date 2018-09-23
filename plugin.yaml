@@ -638,6 +638,16 @@ node_types:
               type: string
               default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
+        update:
+          implementation: openstack.neutron_plugin.router.update
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         list:
           implementation: openstack.neutron_plugin.router.list_routers
           inputs:

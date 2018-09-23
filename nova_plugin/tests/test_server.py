@@ -1140,6 +1140,10 @@ class TestServerNetworkRuntimeProperties(unittest.TestCase):
         self.assertEquals(ctx.instance.runtime_properties['ip'], 'good')
         self.assertEquals(ctx.instance.runtime_properties['networks'],
                           {network_id: network_ips})
+        self.assertIn('ipv4_address', ctx.instance.runtime_properties)
+        self.assertIn('ipv4_addresses', ctx.instance.runtime_properties)
+        self.assertIn('ipv6_address', ctx.instance.runtime_properties)
+        self.assertIn('ipv6_addresses', ctx.instance.runtime_properties)
 
     def test_server_networks_runtime_properties_valid_networks_no_mgmt(self):
         ctx = self.mock_ctx

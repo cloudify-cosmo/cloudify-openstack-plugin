@@ -14,6 +14,7 @@
 #  * limitations under the License.
 
 
+import netaddr
 import os
 import time
 import copy
@@ -86,6 +87,10 @@ SERVER_DELETE_CHECK_SLEEP = 2
 # Runtime properties
 NETWORKS_PROPERTY = 'networks'  # all of the server's ips
 IP_PROPERTY = 'ip'  # the server's private ip
+IPV4_PROPERTY = 'ipv4_address'
+IPV6_PROPERTY = 'ipv6_address'
+IPV4_LIST_PROPERTY = 'ipv4_addresses'
+IPV6_LIST_PROPERTY = 'ipv6_addresses'
 ADMIN_PASSWORD_PROPERTY = 'password'  # the server's password
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + \
     [NETWORKS_PROPERTY, IP_PROPERTY, ADMIN_PASSWORD_PROPERTY]
@@ -772,15 +777,35 @@ def _set_network_and_ip_runtime_properties(server):
     management_network_name = server.metadata.get(
         'cloudify_management_network_name')
 
+    ipv4_addrs = []
+    ipv6_addrs = []
     for network, network_ips in server.networks.items():
         if (management_network_name and
                 network == management_network_name) or not \
                 manager_network_ip:
             manager_network_ip = next(iter(network_ips or []), None)
         ips[network] = network_ips
+        ipv4_addrs = list(set(
+            ipv4_addrs + [ip for ip in network_ips if netaddr.valid_ipv4(ip)]))
+        ipv6_addrs = list(set(
+            ipv6_addrs + [ip for ip in network_ips if netaddr.valid_ipv6(ip)]))
+
     ctx.instance.runtime_properties[NETWORKS_PROPERTY] = ips
-    # The ip of this instance in the management network
+    ctx.instance.runtime_properties[IPV4_LIST_PROPERTY] = ipv4_addrs
+    ctx.instance.runtime_properties[IPV6_LIST_PROPERTY] = ipv6_addrs
     ctx.instance.runtime_properties[IP_PROPERTY] = manager_network_ip
+    if server.accessIPv4:
+        ctx.instance.runtime_properties[IPV4_PROPERTY] = server.accessIPv4
+    elif netaddr.valid_ipv4(manager_network_ip):
+        ctx.instance.runtime_properties[IPV4_PROPERTY] = manager_network_ip
+    else:
+        ctx.instance.runtime_properties[IPV4_PROPERTY] = None
+    if server.accessIPv6:
+        ctx.instance.runtime_properties[IPV6_PROPERTY] = server.accessIPv6
+    elif netaddr.valid_ipv6(manager_network_ip):
+        ctx.instance.runtime_properties[IPV6_PROPERTY] = manager_network_ip
+    else:
+        ctx.instance.runtime_properties[IPV6_PROPERTY] = None
 
 
 @operation

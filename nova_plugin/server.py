@@ -798,12 +798,16 @@ def _set_network_and_ip_runtime_properties(server):
         ctx.instance.runtime_properties[IPV4_PROPERTY] = server.accessIPv4
     elif netaddr.valid_ipv4(manager_network_ip):
         ctx.instance.runtime_properties[IPV4_PROPERTY] = manager_network_ip
+    elif len(ipv4_addrs) == 1:
+        ctx.instance.runtime_properties[IPV4_PROPERTY] = ipv4_addrs[0]
     else:
         ctx.instance.runtime_properties[IPV4_PROPERTY] = None
     if server.accessIPv6:
         ctx.instance.runtime_properties[IPV6_PROPERTY] = server.accessIPv6
     elif netaddr.valid_ipv6(manager_network_ip):
         ctx.instance.runtime_properties[IPV6_PROPERTY] = manager_network_ip
+    elif len(ipv6_addrs) == 1:
+        ctx.instance.runtime_properties[IPV6_PROPERTY] = ipv6_addrs[0]
     else:
         ctx.instance.runtime_properties[IPV6_PROPERTY] = None
 

@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.10.0.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.11.0.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.10.0'
+    package_version: '2.11.0'
 
 data_types:
   cloudify.openstack.types.custom_configuration:
@@ -638,6 +638,16 @@ node_types:
               type: string
               default: { get_property: [ SELF, resource_id ] }
       cloudify.interfaces.operations:
+        update:
+          implementation: openstack.neutron_plugin.router.update
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
         list:
           implementation: openstack.neutron_plugin.router.list_routers
           inputs:
@@ -648,6 +658,56 @@ node_types:
             resource_id:
               type: string
               default: { get_property: [ SELF, resource_id ] }
+
+  cloudify.openstack.nodes.Routes:
+    derived_from: cloudify.nodes.Root
+    properties:
+      routes:
+        default: []
+        description: >
+          The extra routes configuration for L3 router.
+          A list of dictionaries with destination and nexthop parameters.
+          It is available when extraroute extension is enabled.
+          Default is an empty list ([]).
+          https://developer.openstack.org/api-ref/network/v2/index.html#update-router
+      use_external_resource:
+        type: boolean
+        default: false
+        description: >
+          a boolean for setting whether to create the resource or use an existing one.
+          See the using existing resources section.
+      create_if_missing:
+        type: boolean
+        default: false
+        description: >
+          If use_external_resource is ``true`` and the resource is missing,
+          create it instead of failing.
+      resource_id:
+        type: string
+        default: ''
+        description: >
+          name to give to the new resource or the name or ID of an existing resource when the ``use_external_resource`` property is set to ``true`` (see the using existing resources section). Defaults to '' (empty string).
+      openstack_config:
+        type: cloudify.openstack.types.configuration
+        default: {}
+        description: >
+          endpoints and authentication configuration for Openstack.
+          Expected to contain the following nested fields:
+          username, password, tenant_name, auth_url, region.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.neutron_plugin.router.add_routes
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
+        delete:
+          implementation: openstack.neutron_plugin.router.delete_routes
 
   cloudify.openstack.nodes.Port:
     derived_from: cloudify.nodes.Port
@@ -1888,4 +1948,7 @@ relationships:
     derived_from: cloudify.relationships.connected_to
 
   cloudify.openstack.rbac_policy_applied_to:
+    derived_from: cloudify.relationships.connected_to
+
+  cloudify.openstack.route_connected_to_router:
     derived_from: cloudify.relationships.connected_to

@@ -1,6 +1,8 @@
 2.11.0:
     - Ensure deletion of resources that were created under a create_if_missing condition.
     - Check for network ID provided as part of port node property.
+    - Add support for static routes
+    - Add runtime properties for ipv4 and ipv6 addresses
 2.10.0:
     - RBAC policy support added
     - Flavor access and flavor extra-specs support added

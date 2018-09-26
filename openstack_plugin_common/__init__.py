@@ -956,11 +956,11 @@ def with_keystone_client(f):
 
 def _handle_kw(client_name, client_class, kw):
 
-    resource_id = kw.pop('resource_id', '')
-
     _ctx = _find_context_in_kw(kw) or ctx
     if _ctx.type == context.NODE_INSTANCE:
         config = _ctx.node.properties.get(CONFIG_PROPERTY)
+        resource_id = kw.pop(
+            'resource_id', _ctx.node.properties.get('resource_id'))
         rt_config = _ctx.instance.runtime_properties.get(
             CONFIG_RUNTIME_PROPERTY)
         if resource_id and OPENSTACK_ID_PROPERTY not in \
@@ -971,6 +971,8 @@ def _handle_kw(client_name, client_class, kw):
         config = _ctx.source.node.properties.get(CONFIG_PROPERTY)
         rt_config = _ctx.source.instance.runtime_properties.get(
             CONFIG_RUNTIME_PROPERTY)
+        resource_id = kw.pop(
+            'resource_id', _ctx.source.node.properties.get('resource_id'))
         if not config:
             config = _ctx.target.node.properties.get(CONFIG_PROPERTY)
             rt_config = _ctx.target.instance.runtime_properties.get(

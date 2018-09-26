@@ -1241,6 +1241,17 @@ node_types:
             resource_id:
               type: string
               default: { get_property: [ SELF, resource_id ] }
+            status_attempts:
+              description: >
+                Number of times to check for the attachment's status before failing
+              type: integer
+              default: 10
+            status_timeout:
+              description: >
+                Interval (in seconds) between subsequent inquiries of the attachment's
+                status
+              type: integer
+              default: 2
         delete:
           implementation: openstack.nova_plugin.security_group.delete
           inputs:

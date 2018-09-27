@@ -73,7 +73,11 @@ def _set_volume_runtime_properties(volume):
 
 @operation
 @with_cinder_client
-def create(cinder_client, status_attempts, status_timeout, args, **kwargs):
+def create(cinder_client,
+           args={},
+           status_timeout=15,
+           status_attempts=20,
+           **kwargs):
 
     external_volume = use_external_resource(
         ctx, cinder_client, VOLUME_OPENSTACK_TYPE, VOLUME_OPENSTACK_ID_KEY)

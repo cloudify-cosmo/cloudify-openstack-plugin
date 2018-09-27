@@ -1,3 +1,5 @@
+2.11.1:
+    - Provide operation default values in signature of operations/wrappers instead of plugin.yaml. Affects: server, volume, and floating IP operations.
 2.11.0:
     - Ensure deletion of resources that were created under a create_if_missing condition.
     - Check for network ID provided as part of port node property.

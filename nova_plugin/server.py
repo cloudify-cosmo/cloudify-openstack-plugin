@@ -403,7 +403,11 @@ def get_port_networks(neutron_client, port_ids):
 
 @operation
 @with_nova_client
-def start(nova_client, start_retry_interval, private_key_path, **kwargs):
+def start(nova_client,
+          start_retry_interval=30,
+          private_key_path='',
+          **kwargs):
+
     server = get_server_by_context(nova_client)
 
     if is_external_resource_not_conditionally_created(ctx):
@@ -814,7 +818,7 @@ def _set_network_and_ip_runtime_properties(server):
 
 @operation
 @with_nova_client
-def connect_floatingip(nova_client, fixed_ip, **kwargs):
+def connect_floatingip(nova_client, fixed_ip='', **kwargs):
     server_id = get_openstack_id(ctx.source)
     floating_ip_id = get_openstack_id(ctx.target)
 
@@ -934,8 +938,12 @@ def disconnect_security_group(nova_client, **kwargs):
 @operation
 @with_nova_client
 @with_cinder_client
-def attach_volume(nova_client, cinder_client, status_attempts,
-                  status_timeout, **kwargs):
+def attach_volume(nova_client,
+                  cinder_client,
+                  status_attempts=10,
+                  status_timeout=2,
+                  **kwargs):
+
     server_id = get_openstack_id(ctx.target)
     volume_id = get_openstack_id(ctx.source)
 
@@ -1025,8 +1033,12 @@ def _detach_volume(nova_client, cinder_client, server_id, volume_id,
 @operation
 @with_nova_client
 @with_cinder_client
-def detach_volume(nova_client, cinder_client, status_attempts,
-                  status_timeout, **kwargs):
+def detach_volume(nova_client,
+                  cinder_client,
+                  status_attempts=10,
+                  status_timeout=2,
+                  **kwargs):
+
     if is_external_relationship(ctx):
         ctx.logger.info('Not detaching volume from server since '
                         'external volume and server are being used')

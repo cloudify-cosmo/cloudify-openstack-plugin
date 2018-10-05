@@ -517,6 +517,32 @@ def _server_start(nova_client, server):
         ctx.logger.info('Server is already started?')
 
 
+@operation
+@with_nova_client
+def reboot(nova_client, reboot_type='SOFT', **kwargs):
+    server = get_server_by_context(nova_client)
+
+    if (reboot_type.upper() == 'SOFT' and \
+            server.status == SERVER_STATUS_ACTIVE) or \
+            reboot_type.upper() == 'HARD':
+        return _server_reboot(
+            nova_client, server, reboot_type.upper())
+    elif reboot_type.upper() == 'SOFT' and \
+            server.status != SERVER_STATUS_ACTIVE:
+        raise NonRecoverableError(
+            'Server has to be in ACTIVE state \
+                in order to run soft reboot.')
+    else:
+        raise NonRecoverableError(
+            'Unexpected reboot type: {}. Valid values: SOFT or HARD.'
+            .format(reboot_type))
+
+
+def _server_reboot(nova_client, server, reboot_type):
+    nova_client.servers.reboot(server, reboot_type)
+    ctx.logger.info('{0} Reboot VM: {1}'.format(reboot_type, server.human_id))
+
+
 def _server_suspend(nova_client, server):
     if server.status == SERVER_STATUS_ACTIVE:
         nova_client.servers.suspend(server)

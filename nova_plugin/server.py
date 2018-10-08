@@ -76,6 +76,10 @@ SERVER_STATUS_ACTIVE = 'ACTIVE'
 SERVER_STATUS_BUILD = 'BUILD'
 SERVER_STATUS_SHUTOFF = 'SHUTOFF'
 SERVER_STATUS_SUSPENDED = 'SUSPENDED'
+SERVER_STATUS_ERROR = 'ERROR'
+SERVER_STATUS_REBOOT = 'REBOOT'
+SERVER_STATUS_HARD_REBOOT = 'HARD_REBOOT'
+SERVER_STATUS_UNKNOWN = 'UNKNOWN'
 
 OS_EXT_STS_TASK_STATE = 'OS-EXT-STS:task_state'
 SERVER_TASK_STATE_POWERING_ON = 'powering-on'
@@ -519,10 +523,10 @@ def _server_start(nova_client, server):
 
 @operation
 @with_nova_client
-def reboot(nova_client, reboot_type='SOFT', **kwargs):
+def reboot(nova_client, reboot_type='soft', **kwargs):
     server = get_server_by_context(nova_client)
 
-    if (reboot_type.upper() == 'SOFT' and \
+    if (reboot_type.upper() == 'SOFT' and
             server.status == SERVER_STATUS_ACTIVE) or \
             reboot_type.upper() == 'HARD':
         return _server_reboot(
@@ -540,7 +544,31 @@ def reboot(nova_client, reboot_type='SOFT', **kwargs):
 
 def _server_reboot(nova_client, server, reboot_type):
     nova_client.servers.reboot(server, reboot_type)
-    ctx.logger.info('{0} Reboot VM: {1}'.format(reboot_type, server.human_id))
+
+    for i in range(1, 30):
+        # wait 5 seconds before next check
+        time.sleep(5)
+
+        server = nova_client.servers.get(server.id)
+
+        if server.status == SERVER_STATUS_REBOOT or \
+                server.status == SERVER_STATUS_HARD_REBOOT or \
+                server.status == SERVER_STATUS_UNKNOWN:
+            ctx.logger.info(
+                'Server has {0} state. Waiting... ({1}/30)'
+                .format(server.status, i))
+        elif server.status == SERVER_STATUS_ERROR:
+            raise NonRecoverableError(
+                'Reboot operation finished in {} state.'
+                .format(server.status))
+        elif server.status == SERVER_STATUS_ACTIVE:
+            return ctx.logger.info(
+                'Reboot operation finished in {} state.'
+                .format(server.status))
+        else:
+            raise NonRecoverableError(
+                'Reboot operation finished in unexpected state: {}'
+                .format(server.state))
 
 
 def _server_suspend(nova_client, server):

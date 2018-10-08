@@ -1,4 +1,4 @@
-2.11.2:
+2.12.0:
     - Add reboot operation for server
 2.11.1:
     - Provide operation default values in signature of operations/wrappers instead of plugin.yaml. Affects: server, volume, and floating IP operations.

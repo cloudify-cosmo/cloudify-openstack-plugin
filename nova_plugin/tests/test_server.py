@@ -335,6 +335,37 @@ class TestServer(unittest.TestCase):
 
     @mock.patch('openstack_plugin_common.NovaClientWithSugar')
     @mock.patch('time.sleep', mock.Mock())
+    def test_server_reboot(self, nova_m):
+        nova_instance = nova_m.return_value
+
+        # use internal already started vm
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+
+        nova_plugin.server._server_reboot(nova_instance, server_mock, 'soft')
+
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+        nova_instance.servers.reboot.assert_has_calls(
+            [mock.call(server_mock, 'soft')])
+
+        # use internal already started vm
+        self._simplectx()
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+
+        nova_plugin.server._server_reboot(nova_instance, server_mock, 'hard')
+
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+        nova_instance.servers.reboot.assert_has_calls(
+            [mock.call(server_mock, 'hard')])
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
     def test_server_resume(self, nova_m):
         nova_instance = nova_m.return_value
 

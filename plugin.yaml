@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.11.1.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.12.0.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.11.1'
+    package_version: '2.12.0'
 
 data_types:
   cloudify.openstack.types.custom_configuration:
@@ -253,6 +253,12 @@ node_types:
             resource_id:
               type: string
               default: { get_property: [ SELF, resource_id ] }
+        reboot:
+          implementation: openstack.nova_plugin.server.reboot
+          inputs:
+            reboot_type:
+              type: string
+              default: soft
       # suspend/resume
       cloudify.interfaces.freeze:
         suspend:

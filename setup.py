@@ -19,7 +19,7 @@ from setuptools import setup
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='2.12.0',
+    version='2.12.1',
     author='Cloudify',
     author_email='hello@cloudify.co',
     packages=[

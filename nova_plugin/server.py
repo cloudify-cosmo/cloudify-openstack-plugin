@@ -76,6 +76,10 @@ SERVER_STATUS_ACTIVE = 'ACTIVE'
 SERVER_STATUS_BUILD = 'BUILD'
 SERVER_STATUS_SHUTOFF = 'SHUTOFF'
 SERVER_STATUS_SUSPENDED = 'SUSPENDED'
+SERVER_STATUS_ERROR = 'ERROR'
+SERVER_STATUS_REBOOT = 'REBOOT'
+SERVER_STATUS_HARD_REBOOT = 'HARD_REBOOT'
+SERVER_STATUS_UNKNOWN = 'UNKNOWN'
 
 OS_EXT_STS_TASK_STATE = 'OS-EXT-STS:task_state'
 SERVER_TASK_STATE_POWERING_ON = 'powering-on'
@@ -515,6 +519,45 @@ def _server_start(nova_client, server):
                     retry_after=30)
     else:
         ctx.logger.info('Server is already started?')
+
+
+@operation
+@with_nova_client
+def reboot(nova_client, reboot_type='soft', **kwargs):
+
+    if ctx.operation.retry_number == 0:
+        if reboot_type.upper() not in ['HARD', 'SOFT']:
+            raise NonRecoverableError(
+                'Unexpected reboot type: {}. '
+                'Valid values: SOFT or HARD.'.format(
+                    reboot_type))
+        server = get_server_by_context(nova_client)
+        nova_client.servers.reboot(server, reboot_type.upper())
+
+    server = nova_client.servers.get(server.id)
+
+    if server.status in [SERVER_STATUS_REBOOT,
+                         SERVER_STATUS_HARD_REBOOT,
+                         SERVER_STATUS_UNKNOWN]:
+        return ctx.operation.retry(
+            message="Server has {0} state. Waiting.".format(
+                server.status),
+            retry_after=30)
+
+    elif server.status == SERVER_STATUS_ACTIVE:
+        ctx.logger.info(
+            'Reboot operation finished in {} state.'.format(
+                server.status))
+
+    elif server.status == SERVER_STATUS_ERROR:
+        raise NonRecoverableError(
+            'Reboot operation finished in {} state.'.format(
+                server.status))
+
+    else:
+        raise NonRecoverableError(
+            'Reboot operation finished in unexpected state: {}'.format(
+                server.state))
 
 
 def _server_suspend(nova_client, server):

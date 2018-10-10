@@ -335,6 +335,40 @@ class TestServer(unittest.TestCase):
 
     @mock.patch('openstack_plugin_common.NovaClientWithSugar')
     @mock.patch('time.sleep', mock.Mock())
+    def test_server_reboot(self, nova_m):
+        ctx_operation = {
+            'retry_number': 0
+        }
+        nova_instance = nova_m.return_value
+
+        # use internal already started vm
+        self._simplectx(operation=ctx_operation)
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+
+        nova_plugin.server.reboot(reboot_type='soft')
+
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+        nova_instance.servers.reboot.assert_has_calls(
+            [mock.call(server_mock, 'SOFT')])
+
+        # use internal already started vm
+        self._simplectx(operation=ctx_operation)
+        server_mock = mock.Mock()
+        server_mock.status = nova_plugin.server.SERVER_STATUS_ACTIVE
+        nova_instance.servers.get = mock.Mock(return_value=server_mock)
+
+        nova_plugin.server.reboot(reboot_type='hard')
+
+        nova_instance.servers.stop.assert_not_called()
+        nova_instance.servers.start.assert_not_called()
+        nova_instance.servers.reboot.assert_has_calls(
+            [mock.call(server_mock, 'HARD')])
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('time.sleep', mock.Mock())
     def test_server_resume(self, nova_m):
         nova_instance = nova_m.return_value
 
@@ -446,11 +480,12 @@ class TestServer(unittest.TestCase):
         nova_plugin.server._check_finished_upload(nova_instance, server_mock,
                                                   ['image_uploading'])
 
-    def _simplectx(self):
+    def _simplectx(self, operation=None):
         server_ctx = MockCloudifyContext(
             node_id="node_id",
             node_name="node_name",
             properties={},
+            operation=operation,
             runtime_properties={'external_id': 'server_id'}
         )
         current_ctx.set(server_ctx)

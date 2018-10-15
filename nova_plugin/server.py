@@ -525,13 +525,14 @@ def _server_start(nova_client, server):
 @with_nova_client
 def reboot(nova_client, reboot_type='soft', **kwargs):
 
+    server = get_server_by_context(nova_client)
+
     if ctx.operation.retry_number == 0:
         if reboot_type.upper() not in ['HARD', 'SOFT']:
             raise NonRecoverableError(
                 'Unexpected reboot type: {}. '
                 'Valid values: SOFT or HARD.'.format(
                     reboot_type))
-        server = get_server_by_context(nova_client)
         nova_client.servers.reboot(server, reboot_type.upper())
 
     server = nova_client.servers.get(server.id)

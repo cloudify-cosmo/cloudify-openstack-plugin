@@ -45,6 +45,7 @@ from neutron_plugin.security_group import SG_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import get_server_floating_ip
 
 PORT_OPENSTACK_TYPE = 'port'
+PORT_ALLOWED_ADDRESS = 'allowed_address_pairs'
 PORT_ADDRESS_REL_TYPE = 'cloudify.openstack.port_connected_to_floating_ip'
 
 # Runtime properties
@@ -57,6 +58,44 @@ RUNTIME_PROPERTIES_KEYS = \
 NO_SG_PORT_CONNECTION_RETRY_INTERVAL = 3
 
 
+def _port_update(neutron_client, port_id, ext_port):
+    runtime_properties = ctx.instance.runtime_properties
+    updated_params = ctx.node.properties.get(PORT_OPENSTACK_TYPE)
+    if updated_params:
+        if PORT_ALLOWED_ADDRESS in updated_params:
+            allowed_addpairs = ext_port.get(PORT_ALLOWED_ADDRESS, [])
+            for allowed_addpair in updated_params[PORT_ALLOWED_ADDRESS]:
+                for old_addpair in allowed_addpairs:
+                    old_ip = old_addpair.get('ip_address')
+                    if old_ip == allowed_addpair.get('ip_address'):
+                        raise NonRecoverableError(
+                            'Ip {} is already assigned to {}.'
+                            .format(old_ip, port_id))
+                else:
+                    allowed_addpairs.append(allowed_addpair)
+
+            change = {
+                PORT_OPENSTACK_TYPE: {
+                    PORT_ALLOWED_ADDRESS: allowed_addpairs
+                }
+            }
+            neutron_client.update_port(port_id, change)
+            runtime_properties[PORT_ALLOWED_ADDRESS] = allowed_addpairs
+            ctx.logger.info("Applied: {}".format(repr(change)))
+    # update network id
+    net_id = get_openstack_id_of_single_connected_node_by_openstack_type(
+            ctx, NETWORK_OPENSTACK_TYPE, True)
+    if net_id:
+        if neutron_client.show_port(
+                port_id)[PORT_OPENSTACK_TYPE]['network_id'] != net_id:
+            raise NonRecoverableError(
+                'Expected external resources port {0} and network {1} '
+                'to be connected'.format(port_id, net_id))
+    # update port ip and mac
+    runtime_properties[FIXED_IP_ADDRESS_PROPERTY] = _get_fixed_ip(ext_port)
+    runtime_properties[MAC_ADDRESS_PROPERTY] = ext_port['mac_address']
+
+
 @operation
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
@@ -64,23 +103,8 @@ def create(neutron_client, args, **kwargs):
     ext_port = use_external_resource(ctx, neutron_client, PORT_OPENSTACK_TYPE)
     if ext_port:
         try:
-            net_id = \
-                get_openstack_id_of_single_connected_node_by_openstack_type(
-                    ctx, NETWORK_OPENSTACK_TYPE, True)
-
-            if net_id:
-                port_id = get_openstack_id(ctx)
-
-                if neutron_client.show_port(
-                        port_id)[PORT_OPENSTACK_TYPE]['network_id'] != net_id:
-                    raise NonRecoverableError(
-                        'Expected external resources port {0} and network {1} '
-                        'to be connected'.format(port_id, net_id))
-
-            ctx.instance.runtime_properties[FIXED_IP_ADDRESS_PROPERTY] = \
-                _get_fixed_ip(ext_port)
-            ctx.instance.runtime_properties[MAC_ADDRESS_PROPERTY] = \
-                ext_port['mac_address']
+            port_id = get_openstack_id(ctx)
+            _port_update(neutron_client, port_id, ext_port)
             return
         except Exception:
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
@@ -166,10 +190,42 @@ def attach(nova_client, neutron_client, **kwargs):
             'to device (server) id {1}.'.format(port_id, device_id))
 
 
+def _port_delete(neutron_client, port_id, ext_port):
+    updated_params = ctx.node.properties.get(PORT_OPENSTACK_TYPE)
+    if updated_params:
+        if PORT_ALLOWED_ADDRESS in updated_params:
+            ips_for_remove = []
+            updated_pairs = []
+            allowed_addpairs = ext_port.get(PORT_ALLOWED_ADDRESS, [])
+            # ip's for remove
+            for allowed_addpair in updated_params[PORT_ALLOWED_ADDRESS]:
+                ips_for_remove.append(allowed_addpair.get('ip_address'))
+            # cleanup ip's
+            for old_addpair in allowed_addpairs:
+                old_ip = old_addpair.get('ip_address')
+                if old_ip not in ips_for_remove:
+                    updated_pairs.append(old_addpair)
+            # apply changes
+            change = {
+                PORT_OPENSTACK_TYPE: {
+                    PORT_ALLOWED_ADDRESS: updated_pairs
+                }
+            }
+            neutron_client.update_port(port_id, change)
+            ctx.logger.info("Applied on remove: {}".format(repr(change)))
+
+
 @operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     try:
+        # clean up external resource
+        ext_port = use_external_resource(ctx, neutron_client,
+                                         PORT_OPENSTACK_TYPE)
+        if ext_port:
+            port_id = get_openstack_id(ctx)
+            _port_delete(neutron_client, port_id, ext_port)
+        # remove port if need
         delete_resource_and_runtime_properties(ctx, neutron_client,
                                                RUNTIME_PROPERTIES_KEYS)
     except neutron_exceptions.NeutronClientException as e:

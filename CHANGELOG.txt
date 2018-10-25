@@ -1,3 +1,5 @@
+2.13.0:
+    - Update 'allowed_address_pairs' on external port's.
 2.12.1:
     - Update openstack clients versions
 2.12.0:

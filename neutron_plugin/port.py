@@ -58,9 +58,9 @@ RUNTIME_PROPERTIES_KEYS = \
 NO_SG_PORT_CONNECTION_RETRY_INTERVAL = 3
 
 
-def _port_update(neutron_client, port_id, ext_port):
+def _port_update(neutron_client, port_id, args, ext_port):
     runtime_properties = ctx.instance.runtime_properties
-    updated_params = ctx.node.properties.get(PORT_OPENSTACK_TYPE)
+    updated_params = create_object_dict(ctx, PORT_OPENSTACK_TYPE, args, {})
     if updated_params:
         if PORT_ALLOWED_ADDRESS in updated_params:
             allowed_addpairs = ext_port.get(PORT_ALLOWED_ADDRESS, [])
@@ -104,7 +104,7 @@ def create(neutron_client, args, **kwargs):
     if ext_port:
         try:
             port_id = get_openstack_id(ctx)
-            _port_update(neutron_client, port_id, ext_port)
+            _port_update(neutron_client, port_id, args, ext_port)
             return
         except Exception:
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)

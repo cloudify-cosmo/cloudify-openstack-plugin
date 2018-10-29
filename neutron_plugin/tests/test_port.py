@@ -87,6 +87,7 @@ class TestPort(unittest.TestCase):
     def test_port_update(self):
         node_props = {
             'fixed_ip': '',
+            'resource_id': 'resource_id',
             'port': {
                 'allowed_address_pairs': [{
                     'ip_address': '1.2.3.4'
@@ -98,7 +99,7 @@ class TestPort(unittest.TestCase):
             port = {'fixed_ips': [],
                     'mac_address': 'abc-edf'}
             # add new ip
-            neutron_plugin.port._port_update(mock_neutron, "port_id", port)
+            neutron_plugin.port._port_update(mock_neutron, "port_id", {}, port)
             self.assertEqual(
                 {
                     'fixed_ip_address': None,
@@ -111,12 +112,14 @@ class TestPort(unittest.TestCase):
                     'allowed_address_pairs': [{'ip_address': '1.2.3.4'}],
                     'mac_address': 'abc-edf'}
             with self.assertRaises(NonRecoverableError):
-                neutron_plugin.port._port_update(mock_neutron, "port_id", port)
+                neutron_plugin.port._port_update(mock_neutron, "port_id",
+                                                 {}, port)
 
     @mock.patch('openstack_plugin_common._handle_kw')
     def test_create(self, *_):
         node_props = {
             'fixed_ip': '',
+            'resource_id': 'resource_id',
             'port': {
                 'allowed_address_pairs': [{
                     'ip_address': '1.2.3.4'
@@ -134,7 +137,7 @@ class TestPort(unittest.TestCase):
                 'neutron_plugin.port.use_external_resource',
                 mock.Mock(return_value=port)
             ):
-                neutron_plugin.port.create(mock_neutron, [])
+                neutron_plugin.port.create(mock_neutron, {})
                 self.assertEqual(
                     {'port': {'allowed_address_pairs': [{
                         'ip_address': '5.6.7.8'

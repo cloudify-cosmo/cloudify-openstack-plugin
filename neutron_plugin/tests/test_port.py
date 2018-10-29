@@ -24,10 +24,127 @@ from cloudify.mocks import (MockCloudifyContext,
 from openstack_plugin_common import (NeutronClientWithSugar,
                                      OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY)
-from cloudify.exceptions import OperationRetry
+from cloudify.exceptions import OperationRetry, NonRecoverableError
+from cloudify.state import current_ctx
 
 
 class TestPort(unittest.TestCase):
+
+    def tearDown(self):
+        current_ctx.clear()
+        super(TestPort, self).tearDown()
+
+    def test_port_delete(self):
+        node_props = {
+            'fixed_ip': '',
+            'port': {
+                'allowed_address_pairs': [{
+                    'ip_address': '1.2.3.4'
+                }]}}
+        mock_neutron = MockNeutronClient(update=True)
+        _ctx = self._get_mock_ctx_with_node_properties(node_props)
+        current_ctx.set(_ctx)
+        with mock.patch('neutron_plugin.port.ctx', _ctx):
+            # remove new ip
+            port = {'fixed_ips': [],
+                    'allowed_address_pairs': [{'ip_address': '1.2.3.4'},
+                                              {'ip_address': '5.6.7.8'}],
+                    'mac_address': 'abc-edf'}
+            neutron_plugin.port._port_delete(mock_neutron, "port_id", port)
+            self.assertEqual(
+                {'port': {'allowed_address_pairs': [{
+                    'ip_address': '5.6.7.8'}]}},
+                mock_neutron.body)
+
+    @mock.patch('openstack_plugin_common._handle_kw')
+    def test_delete(self, *_):
+        node_props = {
+            'fixed_ip': '',
+            'port': {
+                'allowed_address_pairs': [{
+                    'ip_address': '1.2.3.4'
+                }]}}
+        mock_neutron = MockNeutronClient(update=True)
+        _ctx = self._get_mock_ctx_with_node_properties(node_props)
+        _ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = 'test-sg-id'
+        _ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = 'port'
+        current_ctx.set(_ctx)
+        with mock.patch('neutron_plugin.port.ctx', _ctx):
+            port = {'fixed_ips': [],
+                    'allowed_address_pairs': [{'ip_address': '1.2.3.4'},
+                                              {'ip_address': '5.6.7.8'}],
+                    'mac_address': 'abc-edf'}
+            with mock.patch(
+                'neutron_plugin.port.use_external_resource',
+                mock.Mock(return_value=port)
+            ):
+                neutron_plugin.port.delete(mock_neutron)
+                self.assertEqual(
+                    {'port': {'allowed_address_pairs': [{
+                        'ip_address': '5.6.7.8'}]}},
+                    mock_neutron.body)
+
+    def test_port_update(self):
+        node_props = {
+            'fixed_ip': '',
+            'resource_id': 'resource_id',
+            'port': {
+                'allowed_address_pairs': [{
+                    'ip_address': '1.2.3.4'
+                }]}}
+        mock_neutron = MockNeutronClient(update=True)
+        _ctx = self._get_mock_ctx_with_node_properties(node_props)
+        current_ctx.set(_ctx)
+        with mock.patch('neutron_plugin.port.ctx', _ctx):
+            port = {'fixed_ips': [],
+                    'mac_address': 'abc-edf'}
+            # add new ip
+            neutron_plugin.port._port_update(mock_neutron, "port_id", {}, port)
+            self.assertEqual(
+                {
+                    'fixed_ip_address': None,
+                    'allowed_address_pairs': [{'ip_address': '1.2.3.4'}],
+                    'mac_address': 'abc-edf'
+                },
+                _ctx.instance.runtime_properties)
+            # readd same ip
+            port = {'fixed_ips': [],
+                    'allowed_address_pairs': [{'ip_address': '1.2.3.4'}],
+                    'mac_address': 'abc-edf'}
+            with self.assertRaises(NonRecoverableError):
+                neutron_plugin.port._port_update(mock_neutron, "port_id",
+                                                 {}, port)
+
+    @mock.patch('openstack_plugin_common._handle_kw')
+    def test_create(self, *_):
+        node_props = {
+            'fixed_ip': '',
+            'resource_id': 'resource_id',
+            'port': {
+                'allowed_address_pairs': [{
+                    'ip_address': '1.2.3.4'
+                }]}}
+        mock_neutron = MockNeutronClient(update=True)
+        _ctx = self._get_mock_ctx_with_node_properties(node_props)
+        _ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = 'test-sg-id'
+        _ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = 'port'
+        current_ctx.set(_ctx)
+        with mock.patch('neutron_plugin.port.ctx', _ctx):
+            port = {'fixed_ips': [],
+                    'allowed_address_pairs': [{'ip_address': '5.6.7.8'}],
+                    'mac_address': 'abc-edf'}
+            with mock.patch(
+                'neutron_plugin.port.use_external_resource',
+                mock.Mock(return_value=port)
+            ):
+                neutron_plugin.port.create(mock_neutron, {})
+                self.assertEqual(
+                    {'port': {'allowed_address_pairs': [{
+                        'ip_address': '5.6.7.8'
+                    }, {
+                        'ip_address': '1.2.3.4'
+                    }]}},
+                    mock_neutron.body)
 
     def test_fixed_ips_no_fixed_ips(self):
         node_props = {'fixed_ip': ''}
@@ -119,6 +236,9 @@ class MockNeutronClient(NeutronClientWithSugar):
 
     def show_port(self, *_):
         return self.body
+
+    def delete_port(self, *_):
+        pass
 
     def update_port(self, _, b, **__):
         if self.update:

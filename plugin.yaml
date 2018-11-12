@@ -5,7 +5,7 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/add-disconnect-security-group-from-port.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/59f285c215e0800f18715300b12a5f5ac67d4c25.zip
     package_name: cloudify-openstack-plugin
     package_version: '2.13.1'
 

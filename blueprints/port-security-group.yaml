@@ -75,7 +75,6 @@ node_templates:
     type: cloudify.openstack.nodes.Port
     properties:
       openstack_config: *openstack_config
-#      fixed_ip: { get_input: fixed_ip }
     relationships:
       - type: cloudify.relationships.contained_in
         target: network

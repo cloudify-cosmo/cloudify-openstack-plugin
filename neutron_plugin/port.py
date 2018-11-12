@@ -254,7 +254,12 @@ def detach(nova_client, neutron_client, **kwargs):
         ctx.logger.info('We have floating ip {0} attached to server'
                         .format(server_floating_ip['floating_ip_address']))
         server = nova_client.servers.get(server_id)
-        server.remove_floating_ip(server_floating_ip['floating_ip_address'])
+        try:
+            server.remove_floating_ip(server_floating_ip['floating_ip_address'])
+        except AttributeError:
+            # To support version mismatch.
+            neutron_client.update_floatingip(
+                server_floating_ip.id, {'floatingip': {'port_id': None}})
         return ctx.operation.retry(
             message='Waiting for the floating ip {0} to '
                     'detach from server {1}..'

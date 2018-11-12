@@ -254,7 +254,13 @@ def detach(nova_client, neutron_client, **kwargs):
         ctx.logger.info('We have floating ip {0} attached to server'
                         .format(server_floating_ip['floating_ip_address']))
         server = nova_client.servers.get(server_id)
-        server.remove_floating_ip(server_floating_ip['floating_ip_address'])
+        try:
+            server.remove_floating_ip(
+                server_floating_ip['floating_ip_address'])
+        except AttributeError:
+            # To support version mismatch.
+            neutron_client.update_floatingip(
+                server_floating_ip['id'], {'floatingip': {'port_id': None}})
         return ctx.operation.retry(
             message='Waiting for the floating ip {0} to '
                     'detach from server {1}..'
@@ -308,6 +314,36 @@ def connect_security_group(neutron_client, **kwargs):
     port_info = neutron_client.show_port(port_id)['port']
     port_security_groups = port_info.get('security_groups', [])
     if security_group_id not in port_security_groups:
+        return ctx.operation.retry(
+            message='Security group connection (`{0}\' -> `{1}\')'
+                    ' has not been established!'.format(port_id,
+                                                        security_group_id),
+            retry_after=NO_SG_PORT_CONNECTION_RETRY_INTERVAL
+        )
+
+
+@operation
+@with_neutron_client
+def disconnect_security_group(neutron_client, **kwargs):
+    port_id = get_openstack_id(ctx.source)
+    security_group_id = get_openstack_id(ctx.target)
+
+    if is_external_relationship_not_conditionally_created(ctx):
+        ctx.logger.info(
+            'Port {0} and Security Group {1} are external resources. '
+            'Not performing disconnect.')
+        return
+
+    port = neutron_client.cosmo_get(PORT_OPENSTACK_TYPE, id=port_id)
+    sgs = port['security_groups'][:]
+    if security_group_id not in port['security_groups']:
+        return
+    sgs.remove(security_group_id)
+    neutron_client.update_port(port_id,
+                               {PORT_OPENSTACK_TYPE: {'security_groups': sgs}})
+    port_info = neutron_client.show_port(port_id)['port']
+    port_security_groups = port_info.get('security_groups', [])
+    if security_group_id in port_security_groups:
         return ctx.operation.retry(
             message='Security group connection (`{0}\' -> `{1}\')'
                     ' has not been established!'.format(port_id,

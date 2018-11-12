@@ -296,3 +296,20 @@ class TestPortSG(unittest.TestCase):
             neutron_plugin.port.connect_security_group(mock_neutron, ctx=ctx)
             self.assertIsInstance(ctx.operation._operation_retry,
                                   OperationRetry)
+
+    @mock.patch('openstack_plugin_common._handle_kw')
+    def test_disconnect_sg_to_port(self, *_):
+        mock_neutron = MockNeutronClient(update=True)
+        ctx = MockCloudifyContext(
+            source=MockRelationshipSubjectContext(node=mock.MagicMock(),
+                                                  instance=mock.MagicMock()),
+            target=MockRelationshipSubjectContext(
+                node=mock.MagicMock(),
+                instance=MockNodeInstanceContext(
+                    runtime_properties={
+                        OPENSTACK_ID_PROPERTY: 'test-sg-id',
+                        OPENSTACK_TYPE_PROPERTY: SG_OPENSTACK_TYPE})))
+
+        with mock.patch('neutron_plugin.port.ctx', ctx):
+            neutron_plugin.port.disconnect_security_group(mock_neutron)
+            self.assertIsNone(ctx.operation._operation_retry)

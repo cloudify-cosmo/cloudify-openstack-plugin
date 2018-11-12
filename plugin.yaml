@@ -1825,6 +1825,11 @@ relationships:
           inputs:
             openstack_config:
               default: {}
+        unlink:
+          implementation: openstack.neutron_plugin.port.disconnect_security_group
+          inputs:
+            openstack_config:
+              default: {}
 
   cloudify.openstack.subnet_connected_to_router:
     derived_from: cloudify.relationships.connected_to

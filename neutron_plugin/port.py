@@ -316,6 +316,36 @@ def connect_security_group(neutron_client, **kwargs):
         )
 
 
+@operation
+@with_neutron_client
+def disconnect_security_group(neutron_client, **kwargs):
+    port_id = get_openstack_id(ctx.source)
+    security_group_id = get_openstack_id(ctx.target)
+
+    if is_external_relationship_not_conditionally_created(ctx):
+        ctx.logger.info(
+            'Port {0} and Security Group {1} are external resources. '
+            'Not performing disconnect.')
+        return
+
+    port = neutron_client.cosmo_get(PORT_OPENSTACK_TYPE, id=port_id)
+    sgs = port['security_groups'][:]
+    if security_group_id not in port['security_groups']:
+        return
+    sgs.remove(security_group_id)
+    neutron_client.update_port(port_id,
+                               {PORT_OPENSTACK_TYPE: {'security_groups': sgs}})
+    port_info = neutron_client.show_port(port_id)['port']
+    port_security_groups = port_info.get('security_groups', [])
+    if security_group_id in port_security_groups:
+        return ctx.operation.retry(
+            message='Security group connection (`{0}\' -> `{1}\')'
+                    ' has not been established!'.format(port_id,
+                                                        security_group_id),
+            retry_after=NO_SG_PORT_CONNECTION_RETRY_INTERVAL
+        )
+
+
 @with_neutron_client
 def list_ports(neutron_client, args, **kwargs):
     port_list = neutron_client.list_ports(**args)

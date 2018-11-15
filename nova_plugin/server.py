@@ -1135,22 +1135,31 @@ def _get_keypair_name_by_id(nova_client, key_name):
 def _validate_external_server_nics(external_server, neutron_client,
                                    network_ids, port_ids):
     # check currently attached ports
-    attached_ports = [interface.port_id
-                      for interface in external_server.interface_list()]
-    for port_id in port_ids:
-        if port_id not in attached_ports:
-            external_server.interface_attach(port_id=port_id, net_id=None,
-                                             fixed_ip=None)
-            ctx.logger.info(
-                'Successfully attached port {0} to device (server) id {1}.'
-                .format(port_id, external_server.human_id))
-        else:
-            ctx.logger.info(
-                'Skipping port {0} attachment, because it is already '
-                'attached to device (server) id {1}.'
-                .format(port_id, external_server.human_id))
+    interfaces = external_server.interface_list()
+    attached_ports = set([interface.port_id for interface in interfaces])
+    attached_nets = set([interface.net_id for interface in interfaces])
 
-    # check currently attached networks
+    already_attached_ports = [port_id for port_id in attached_ports
+                              if port_id in port_ids]
+    already_attached_nets = [net_id for net_id in attached_nets
+                             if net_id in network_ids]
+    if already_attached_ports or already_attached_nets:
+        raise NonRecoverableError(
+            'Several ports/networks already connected to external server '
+            '{0}: Networks - {1}; Ports - {2}'
+            .format(external_server.human_id,
+                    already_attached_nets,
+                    already_attached_ports))
+
+    # attach ports
+    for port_id in port_ids:
+        external_server.interface_attach(port_id=port_id, net_id=None,
+                                         fixed_ip=None)
+        ctx.logger.info(
+            'Successfully attached port {0} to device (server) id {1}.'
+            .format(port_id, external_server.human_id))
+
+    # check currently attached networks, can be attached by port
     attached_nets = [interface.net_id
                      for interface in external_server.interface_list()]
     for net_id in network_ids:

@@ -70,8 +70,8 @@ node_templates:
       openstack_config: *openstack_config
       agent_config:
         install_method: none
-        key_name: ''
       server:
+        key_name: ''
         image: { get_input: ubuntu_trusty_image }
         flavor: { get_input: small_image_flavor }
     relationships:

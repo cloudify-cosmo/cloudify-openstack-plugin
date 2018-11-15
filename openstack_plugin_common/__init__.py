@@ -386,7 +386,8 @@ def use_external_resource(ctx, sugared_client, openstack_type,
             sugared_client.get_name_from_resource(resource)
 
     ctx.logger.info('Using external resource {0}: {1}'.format(
-        openstack_type, ctx.node.properties['resource_id']))
+        openstack_type, ctx.instance.runtime_properties.get(
+            OPENSTACK_NAME_PROPERTY, ctx.node.properties['resource_id'])))
     return resource
 
 

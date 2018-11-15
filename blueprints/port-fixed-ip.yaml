@@ -33,9 +33,6 @@ inputs:
   second_fixed_ip:
     type: string
 
-  port_name:
-    type: string
-
 dsl_definitions:
 
   openstack_config: &openstack_config
@@ -55,6 +52,11 @@ node_templates:
       resource_id: { get_input: port_name }
       port:
         allowed_address_pairs: [ {"ip_address": { get_input: second_fixed_ip }}]
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_id: { get_attribute: [port, external_id]}
     relationships:
       - type: cloudify.relationships.depends_on
         target: port
@@ -64,7 +66,6 @@ node_templates:
     properties:
       openstack_config: *openstack_config
       fixed_ip: { get_input: fixed_ip }
-      resource_id: { get_input: port_name }
     relationships:
       - type: cloudify.relationships.contained_in
         target: private_network

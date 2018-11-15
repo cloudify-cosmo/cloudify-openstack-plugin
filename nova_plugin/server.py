@@ -261,25 +261,23 @@ def create(nova_client, neutron_client, args, **kwargs):
 
     if external_server:
         _set_network_and_ip_runtime_properties(external_server)
-        if ctx._local:
+        network_ids = \
+            get_openstack_ids_of_connected_nodes_by_openstack_type(
+                ctx, NETWORK_OPENSTACK_TYPE)
+        port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
+            ctx, PORT_OPENSTACK_TYPE)
+        try:
+            _validate_external_server_nics(
+                external_server,
+                neutron_client,
+                network_ids,
+                port_ids
+            )
+            _validate_external_server_keypair(nova_client)
             return
-        else:
-            network_ids = \
-                get_openstack_ids_of_connected_nodes_by_openstack_type(
-                    ctx, NETWORK_OPENSTACK_TYPE)
-            port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
-                ctx, PORT_OPENSTACK_TYPE)
-            try:
-                _validate_external_server_nics(
-                    neutron_client,
-                    network_ids,
-                    port_ids
-                )
-                _validate_external_server_keypair(nova_client)
-                return
-            except Exception:
-                delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
-                raise
+        except Exception:
+            delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
+            raise
 
     provider_context = provider(ctx)
 
@@ -1134,53 +1132,51 @@ def _get_keypair_name_by_id(nova_client, key_name):
     return keypair.id
 
 
-def _validate_external_server_nics(neutron_client, network_ids, port_ids):
-    # validate no new nics are being assigned to an existing server (which
-    # isn't possible on Openstack)
-    new_nic_nodes = \
-        [node_instance_id for node_instance_id, runtime_props in
-         ctx.capabilities.get_all().iteritems() if runtime_props.get(
-             OPENSTACK_TYPE_PROPERTY) in (PORT_OPENSTACK_TYPE,
-                                          NETWORK_OPENSTACK_TYPE) and
-         not is_external_resource_by_properties(
-             _get_properties_by_node_instance_id(node_instance_id))]
-    if new_nic_nodes:
-        raise NonRecoverableError(
-            "Can't connect new port and/or network nodes to a server node "
-            "with '{0}'=True".format(USE_EXTERNAL_RESOURCE_PROPERTY))
+def _validate_external_server_nics(external_server, neutron_client,
+                                   network_ids, port_ids):
+    # check currently attached ports
+    attached_ports = [interface.port_id
+                      for interface in external_server.interface_list()]
+    for port_id in port_ids:
+        if port_id not in attached_ports:
+            external_server.interface_attach(port_id=port_id, net_id=None,
+                                             fixed_ip=None)
+            ctx.logger.info(
+                'Successfully attached port {0} to device (server) id {1}.'
+                .format(port_id, external_server.human_id))
+        else:
+            ctx.logger.info(
+                'Skipping port {0} attachment, because it is already '
+                'attached to device (server) id {1}.'
+                .format(port_id, external_server.human_id))
 
-    # validate all expected connected networks and ports are indeed already
-    # connected to the server. note that additional networks (e.g. the
-    # management network) may be connected as well with no error raised
-    if not network_ids and not port_ids:
-        return
-
-    server_id = get_openstack_id(ctx)
-    connected_ports = neutron_client.list_ports(device_id=server_id)['ports']
-
-    # not counting networks connected by a connected port since allegedly
-    # the connection should be on a separate port
-    connected_ports_networks = {port['network_id'] for port in
-                                connected_ports if port['id'] not in port_ids}
-    connected_ports_ids = {port['id'] for port in
-                           connected_ports}
-    disconnected_networks = [network_id for network_id in network_ids if
-                             network_id not in connected_ports_networks]
-    disconnected_ports = [port_id for port_id in port_ids if port_id not
-                          in connected_ports_ids]
-    if disconnected_networks or disconnected_ports:
-        raise NonRecoverableError(
-            'Expected external resources to be connected to external server {'
-            '0}: Networks - {1}; Ports - {2}'.format(server_id,
-                                                     disconnected_networks,
-                                                     disconnected_ports))
+    # check currently attached networks
+    attached_nets = [interface.net_id
+                     for interface in external_server.interface_list()]
+    for net_id in network_ids:
+        if net_id not in attached_nets:
+            external_server.interface_attach(port_id=None, net_id=net_id,
+                                             fixed_ip=None)
+            ctx.logger.info(
+                'Successfully attached network {0} to device (server) id {1}.'
+                .format(net_id, external_server.human_id))
+        else:
+            ctx.logger.info(
+                'Skipping network {0} attachment, because it is already '
+                'attached to device (server) id {1}.'
+                .format(net_id, external_server.human_id))
 
 
 def _get_properties_by_node_instance_id(node_instance_id):
-    client = get_rest_client()
-    node_instance = client.node_instances.get(node_instance_id)
-    node = client.nodes.get(ctx.deployment.id, node_instance.node_id)
-    return node.properties
+    if ctx._local:
+        instance = ctx._endpoint.get_node_instance(node_instance_id)
+        node = ctx._endpoint.get_node(instance.node_id)
+        return node.properties
+    else:
+        client = get_rest_client()
+        node_instance = client.node_instances.get(node_instance_id)
+        node = client.nodes.get(ctx.deployment.id, node_instance.node_id)
+        return node.properties
 
 
 @operation

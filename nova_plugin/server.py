@@ -269,7 +269,6 @@ def create(nova_client, neutron_client, args, **kwargs):
         try:
             _validate_external_server_nics(
                 external_server,
-                neutron_client,
                 network_ids,
                 port_ids
             )
@@ -1132,8 +1131,7 @@ def _get_keypair_name_by_id(nova_client, key_name):
     return keypair.id
 
 
-def _validate_external_server_nics(external_server, neutron_client,
-                                   network_ids, port_ids):
+def _validate_external_server_nics(external_server, network_ids, port_ids):
     # check currently attached ports
     interfaces = external_server.interface_list()
     attached_ports = set([interface.port_id for interface in interfaces])

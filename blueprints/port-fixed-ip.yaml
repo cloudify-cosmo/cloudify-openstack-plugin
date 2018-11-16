@@ -49,7 +49,6 @@ node_templates:
     properties:
       openstack_config: *openstack_config
       use_external_resource: true
-      resource_id: { get_input: port_name }
       port:
         allowed_address_pairs: [ {"ip_address": { get_input: second_fixed_ip }}]
     interfaces:

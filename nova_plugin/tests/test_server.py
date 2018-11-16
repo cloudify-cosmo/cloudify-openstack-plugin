@@ -482,6 +482,7 @@ class TestServer(unittest.TestCase):
 
     def _simplectx(self, operation=None):
         server_ctx = MockCloudifyContext(
+            deployment_id='deployment_id',
             node_id="node_id",
             node_name="node_name",
             properties={},
@@ -757,6 +758,124 @@ class TestServer(unittest.TestCase):
             ):
                 nova_plugin.server._wait_for_server_to_be_deleted(
                     nova_instance, "unknown")
+
+    def test_get_properties_by_node_instance_id(self):
+        # local run
+        ctx = self._simplectx()
+        ctx._local = True
+        mock_instance = mock.Mock()
+        mock_instance.node_id = 'node_id'
+        mock_node = mock.Mock()
+        mock_node.properties = {'a': 'b'}
+        ctx._endpoint.get_node_instance = mock.Mock(return_value=mock_instance)
+        ctx._endpoint.get_node = mock.Mock(return_value=mock_node)
+        self.assertEqual(
+            nova_plugin.server._get_properties_by_node_instance_id('abc'),
+            {'a': 'b'}
+        )
+        ctx._endpoint.get_node_instance.assert_called_once_with('abc')
+        ctx._endpoint.get_node.assert_called_once_with('node_id')
+        # manager run
+        ctx = self._simplectx()
+        ctx._local = False
+        fake_client = mock.Mock()
+        fake_client.node_instances.get = mock.Mock(return_value=mock_instance)
+        fake_client.nodes.get = mock.Mock(return_value=mock_node)
+        with mock.patch(
+            'nova_plugin.server.get_rest_client',
+            mock.Mock(return_value=fake_client)
+        ):
+            self.assertEqual(
+                nova_plugin.server._get_properties_by_node_instance_id('abc'),
+                {'a': 'b'}
+            )
+            fake_client.node_instances.get.assert_called_once_with('abc')
+            fake_client.nodes.get.assert_called_once_with('deployment_id',
+                                                          'node_id')
+
+    def test_validate_external_server_nics(self):
+        self._simplectx()
+        external_server = mock.Mock()
+        external_server.human_id = '_server'
+
+        attached_interface = mock.Mock()
+        attached_interface.net_id = 'net1'
+        attached_interface.port_id = 'port1'
+
+        external_server.interface_list = mock.Mock(
+            return_value=[attached_interface])
+        external_server.interface_attach = mock.Mock()
+
+        # Check that we fail if have alredy attached ports
+        with self.assertRaises(NonRecoverableError) as error:
+            nova_plugin.server._validate_external_server_nics(
+                external_server, ['net1'], ['port1'])
+
+        external_server.interface_attach.assert_not_called()
+        self.assertEqual(
+            str(error.exception),
+            "Several ports/networks already connected to external server "
+            "_server: Networks - ['net1']; Ports - ['port1']"
+        )
+
+        # no attached ports from list
+        nova_plugin.server._validate_external_server_nics(
+            external_server, ['net2'], ['port2'])
+        external_server.interface_attach.assert_has_calls([
+            mock.call(port_id='port2', net_id=None, fixed_ip=None),
+            mock.call(port_id=None, net_id='net2', fixed_ip=None)
+        ])
+
+        # net attached with port
+        new_interface = mock.Mock()
+        new_interface.net_id = 'net2'
+        new_interface.port_id = 'port2'
+        results = [
+            [new_interface, attached_interface],
+            [attached_interface]
+        ]
+
+        def _interface_list():
+            return results.pop()
+
+        external_server.interface_attach = mock.Mock()
+        external_server.interface_list = _interface_list
+        nova_plugin.server._validate_external_server_nics(
+            external_server, ['net2'], ['port2'])
+        external_server.interface_attach.assert_has_calls([
+            mock.call(port_id='port2', net_id=None, fixed_ip=None)
+        ])
+
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    @mock.patch('openstack_plugin_common.NeutronClientWithSugar')
+    def test_external_server_create(self, _neutron_m, _nova_m):
+        ctx = self._simplectx()
+
+        external_server = mock.Mock()
+        external_server.human_id = '_server'
+        external_server.metadata = {}
+        external_server.networks = {'abc': ['127.0.0.1']}
+        external_server.accessIPv4 = True
+        external_server.accessIPv6 = False
+        external_server.interface_list = mock.Mock(return_value=[])
+
+        with mock.patch(
+            'nova_plugin.server.'
+            'get_openstack_ids_of_connected_nodes_by_openstack_type',
+            mock.Mock(return_value=[])
+        ):
+            with mock.patch(
+                'nova_plugin.server.'
+                'get_openstack_id_of_single_connected_node_by_openstack_type',
+                mock.Mock(return_value=None)
+            ):
+                with mock.patch('openstack_plugin_common._find_context_in_kw',
+                                mock.Mock(return_value=ctx)):
+                    with mock.patch(
+                        'nova_plugin.server.use_external_resource',
+                        mock.Mock(return_value=external_server)
+                    ):
+                        nova_plugin.server.create(args=[])
 
 
 class TestMergeNICs(unittest.TestCase):

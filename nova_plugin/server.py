@@ -266,17 +266,13 @@ def create(nova_client, neutron_client, args, **kwargs):
                 ctx, NETWORK_OPENSTACK_TYPE)
         port_ids = get_openstack_ids_of_connected_nodes_by_openstack_type(
             ctx, PORT_OPENSTACK_TYPE)
-        try:
-            _validate_external_server_nics(
-                external_server,
-                network_ids,
-                port_ids
-            )
-            _validate_external_server_keypair(nova_client)
-            return
-        except Exception:
-            delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
-            raise
+        _validate_external_server_nics(
+            external_server,
+            network_ids,
+            port_ids
+        )
+        _validate_external_server_keypair(nova_client)
+        return
 
     provider_context = provider(ctx)
 
@@ -1151,6 +1147,7 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
 
     # attach ports
     for port_id in port_ids:
+        ctx.logger.info('Attaching port {0}...'.format(port_id))
         external_server.interface_attach(port_id=port_id, net_id=None,
                                          fixed_ip=None)
         ctx.logger.info(
@@ -1162,6 +1159,7 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
                      for interface in external_server.interface_list()]
     for net_id in network_ids:
         if net_id not in attached_nets:
+            ctx.logger.info('Attaching network {0}...'.format(net_id))
             external_server.interface_attach(port_id=None, net_id=net_id,
                                              fixed_ip=None)
             ctx.logger.info(

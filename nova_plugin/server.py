@@ -260,7 +260,6 @@ def create(nova_client, neutron_client, args, **kwargs):
                                             SERVER_OPENSTACK_TYPE)
 
     if external_server:
-        _set_network_and_ip_runtime_properties(external_server)
         network_ids = \
             get_openstack_ids_of_connected_nodes_by_openstack_type(
                 ctx, NETWORK_OPENSTACK_TYPE)
@@ -271,6 +270,10 @@ def create(nova_client, neutron_client, args, **kwargs):
             network_ids,
             port_ids
         )
+        # need to reload server for full list of networks
+        external_server = use_external_resource(ctx, nova_client,
+                                                SERVER_OPENSTACK_TYPE)
+        _set_network_and_ip_runtime_properties(external_server)
         _validate_external_server_keypair(nova_client)
         return
 

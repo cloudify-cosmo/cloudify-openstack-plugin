@@ -1,3 +1,5 @@
+2.14.1:
+    - Update network list/ips for external server.
 2.14.0:
     - Support attach ports to external server.
 2.13.1:

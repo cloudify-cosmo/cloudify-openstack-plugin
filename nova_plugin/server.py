@@ -455,9 +455,17 @@ def start(nova_client,
                                                 server_task_state),
             retry_after=start_retry_interval)
 
+    try:
+        server_state_fault = server.fault['message']
+    except (AttributeError, KeyError):
+        server_state_fault = \
+            "{0}. A reason was not provided by Opentack.".format(
+                server_task_state)
+
     raise NonRecoverableError(
-        'Unexpected server state {0}:{1}'.format(server.status,
-                                                 server_task_state))
+        'Unexpected server state {0}. Reason: {1}'.format(
+            server.status,
+            server_state_fault))
 
 
 @operation

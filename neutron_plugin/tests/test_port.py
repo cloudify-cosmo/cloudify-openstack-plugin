@@ -255,9 +255,9 @@ class MockNeutronClient(NeutronClientWithSugar):
             }
         }
         if subnet_id == 'some-subnet-id':
-            subnet['cidr'] = '1.2.3.0/24'
+            subnet['subnet']['cidr'] = '1.2.3.0/24'
         else:
-            subnet['cidr'] = '2.3.4.0/24'
+            subnet['subnet']['cidr'] = '2.3.4.0/24'
         return subnet
 
 

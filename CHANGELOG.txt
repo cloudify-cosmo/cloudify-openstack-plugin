@@ -1,3 +1,5 @@
+2.14.3:
+    - Fix check subnet cidr for fixed ip.
 2.14.2:
     - Provide a user friendly message when VM fails.
 2.14.1:

@@ -380,8 +380,11 @@ def _valid_subnet_ip(ip_address, subnet_dict):
     """
 
     try:
-        if netaddr.IPAddress(ip_address) in \
-                netaddr.IPNetwork(subnet_dict.get('cidr')):
+        cidr = subnet_dict.get('subnet', {}).get('cidr')
+        ctx.logger.debug('Check ip {ip_address} in subnet {cidr}'.format(
+            ip_address=repr(ip_address),
+            cidr=repr(cidr)))
+        if netaddr.IPAddress(ip_address) in netaddr.IPNetwork(cidr):
             return True
     except TypeError:
         pass

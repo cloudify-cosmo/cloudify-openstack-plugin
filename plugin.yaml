@@ -883,6 +883,14 @@ node_types:
         description: >
           a boolean for setting whether to create the resource or use an existing one.
           See the using existing resources section.
+      allow_reallocation:
+        type: boolean
+        default: false
+        description: >
+          (Applicable only when use_external_resource is true)
+          If true, then allow using this floating IP even if it has already been allocated to
+          another instance. If false, and the floating IP is already allocated (that is, it is
+          in 'ACTIVE' state), a recoverable error is raised.
       create_if_missing:
         type: boolean
         default: false

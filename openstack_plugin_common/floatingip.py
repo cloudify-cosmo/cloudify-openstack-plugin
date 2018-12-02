@@ -14,6 +14,7 @@
 #  * limitations under the License.
 
 from cloudify import ctx
+from cloudify.exceptions import RecoverableError
 from openstack_plugin_common import (
     delete_resource_and_runtime_properties,
     use_external_resource,
@@ -21,7 +22,6 @@ from openstack_plugin_common import (
     COMMON_RUNTIME_PROPERTIES_KEYS,
     OPENSTACK_ID_PROPERTY,
     OPENSTACK_TYPE_PROPERTY)
-
 
 FLOATINGIP_OPENSTACK_TYPE = 'floatingip'
 
@@ -35,6 +35,12 @@ def use_external_floatingip(client, ip_field_name, ext_fip_ip_extractor):
     external_fip = use_external_resource(
         ctx, client, FLOATINGIP_OPENSTACK_TYPE, ip_field_name)
     if external_fip:
+        if ctx.node.properties['allow_reallocation'] \
+                and external_fip['status'] == 'ACTIVE':
+            raise RecoverableError(
+                    'Floating IP address {0} is already associated'.format(
+                        external_fip['floating_ip_address'])
+            )
         ctx.instance.runtime_properties[IP_ADDRESS_PROPERTY] = \
             ext_fip_ip_extractor(external_fip)
         return True

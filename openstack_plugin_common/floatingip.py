@@ -35,7 +35,7 @@ def use_external_floatingip(client, ip_field_name, ext_fip_ip_extractor):
     external_fip = use_external_resource(
         ctx, client, FLOATINGIP_OPENSTACK_TYPE, ip_field_name)
     if external_fip:
-        if ctx.node.properties['allow_reallocation'] \
+        if not ctx.node.properties['allow_reallocation'] \
                 and external_fip['status'] == 'ACTIVE':
             raise RecoverableError(
                     'Floating IP address {0} is already associated'.format(

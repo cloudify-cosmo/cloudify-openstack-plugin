@@ -1,4 +1,4 @@
-2.14.5:
+2.14.6:
     - By default, don't allow using an existing floating IP if it had already been allocated.
 2.14.3:
     - Fix check subnet cidr for fixed ip.

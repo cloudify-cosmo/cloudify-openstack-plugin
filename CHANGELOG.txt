@@ -1,3 +1,5 @@
+2.14.7:
+    - Revert upgrade to OpenStack python clients to the old version used before 2.13.0
 2.14.6:
     - By default, don't allow using an existing floating IP if it had already been allocated.
 2.14.3:

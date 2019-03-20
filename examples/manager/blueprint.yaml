@@ -37,14 +37,17 @@ inputs:
   name_prefix:
     type: string
 
+  agent_user:
+    type: string
+
 dsl_definitions:
 
   client_config: &client_config
     auth_url: { get_input: auth_url }
     username: { get_input: username }
     password: { get_input: password }
-    region_name: { get_input: region_name }
     project_name: { get_input: project_name }
+    region_name: { get_input: region_name }
 
 node_templates:
 
@@ -91,6 +94,7 @@ node_templates:
         cidr: { get_input: example_subnet_cidr }
         enable_dhcp: true
         ip_version: 4
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
     relationships:
       - type: cloudify.relationships.contained_in
         target: example-network

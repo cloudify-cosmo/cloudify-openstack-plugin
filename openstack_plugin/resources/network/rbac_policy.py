@@ -332,7 +332,7 @@ def find_and_delete(openstack_resource,
     # to remove it from the config since this operation main job is to find
     # rbac policy based on the configuration provided by operation task and
     # then remove it
-    rbac_policy_config.pop('id')
+    rbac_policy_config.pop('id', None)
     rbac_policies = openstack_resource.list()
 
     for rbac_policy in rbac_policies:

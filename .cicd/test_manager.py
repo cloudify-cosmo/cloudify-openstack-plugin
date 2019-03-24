@@ -44,7 +44,9 @@ class OpenstackPluginTestCase(PluginsTest):
         self.inputs = dict(self.client_config)
         self.inputs.update(
             {
-                'external_network_id': 'dda079ce-12cf-4309-879a-8e67aec94de4',
+                'external_network_id': os.getenv(
+                    'external_network_id',
+                    'dda079ce-12cf-4309-879a-8e67aec94de4'),
                 'example_subnet_cidr': '10.10.0.0/24',
                 'name_prefix': 'blueprint_',
                 'image_id': 'e41430f7-9131-495b-927f-e7dc4b8994c8',

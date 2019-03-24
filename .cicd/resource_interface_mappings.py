@@ -18,6 +18,11 @@ from openstack import connect
 
 class InterfaceBase(object):
 
+    type_name = None
+    client_name = None
+    get_method_name = None
+    delete_method_name = None
+
     def __init__(self, resource_id, client_config):
         self.id = resource_id
         self.client_config = client_config
@@ -103,6 +108,6 @@ class Server(InterfaceBase):
 class FloatingIP(InterfaceBase):
 
     type_name = 'cloudify.nodes.openstack.FloatingIP'
-    client_name = 'compute'
+    client_name = 'network'
     get_method_name = 'get_ip'
     delete_method_name = 'delete_ip'

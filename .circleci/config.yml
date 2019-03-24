@@ -1,5 +1,4 @@
 version: 2
-
 checkout:
   post:
     - >
@@ -8,78 +7,35 @@ checkout:
         git fetch origin +refs/pull/$PR_ID/merge:
         git checkout -qf FETCH_HEAD
       fi
-
 jobs:
-
   unittests:
     docker:
       - image: circleci/python:2.7.15-stretch
     steps:
       - checkout
       - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user tox
-      - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e py27
-
-  wagon:
-    docker:
-      - image: amd64/centos:centos7.3.1611
-    steps:
-      - checkout
-      - run:
-          name: Install dependencies
-          command: yum -y install python-devel gcc openssl git libxslt-devel libxml2-devel openldap-devel libffi-devel openssl-devel libvirt-devel
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: python get-pip.py
-      - run:
-          name: Upgrade pip
-          command: pip install --upgrade pip==9.0.1
-      - run:
-          name: Install virtualenv
-          command: pip install virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: Install wagon
-          command: pip install wagon==0.3.2
-      - run:
-          name: many_linux
-          command: echo "manylinux1_compatible = False" > "env/bin/_manylinux.py"
-      - run:
-          name: make workspace
-          command: mkdir -p workspace/build
-      - run:
-          name: Create wagon
-          command: source env/bin/activate && wagon create -s . -v -o workspace/build -f -a '--no-cache-dir -c constraints.txt'
-      - persist_to_workspace:
-          root: workspace
-          paths:
-            - build/*
-
+          name: Running Unit Tests
+          command: |
+            curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+            sudo python get-pip.py
+            pip install --user virtualenv
+            virtualenv env
+            source env/bin/activate
+            pip install tox
+            tox -e flake8
+            tox -e py27
 workflows:
   version: 2
   tests:
     jobs:
       - unittests
-      - wagon:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
+  nightly:
+    triggers:
+    - schedule:
+        cron: "0 0 * * *"
+        filters:
+          branches:
+            only:
+              - dev
+    jobs:
+      - unittests

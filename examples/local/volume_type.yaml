@@ -1,0 +1,50 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  # For use with a manager use: plugin:cloudify-openstack-plugin
+  - plugin.yaml
+
+inputs:
+
+  auth_url:
+    type: string
+
+  username:
+    type: string
+
+  password:
+    type: string
+
+  region_name:
+    type: string
+
+  project_name:
+    type: string
+
+  name_prefix:
+    type: string
+    default: block_storage_
+
+  volume_type_config:
+    default:
+      name: { concat: [ { get_input: name_prefix }, 'volume_type' ] }
+      extra_specs:
+        capabilities: 'gpu'
+
+dsl_definitions:
+
+  client_config: &client_config
+    auth_url: { get_input: auth_url }
+    username: { get_input: username }
+    password: { get_input: password }
+    region_name: { get_input: region_name }
+    project_name: { get_input: project_name }
+
+node_templates:
+
+  example-volume-type:
+    type: cloudify.nodes.openstack.VolumeType
+    properties:
+      client_config: *client_config
+      resource_config: { get_input: volume_type_config }

@@ -1,0 +1,65 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - plugin.yaml
+
+inputs:
+
+  auth_url:
+    type: string
+
+  username:
+    type: string
+
+  password:
+    type: string
+
+  region_name:
+    type: string
+
+  project_name:
+    type: string
+
+  security_group_config:
+    default:
+      name: 'cloudify_security_group'
+      description: 'A security group created by Cloudify OpenStack SDK plugin.'
+
+  security_group_rules_config:
+    default:
+      - remote_ip_prefix: 0.0.0.0/0
+        port_range_max: 80
+        port_range_min: 80
+        direction: ingress
+        protocol: tcp
+      - remote_ip_prefix: 0.0.0.0/0
+        port_range_max: 80
+        port_range_min: 80
+        direction: egress
+        protocol: tcp
+
+dsl_definitions:
+
+  client_config: &client_config
+    auth_url: { get_input: auth_url }
+    username: { get_input: username }
+    password: { get_input: password }
+    region_name: { get_input: region_name }
+    project_name: { get_input: project_name }
+
+node_templates:
+
+  example-security-group:
+    type: cloudify.nodes.openstack.SecurityGroup
+    properties:
+      client_config: *client_config
+      disable_default_egress_rules: true
+      security_group_rules: { get_input: security_group_rules_config }
+      resource_config: { get_input: security_group_config}
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }

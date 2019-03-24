@@ -1,0 +1,281 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  # For use with a manager use: plugin:cloudify-openstack-plugin
+  - plugin.yaml
+
+inputs:
+
+  auth_url:
+    type: string
+
+  username:
+    type: string
+
+  password:
+    type: string
+
+  region_name:
+    type: string
+
+  project_name:
+    type: string
+
+  project_id:
+    type: string
+
+  flavor:
+    type: string
+
+  name_prefix:
+    type: string
+    default: 'bootable_blueprint_'
+
+  external_network_id:
+    type: string
+
+  security_group_rules:
+    default:
+      - remote_ip_prefix: 0.0.0.0/0
+        port_range_max: 22
+        port_range_min: 22
+        direction: ingress
+        protocol: tcp
+
+      - remote_ip_prefix: 0.0.0.0/0
+        port_range_max: 22
+        port_range_min: 22
+        direction: egress
+        protocol: tcp
+
+  volume1_use_existing:
+    default: true
+
+  volume1_external_id:
+    type: string
+
+  volume1_device_name:
+    default: vda
+
+  volume2_use_existing:
+    default: true
+
+  volume2_external_id:
+    type: string
+
+  volume2_device_name:
+    default: vdb
+
+  example_public_subnet_cidr:
+    type: string
+    default: '10.10.0.0/24'
+
+  example_private_subnet_cidr:
+    type: string
+    default: '10.10.1.0/24'
+
+dsl_definitions:
+
+  client_config: &client_config
+    auth_url: { get_input: auth_url }
+    username: { get_input: username }
+    password: { get_input: password }
+    region_name: { get_input: region_name }
+    project_name: { get_input: project_name }
+
+node_templates:
+
+  example-volume-booted-server:
+    type: cloudify.nodes.openstack.Server
+    properties:
+      client_config: *client_config
+      agent_config:
+        install_method: none
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'server' ] }
+        flavor_id: { get_input: flavor }
+        availability_zone: nova
+        kwargs:
+          block_device_mapping_v2:
+          - device_name: { get_input: volume1_device_name }
+            boot_index: 0
+            uuid: { get_input: volume1_external_id }
+            source_type: volume
+            delete_on_termination: false
+          - device_name: { get_input: volume2_device_name }
+            boot_index: 1
+            uuid: { get_input: volume2_external_id }
+            source_type: volume
+            delete_on_termination: false
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+    relationships:
+      - type: cloudify.relationships.openstack.server_connected_to_keypair
+        target:  example-keypair
+      - type: cloudify.relationships.openstack.server_connected_to_port
+        target: example-public-port
+      - type: cloudify.relationships.openstack.server_connected_to_port
+        target: example-private-port
+
+  example-keypair:
+    type: cloudify.nodes.openstack.KeyPair
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'keypair' ] }
+
+  example-public-port:
+    type: cloudify.nodes.openstack.Port
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'public_port' ] }
+        fixed_ips:
+          - subnet_id: { get_attribute: [ example-public-subnet, id ] }
+    relationships:
+       - type: cloudify.relationships.contained_in
+         target: example-public-network
+       - type: cloudify.relationships.depends_on
+         target: example-public-subnet
+       - type: cloudify.relationships.connected_to
+         target: example-security-group
+       - type: cloudify.relationships.openstack.port_connected_to_floating_ip
+         target: example-floating-ip-address
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+
+  example-private-port:
+    type: cloudify.nodes.openstack.Port
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'private_port' ] }
+        fixed_ips:
+          - subnet_id: { get_attribute: [ example-private-subnet, id ] }
+    relationships:
+       - type: cloudify.relationships.contained_in
+         target: example-private-network
+       - type: cloudify.relationships.depends_on
+         target: example-private-subnet
+       - type: cloudify.relationships.connected_to
+         target: example-security-group
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+
+  example-security-group:
+    type: cloudify.nodes.openstack.SecurityGroup
+    properties:
+      client_config: *client_config
+      security_group_rules: { get_input: security_group_rules }
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'security_group' ] }
+        description: 'A security group for openstack boot volume'
+
+  example-floating-ip-address:
+    type: cloudify.nodes.openstack.FloatingIP
+    properties:
+      client_config: *client_config
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: example-external-network
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+
+  example-private-subnet:
+    type: cloudify.nodes.openstack.Subnet
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'private_subnet' ] }
+        cidr: { get_input: example_private_subnet_cidr }
+        ip_version: 4
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: example-private-network
+      - type: cloudify.relationships.openstack.subnet_connected_to_router
+        target: example-router
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+
+  example-private-network:
+    type: cloudify.nodes.openstack.Network
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'private_network' ] }
+
+  example-public-subnet:
+    type: cloudify.nodes.openstack.Subnet
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'public_subnet' ] }
+        network_id: { get_attribute: [ example-public-network, id ] }
+        cidr: { get_input: example_public_subnet_cidr }
+        ip_version: 4
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: example-public-network
+      - type: cloudify.relationships.openstack.subnet_connected_to_router
+        target: example-router
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+
+  example-public-network:
+    type: cloudify.nodes.openstack.Network
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'public_network' ] }
+
+  example-router:
+    type: cloudify.nodes.openstack.Router
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'router' ] }
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: example-external-network
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+
+  example-external-network:
+    type: cloudify.nodes.openstack.Network
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      resource_config:
+        id: { get_input: external_network_id }
+        kwargs:
+          routing:
+            external: true

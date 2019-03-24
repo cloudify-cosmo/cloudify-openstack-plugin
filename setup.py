@@ -1,45 +1,30 @@
-#########
-# Copyright (c) 2018 GigaSpaces Technologies Ltd. All rights reserved
+########
+# Copyright (c) 2018 Cloudify Platform Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#        http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-#  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  * See the License for the specific language governing permissions and
-#  * limitations under the License.
+#    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    * See the License for the specific language governing permissions and
+#    * limitations under the License.
+
 
 from setuptools import setup
+from setuptools import find_packages
 
 
 setup(
-    zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='2.14.8',
+    version='3.0.0',
     author='Cloudify',
-    author_email='hello@cloudify.co',
-    packages=[
-        'openstack_plugin_common',
-        'nova_plugin',
-        'neutron_plugin',
-        'cinder_plugin',
-        'glance_plugin',
-        'keystone_plugin'
-    ],
+    author_email='info@cloudify.co',
     license='LICENSE',
-    description='Cloudify plugin for OpenStack infrastructure.',
-    install_requires=[
-        'cloudify-plugins-common>=3.4.2',
-        'keystoneauth1>=2.16.0,<3',
-        'python-novaclient==7.0.0',
-        'python-keystoneclient==3.5.0',
-        'python-neutronclient==6.0.0',
-        'python-cinderclient==1.9.0',
-        'python-glanceclient==2.5.0',
-        'IPy==0.81'
-    ]
-)
+    zip_safe=False,
+    packages=find_packages(exclude=['tests*']),
+    install_requires=['cloudify-common', 'openstacksdk'],
+    test_requires=['mock', 'requests-mock'])

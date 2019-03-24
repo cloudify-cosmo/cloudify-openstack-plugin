@@ -1,0 +1,13 @@
+# Auth Config
+auth_url: https://rackspace-api-test.co:5000/v2.0
+username: XXXXXX
+password: XXXXXX
+project_name: XXXXXX
+region_name: RegionOne
+
+# Network Config
+external_network_id: dda079ce-12cf-4309-879a-8e67aec94de4
+
+# Flavor/Image Config
+image: e41430f7-9131-495b-927f-e7dc4b8994c8
+flavor: 2

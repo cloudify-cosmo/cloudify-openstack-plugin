@@ -1,3 +1,5 @@
+3.0.0:
+    - Openstack Plugin v3: new plugin based on openstacksdk official library (instead of CLI package), new types, new examples, new tests.
 2.14.7:
     - Revert upgrade to OpenStack python clients to the old version used before 2.13.0
 2.14.6:

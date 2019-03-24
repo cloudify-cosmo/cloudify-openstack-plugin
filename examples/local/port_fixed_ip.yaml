@@ -1,0 +1,112 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  # For use with a manager use: plugin:cloudify-openstack-plugin
+  - plugin.yaml
+
+inputs:
+
+  auth_url:
+    type: string
+
+  username:
+    type: string
+
+  password:
+    type: string
+
+  region_name:
+    type: string
+
+  project_name:
+    type: string
+
+  network_id:
+    type: string
+
+  subnet_id:
+    type: string
+
+  fixed_ip:
+    type: string
+    default: '10.0.1.2'
+
+  second_fixed_ip:
+    type: string
+    default: '10.0.1.3'
+
+  name_prefix:
+    type: string
+    default: external-port-blueprint-
+
+dsl_definitions:
+  client_config: &client_config
+    auth_url: { get_input: auth_url }
+    username: { get_input: username }
+    password: { get_input: password }
+    region_name: { get_input: region_name }
+    project_name: { get_input: project_name }
+
+node_templates:
+
+  example-external-port:
+    type: cloudify.nodes.openstack.Port
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      resource_config:
+        id: { get_attribute: [ example-port, id ] }
+        allowed_address_pairs:
+          - ip_address: { get_input: second_fixed_ip }
+    relationships:
+      - type: cloudify.relationships.depends_on
+        target: example-port
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+
+  example-port:
+    type: cloudify.nodes.openstack.Port
+    properties:
+      client_config: *client_config
+      resource_config:
+        fixed_ips:
+          - ip_address: { get_input: fixed_ip }
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: example-private-network
+      - type: cloudify.relationships.depends_on
+        target: example-private-subnet
+      - type: cloudify.relationships.depends_on
+        target: example-security-group
+
+  example-security-group:
+    type: cloudify.nodes.openstack.SecurityGroup
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'security-group' ] }
+        description: My Test Security Group
+
+  example-private-subnet:
+    type: cloudify.nodes.openstack.Subnet
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      resource_config:
+        id: { get_input: subnet_id }
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: example-private-network
+
+  example-private-network:
+    type: cloudify.nodes.openstack.Network
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      resource_config:
+        id: { get_input: network_id }

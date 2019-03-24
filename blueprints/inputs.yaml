@@ -1,6 +1,0 @@
-keystone_username: *****
-keystone_password: *****
-keystone_tenant_name: *****
-keystone_url: *****
-region: *****
-external_network_name: *****

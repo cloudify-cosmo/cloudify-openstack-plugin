@@ -116,8 +116,11 @@ def _handle_external_router_resource(openstack_resource):
     :param openstack_resource: Instance of openstack router resource
     """
     remote_router = openstack_resource.get()
+    network_resource = \
+        OpenstackNetwork(client_config=openstack_resource.client_config,
+                         logger=ctx.logger)
     rel_network_id = \
-        _get_connected_external_network_from_relationship(openstack_resource)
+        _get_connected_external_network_from_relationship(network_resource)
     ext_network_id = \
         _get_external_network_id(remote_router.external_gateway_info)
     if rel_network_id and ext_network_id != rel_network_id:

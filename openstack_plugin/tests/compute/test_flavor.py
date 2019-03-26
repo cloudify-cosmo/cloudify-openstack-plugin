@@ -37,7 +37,6 @@ class KeyPairTestCase(OpenStackTestBase):
     def resource_config(self):
         return {
             'name': 'test_flavor',
-            'description': 'flavor_description'
         }
 
     def test_create(self, mock_connection):
@@ -50,7 +49,6 @@ class KeyPairTestCase(OpenStackTestBase):
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
             'name': 'test_flavor',
             'links': '2',
-            'description': 'Testing flavor',
             'os-flavor-access:is_public': True,
             'ram': 6,
             'vcpus': 8,
@@ -85,7 +83,6 @@ class KeyPairTestCase(OpenStackTestBase):
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
             'name': 'test_flavor',
             'links': '2',
-            'description': 'Testing flavor',
             'os-flavor-access:is_public': True,
             'ram': 6,
             'vcpus': 8,
@@ -134,7 +131,6 @@ class KeyPairTestCase(OpenStackTestBase):
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
                 'name': 'test_flavor_1',
                 'links': '2',
-                'description': 'Testing flavor 1',
                 'os-flavor-access:is_public': True,
                 'ram': 6,
                 'vcpus': 8,
@@ -144,7 +140,6 @@ class KeyPairTestCase(OpenStackTestBase):
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe7',
                 'name': 'test_flavor_2',
                 'links': '3',
-                'description': 'Testing flavor 2',
                 'os-flavor-access:is_public': True,
                 'ram': 4,
                 'vcpus': 3,

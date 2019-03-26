@@ -242,7 +242,9 @@ class ServerTestCase(OpenStackTestBase):
         properties.update(self.node_properties)
         # Reset resource config since we are going to use external resource
         # and do not care about the resource config data
-        properties['resource_config'] = {}
+        properties['resource_config'] = {
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8'
+        }
 
         # Prepare the context for create operation
         rel_specs = [
@@ -683,7 +685,9 @@ class ServerTestCase(OpenStackTestBase):
         properties.update(self.node_properties)
         # Reset resource config since we are going to use external resource
         # and do not care about the resource config data
-        properties['resource_config'] = {}
+        properties['resource_config'] = {
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8'
+        }
 
         # Prepare the context for stop operation
         self._prepare_context_for_operation(

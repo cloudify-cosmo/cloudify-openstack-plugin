@@ -12,7 +12,7 @@ dsl_definitions:
     client_config:
       type: cloudify.types.openstack.ClientConfig
       description: Your OpenStack client configuration.
-      required: true
+      required: false
 
   # Every resource uses this property unless noted.
   external_resource: &external_resource
@@ -59,15 +59,15 @@ data_types:
       auth_url:
         type: string
         description: Your OpenStack Client Authorization URL.
-        required: true
+        required: false
       username:
         type: string
         description: Your OpenStack username.
-        required: true
+        required: false
       password:
         type: string
         description: Your OpenStack password.
-        required: true
+        required: false
       project_name:
         type: string
         description: The name of your OpenStack project.
@@ -438,8 +438,7 @@ data_types:
       <<: *data_type_kwargs
       <<: *data_type_name
       <<: *data_type_id
-      <<: *data_type_description
-      ram: 
+      ram:
         description: >
               The amount of RAM a flavor has, in MiB
         required: false

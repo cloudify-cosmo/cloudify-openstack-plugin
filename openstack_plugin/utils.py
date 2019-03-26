@@ -404,12 +404,11 @@ def prepare_resource_instance(class_decl, ctx_node_instance, kwargs):
     """
     def get_property_by_name(property_name):
         property_value = None
-        # TODO: Improve this to be more thorough.
-        if property_name in ctx_node_instance.node.properties:
+        if ctx_node_instance.node.properties.get(property_name):
             property_value = \
                 ctx_node_instance.node.properties.get(property_name)
 
-        if property_name in ctx_node_instance.instance.runtime_properties:
+        if ctx_node_instance.instance.runtime_properties.get(property_name):
             if isinstance(property_value, dict):
                 property_value.update(
                     ctx_node_instance.instance.runtime_properties.get(
@@ -419,7 +418,7 @@ def prepare_resource_instance(class_decl, ctx_node_instance, kwargs):
                     ctx_node_instance.instance.runtime_properties.get(
                         property_name)
 
-        if property_name in kwargs:
+        if kwargs.get(property_name):
             kwargs_value = kwargs.pop(property_name)
             if isinstance(property_value, dict):
                 property_value.update(kwargs_value)

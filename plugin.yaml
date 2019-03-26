@@ -241,7 +241,6 @@ data_types:
 
   cloudify.types.openstack.SecurityGroupRule:
     properties:
-      <<: *data_type_name
       <<: *data_type_kwargs
       <<: *data_type_id
       remote_group_id:
@@ -303,6 +302,7 @@ data_types:
       <<: *data_type_kwargs
       <<: *data_type_name
       <<: *data_type_id
+      <<: *data_type_description
       image_id:
         description: >
           The UUID of the image to use for your server instance.
@@ -380,6 +380,7 @@ data_types:
   cloudify.types.openstack.HostAggregate:
     properties:
       <<: *data_type_name
+      <<: *data_type_id
       availability_zone:
         required: false
         type: string
@@ -463,7 +464,6 @@ data_types:
       <<: *data_type_kwargs
       <<: *data_type_name
       <<: *data_type_id
-      <<: *data_type_description
       default_project_id:
         description: >
           The ID of the default project for the user.
@@ -1027,6 +1027,11 @@ node_types:
           metadata:
             ssd: 'True'
             max_number: '1233'
+      hosts:
+        required: false
+        default: []
+        description: >
+          list of hosts IDs, which will be a members of host aggregate
       resource_config:
         type: cloudify.types.openstack.HostAggregate
         description: https://developer.openstack.org/api-ref/compute/?expanded=create-aggregate-detail
@@ -1036,7 +1041,7 @@ node_types:
         create:
           implementation: openstack.openstack_plugin.resources.compute.host_aggregate.create
         configure:
-          implementation: openstack.openstack_plugin.resources.compute.host_aggregate.set_metadata
+          implementation: openstack.openstack_plugin.resources.compute.host_aggregate.configure
         delete:
           implementation: openstack.openstack_plugin.resources.compute.host_aggregate.delete
       cloudify.interfaces.operations:

@@ -36,7 +36,6 @@ class KeyPairTestCase(OpenStackTestBase):
     def resource_config(self):
         return {
             'name': 'test_key_pair',
-            'description': 'key_pair_description'
         }
 
     def test_create(self, mock_connection):

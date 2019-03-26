@@ -41,9 +41,7 @@ class SecurityGroupRuleTestCase(base.OpenStackSDKTestBase):
         sg_rule =\
             openstack.network.v2.security_group_rule.SecurityGroupRule(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-                'name': 'test_name',
                 'created_at': '0',
-                'description': '1',
                 'direction': '2',
                 'ethertype': '3',
                 'port_range_max': 4,
@@ -63,15 +61,12 @@ class SecurityGroupRuleTestCase(base.OpenStackSDKTestBase):
 
         response = self.security_group_rule_instance.get()
         self.assertEqual(response.id, 'a95b5509-c122-4c2f-823e-884bb559afe8')
-        self.assertEqual(response.name, 'test_name')
 
     def test_list_security_group_rules(self):
         sgs = [
             openstack.network.v2.security_group_rule.SecurityGroupRule(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-                'name': 'test_name_1',
                 'created_at': '0',
-                'description': '1',
                 'direction': '2',
                 'ethertype': '3',
                 'port_range_max': 4,
@@ -86,9 +81,7 @@ class SecurityGroupRuleTestCase(base.OpenStackSDKTestBase):
             }),
             openstack.network.v2.security_group_rule.SecurityGroupRule(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe7',
-                'name': 'test_name_2',
                 'created_at': '0',
-                'description': '1',
                 'direction': '2',
                 'ethertype': '3',
                 'port_range_max': 4,
@@ -110,9 +103,7 @@ class SecurityGroupRuleTestCase(base.OpenStackSDKTestBase):
 
     def test_create_security_group_rule(self):
         rule = {
-                'id:': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-                'name': 'test_name',
-                'description': 'test_description',
+                'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
                 'availability_zone_hints': ['1'],
                 'availability_zones': ['2'],
                 'distributed': False,
@@ -129,14 +120,11 @@ class SecurityGroupRuleTestCase(base.OpenStackSDKTestBase):
             mock.MagicMock(return_value=new_res)
 
         response = self.security_group_rule_instance.create()
-        self.assertEqual(response.name, rule['name'])
-        self.assertEqual(response.description, rule['description'])
+        self.assertEqual(response.id, rule['id'])
 
     def test_delete_security_group_rule(self):
         sg = openstack.network.v2.security_group_rule.SecurityGroupRule(**{
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-            'name': 'test_name',
-            'description': 'test_description',
             'created_at': '0',
             'direction': '2',
             'ethertype': '3',

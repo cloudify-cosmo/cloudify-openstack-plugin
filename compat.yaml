@@ -3,25 +3,33 @@ imports:
 
 dsl_definitions:
 
-  use_compact_node: &use_compact_node
+  common_config: &common_config
     use_compact_node:
       description: This to indicate that this node is going to be converted to openstack version 3.0.0 node
       type: boolean
       default: true
+    openstack_config:
+      default: {}
+    resource_id:
+      default: ''
+
 
 node_types:
 
   cloudify.openstack.nodes.Flavor:
     derived_from: cloudify.nodes.openstack.Flavor
     properties:
-      <<: *use_compact_node
+      <<: *common_config
       flavor:
         default: {}
       extra_specs:
         default: {}
       tenants:
         default: []
-      resource_id:
-        default: ''
-      openstack_config:
+
+  cloudify.openstack.nodes.HostAggregate:
+    derived_from: cloudify.nodes.openstack.HostAggregate
+    properties:
+      <<: *common_config
+      aggregate:
         default: {}

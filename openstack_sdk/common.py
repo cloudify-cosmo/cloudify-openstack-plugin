@@ -53,6 +53,7 @@ class OpenstackResource(object):
 
         if self.resource_id:
             try:
+                self.resource_id = str(self.resource_id)
                 uuid.UUID(self.resource_id)
             except ValueError:
                 # If it's a value error, then the string

@@ -255,6 +255,9 @@ class OpenstackHostAggregate(OpenstackResource):
     service_type = 'compute'
     resource_type = 'aggregate'
 
+    def validate_resource_identifier(self):
+        return None
+
     def list(self):
         self.logger.debug('Attempting to list aggregates')
         return self.connection.compute.aggregates()

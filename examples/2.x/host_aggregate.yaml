@@ -1,0 +1,48 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - compat.yaml
+
+inputs:
+  keystone_username:
+    default: { get_secret: keystone_username }
+
+  keystone_password:
+    default: { get_secret: keystone_password }
+
+  keystone_tenant_name:
+    default: { get_secret: keystone_tenant_name }
+
+  keystone_url:
+    default: { get_secret: keystone_url }
+
+  region:
+    default: { get_secret: region }
+
+  host_aggregate_config:
+    default:
+      availability_zone: nova
+
+dsl_definitions:
+
+  openstack_config: &openstack_config
+    username: { get_input: keystone_username }
+    password: { get_input: keystone_password }
+    tenant_name: { get_input: keystone_tenant_name }
+    auth_url: { get_input: keystone_url }
+    region: { get_input: region }
+
+node_templates:
+
+  example-host-aggregate:
+    type: cloudify.openstack.nodes.HostAggregate
+    properties:
+      openstack_config: *openstack_config
+      aggregate: { get_input: host_aggregate_config }
+      resource_id: 'host_aggregate'
+      metadata:
+        ssd: 'True'
+      hosts:
+        - 'compute005'
+        - 'compute006'

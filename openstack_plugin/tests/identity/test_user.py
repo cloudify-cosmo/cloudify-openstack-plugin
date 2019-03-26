@@ -36,7 +36,6 @@ class UserTestCase(OpenStackTestBase):
     def resource_config(self):
         return {
             'name': 'test_user',
-            'description': 'user_description',
             'is_enabled': True,
             'email': 'test_email@test.com'
         }

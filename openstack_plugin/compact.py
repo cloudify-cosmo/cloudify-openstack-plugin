@@ -19,10 +19,15 @@ from openstack_plugin.constants import USE_EXTERNAL_RESOURCE_PROPERTY
 
 
 FLAVOR_RESOURCE_CONFIG = (
-    'description',
+    'name',
     'ram',
     'disk',
     'vcpus'
+)
+
+AGGREGATE_RESOURCE_CONFIG = (
+    'name',
+    'availability_zone'
 )
 
 
@@ -39,7 +44,9 @@ class Compact(object):
 
     def get_transformation_handler(self):
         return {
-            'cloudify.openstack.nodes.Flavor': self._transform_flavor
+            'cloudify.openstack.nodes.Flavor': self._transform_flavor,
+            'cloudify.openstack.nodes.HostAggregate':
+                self._transform_aggregate,
         }
 
     def get_common_properties(self):
@@ -57,14 +64,33 @@ class Compact(object):
         common['resource_config']['kwargs'] = dict()
         # Check if use external resource is set to "True" so that we can
         # update the resource config with external resource id
-        if self._properties.get(USE_EXTERNAL_RESOURCE_PROPERTY):
-            common['resource_config']['id'] = \
-                self._properties.get('resource_iud')
-        else:
-            common['resource_config']['name'] = \
-                self._properties.get('resource_id')
+        if self._properties.get('resource_id'):
+            if self._properties.get(USE_EXTERNAL_RESOURCE_PROPERTY):
+                common['resource_config']['id'] = \
+                    self._properties['resource_id']
+            else:
+                common['resource_config']['name'] = \
+                    self._properties['resource_id']
 
         return common
+
+    def _transform(self, node_type, resource_config_keys):
+        """
+        This method will transform old node properties to the new node
+        properties based on the node type and resource config keys
+        :param str node_type: Cloudify node type
+        :param tuple resource_config_keys: Tuple of basic keys for new node
+        under "resource_config"
+        :return dict: Compatible node openstack version 3 properties
+        """
+        properties = self.get_common_properties()
+        for key, value in self._properties.get(node_type, {}).items():
+            if key in resource_config_keys:
+                properties['resource_config'][key] = value
+            elif key != 'name':
+                properties['resource_config']['kwargs'].update({key: value})
+
+        return properties
 
     def _transform_flavor(self):
         """
@@ -72,18 +98,20 @@ class Compact(object):
         compatible with openstack flavor version 3
         :return dict: Compatible flavor openstack version 3 properties
         """
-        common = self.get_common_properties()
-        for key, value in self._properties.get('flavor', {}).items():
-            if key in FLAVOR_RESOURCE_CONFIG:
-                common['resource_config'][key] = value
-            else:
-                common['resource_config']['kwargs'].update({key: value})
-        return common
+        return self._transform('flavor', FLAVOR_RESOURCE_CONFIG)
+
+    def _transform_aggregate(self):
+        """
+        This method will do transform operation for aggregate node to be
+        compatible with openstack aggregate version 3
+        :return dict: Compatible aggregate openstack version 3 properties
+        """
+        return self._transform('aggregate', AGGREGATE_RESOURCE_CONFIG)
 
     def transform(self):
         """
         This method will do the transform operation to get a compatible
-        openstack version 3 properties
+        openstack version 3 properties based on the current node type
         :return dict: Compatible openstack version 3 properties
         """
         return self.get_transformation_handler()[self._type]()

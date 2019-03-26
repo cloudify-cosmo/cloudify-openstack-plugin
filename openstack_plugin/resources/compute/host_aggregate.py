@@ -19,12 +19,65 @@ from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.compute import OpenstackHostAggregate
-from openstack_plugin.decorators import with_openstack_resource
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compact_node)
 from openstack_plugin.constants import (RESOURCE_ID,
                                         HOST_AGGREGATE_OPENSTACK_TYPE)
 from openstack_plugin.utils import add_resource_list_to_runtime_properties
 
 
+def _add_hosts(openstack_resource, hosts):
+    """
+    This method is to add list of hosts to the aggregate openstack instance
+    :param openstack_resource: Instance of openstack host aggregate resource
+    :param hosts: List of hosts (strings) that should be added to the aggregate
+    """
+    if isinstance(hosts, list):
+        for host in hosts:
+            # Add host to the target host aggregate
+            openstack_resource.add_host(host)
+    else:
+        raise NonRecoverableError(
+            'invalid data type {0} for hosts'.format(type(hosts)))
+
+    # Update/Add hosts as runtime properties for the current instance
+    if 'hosts' in ctx.instance.runtime_properties:
+        hosts = list(set(hosts + ctx.instance.runtime_properties['hosts']))
+
+    ctx.instance.runtime_properties['hosts'] = hosts
+
+
+def _remove_hosts(openstack_resource, hosts):
+    """
+    This method is to remove list of hosts from aggregate openstack instance
+    :param openstack_resource: Instance of openstack host aggregate resource
+    :param hosts: List of hosts (strings) that should be remove form aggregate
+    """
+    if isinstance(hosts, list):
+        for host in hosts:
+            # Add host to the target host aggregate
+            openstack_resource.remove_host(host)
+    else:
+        raise NonRecoverableError(
+            'invalid data type {0} for hosts'.format(type(hosts)))
+
+    # Get the current remaining hosts in order to update the hosts as a
+    # result of that
+    current_hosts = [
+        host
+        for host in ctx.instance.runtime_properties.get('hosts', [])
+        if host not in hosts
+    ]
+
+    # Update the current hosts as they should represent the remaining hosts
+    # that should be part of the `hosts` runtime property
+    if current_hosts:
+        ctx.instance.runtime_properties['hosts'] = current_hosts
+    else:
+        del ctx.instance.runtime_properties['hosts']
+
+
+@with_compact_node
 @with_openstack_resource(OpenstackHostAggregate)
 def create(openstack_resource):
     """
@@ -39,8 +92,9 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackHostAggregate)
-def set_metadata(openstack_resource):
+def configure(openstack_resource):
     """
     Configure host aggregate by adding metadata with created host aggregate
     :param openstack_resource: Instance of openstack host aggregate resource
@@ -55,7 +109,13 @@ def set_metadata(openstack_resource):
                 ctx.node.properties['metadata'][key] = unicode(value)
         openstack_resource.set_metadata(ctx.node.properties['metadata'])
 
+    # Check to see if there hosts is provided or not so that we can add
+    # hosts and attach them to the aggregate created
+    if ctx.node.properties.get('hosts'):
+        _add_hosts(openstack_resource, ctx.node.properties['hosts'])
 
+
+@with_compact_node
 @with_openstack_resource(OpenstackHostAggregate)
 def update(openstack_resource, args):
     """
@@ -73,6 +133,7 @@ def update(openstack_resource, args):
         'Openstack SDK does not support host aggregate  update operation')
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackHostAggregate)
 def list_aggregates(openstack_resource):
     """
@@ -84,15 +145,24 @@ def list_aggregates(openstack_resource):
                                             aggregates)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackHostAggregate)
 def delete(openstack_resource):
     """
     Delete host aggregate resource
     :param openstack_resource: Instance of openstack host aggregate resource.
     """
+    # Before delete the aggregate, check to see if there are hosts attached
+    # to the aggregates first, checking runtime properties because use could
+    # run "cloudify.interfaces.operations.remove_hosts" operation before
+    # run uninstall which helps to avoid run delete host multiple times
+    if ctx.instance.runtime_properties.get('hosts'):
+        _remove_hosts(openstack_resource,
+                      ctx.instance.runtime_properties['hosts'])
     openstack_resource.delete()
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackHostAggregate)
 def add_hosts(openstack_resource, hosts):
     """
@@ -101,15 +171,10 @@ def add_hosts(openstack_resource, hosts):
     :param list hosts: List of host strings that should be added to the host
     aggregate resource
     """
-    if isinstance(hosts, list):
-        for host in hosts:
-            # Add host to the target host aggregate
-            openstack_resource.add_host(host)
-    else:
-        raise NonRecoverableError(
-            'invalid data type {0} for hosts'.format(type(hosts)))
+    _add_hosts(openstack_resource, hosts)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackHostAggregate)
 def remove_hosts(openstack_resource, hosts):
     """
@@ -118,10 +183,4 @@ def remove_hosts(openstack_resource, hosts):
     :param list hosts: List of host strings that should be removed from host
     aggregate resource
     """
-    if isinstance(hosts, list):
-        for host in hosts:
-            # Add host to the target host aggregate
-            openstack_resource.remove_host(host)
-    else:
-        raise NonRecoverableError(
-            'invalid data type {0} for hosts'.format(type(hosts)))
+    _remove_hosts(openstack_resource, hosts)

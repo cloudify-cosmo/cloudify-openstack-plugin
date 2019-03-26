@@ -48,4 +48,7 @@ node_templates:
       client_config: *client_config
       metadata:
         ssd: 'True'
+      hosts:
+        - 'compute005'
+        - 'compute006'
       resource_config: { get_input: host_aggregate_config }

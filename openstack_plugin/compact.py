@@ -37,6 +37,11 @@ IMAGE_RESOURCE_CONFIG = (
     'tags'
 )
 
+KEYPAIR_RESOURCE_CONFIG = (
+    'name',
+    'public_key',
+)
+
 
 class Compact(object):
     def __init__(self, context):
@@ -54,7 +59,8 @@ class Compact(object):
             'cloudify.openstack.nodes.Flavor': self._transform_flavor,
             'cloudify.openstack.nodes.HostAggregate':
                 self._transform_aggregate,
-            'cloudify.openstack.nodes.Image': self._transform_image
+            'cloudify.openstack.nodes.Image': self._transform_image,
+            'cloudify.openstack.nodes.KeyPair': self._transform_keypair
         }
 
     def get_common_properties(self):
@@ -66,7 +72,14 @@ class Compact(object):
         common = dict()
         # Populate client config from openstack config
         if self._properties.get('openstack_config'):
-            common['client_config'] = self._properties['openstack_config']
+            client_config = dict()
+            # Parse openstack config so that we can populate the client
+            # config for the `client_config` object
+            for key, value in self._properties['openstack_config'].items():
+                if key == 'tenant_name':
+                    key = 'project_name'
+                client_config[key] = value
+            common['client_config'] = client_config
 
         common['resource_config'] = dict()
         common['resource_config']['kwargs'] = dict()
@@ -123,6 +136,14 @@ class Compact(object):
         :return dict: Compatible image openstack version 3 properties
         """
         return self._transform('image', IMAGE_RESOURCE_CONFIG)
+
+    def _transform_keypair(self):
+        """
+        This method will do transform operation for keypair node to be
+        compatible with openstack keypair version 3
+        :return dict: Compatible keypair openstack version 3 properties
+        """
+        return self._transform('keypair', KEYPAIR_RESOURCE_CONFIG)
 
     def transform(self):
         """

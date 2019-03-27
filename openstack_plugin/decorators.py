@@ -109,7 +109,7 @@ def with_compact_node(func):
     :return: Wrapped function
     """
     def wrapper(**kwargs):
-        ctx = kwargs.pop('ctx', CloudifyContext)
+        ctx = kwargs.get('ctx', CloudifyContext)
 
         # Resolve the actual context which need to run operation,
         # the context could be belongs to relationship context or actual

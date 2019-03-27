@@ -40,3 +40,14 @@ node_types:
       <<: *common_config
       image:
         default: {}
+
+  cloudify.openstack.nodes.KeyPair:
+    derived_from: cloudify.nodes.openstack.KeyPair
+    properties:
+      <<: *common_config
+      keypair:
+        default: {}
+      # Openstack 3.x.x does not support generating private key file, this property will be ignored
+      private_key_path:
+        type: string
+        default: ''

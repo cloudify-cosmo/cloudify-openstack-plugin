@@ -496,37 +496,33 @@ def handle_external_resource(ctx_node_instance,
     if error_message:
         raise NonRecoverableError(error_message)
 
-    # Cannot delete/create resource when it is external
-    if operation_name in [CLOUDIFY_CREATE_OPERATION,
-                          CLOUDIFY_DELETE_OPERATION]:
+    ctx.logger.info('Using external resource {0}'.format(RESOURCE_ID))
+
+    try:
+        # Get the remote resource
+        remote_resource = openstack_resource.get()
+    except openstack.exceptions.SDKException as error:
+        _, _, tb = sys.exc_info()
+        raise NonRecoverableError(
+            'Failure while trying to request '
+            'Openstack API: {}'.format(error.message),
+            causes=[exception_to_error_cause(error, tb)])
+
+    # Check the operation type and based on that decide what to do
+    if operation_name == CLOUDIFY_CREATE_OPERATION:
         ctx.logger.info(
-            'Using external resource {0}'.format(RESOURCE_ID))
+            'not creating resource {0}'
+            ' since an external resource is being used'
+            ''.format(remote_resource.name))
+        ctx_node_instance.instance.runtime_properties[RESOURCE_ID] \
+            = remote_resource.id
 
-        try:
-            # Get the remote resource
-            remote_resource = openstack_resource.get()
-        except openstack.exceptions.SDKException as error:
-            _, _, tb = sys.exc_info()
-            raise NonRecoverableError(
-                'Failure while trying to request '
-                'Openstack API: {}'.format(error.message),
-                causes=[exception_to_error_cause(error, tb)])
-
-        # Check the operation type and based on that decide what to do
-        if operation_name == CLOUDIFY_CREATE_OPERATION:
-            ctx.logger.info(
-                'not creating resource {0}'
-                ' since an external resource is being used'
-                ''.format(remote_resource.name))
-            ctx_node_instance.instance.runtime_properties[RESOURCE_ID] \
-                = remote_resource.id
-
-        # Just log message that we cannot delete resource
-        elif operation_name == CLOUDIFY_DELETE_OPERATION:
-            ctx.logger.info(
-                'not deleting resource {0}'
-                ' since an external resource is being used'
-                ''.format(remote_resource.name))
+    # Just log message that we cannot delete resource
+    elif operation_name == CLOUDIFY_DELETE_OPERATION:
+        ctx.logger.info(
+            'not deleting resource {0}'
+            ' since an external resource is being used'
+            ''.format(remote_resource.name))
 
     # Check if we need to run custom operation for already existed
     # resource for operation task

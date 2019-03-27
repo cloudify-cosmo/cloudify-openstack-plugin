@@ -30,6 +30,13 @@ AGGREGATE_RESOURCE_CONFIG = (
     'availability_zone'
 )
 
+IMAGE_RESOURCE_CONFIG = (
+    'name',
+    'container_format',
+    'disk_format',
+    'tags'
+)
+
 
 class Compact(object):
     def __init__(self, context):
@@ -47,6 +54,7 @@ class Compact(object):
             'cloudify.openstack.nodes.Flavor': self._transform_flavor,
             'cloudify.openstack.nodes.HostAggregate':
                 self._transform_aggregate,
+            'cloudify.openstack.nodes.Image': self._transform_image
         }
 
     def get_common_properties(self):
@@ -107,6 +115,14 @@ class Compact(object):
         :return dict: Compatible aggregate openstack version 3 properties
         """
         return self._transform('aggregate', AGGREGATE_RESOURCE_CONFIG)
+
+    def _transform_image(self):
+        """
+        This method will do transform operation for image node to be
+        compatible with openstack image version 3
+        :return dict: Compatible image openstack version 3 properties
+        """
+        return self._transform('image', IMAGE_RESOURCE_CONFIG)
 
     def transform(self):
         """

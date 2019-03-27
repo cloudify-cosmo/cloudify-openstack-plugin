@@ -33,3 +33,10 @@ node_types:
       <<: *common_config
       aggregate:
         default: {}
+
+  cloudify.openstack.nodes.Image:
+    derived_from: cloudify.nodes.openstack.Image
+    properties:
+      <<: *common_config
+      image:
+        default: {}

@@ -24,15 +24,13 @@ from cloudify.utils import exception_to_error_cause
 
 # Local imports
 from openstack_plugin.compact import Compact
-from openstack_plugin.constants import (USE_EXTERNAL_RESOURCE_PROPERTY,
-                                        USE_COMPACT_NODE)
+from openstack_plugin.constants import USE_COMPACT_NODE
 from openstack_plugin.utils \
     import (resolve_ctx,
             get_current_operation,
             prepare_resource_instance,
-            handle_external_resource,
-            update_runtime_properties_for_operation_task,
-            allow_to_run_operation_for_external_node)
+            use_external_resource,
+            update_runtime_properties_for_operation_task)
 
 
 def with_openstack_resource(class_decl,
@@ -67,23 +65,10 @@ def with_openstack_resource(class_decl,
             resource = \
                 prepare_resource_instance(class_decl, ctx_node, kwargs)
 
-            # Handle external resource when it is enabled
-            if ctx_node.node.properties.get(USE_EXTERNAL_RESOURCE_PROPERTY):
-                handle_external_resource(ctx_node,
-                                         resource,
-                                         existing_resource_handler,
-                                         **existing_resource_kwargs)
-
-                # Update runtime properties
-                if not allow_to_run_operation_for_external_node(
-                        operation_name):
-                    # Update runtime properties for operation
-                    update_runtime_properties_for_operation_task(
-                        operation_name,
-                        ctx_node,
-                        resource)
-
-                    return
+            if use_external_resource(ctx_node, resource,
+                                     existing_resource_handler,
+                                     **existing_resource_kwargs):
+                return
             try:
                 kwargs['openstack_resource'] = resource
                 func(**kwargs)

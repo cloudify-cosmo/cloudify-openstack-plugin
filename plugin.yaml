@@ -21,12 +21,11 @@ dsl_definitions:
       type: boolean
       default: false
 
-  # Every resource uses this property unless noted.
-  resource_id: &resource_id
-    resource_id:
-      description: The Openstack resource ID of the external resource, if use_external_resource is true. Otherwise it is an empty string.
-      type: string
-      default: ''
+  create_if_missing: &create_if_missing
+    create_if_missing:
+      type: boolean
+      default: false
+      description: If use_external_resource is ``true`` and the resource is missing,create it instead of failing.
 
   id: &data_type_id
     id:
@@ -604,6 +603,7 @@ node_types:
     derived_from: cloudify.nodes.Network
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
 
   cloudify.nodes.openstack.Network:
@@ -666,6 +666,7 @@ node_types:
     derived_from: cloudify.nodes.Port
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.Port
@@ -696,6 +697,7 @@ node_types:
     derived_from: cloudify.nodes.Router
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.Router
@@ -730,6 +732,7 @@ node_types:
     derived_from: cloudify.nodes.VirtualIP
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       allow_reallocation:
         type: boolean
@@ -768,6 +771,7 @@ node_types:
     derived_from: cloudify.nodes.SecurityGroup
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       disable_default_egress_rules:
         description: >
@@ -813,6 +817,7 @@ node_types:
     derived_from: cloudify.nodes.SecurityGroup
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.SecurityGroupRule
@@ -838,6 +843,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.RBACPolicy
@@ -876,6 +882,7 @@ node_types:
     derived_from: cloudify.nodes.Compute
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.Server
@@ -965,10 +972,12 @@ node_types:
 
 
 
+
   cloudify.nodes.openstack.ServerGroup:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.ServerGroup
@@ -994,6 +1003,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.KeyPair
@@ -1016,6 +1026,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       metadata:
         required: false
@@ -1067,6 +1078,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       image_url:
         type: string
@@ -1104,6 +1116,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.Flavor
@@ -1133,6 +1146,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.User
@@ -1160,6 +1174,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       users:
         default: []
@@ -1214,6 +1229,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       device_name:
         type: string
@@ -1267,6 +1283,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.VolumeType

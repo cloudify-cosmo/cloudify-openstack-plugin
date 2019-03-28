@@ -39,6 +39,9 @@ from openstack_plugin.constants import (PS_OPEN,
                                         QUOTA_INVALID_MSG,
                                         INFINITE_RESOURCE_QUOTA,
                                         RESOURCE_ID,
+                                        CONDITIONALLY_CREATED,
+                                        USE_EXTERNAL_RESOURCE_PROPERTY,
+                                        CREATE_IF_MISSING_PROPERTY,
                                         OPENSTACK_TYPE_PROPERTY,
                                         OPENSTACK_NAME_PROPERTY,
                                         CLOUDIFY_NEW_NODE_OPERATIONS,
@@ -471,19 +474,102 @@ def update_runtime_properties_for_operation_task(operation_name,
         unset_runtime_properties_from_instance(ctx_node_instance)
 
 
-def handle_external_resource(ctx_node_instance,
-                             openstack_resource,
-                             existing_resource_handler=None,
-                             **kwargs):
+def lookup_remote_resource(_ctx, openstack_resource):
     """
-    :param ctx_node_instance: Cloudify context cloudify.context.CloudifyContext
+    This method will try to lookup openstack remote resource based on the
+    instance type
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :param openstack_resource: Instance derived from "OpenstackResource",
+    it could be "OpenstackNetwork" or "OpenstackRouter" ..etc
+    :return: Remote resource instance derived from openstack.resource.Resource
+    """
+
+    try:
+        # Get the remote resource
+        remote_resource = openstack_resource.get()
+    except openstack.exceptions.SDKException as error:
+        _, _, tb = sys.exc_info()
+        # If external resource does not exist then try to create it instead
+        # of failed, when "create_if_missing" is set to "True"
+        if is_create_if_missing(_ctx):
+            _ctx.instance.runtime_properties[CONDITIONALLY_CREATED] = True
+            # Since openstack SDK does not allow to have "id" on the payload
+            # request, "id" must be pop from openstack resource config so
+            # that it cannot be sent when trying to create API
+            openstack_resource.config.pop('id', None)
+            openstack_resource.resource_id = None
+            return None
+        raise NonRecoverableError(
+            'Failure while trying to request '
+            'Openstack API: {}'.format(error.message),
+            causes=[exception_to_error_cause(error, tb)])
+    return remote_resource
+
+
+def is_external_resource(_ctx):
+    """
+    This method is to check if the current node is an external openstack
+    resource or not
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :return bool: Return boolean flag to indicate if it is external or not
+    """
+    return True if \
+        _ctx.node.properties.get(USE_EXTERNAL_RESOURCE_PROPERTY) else False
+
+
+def is_create_if_missing(_ctx):
+    """
+    This method is to check if the current node has a "create_if_missing"
+    property in order to create resource even when "use_external_resource"
+    is set to "True"
+    resource or not
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :return bool: Return boolean flag in order to decided if we should
+    create external resource or not
+    """
+    return True if \
+        _ctx.node.properties.get(CREATE_IF_MISSING_PROPERTY) else False
+
+
+def is_external_relationship_not_conditionally_created(_ctx):
+    """
+    This method is to check if the relationship between two nodes are
+    external and not conditional created "create_if_missing" is set to
+    "False" to the node which in turn does not have "conditionally_created"
+    runtime property for the node instance
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :return bool: Return boolean to indicate if both source/target are
+    external resources and do not have "conditionally_created" runtime property
+    """
+    source_conditional_created = \
+        _ctx.source.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+    target_conditional_created = \
+        _ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+    return \
+        is_external_resource(ctx.source) and is_external_resource(ctx.target)\
+        and not (source_conditional_created or target_conditional_created)
+
+
+def use_external_resource(_ctx,
+                          openstack_resource,
+                          existing_resource_handler=None,
+                          **kwargs):
+    """
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
     :param openstack_resource: Openstack resource instance
     :param existing_resource_handler: Callback handler that used to be
     called in order to execute custom operation when "use_external_resource" is
     enabled
     :param kwargs: Any extra param passed to the existing_resource_handler
     """
+    # Return None to indicate that this is the resource is not created and
+    # we should continue and run operation node tasks
+    if not is_external_resource(_ctx):
+        return None
 
+    ctx.logger.info('Using external resource {0}'.format(RESOURCE_ID))
     # Get the current operation name
     operation_name = get_current_operation()
 
@@ -496,30 +582,24 @@ def handle_external_resource(ctx_node_instance,
     if error_message:
         raise NonRecoverableError(error_message)
 
-    ctx.logger.info('Using external resource {0}'.format(RESOURCE_ID))
+    # Try to lookup remote resource
+    remote_resource = lookup_remote_resource(_ctx, openstack_resource)
+    # Check if the current node instance is conditional created or not
+    if _ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED):
+        return None
 
-    try:
-        # Get the remote resource
-        remote_resource = openstack_resource.get()
-    except openstack.exceptions.SDKException as error:
-        _, _, tb = sys.exc_info()
-        raise NonRecoverableError(
-            'Failure while trying to request '
-            'Openstack API: {}'.format(error.message),
-            causes=[exception_to_error_cause(error, tb)])
-
-    # Check the operation type and based on that decide what to do
+    # Just log message that we cannot delete resource since it is an
+    # external resource
     if operation_name == CLOUDIFY_CREATE_OPERATION:
-        ctx.logger.info(
+        _ctx.logger.info(
             'not creating resource {0}'
             ' since an external resource is being used'
             ''.format(remote_resource.name))
-        ctx_node_instance.instance.runtime_properties[RESOURCE_ID] \
-            = remote_resource.id
-
-    # Just log message that we cannot delete resource
+        _ctx.instance.runtime_properties[RESOURCE_ID] = remote_resource.id
+    # Just log message that we cannot delete resource since it is an
+    # external resource
     elif operation_name == CLOUDIFY_DELETE_OPERATION:
-        ctx.logger.info(
+        _ctx.logger.info(
             'not deleting resource {0}'
             ' since an external resource is being used'
             ''.format(remote_resource.name))
@@ -535,6 +615,18 @@ def handle_external_resource(ctx_node_instance,
             kwargs['openstack_resource'] = openstack_resource
 
         existing_resource_handler(**kwargs)
+
+    # Check which operations are allowed to execute when
+    # "use_external_resource" is set to "True"
+    if allow_to_run_operation_for_external_node(operation_name):
+        return None
+    else:
+        # Update runtime properties for operation
+        update_runtime_properties_for_operation_task(operation_name,
+                                                     _ctx,
+                                                     openstack_resource)
+        # Return instance of the external node
+        return openstack_resource
 
 
 def get_snapshot_name(object_type, snapshot_name, snapshot_incremental):

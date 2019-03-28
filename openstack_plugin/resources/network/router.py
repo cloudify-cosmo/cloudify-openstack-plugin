@@ -105,8 +105,10 @@ def _connect_router_to_external_network(router_resource):
     if 'external_gateway_info' not in router_resource.config:
         router_resource.config['external_gateway_info'] = {}
 
-    router_resource.config['external_gateway_info']['network_id'] = \
-        ext_net_id or rel_ext_net_id
+    network_id = ext_net_id or rel_ext_net_id
+    if network_id:
+        router_resource.config['external_gateway_info']['network_id'] = \
+            network_id
 
 
 def _handle_external_router_resource(openstack_resource):

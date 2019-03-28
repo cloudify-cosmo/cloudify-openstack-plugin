@@ -1,0 +1,99 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  # For use with a manager use: plugin:cloudify-openstack-plugin
+  - plugin.yaml
+
+inputs:
+
+  auth_url:
+    type: string
+
+  username:
+    type: string
+
+  password:
+    type: string
+
+  region_name:
+    type: string
+
+  project_name:
+    type: string
+
+  example_subnet_cidr:
+    type: string
+    default: '10.0.0.0/24'
+
+  example_fixed_ip:
+    type: string
+    default: '10.0.0.1'
+
+  name_prefix:
+    type: string
+    default: network-blueprint_
+
+dsl_definitions:
+
+  client_config: &client_config
+    auth_url: { get_input: auth_url }
+    username: { get_input: username }
+    password: { get_input: password }
+    region_name: { get_input: region_name }
+    project_name: { get_input: project_name }
+
+node_templates:
+
+  example-router:
+    type: cloudify.nodes.openstack.Router
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      create_if_missing: true
+      resource_config:
+        id: 'f9df1b79-3922-4027-a70a-e34da9b45880'
+        name: { concat: [ { get_input: name_prefix }, 'router' ] }
+
+  example-network:
+    type: cloudify.nodes.openstack.Network
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      create_if_missing: true
+      resource_config:
+        id: 'f9df1b79-3922-4027-a70a-e34da9b44780'
+        name: { concat: [ { get_input: name_prefix }, 'network' ] }
+
+  example-security-group:
+    type: cloudify.nodes.openstack.SecurityGroup
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      create_if_missing: true
+      resource_config:
+        id: 'f9df1b79-3922-4027-a70a-e34da9b43680'
+        name: { concat: [ { get_input: name_prefix }, 'security_group' ] }
+        description: 'A security group created by Cloudify OpenStack SDK plugin.'
+
+  example-subnet:
+    type: cloudify.nodes.openstack.Subnet
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      create_if_missing: true
+      resource_config:
+        id: 'f9df1b79-3922-4027-a70a-e34da9b42580'
+        name: { concat: [ { get_input: name_prefix }, 'subnet' ] }
+        cidr: { get_input: example_subnet_cidr }
+        enable_dhcp: true
+        ip_version: 4
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: example-network
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }

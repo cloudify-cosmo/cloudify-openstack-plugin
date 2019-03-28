@@ -36,7 +36,7 @@ from openstack_plugin.utils import (
 def use_external_floating_ip(openstack_resource):
     """
     This method will allow floating ip reallocation whenever
-    use_external_resource is ste to "True" and "allow_reallocation" is enabled
+    use_external_resource is set to "True" and "allow_reallocation" is enabled
     :param openstack_resource: Instance Of OpenstackFloatingIP in order to
     use it
     """

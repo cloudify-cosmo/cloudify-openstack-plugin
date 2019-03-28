@@ -15,6 +15,7 @@
 
 # Third part imports
 from cloudify import ctx
+from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.networks import OpenstackNetwork
@@ -26,7 +27,22 @@ from openstack_plugin.utils import (validate_resource_quota,
 from openstack_plugin.constants import NETWORK_OPENSTACK_TYPE
 
 
-@with_openstack_resource(OpenstackNetwork)
+def handle_external_network(openstack_resource):
+    """
+    This method will check the current status for external resource when
+    use_external_resource is set to "True"
+    :param openstack_resource: Instance Of OpenstackNetwork in order to
+    use it
+    """
+    remote_network = openstack_resource.get()
+    if not remote_network.is_admin_state_up:
+        raise NonRecoverableError(
+            'Expected external resource network {0} to be in '
+            '"admin_state_up"=True'.format(remote_network.id))
+
+
+@with_openstack_resource(OpenstackNetwork,
+                         existing_resource_handler=handle_external_network)
 def create(openstack_resource):
     """
     Create openstack network instance

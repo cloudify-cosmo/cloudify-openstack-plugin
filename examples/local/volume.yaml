@@ -33,7 +33,7 @@ inputs:
 
   name_prefix:
     type: string
-    default: 'bootable_blueprint_'
+    default: 'bootable-blueprint-'
 
   external_network_id:
     type: string

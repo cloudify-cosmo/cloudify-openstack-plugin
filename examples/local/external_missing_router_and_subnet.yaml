@@ -28,10 +28,27 @@ inputs:
 
   name_prefix:
     type: string
-    default: network-blueprint_
+    default: 'external-missing-router-subnet-blueprint-'
+    description: Prefix string for all resources
+
+  router_resource_id:
+    type: string
+    description: Router Openstack external resource ID
+
+  external_network_id:
+    type: string
+    description: A network that provisions floating IPs.
+
+  network_resource_id:
+    type: string
+    description: Network Openstack external resource ID.
+
+  subnet_resource_id:
+    type: string
+    description: Subnet Openstack external resource ID.
+
 
 dsl_definitions:
-
   client_config: &client_config
     auth_url: { get_input: auth_url }
     username: { get_input: username }
@@ -41,6 +58,17 @@ dsl_definitions:
 
 node_templates:
 
+  example-external-network:
+    type: cloudify.nodes.openstack.Network
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      resource_config:
+        id: { get_input: external_network_id }
+        kwargs:
+          routing:
+            external: true
+
   example-router:
     type: cloudify.nodes.openstack.Router
     properties:
@@ -48,8 +76,17 @@ node_templates:
       use_external_resource: true
       create_if_missing: true
       resource_config:
-        id: 'f9df1b79-3922-4027-a70a-e34da9b45880'
+        id: { get_input: router_resource_id }
         name: { concat: [ { get_input: name_prefix }, 'router' ] }
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: example-external-network
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
 
   example-network:
     type: cloudify.nodes.openstack.Network
@@ -58,19 +95,8 @@ node_templates:
       use_external_resource: true
       create_if_missing: true
       resource_config:
-        id: 'f9df1b79-3922-4027-a70a-e34da9b44780'
-        name: { concat: [ { get_input: name_prefix }, 'network' ] }
-
-  example-security-group:
-    type: cloudify.nodes.openstack.SecurityGroup
-    properties:
-      client_config: *client_config
-      use_external_resource: true
-      create_if_missing: true
-      resource_config:
-        id: 'f9df1b79-3922-4027-a70a-e34da9b43680'
-        name: { concat: [ { get_input: name_prefix }, 'security_group' ] }
-        description: 'A security group created by Cloudify OpenStack SDK plugin.'
+         id: { get_input: network_resource_id }
+         name: { concat: [ { get_input: name_prefix }, 'network' ] }
 
   example-subnet:
     type: cloudify.nodes.openstack.Subnet
@@ -79,7 +105,7 @@ node_templates:
       use_external_resource: true
       create_if_missing: true
       resource_config:
-        id: 'f9df1b79-3922-4027-a70a-e34da9b42580'
+        id: { get_input: subnet_resource_id }
         name: { concat: [ { get_input: name_prefix }, 'subnet' ] }
         cidr: { get_input: example_subnet_cidr }
         enable_dhcp: true
@@ -87,6 +113,8 @@ node_templates:
     relationships:
       - type: cloudify.relationships.contained_in
         target: example-network
+      - type: cloudify.relationships.openstack.subnet_connected_to_router
+        target: example-router
     # This is only run on local mode. For use with a manager, it can be commented out.
     interfaces:
       cloudify.interfaces.lifecycle:

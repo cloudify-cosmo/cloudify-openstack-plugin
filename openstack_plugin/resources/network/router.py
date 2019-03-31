@@ -19,6 +19,7 @@ from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.networks import (OpenstackRouter,
+                                              OpenstackPort,
                                               OpenstackNetwork)
 from openstack_plugin.decorators import with_openstack_resource
 from openstack_plugin.constants import (RESOURCE_ID,
@@ -131,6 +132,37 @@ def _handle_external_router_resource(openstack_resource):
             ' {1} to be connected'.format(rel_network_id, ext_network_id))
 
 
+def _validate_external_interface_connections(openstack_resource):
+    """
+    This method will validate if the external interfaces connected to the
+    external router are valid and match the id provided via cloudify node
+    :param openstack_resource: Instance of openstack router resource
+    """
+    ctx.logger.info('Validating external subnet and router are associated')
+    subnet_id = ctx.source.instance.runtime_properties.get(RESOURCE_ID)
+    port = OpenstackPort(client_config=openstack_resource.client_config,
+                         logger=ctx.logger)
+
+    for port_item in port.list(
+            query={'device_id': openstack_resource.resource_id}):
+        for fixed_ip in port_item.get('fixed_ips', []):
+            if fixed_ip.get('subnet_id') == subnet_id:
+                return
+
+    raise NonRecoverableError(
+        'Expected external resources router {0} and subnet {1} to be '
+        'connected'.format(openstack_resource.resource_id, subnet_id))
+
+
+def _handle_disconnect_external_subnet_from_router():
+    """
+    This method will trigger if both subnet and router are external when
+    disconnect links between them in order to log message to the user
+    """
+    ctx.logger.info('Not connecting subnet and router since external '
+                    'subnet and router are being used')
+
+
 @with_openstack_resource(
     OpenstackRouter,
     existing_resource_handler=_handle_external_router_resource)
@@ -193,7 +225,9 @@ def creation_validation(openstack_resource):
     ctx.logger.debug('OK: router configuration is valid')
 
 
-@with_openstack_resource(OpenstackRouter)
+@with_openstack_resource(
+    OpenstackRouter,
+    existing_resource_handler=_validate_external_interface_connections)
 def add_interface_to_router(openstack_resource, **kwargs):
     """
     Add interface to router in order to link router with other services like
@@ -205,7 +239,9 @@ def add_interface_to_router(openstack_resource, **kwargs):
     openstack_resource.add_interface(kwargs)
 
 
-@with_openstack_resource(OpenstackRouter)
+@with_openstack_resource(
+    OpenstackRouter,
+    existing_resource_handler=_handle_disconnect_external_subnet_from_router)
 def remove_interface_from_router(openstack_resource, **kwargs):
     """
     Remove interface to router in order to unlink router with other services

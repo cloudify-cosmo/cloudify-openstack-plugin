@@ -44,7 +44,7 @@ inputs:
 
   name_prefix:
     type: string
-    default: routes_example_
+    default: routes-example-
 
 dsl_definitions:
 

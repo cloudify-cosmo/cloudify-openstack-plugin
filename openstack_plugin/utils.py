@@ -394,31 +394,30 @@ def unset_runtime_properties_from_instance(ctx_node_instance):
         del ctx_node_instance.instance.runtime_properties[key]
 
 
-def prepare_resource_instance(class_decl, ctx_node_instance, kwargs):
+def prepare_resource_instance(class_decl, ctx_node, kwargs):
     """
     This method used to prepare and instantiate instance of openstack resource
     So that it can be used to make API request to execute required operations
     :param class_decl: Class name of the resource instance we need to create
-    :param ctx_node_instance: Cloudify node instance which is an instance of
-     cloudify.context.NodeInstanceContext
+    :param ctx_node: Cloudify context cloudify.context.CloudifyContext
     :param kwargs: Some config contains data for openstack resource that
     could be provided via input task operation
     :return: Instance of openstack resource
     """
     def get_property_by_name(property_name):
         property_value = None
-        if ctx_node_instance.node.properties.get(property_name):
+        if ctx_node.node.properties.get(property_name):
             property_value = \
-                ctx_node_instance.node.properties.get(property_name)
+                ctx_node.node.properties.get(property_name)
 
-        if ctx_node_instance.instance.runtime_properties.get(property_name):
+        if ctx_node.instance.runtime_properties.get(property_name):
             if isinstance(property_value, dict):
                 property_value.update(
-                    ctx_node_instance.instance.runtime_properties.get(
+                    ctx_node.instance.runtime_properties.get(
                         property_name))
             else:
                 property_value = \
-                    ctx_node_instance.instance.runtime_properties.get(
+                    ctx_node.instance.runtime_properties.get(
                         property_name)
 
         if kwargs.get(property_name):
@@ -440,9 +439,9 @@ def prepare_resource_instance(class_decl, ctx_node_instance, kwargs):
 
     # Check if resource_id is part of runtime properties so that we
     # can add it to the resource_config
-    if RESOURCE_ID in ctx_node_instance.instance.runtime_properties:
+    if RESOURCE_ID in ctx_node.instance.runtime_properties:
         resource_config['id'] = \
-            ctx_node_instance.instance.runtime_properties[RESOURCE_ID]
+            ctx_node.instance.runtime_properties[RESOURCE_ID]
 
     resource = class_decl(client_config=client_config,
                           resource_config=resource_config,
@@ -531,6 +530,19 @@ def is_create_if_missing(_ctx):
         _ctx.node.properties.get(CREATE_IF_MISSING_PROPERTY) else False
 
 
+def is_external_relationship(_ctx):
+    """
+    This method is to check if both target & source nodes are external
+    resources with "use_external_resource"
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :return bool: Return boolean flag in order to decide if both resources
+    are external
+    """
+    if is_external_resource(_ctx.source) and is_external_resource(_ctx.target):
+        return True
+    return False
+
+
 def is_external_relationship_not_conditionally_created(_ctx):
     """
     This method is to check if the relationship between two nodes are
@@ -564,6 +576,45 @@ def use_external_resource(_ctx,
     enabled
     :param kwargs: Any extra param passed to the existing_resource_handler
     """
+    # The cases when it is allowed to run operation tasks for resources
+    # 1- When "use_external_resource=False"
+    # 2- When "create_if_missing=True" and "use_external_resource=True"
+    # 3- When "use_external_resource=True" and the current operation name
+    # is not included in the following operation list
+    #   - "cloudify.interfaces.lifecycle.create"
+    #   - "cloudify.interfaces.lifecycle.configure"
+    #   - "cloudify.interfaces.lifecycle.start"
+    #   - "cloudify.interfaces.lifecycle.stop"
+    #   - "cloudify.interfaces.lifecycle.delete"
+    #   - "cloudify.interfaces.validation.creation"
+
+    # 4- When "use_external_resource=True" for (source|target) node node but
+    # "use_external_resource=False" for (target|source) node for the
+    # following relationship operations:
+    #   - "cloudify.interfaces.relationship_lifecycle.preconfigure"
+    #   - "cloudify.interfaces.relationship_lifecycle.postconfigure"
+    #   - "cloudify.interfaces.relationship_lifecycle.establish"
+    #   - "cloudify.interfaces.relationship_lifecycle.unlink"
+
+    # Run custom operation When "existing_resource_handler" is not None,
+    # so that it helps to validate or run that operation for external
+    # existing resource in the following cases only:
+
+    # 1- When "use_external_resource=True" for the following tasks:
+    #   - "cloudify.interfaces.lifecycle.create"
+    #   - "cloudify.interfaces.lifecycle.configure"
+    #   - "cloudify.interfaces.lifecycle.start"
+    #   - "cloudify.interfaces.lifecycle.stop"
+    #   - "cloudify.interfaces.lifecycle.delete"
+    #   - "cloudify.interfaces.validation.creation"
+
+    # 2- When "use_external_resource=True" for both source & target node on
+    # the for the following opertaions:
+    #   - "cloudify.interfaces.relationship_lifecycle.preconfigure"
+    #   - "cloudify.interfaces.relationship_lifecycle.postconfigure"
+    #   - "cloudify.interfaces.relationship_lifecycle.establish"
+    #   - "cloudify.interfaces.relationship_lifecycle.unlink"
+
     # Return None to indicate that this is the resource is not created and
     # we should continue and run operation node tasks
     if not is_external_resource(_ctx):
@@ -585,7 +636,13 @@ def use_external_resource(_ctx,
     # Try to lookup remote resource
     remote_resource = lookup_remote_resource(_ctx, openstack_resource)
     # Check if the current node instance is conditional created or not
-    if _ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED):
+    is_create = _ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+    # Check if context type is "relationship-instance" and to check if both
+    # target and source are not external
+    is_not_external_rel = \
+        ctx.type == RELATIONSHIP_INSTANCE and not is_external_relationship(ctx)
+
+    if is_create or is_not_external_rel:
         return None
 
     # Just log message that we cannot delete resource since it is an
@@ -596,6 +653,8 @@ def use_external_resource(_ctx,
             ' since an external resource is being used'
             ''.format(remote_resource.name))
         _ctx.instance.runtime_properties[RESOURCE_ID] = remote_resource.id
+        if hasattr(remote_resource, 'name') and remote_resource.name:
+            openstack_resource.name = remote_resource.name
     # Just log message that we cannot delete resource since it is an
     # external resource
     elif operation_name == CLOUDIFY_DELETE_OPERATION:
@@ -617,11 +676,12 @@ def use_external_resource(_ctx,
         existing_resource_handler(**kwargs)
 
     # Check which operations are allowed to execute when
-    # "use_external_resource" is set to "True"
-    if allow_to_run_operation_for_external_node(operation_name):
+    # "use_external_resource" is set to "True" and "node_type" is instance
+    if ctx.type == NODE_INSTANCE\
+            and allow_to_run_operation_for_external_node(operation_name):
         return None
     else:
-        # Update runtime properties for operation
+        # Update runtime properties for operation create | delete operations
         update_runtime_properties_for_operation_task(operation_name,
                                                      _ctx,
                                                      openstack_resource)

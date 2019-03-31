@@ -134,10 +134,9 @@ class OpenstackServer(OpenstackResource):
             ' password for this server: {0}'.format(server))
         return self.connection.compute.get_server_password(server)
 
-    def list_volume_attachments(self, query=None):
-        query = query or {}
+    def list_volume_attachments(self):
         self.logger.debug('Attempting to list volumes attachments')
-        return self.connection.compute.volume_attachments(**query)
+        return self.connection.compute.volume_attachments(self.resource_id)
 
     def get_volume_attachment(self, attachment_id):
         self.logger.debug(

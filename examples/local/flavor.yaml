@@ -31,7 +31,7 @@ inputs:
 
   name_prefix:
     type: string
-    default: compute_
+    default: compute-
 
   user_domain_id:
     type: string

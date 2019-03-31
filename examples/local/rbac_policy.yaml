@@ -38,7 +38,7 @@ inputs:
 
   name_prefix:
     type: string
-    default: 'rbac_policy'
+    default: 'rbac-policy'
 
 
 dsl_definitions:

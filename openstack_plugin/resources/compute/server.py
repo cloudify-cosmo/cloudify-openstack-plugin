@@ -30,7 +30,8 @@ from openstack_sdk.resources.compute import OpenstackServer
 from openstack_sdk.resources.compute import OpenstackKeyPair
 from openstack_sdk.resources.images import OpenstackImage
 from openstack_sdk.resources.volume import OpenstackVolume
-from openstack_sdk.resources.networks import OpenstackPort
+from openstack_sdk.resources.networks import (OpenstackPort,
+                                              OpenstackFloatingIP)
 from openstack_plugin.decorators import with_openstack_resource
 from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_RESOURCE_UUID,
@@ -981,6 +982,113 @@ def _disconnect_security_group_from_server_ports(client_config,
         })
 
 
+def _handle_disconnect_external_ip_from_server():
+    """
+    This method will trigger if both server and floating ip are external when
+    disconnect links between them in order to log message to the user
+    """
+    ctx.logger.info('Not disassociating floatingip and server since '
+                    'external floatingip and server are being used')
+
+
+def _handle_disconnect_external_sg_from_server():
+    """
+    This method will trigger if both server and floating ip are external when
+    disconnect links between them in order to log message to the user
+    """
+    ctx.logger.info('Not disconnecting security group and server since '
+                    'external security group and server are being used')
+
+
+def _handle_detach_external_volume_from_server():
+    """
+    This method will trigger if both server and floating ip are external when
+    disconnect links between them in order to log message to the user
+    """
+    ctx.logger.info('Not detaching volume from server since '
+                    'external volume and server are being used')
+
+
+def _validate_external_server_status(openstack_resource):
+    """
+    This method will validate the external server status and raise error if
+    it is not on the ACTIVE status
+    :param openstack_resource: instance of openstack server resource
+    """
+    remote_server = openstack_resource.get()
+    ctx.logger.info('Validating external server is started')
+    if remote_server.status != SERVER_STATUS_ACTIVE:
+        raise NonRecoverableError(
+            'Expected external resource server {0} to be in '
+            '"{1}" status'.format(remote_server.id, SERVER_STATUS_ACTIVE))
+    return
+
+
+def _validate_external_floating_ip_connection(openstack_resource):
+    """
+    This method will validate if the external floating ip connected to the
+    external server is valid and match the id provided via cloudify node
+    :param openstack_resource: instance of openstack server resource
+    """
+    ctx.logger.info('Validating external floatingip and server '
+                    'are associated')
+    floating_ip_id = ctx.target.instance.runtime_properties.get(RESOURCE_ID)
+    floating_ip = OpenstackFloatingIP(
+        client_config=openstack_resource.client_config,
+        logger=ctx.logger)
+    floating_ip.resource_id = floating_ip_id
+    remote_floating_ip = floating_ip.get()
+    public_ip_address = \
+        ctx.source.instance.runtime_properties.get('public_ip_address')
+    if remote_floating_ip.floating_ip_address == public_ip_address:
+        return
+
+    raise NonRecoverableError(
+        'Expected external resources server {0} and floating-ip {1} to be '
+        'connected'.format(openstack_resource.resource_id,
+                           remote_floating_ip.id))
+
+
+def _validate_external_security_group_connection(openstack_resource):
+    """
+    This method will validate if the external security group connected to the
+    external server is valid and match the id provided via cloudify node
+    :param openstack_resource: instance of openstack server resource
+    """
+    ctx.logger.info('Validating external security group and server '
+                    'are associated')
+
+    security_group_name = ctx.target.instance.runtime_properties.get('name')
+    remote_server = openstack_resource.get()
+    # "security_groups" for remote server instance should have all info
+    # related to security groups inlcuding "id" & "name" but it seems they
+    # only return "name" to depend on
+    for item in remote_server.security_groups:
+        if item.get('name') == security_group_name:
+            return
+
+    raise NonRecoverableError(
+        'Expected external resources server {0} and security-group {1} to '
+        'be connected'.format(remote_server.id, security_group_name))
+
+
+def _validate_external_volume_connection(openstack_resource):
+    """
+    This method will validate if the external volume connected to the
+    external server is valid and match the id provided via cloudify node
+    :param openstack_resource: instance of openstack server resource
+    """
+    ctx.logger.info('Validating external volume and server '
+                    'are connected')
+    volume_id = ctx.source.instance.runtime_properties.get(RESOURCE_ID)
+    for volume_attachment in openstack_resource.list_volume_attachments():
+        if volume_attachment.volume_id == volume_id:
+            return
+    raise NonRecoverableError(
+        'Expected external resources server {0} and volume {1} to be '
+        'connected'.format(openstack_resource.resource_id, volume_id))
+
+
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_connect_resources_to_external_server)
@@ -1017,7 +1125,9 @@ def create(openstack_resource):
                                                   SERVER_OPENSTACK_TYPE)
 
 
-@with_openstack_resource(OpenstackServer)
+@with_openstack_resource(
+    OpenstackServer,
+    existing_resource_handler=_validate_external_server_status)
 def configure(openstack_resource):
     """
     Populate required runtime properties for server when it is in active status
@@ -1299,7 +1409,9 @@ def snapshot_delete(openstack_resource, **kwargs):
                 del ctx.instance.runtime_properties[attr]
 
 
-@with_openstack_resource(OpenstackServer)
+@with_openstack_resource(
+    OpenstackServer,
+    existing_resource_handler=_validate_external_volume_connection)
 def attach_volume(openstack_resource, **kwargs):
     """
     This method will attach a volume to server
@@ -1357,7 +1469,9 @@ def attach_volume(openstack_resource, **kwargs):
         del ctx.target.instance.runtime_properties[attachment_task_key]
 
 
-@with_openstack_resource(OpenstackServer)
+@with_openstack_resource(
+    OpenstackServer,
+    existing_resource_handler=_handle_detach_external_volume_from_server)
 def detach_volume(openstack_resource, **kwargs):
     """
     This method will detach a volume to server
@@ -1417,7 +1531,9 @@ def detach_volume(openstack_resource, **kwargs):
         del ctx.target.instance.runtime_properties[detachment_task_key]
 
 
-@with_openstack_resource(OpenstackServer)
+@with_openstack_resource(
+    OpenstackServer,
+    existing_resource_handler=_validate_external_floating_ip_connection)
 def connect_floating_ip(openstack_resource, floating_ip, fixed_ip=''):
     """
     This method will connect floating ip to server
@@ -1437,7 +1553,9 @@ def connect_floating_ip(openstack_resource, floating_ip, fixed_ip=''):
                                                  fixed_ip=fixed_ip)
 
 
-@with_openstack_resource(OpenstackServer)
+@with_openstack_resource(
+    OpenstackServer,
+    existing_resource_handler=_handle_disconnect_external_ip_from_server)
 def disconnect_floating_ip(openstack_resource, floating_ip):
     """
     This will disconnect floating ip address from server
@@ -1453,7 +1571,9 @@ def disconnect_floating_ip(openstack_resource, floating_ip):
     openstack_resource.remove_floating_ip_from_server(floating_ip)
 
 
-@with_openstack_resource(OpenstackServer)
+@with_openstack_resource(
+    OpenstackServer,
+    existing_resource_handler=_validate_external_security_group_connection)
 def connect_security_group(openstack_resource, security_group_id):
     """
     This method will connect security group to server
@@ -1468,7 +1588,9 @@ def connect_security_group(openstack_resource, security_group_id):
     openstack_resource.add_security_group_to_server(security_group_id)
 
 
-@with_openstack_resource(OpenstackServer)
+@with_openstack_resource(
+    OpenstackServer,
+    existing_resource_handler=_handle_disconnect_external_sg_from_server)
 def disconnect_security_group(openstack_resource, security_group_id):
     """
     This will disconnect floating ip address from server

@@ -1547,7 +1547,6 @@ def connect_floating_ip(openstack_resource, floating_ip, fixed_ip=''):
         raise NonRecoverableError('floating_ip is required in order to '
                                   'connect floating ip to server {0}'
                                   ''.format(openstack_resource.resource_id))
-
     fixed_ip = fixed_ip or None
     openstack_resource.add_floating_ip_to_server(floating_ip,
                                                  fixed_ip=fixed_ip)

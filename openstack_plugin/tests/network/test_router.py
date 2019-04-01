@@ -17,6 +17,12 @@
 import mock
 import openstack.network.v2.router
 import openstack.network.v2.network
+import openstack.network.v2.port
+from cloudify.mocks import (
+    MockContext,
+    MockNodeContext,
+    MockNodeInstanceContext,
+)
 
 # Local imports
 from openstack_plugin.tests.base import OpenStackTestBase
@@ -25,6 +31,7 @@ from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_NAME_PROPERTY,
                                         OPENSTACK_TYPE_PROPERTY,
                                         ROUTER_OPENSTACK_TYPE,
+                                        SUBNET_OPENSTACK_TYPE,
                                         NETWORK_OPENSTACK_TYPE,
                                         NETWORK_NODE_TYPE)
 
@@ -400,14 +407,49 @@ class RouterTestCase(OpenStackTestBase):
         router.stop()
 
     def test_add_interface_to_router(self, mock_connection):
-        # Prepare the context for postconfigure operation
-        self._prepare_context_for_operation(
-            test_name='RouterTestCase',
-            ctx_operation_name='cloudify.interfaces.relationship_lifecycle.'
-                               'postconfigure',
-            test_runtime_properties={
-                'id': 'a95b5509-c122-4c2f-823e-884bb559afe8'
-            })
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='router-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe2',
+                    OPENSTACK_TYPE_PROPERTY: OPENSTACK_TYPE_PROPERTY,
+                    OPENSTACK_NAME_PROPERTY: 'node-router',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='subnet-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SUBNET_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-subnet',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='RouterTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.postconfigure',
+            node_id='1')
 
         router_instance = openstack.network.v2.router.Router(**{
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
@@ -438,17 +480,300 @@ class RouterTestCase(OpenStackTestBase):
 
         # Call add interface to router
         router.add_interface_to_router(
-            **{'port_id': 'a95b5509-c122-4c2f-823e-884bb559afe3'})
+            **{'subnet_id': 'a95b5509-c122-4c2f-823e-884bb559afe8'})
+
+    def test_add_external_interface_to_router(self, mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='router-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe2',
+                    OPENSTACK_TYPE_PROPERTY: OPENSTACK_TYPE_PROPERTY,
+                    OPENSTACK_NAME_PROPERTY: 'node-router',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='subnet-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SUBNET_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-subnet',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='RouterTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.postconfigure',
+            node_id='1')
+
+        router_instance = openstack.network.v2.router.Router(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_router',
+            'description': 'test_description',
+            'availability_zone_hints': ['1'],
+            'availability_zones': ['2'],
+            'created_at': 'timestamp1',
+            'distributed': False,
+            'external_gateway_info': {
+                'network_id': 'a95b5509-c122-4c2f-823e-884bb559afe4'
+            },
+            'flavor_id': '5',
+            'ha': False,
+            'revision': 7,
+            'routes': [],
+            'status': '9',
+            'tenant_id': '10',
+            'updated_at': 'timestamp2',
+        })
+
+        ports = [
+            openstack.network.v2.port.Port(**{
+                'id': 'a95b5509-c122-4c2f-823e-884bb559afe1',
+                'name': 'test_port_1',
+                'admin_state_up': True,
+                'binding_host_id': '3',
+                'binding_profile': {'4': 4},
+                'binding_vif_details': {'5': 5},
+                'binding_vif_type': '6',
+                'binding_vnic_type': '7',
+                'created_at': '2016-03-09T12:14:57.233772',
+                'data_plane_status': '32',
+                'description': 'port_description_2',
+                'device_id': '9',
+                'device_owner': '10',
+                'dns_assignment': [{'11': 11}],
+                'dns_domain': 'a11',
+                'dns_name': '12',
+                'extra_dhcp_opts': [{'13': 13}],
+                'fixed_ips': [
+                    {
+                        'subnet_id': 'a95b5509-c122-4c2f-823e-884bb559afe8'
+                    },
+                    {
+                        'subnet_id': 'a95b5509-c122-4c2f-823e-884bb559afa7'
+                    }
+                ],
+                'allowed_address_pairs':
+                    [
+                        {
+                            'ip_address': '10.0.0.3'
+                        },
+                        {
+                            'ip_address': '10.0.0.4'
+                        }
+                    ],
+                'mac_address': '00-14-22-01-23-45',
+                'network_id': '18',
+                'port_security_enabled': True,
+                'qos_policy_id': '21',
+                'revision_number': 22,
+                'security_groups': ['23'],
+                'status': '25',
+                'tenant_id': '26',
+                'updated_at': '2016-07-09T12:14:57.233772',
+            }),
+            openstack.network.v2.port.Port(**{
+                'id': 'a95b5509-c122-4c2f-823e-884bb559afe2',
+                'name': 'test_port_1',
+                'admin_state_up': True,
+                'binding_host_id': '3',
+                'binding_profile': {'4': 4},
+                'binding_vif_details': {'5': 5},
+                'binding_vif_type': '6',
+                'binding_vnic_type': '7',
+                'created_at': '2016-03-09T12:14:57.233772',
+                'data_plane_status': '32',
+                'description': 'port_description_2',
+                'device_id': '9',
+                'device_owner': '10',
+                'dns_assignment': [{'11': 11}],
+                'dns_domain': 'a11',
+                'dns_name': '12',
+                'extra_dhcp_opts': [{'13': 13}],
+                'fixed_ips': [
+                    {
+                        'subnet_id': 'a95b5509-c122-4c2f-823e-884bb559afe5'
+                    },
+                    {
+                        'subnet_id': 'a95b5509-c122-4c2f-823e-884bb559afa4'
+                    }
+                ],
+                'allowed_address_pairs':
+                    [
+                        {
+                            'ip_address': '10.0.0.3'
+                        },
+                        {
+                            'ip_address': '10.0.0.4'
+                        }
+                    ],
+                'mac_address': '00-41-23-23-23-24',
+                'network_id': '18',
+                'port_security_enabled': True,
+                'qos_policy_id': '21',
+                'revision_number': 22,
+                'security_groups': ['23'],
+                'status': '25',
+                'tenant_id': '26',
+                'updated_at': '2016-07-09T12:14:57.233772',
+            }),
+        ]
+
+        # Mock list port response
+        mock_connection().network.ports = mock.MagicMock(return_value=ports)
+
+        # Mock get router response
+        mock_connection().network.get_router = \
+            mock.MagicMock(return_value=router_instance)
+
+        # Call add interface to router
+        router.add_interface_to_router(
+            **{'subnet_id': 'a95b5509-c122-4c2f-823e-884bb559afe8'})
 
     def test_remove_interface_from_router(self, mock_connection):
-        # Prepare the context for unlink operation
-        self._prepare_context_for_operation(
-            test_name='RouterTestCase',
-            ctx_operation_name='cloudify.interfaces.relationship_lifecycle.'
-                               'unlink',
-            test_runtime_properties={
-                'id': 'a95b5509-c122-4c2f-823e-884bb559afe8'
-            })
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='router-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe2',
+                    OPENSTACK_TYPE_PROPERTY: OPENSTACK_TYPE_PROPERTY,
+                    OPENSTACK_NAME_PROPERTY: 'node-router',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='subnet-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SUBNET_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-subnet',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='RouterTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink',
+            node_id='1')
+
+        router_instance = openstack.network.v2.router.Router(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_router',
+            'description': 'test_description',
+            'availability_zone_hints': ['1'],
+            'availability_zones': ['2'],
+            'created_at': 'timestamp1',
+            'distributed': False,
+            'external_gateway_info': {
+                'network_id': 'a95b5509-c122-4c2f-823e-884bb559afe4'
+            },
+            'flavor_id': '5',
+            'ha': False,
+            'revision': 7,
+            'routes': [],
+            'status': '9',
+            'tenant_id': '10',
+            'updated_at': 'timestamp2',
+        })
+        # Mock get router response
+        mock_connection().network.get_router = \
+            mock.MagicMock(return_value=router_instance)
+        # Mock remove router interface response
+        mock_connection().network.remove_interface_from_router = \
+            mock.MagicMock(return_value=router_instance)
+
+        # Call remove interface from router
+        router.remove_interface_from_router(
+            **{'subnet_id': 'a95b5509-c122-4c2f-823e-884bb559afe8'})
+
+    def test_remove_external_interface_from_router(self, mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='router-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe2',
+                    OPENSTACK_TYPE_PROPERTY: OPENSTACK_TYPE_PROPERTY,
+                    OPENSTACK_NAME_PROPERTY: 'node-router',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='subnet-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SUBNET_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-subnet',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='RouterTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink',
+            node_id='1')
 
         router_instance = openstack.network.v2.router.Router(**{
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
@@ -473,13 +798,9 @@ class RouterTestCase(OpenStackTestBase):
         mock_connection().network.get_router = \
             mock.MagicMock(return_value=router_instance)
 
-        # Mock remove router interface response
-        mock_connection().network.remove_interface_from_router = \
-            mock.MagicMock(return_value=router_instance)
-
         # Call remove interface from router
         router.remove_interface_from_router(
-            **{'port_id': 'a95b5509-c122-4c2f-823e-884bb559afe3'})
+            **{'subnet_id': 'a95b5509-c122-4c2f-823e-884bb559afe8'})
 
     def test_list_routers(self, mock_connection):
         # Prepare the context for list routers operation

@@ -20,8 +20,8 @@ import openstack.compute.v2.server_interface
 import openstack.compute.v2.volume_attachment
 import openstack.compute.v2.keypair
 import openstack.image.v2.image
+import openstack.network.v2.floating_ip
 import openstack.exceptions
-from cloudify.state import current_ctx
 from cloudify.exceptions import (OperationRetry, NonRecoverableError)
 from cloudify.mocks import (
     MockContext,
@@ -70,19 +70,6 @@ class ServerTestCase(OpenStackTestBase):
     def setUp(self):
         super(ServerTestCase, self).setUp()
         self.type_hierarchy = ['cloudify.nodes.Root', 'cloudify.nodes.Compute']
-
-    def _pepare_relationship_context_for_operation(self,
-                                                   deployment_id,
-                                                   source,
-                                                   target,
-                                                   node_id=None):
-
-        self._ctx = self.get_mock_relationship_ctx(
-            node_id=node_id,
-            deployment_name=deployment_id,
-            test_source=source,
-            test_target=target)
-        current_ctx.set(self._ctx)
 
     @property
     def node_properties(self):
@@ -1287,7 +1274,7 @@ class ServerTestCase(OpenStackTestBase):
 
         mock_wait_status.return_value = volume_attachment
 
-        # Mock list image operation
+        # Mock create volume attachment operation
         mock_connection().compute.create_volume_attachment = \
             mock.MagicMock(return_value=volume_attachment)
 
@@ -1295,9 +1282,10 @@ class ServerTestCase(OpenStackTestBase):
             deployment_id='ServerTest',
             source=source,
             target=target,
-            node_id='1')
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.establish', node_id='1')
 
-        # Call trigger attach volume
+        # Call attach volume
         server.attach_volume()
 
         # Check if the resource id is already set or not
@@ -1308,6 +1296,72 @@ class ServerTestCase(OpenStackTestBase):
         self.assertNotIn(
             attachment_task_key,
             self._ctx.target.instance.runtime_properties)
+
+    @mock.patch(
+        'openstack_plugin.resources.compute.server.wait_until_status')
+    def test_attach_external_volume(self, mock_wait_status, mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='server-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe6',
+                    OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-server',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='volume-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: VOLUME_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-volume',
+                }),
+            'node': MockNodeContext(
+                id='2',
+                properties={
+                    'device_name': 'test',
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '2'
+            }})
+
+        volume_attachments = [
+            openstack.compute.v2.volume_attachment.VolumeAttachment(**{
+                'id': '1',
+                'server_id': 'a95b5509-c122-4c2f-823e-884bb559afe6',
+                'volume_id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                'attachment_id': '4',
+            })
+        ]
+
+        # Mock list volumes response
+        mock_connection().compute.volume_attachments = \
+            mock.MagicMock(return_value=volume_attachments)
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='ServerTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.establish', node_id='1')
+
+        # Call attach volume
+        server.attach_volume()
+        mock_wait_status.assert_not_called()
 
     @mock.patch(
         'openstack_plugin.resources.compute.server.wait_until_status')
@@ -1367,7 +1421,7 @@ class ServerTestCase(OpenStackTestBase):
 
         mock_wait_status.return_value = volume_attachment
 
-        # Mock list image operation
+        # Mock delete volume attachment operation
         mock_connection().compute.delete_volume_attachment = \
             mock.MagicMock(return_value=None)
 
@@ -1375,14 +1429,70 @@ class ServerTestCase(OpenStackTestBase):
             deployment_id='ServerTest',
             source=source,
             target=target,
-            node_id='1')
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink', node_id='1'
+        )
 
-        # Call trigger attach volume
+        # Call detach volume
         server.detach_volume()
 
         self.assertNotIn(
             detachment_task_key,
             self._ctx.target.instance.runtime_properties)
+
+    @mock.patch(
+        'openstack_plugin.resources.compute.server.wait_until_status')
+    def test_detach_external_volume(self, mock_wait_status, mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='server-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-server',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='volume-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe7',
+                    OPENSTACK_TYPE_PROPERTY: VOLUME_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-volume',
+                }),
+            'node': MockNodeContext(
+                id='2',
+                properties={
+                    'device_name': 'test',
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '2'
+            }})
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='ServerTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink', node_id='1'
+        )
+
+        # Call detach volume
+        server.detach_volume()
+        mock_wait_status.assert_not_called()
 
     def test_connect_floating_ip(self, mock_connection):
         target = MockContext({
@@ -1421,7 +1531,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        # Mock list image operation
+        # Mock add floating ip to server operation
         mock_connection().compute.add_floating_ip_to_server = \
             mock.MagicMock(return_value=None)
 
@@ -1429,9 +1539,106 @@ class ServerTestCase(OpenStackTestBase):
             deployment_id='ServerTest',
             source=source,
             target=target,
-            node_id='1')
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.establish', node_id='1')
 
-        # Call trigger attach volume
+        # Call connect floating ip
+        server.connect_floating_ip(floating_ip='10.2.3.4')
+
+    def test_connect_external_floating_ip(self, mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='floating-ip-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe2',
+                    OPENSTACK_TYPE_PROPERTY: FLOATING_IP_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-floating-ip',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='server-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-server',
+                    'public_ip_address': '10.2.3.4'
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_server',
+            'access_ipv4': '10.2.3.4',
+            'access_ipv6': '',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        floating_ip_instance = openstack.network.v2.floating_ip.FloatingIP(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe2',
+            'description': 'test_description',
+            'name': '10.2.3.4',
+            'created_at': '2016-03-09T12:14:57.233772',
+            'fixed_ip_address': '',
+            'floating_ip_address': '10.2.3.4',
+            'floating_network_id': '3',
+            'port_id': '5',
+            'qos_policy_id': '51',
+            'tenant_id': '6',
+            'router_id': '7',
+            'dns_domain': '9',
+            'dns_name': '10',
+            'status': 'ACTIVE',
+            'revision_number': 12,
+            'updated_at': '2016-07-09T12:14:57.233772',
+            'subnet_id': '14',
+            'tags': ['15', '16']
+
+        })
+
+        # Mock get server operation
+        mock_connection().compute.get_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        # Mock get floating ip response
+        mock_connection().network.get_ip = \
+            mock.MagicMock(return_value=floating_ip_instance)
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='ServerTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.establish', node_id='1')
+
+        # Call connect floating ip
         server.connect_floating_ip(floating_ip='10.2.3.4')
 
     def test_disconnect_floating_ip(self, mock_connection):
@@ -1471,7 +1678,27 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        # Mock list image operation
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_server',
+            'access_ipv4': '10.2.3.4',
+            'access_ipv6': '',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        # Mock get server operation
+        mock_connection().compute.get_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        # Mock remove floating ip from server operation
         mock_connection().compute.remove_floating_ip_from_server = \
             mock.MagicMock(return_value=None)
 
@@ -1479,9 +1706,79 @@ class ServerTestCase(OpenStackTestBase):
             deployment_id='ServerTest',
             source=source,
             target=target,
-            node_id='1')
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink', node_id='1')
 
-        # Call trigger attach volume
+        # Trigger disconnect floating ip
+        server.disconnect_floating_ip(floating_ip='10.2.3.4')
+
+    def test_disconnect_external_floating_ip(self, mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='floating-ip-1',
+                runtime_properties={
+                    RESOURCE_ID: '10.2.3.4',
+                    OPENSTACK_TYPE_PROPERTY: FLOATING_IP_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-floating-ip',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '2'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='server-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-server',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_server',
+            'access_ipv4': '10.2.3.4',
+            'access_ipv6': '',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        # Mock get server operation
+        mock_connection().compute.get_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='ServerTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink', node_id='1')
+
+        # Call disconnect floating ip
         server.disconnect_floating_ip(floating_ip='10.2.3.4')
 
     def test_connect_security_group(self, mock_connection):
@@ -1521,7 +1818,27 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        # Mock list image operation
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_server',
+            'access_ipv4': '10.2.3.4',
+            'access_ipv6': '',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        # Mock get server operation
+        mock_connection().compute.get_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        # Mock add security group to server operation
         mock_connection().compute.add_security_group_to_server = \
             mock.MagicMock(return_value=None)
 
@@ -1529,10 +1846,87 @@ class ServerTestCase(OpenStackTestBase):
             deployment_id='ServerTest',
             source=source,
             target=target,
-            node_id='1')
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.establish', node_id='1')
 
-        # Call trigger attach volume
+        # Call connect security group
         server.connect_security_group(security_group_id='1')
+
+    @mock.patch(
+        'openstack_sdk.resources.compute'
+        '.OpenstackServer.add_security_group_to_server')
+    def test_connect_external_security_group(self,
+                                             mock_add_sg,
+                                             mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='security-group-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe7',
+                    OPENSTACK_TYPE_PROPERTY: SECURITY_GROUP_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-security-group',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='server-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-server',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_server',
+            'access_ipv4': '10.2.3.4',
+            'access_ipv6': '',
+            'addresses': {},
+            'security_groups': [{'name': 'node-security-group'}],
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        # Mock get server operation
+        mock_connection().compute.get_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='ServerTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.establish', node_id='1')
+
+        # Call connect security group
+        server.connect_security_group(security_group_id='1')
+        mock_add_sg.assert_not_called()
 
     @mock.patch(
         'openstack_plugin.resources.compute.'
@@ -1587,7 +1981,27 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        # Mock list image operation
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_server',
+            'access_ipv4': '10.2.3.4',
+            'access_ipv6': '',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        # Mock get server operation
+        mock_connection().compute.get_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        # Mock remove security group from server operation
         mock_connection().compute.remove_security_group_from_server = \
             mock.MagicMock(return_value=None)
 
@@ -1595,12 +2009,100 @@ class ServerTestCase(OpenStackTestBase):
             deployment_id='ServerTest',
             source=source,
             target=target,
-            node_id='1')
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink', node_id='1')
 
-        # Call trigger attach volume
+        # Call disconnect security group
         server.disconnect_security_group(
             security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7')
         mock_clean_ports.assert_called()
+
+    @mock.patch(
+        'openstack_plugin.resources.compute.'
+        'server._disconnect_security_group_from_server_ports')
+    def test_disconnect_external_security_group(self,
+                                                mock_clean_ports,
+                                                mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='security-group-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe7',
+                    OPENSTACK_TYPE_PROPERTY: SECURITY_GROUP_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-security-group',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='server-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-server',
+                    'server': {
+                        'name': 'test',
+                        'security_groups': [
+                            {
+                                'id': 'a95b5509-c122-4c2f-823e-884bb559afe5'
+                            },
+                            {
+                                'id': 'a95b5509-c122-4c2f-823e-884bb559afe4'
+                            }
+                        ]
+                    }
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config,
+                    'use_external_resource': True,
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_server',
+            'access_ipv4': '10.2.3.4',
+            'access_ipv6': '',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        # Mock get server operation
+        mock_connection().compute.get_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='ServerTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink', node_id='1')
+
+        # Call disconnect security group
+        server.disconnect_security_group(
+            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7')
+        mock_clean_ports.assert_not_called()
 
     def test_delete_with_retry(self, mock_connection):
         # Prepare the context for delete operation

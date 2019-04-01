@@ -434,8 +434,14 @@ def prepare_resource_instance(class_decl, ctx_node, kwargs):
     # If this arg is exist, that means user
     # provide extra/optional configuration for the defined node
     if resource_config.get('kwargs'):
-        extra_config = resource_config.pop('kwargs')
-        resource_config.update(extra_config)
+        extra_resource_config = resource_config.pop('kwargs')
+        resource_config.update(extra_resource_config)
+
+    # If this arg is exist, that means user
+    # provide extra/optional client configuration for the defined node
+    if client_config.get('kwargs'):
+        extra_client_config = client_config.pop('kwargs')
+        client_config.update(extra_client_config)
 
     # Check if resource_id is part of runtime properties so that we
     # can add it to the resource_config

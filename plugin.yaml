@@ -71,6 +71,10 @@ data_types:
         type: string
         description: The name of your OpenStack project.
         required: false
+      tenant_name:
+        type: string
+        description: The name of your OpenStack tenant.
+        required: false
       region_name:
         type: string
         description: The region where you want this particular resource to be created.
@@ -79,6 +83,16 @@ data_types:
         type: string
         description: The user domain id
         required: false
+      project_domain_id:
+        type: string
+        description: The user domain id
+        required: false
+      kwargs:
+        description: >
+          A dictionary of keys and values that is not validated
+          but will override other values in the client config.
+        default: {}
+
 
   cloudify.types.openstack.Network:
     properties:

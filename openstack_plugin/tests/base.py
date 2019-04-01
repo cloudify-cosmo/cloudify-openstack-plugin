@@ -155,7 +155,8 @@ class OpenStackTestBase(unittest.TestCase):
                                   test_properties={},
                                   test_runtime_properties={},
                                   test_source=None,
-                                  test_target=None):
+                                  test_target=None,
+                                  ctx_operation=None):
 
         ctx = MockCloudifyContext(
             node_id=node_id,
@@ -163,7 +164,8 @@ class OpenStackTestBase(unittest.TestCase):
             properties=copy.deepcopy(test_properties),
             source=test_source,
             target=test_target,
-            runtime_properties=copy.deepcopy(test_runtime_properties))
+            runtime_properties=copy.deepcopy(test_runtime_properties),
+            operation=ctx_operation)
         return ctx
 
     def get_mock_relationship_ctx_for_node(self, rel_specs):
@@ -218,3 +220,24 @@ class OpenStackTestBase(unittest.TestCase):
             relationships.append(rel_ctx)
 
         return relationships
+
+    def _pepare_relationship_context_for_operation(self,
+                                                   deployment_id,
+                                                   source,
+                                                   target,
+                                                   ctx_operation_name=None,
+                                                   node_id=None):
+
+        operation_ctx = {
+            'retry_number': 0, 'name': 'cloudify.interfaces.lifecycle.'
+        } if not ctx_operation_name else {
+            'retry_number': 0, 'name': ctx_operation_name
+        }
+
+        self._ctx = self.get_mock_relationship_ctx(
+            node_id=node_id,
+            deployment_name=deployment_id,
+            test_source=source,
+            test_target=target,
+            ctx_operation=operation_ctx)
+        current_ctx.set(self._ctx)

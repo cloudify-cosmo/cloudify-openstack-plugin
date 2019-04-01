@@ -23,7 +23,7 @@ from cloudify.exceptions import NonRecoverableError
 from cloudify.utils import exception_to_error_cause
 
 # Local imports
-from openstack_plugin.compact import Compact
+from openstack_plugin.compat import Compat
 from openstack_plugin.constants import USE_COMPACT_NODE
 from openstack_plugin.utils \
     import (resolve_ctx,
@@ -102,8 +102,8 @@ def with_compact_node(func):
         ctx_node = resolve_ctx(ctx)
         # Check to see if we need to do properties transformation or not
         if ctx_node.node.properties.get(USE_COMPACT_NODE):
-            compact = Compact(context=ctx_node)
-            properties = compact.transform()
+            compat = Compat(context=ctx_node)
+            properties = compat.transform()
             for key, value in properties.items():
                 kwargs[key] = value
         func(**kwargs)

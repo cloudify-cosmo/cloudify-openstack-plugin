@@ -43,7 +43,7 @@ KEYPAIR_RESOURCE_CONFIG = (
 )
 
 
-class Compact(object):
+class Compat(object):
     def __init__(self, context):
         """
         This will set current node context in order to help do the

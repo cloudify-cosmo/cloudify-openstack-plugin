@@ -21,12 +21,15 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_sdk.resources.identity import (OpenstackProject,
                                               OpenstackUser,
                                               OpenstackRole)
-from openstack_plugin.decorators import with_openstack_resource
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compact_node)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         PROJECT_OPENSTACK_TYPE,
                                         IDENTITY_USERS,
                                         IDENTITY_ROLES,
                                         IDENTITY_QUOTA)
+
 from openstack_plugin.utils import (validate_resource_quota,
                                     reset_dict_empty_keys,
                                     add_resource_list_to_runtime_properties)
@@ -102,11 +105,14 @@ def _validate_users(client_config, users):
                 'User {0} is not found'.format(user_name))
 
     for user in users:
-        if len(user[IDENTITY_ROLES]) > len(set(user[IDENTITY_ROLES])):
-            msg = 'Roles for user {0} are not unique'
-            raise NonRecoverableError(msg.format(user.get('name')))
+        if user.get(IDENTITY_ROLES):
+            if len(user[IDENTITY_ROLES]) > len(set(user[IDENTITY_ROLES])):
+                msg = 'Roles for user {0} are not unique'
+                raise NonRecoverableError(msg.format(user.get('name')))
 
-    role_names = {role for user in users for role in user.get(IDENTITY_ROLES)}
+    role_names = {
+        role for user in users for role in user.get(IDENTITY_ROLES, [])
+    }
     for role_name in role_names:
         user_role = role_resource.find_role(role_name)
         if not user_role:
@@ -114,6 +120,7 @@ def _validate_users(client_config, users):
                 'Role {0} is not found'.format(role_name))
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackProject)
 def create(openstack_resource):
     """
@@ -124,6 +131,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackProject)
 def start(openstack_resource):
     """
@@ -152,6 +160,7 @@ def start(openstack_resource):
                                   'quota for project')
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackProject)
 def delete(openstack_resource):
     """
@@ -161,6 +170,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackProject)
 def update(openstack_resource, args):
     """
@@ -173,6 +183,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackProject)
 def list_projects(openstack_resource, query=None):
     """
@@ -185,6 +196,7 @@ def list_projects(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(PROJECT_OPENSTACK_TYPE, projects)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackProject)
 def creation_validation(openstack_resource):
     """
@@ -195,6 +207,7 @@ def creation_validation(openstack_resource):
     ctx.logger.debug('OK: project configuration is valid')
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackProject)
 def get_project_quota(openstack_resource):
     """
@@ -207,6 +220,7 @@ def get_project_quota(openstack_resource):
                               'quota for project')
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackProject)
 def update_project_quota(openstack_resource):
     """

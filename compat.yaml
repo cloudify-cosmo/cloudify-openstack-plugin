@@ -51,3 +51,54 @@ node_types:
       private_key_path:
         type: string
         default: ''
+
+  cloudify.openstack.nodes.ServerGroup:
+    derived_from: cloudify.nodes.openstack.ServerGroup
+    properties:
+      <<: *common_config
+      server_group:
+        default: {}
+      policy:
+        type: string
+        description: >
+          the policy of the server group, this must be either 'affinity',
+          'anti-affinity', 'soft-affinity', or 'soft-anti-affinity'.
+
+
+  cloudify.openstack.nodes.User:
+    derived_from: cloudify.nodes.openstack.User
+    properties:
+      <<: *common_config
+      user:
+        default: {}
+
+  cloudify.openstack.nodes.Project:
+    derived_from: cloudify.nodes.openstack.Project
+    properties:
+      <<: *common_config
+      project:
+        default: {}
+
+  cloudify.openstack.nodes.Volume:
+    derived_from: cloudify.nodes.openstack.Volume
+    properties:
+      <<: *common_config
+      volume:
+        default: {}
+      # In new SDK, this property is going to be ignored because when user
+      # specify "imageRef" in volume, that means the volume is bootable and
+      # for backward compatibility, the new SDK store runtime property
+      # called "bootable" to give an indication if this volume is bootable
+      # or not when it is connected to the server via relationship
+      boot:
+        type: boolean
+        required: false
+        description: >
+          If a Server instance is connected to this Volume by a relationship,
+          this volume will be used as the boot volume for that Server.
+          This option will be deprecated in the future.
+
+relationships:
+
+  cloudify.openstack.volume_attached_to_server:
+    derived_from: cloudify.relationships.openstack.volume_attached_to_server

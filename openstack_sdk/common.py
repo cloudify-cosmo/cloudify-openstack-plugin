@@ -68,7 +68,8 @@ class OpenstackResource(object):
         return error_message
 
     def get_quota_sets(self, quota_type):
-        project_name = self.client_config.get('project_name')
+        project_name = self.client_config.get('project_name') or  \
+                       self.client_config.get('tenant_name')
         quota = getattr(
             self.connection,
             'get_{0}_quotas'.format(self.service_type))(project_name)

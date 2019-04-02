@@ -30,11 +30,8 @@ class OpenstackUser(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this user: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        user = self.connection.identity.get_user(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this user: {0}'.format(self.resource_id))
+        user = self.connection.identity.get_user(self.resource_id)
         self.logger.debug('Found user with this result: {0}'.format(user))
         return user
 
@@ -81,11 +78,8 @@ class OpenstackRole(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this role: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        role = self.connection.identity.get_role(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this role: {0}'.format(self.resource_id))
+        role = self.connection.identity.get_role(self.resource_id)
         self.logger.debug('Found role with this result: {0}'.format(role))
         return role
 
@@ -151,11 +145,8 @@ class OpenstackProject(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this project: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        project = self.connection.identity.get_project(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this project: {0}'.format(self.resource_id))
+        project = self.connection.identity.get_project(self.resource_id)
         self.logger.debug(
             'Found project with this result: {0}'.format(project))
         return project

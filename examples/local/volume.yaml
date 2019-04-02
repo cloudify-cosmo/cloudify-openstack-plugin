@@ -89,7 +89,7 @@ dsl_definitions:
 
 node_templates:
 
-  example-volume-booted-server:
+  example-server:
     type: cloudify.nodes.openstack.Server
     properties:
       client_config: *client_config
@@ -100,12 +100,6 @@ node_templates:
         image_id: { get_input: image }
         flavor_id: { get_input: flavor }
         availability_zone: nova
-    # This is only run on local mode. For use with a manager, it can be commented out.
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          inputs:
-            resource_config: { get_property: [ SELF, resource_config ] }
     relationships:
       - type: cloudify.relationships.openstack.server_connected_to_keypair
         target:  example-keypair
@@ -133,7 +127,7 @@ node_templates:
         size: { get_input: volume1_size }
     relationships:
       - type: cloudify.relationships.openstack.volume_attached_to_server
-        target: example-volume-booted-server
+        target: example-server
 
   example-volume-2:
     type: cloudify.nodes.openstack.Volume
@@ -147,7 +141,7 @@ node_templates:
         size: { get_input: volume2_size }
     relationships:
       - type: cloudify.relationships.openstack.volume_attached_to_server
-        target: example-volume-booted-server
+        target: example-server
 
   example-public-port:
     type: cloudify.nodes.openstack.Port

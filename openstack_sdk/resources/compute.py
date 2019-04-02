@@ -31,11 +31,8 @@ class OpenstackServer(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this server: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        server = self.connection.compute.get_server(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this server: {0}'.format(self.resource_id))
+        server = self.connection.compute.get_server(self.resource_id)
         self.logger.debug(
             'Found server with this result: {0}'.format(server))
         return server
@@ -263,11 +260,8 @@ class OpenstackHostAggregate(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this aggregate: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        aggregate = self.connection.compute.get_aggregate(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this aggregate: {0}'.format(self.resource_id))
+        aggregate = self.connection.compute.get_aggregate(self.resource_id)
         self.logger.debug(
             'Found aggregate with this result: {0}'.format(aggregate))
         return aggregate
@@ -344,10 +338,10 @@ class OpenstackServerGroup(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this server group: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
+            'Attempting to find this server group: {0}'
+            ''.format(self.resource_id))
         server_group = self.connection.compute.get_server_group(
-            self.name if not self.resource_id else self.resource_id
+            self.resource_id
         )
         self.logger.debug(
             'Found server group with this result: {0}'.format(server_group))
@@ -421,11 +415,8 @@ class OpenstackFlavor(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this flavor: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        flavor = self.connection.compute.get_flavor(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this flavor: {0}'.format(self.resource_id))
+        flavor = self.connection.compute.get_flavor(self.resource_id)
         self.logger.debug(
             'Found flavor with this result: {0}'.format(flavor))
         return flavor

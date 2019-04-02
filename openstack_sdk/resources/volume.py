@@ -30,11 +30,8 @@ class OpenstackVolume(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this volume: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        volume = self.connection.block_storage.get_volume(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this volume: {0}'.format(self.resource_id))
+        volume = self.connection.block_storage.get_volume(self.resource_id)
         self.logger.debug(
             'Found volume with this result: {0}'.format(volume))
         return volume
@@ -64,11 +61,9 @@ class OpenstackVolumeType(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this volume type: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        volume_type = self.connection.block_storage.get_type(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this volume type: {0}'
+            ''.format(self.resource_id))
+        volume_type = self.connection.block_storage.get_type(self.resource_id)
         self.logger.debug(
             'Found volume type with this result: {0}'.format(volume_type))
         return volume_type
@@ -101,11 +96,8 @@ class OpenstackVolumeBackup(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this backup: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        backup = self.connection.block_storage.get_backup(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this backup: {0}'.format(self.resource_id))
+        backup = self.connection.block_storage.get_backup(self.resource_id)
         self.logger.debug(
             'Found backup with this result: {0}'.format(backup))
         return backup
@@ -149,11 +141,8 @@ class OpenstackVolumeSnapshot(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this snapshot: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        snapshot = self.connection.block_storage.get_snapshot(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this snapshot: {0}'.format(self.resource_id))
+        snapshot = self.connection.block_storage.get_snapshot(self.resource_id)
         self.logger.debug(
             'Found snapshot with this result: {0}'.format(snapshot))
         return snapshot

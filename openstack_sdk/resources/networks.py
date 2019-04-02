@@ -36,10 +36,8 @@ class OpenstackNetwork(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this network: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        network = self.connection.network.get_network(
-            self.name if not self.resource_id else self.resource_id)
+            'Attempting to find this network: {0}'.format(self.resource_id))
+        network = self.connection.network.get_network(self.resource_id)
         self.logger.debug(
             'Found network with this result: {0}'.format(network))
         return network
@@ -97,10 +95,8 @@ class OpenstackSubnet(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this subnet: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        subnet = self.connection.network.get_subnet(
-            self.name if not self.resource_id else self.resource_id)
+            'Attempting to find this subnet: {0}'.format(self.resource_id))
+        subnet = self.connection.network.get_subnet(self.resource_id)
         self.logger.debug(
             'Found subnet with this result: {0}'.format(subnet))
         return subnet
@@ -149,10 +145,8 @@ class OpenstackPort(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this port: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        port = self.connection.network.get_port(
-            self.name if not self.resource_id else self.resource_id)
+            'Attempting to find this port: {0}'.format(self.resource_id))
+        port = self.connection.network.get_port(self.resource_id)
         self.logger.debug(
             'Found port with this result: {0}'.format(port))
         return port
@@ -201,10 +195,8 @@ class OpenstackRouter(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this router: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        router = self.connection.network.get_router(
-            self.name if not self.resource_id else self.resource_id)
+            'Attempting to find this router: {0}'.format(self.resource_id))
+        router = self.connection.network.get_router(self.resource_id)
         self.logger.debug(
             'Found router with this result: {0}'.format(router))
         return router
@@ -275,10 +267,9 @@ class OpenstackFloatingIP(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this floating ip: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        floating_ip = self.connection.network.get_ip(
-            self.name if not self.resource_id else self.resource_id)
+            'Attempting to find this floating ip: {0}'
+            ''.format(self.resource_id))
+        floating_ip = self.connection.network.get_ip(self.resource_id)
         self.logger.debug(
             'Found floating ip with this result: {0}'.format(floating_ip))
         return floating_ip
@@ -324,10 +315,10 @@ class OpenstackSecurityGroup(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this security group: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
+            'Attempting to find this security group: {0}'
+            ''.format(self.resource_id))
         security_group = self.connection.network.get_security_group(
-            self.name if not self.resource_id else self.resource_id)
+            self.resource_id)
         self.logger.debug(
             'Found security group with this result: {0}'.format(
                 security_group))
@@ -381,10 +372,10 @@ class OpenstackSecurityGroupRule(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this security group rule: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
+            'Attempting to find this security group rule: {0}'
+            ''.format(self.resource_id))
         security_group_rule = self.connection.network.get_security_group_rule(
-            self.name if not self.resource_id else self.resource_id)
+            self.resource_id)
         self.logger.debug(
             'Found security group with this result: {0}'.format(
                 security_group_rule))
@@ -427,13 +418,11 @@ class OpenstackRBACPolicy(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this rbac policy: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        rbac_policy = self.connection.network.get_rbac_policy(
-            self.name if not self.resource_id else self.resource_id)
+            'Attempting to find this rbac policy: {0}'
+            ''.format(self.resource_id))
+        rbac_policy = self.connection.network.get_rbac_policy(self.resource_id)
         self.logger.debug(
-            'Found rbac policy with this result: {0}'.format(
-                rbac_policy))
+            'Found rbac policy with this result: {0}'.format(rbac_policy))
         return rbac_policy
 
     def create(self):

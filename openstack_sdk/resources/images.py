@@ -34,11 +34,8 @@ class OpenstackImage(OpenstackResource):
 
     def get(self):
         self.logger.debug(
-            'Attempting to find this image: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        image = self.connection.image.get_image(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this image: {0}'.format(self.resource_id))
+        image = self.connection.image.get_image(self.resource_id)
         self.logger.debug(
             'Found image with this result: {0}'.format(image))
         return image

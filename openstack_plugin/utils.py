@@ -437,10 +437,19 @@ def prepare_resource_instance(class_decl, ctx_node, kwargs):
         extra_resource_config = resource_config.pop('kwargs')
         resource_config.update(extra_resource_config)
 
+    # If name property is provided for the resource but it does not contain
+    # any value, then we should generate a name based on the type of the
+    # resource
+    if 'name' in resource_config and not resource_config.get('name'):
+        name = "{0}_{1}_{2}".format(class_decl.resource_type,
+                                    ctx_node.deployment.id,
+                                    ctx_node.instance.id)
+        resource_config['name'] = name
+
     # If this arg is exist, that means user
     # provide extra/optional client configuration for the defined node
-    if client_config.get('kwargs'):
-        extra_client_config = client_config.pop('kwargs')
+    extra_client_config = client_config.pop('kwargs', None)
+    if extra_client_config:
         client_config.update(extra_client_config)
 
     # Check if resource_id is part of runtime properties so that we

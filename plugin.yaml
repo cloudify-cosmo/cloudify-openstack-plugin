@@ -904,7 +904,7 @@ node_types:
         required: true
       use_password:
         type: boolean
-        default: true
+        default: false
         description: >
           A boolean describing whether this server image supports
           user-password authentication.
@@ -1159,6 +1159,15 @@ node_types:
         type: cloudify.types.openstack.Flavor
         description: https://developer.openstack.org/api-ref/compute/?expanded=create-flavor-detail
         required: true
+      extra_specs:
+        default: {}
+        description: >
+          key-value user configuration, according to:
+          https://developer.openstack.org/api-ref/compute/#create-extra-specs-for-a-flavor
+      tenants:
+        default: []
+        description: >
+          List of tenants to add to flavor access
     interfaces:
       cloudify.interfaces.lifecycle:
         create:

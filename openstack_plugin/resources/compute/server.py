@@ -26,13 +26,18 @@ from cloudify.exceptions import (OperationRetry,
                                  NonRecoverableError)
 
 # Local imports
-from openstack_sdk.resources.compute import OpenstackServer
-from openstack_sdk.resources.compute import OpenstackKeyPair
+from openstack_sdk.resources.compute import (OpenstackServer,
+                                             OpenstackKeyPair,
+                                             OpenstackFlavor)
+
 from openstack_sdk.resources.images import OpenstackImage
 from openstack_sdk.resources.volume import OpenstackVolume
 from openstack_sdk.resources.networks import (OpenstackPort,
                                               OpenstackFloatingIP)
-from openstack_plugin.decorators import with_openstack_resource
+
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compact_node)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_RESOURCE_UUID,
                                         SERVER_STATUS_ACTIVE,
@@ -260,25 +265,6 @@ def _log_snapshot_message(resource_id,
     ctx.logger.info(backup_msg)
 
 
-def _handle_server_group(openstack_resource):
-    """
-    Associate server with server group if it is provided via the
-    configuration in order to prepare and send them with the request
-    :param openstack_resource: instance of openstack resource (OpenstackServer)
-    """
-    server_group_rel = \
-        find_relationship_by_node_type(ctx.instance, SERVER_GROUP_NODE_TYPE)
-
-    if server_group_rel:
-        server_group_id = \
-            get_resource_id_from_runtime_properties(server_group_rel.target)
-
-        scheduler_hints = \
-            openstack_resource.config.get('scheduler_hints', {})
-        scheduler_hints['group'] = server_group_id
-        openstack_resource.config['scheduler_hints'] = scheduler_hints
-
-
 def _handle_generate_snapshot(server,
                               snapshot_name,
                               snapshot_type,
@@ -463,6 +449,98 @@ def _get_boot_volume_targets():
     return targets
 
 
+def _get_flavor_or_image_from_server(class_name,
+                                     openstack_resource,
+                                     prop_name,
+                                     has_bdm=False):
+    """
+    This method will try to evaluate the flavor or image value for server
+    which is needed in order to create and spin a server
+    :param class_name: Flavor class or Image Class
+    :param openstack_resource: An instance of OpenstackServer
+    :param str prop_name: Property to evaluate for ("image | flavor")
+    :param bool has_bdm: If server support block device mapping or not,
+    because when adding support for bdm, it is not required to pass image
+    information since server is going to boot from server, but it is
+    possible to provide image alongside with bdm configuration
+    """
+    prop_value = ctx.node.properties.get(prop_name)
+    config_value_id = openstack_resource.config.get('{0}_id'.format(prop_name))
+    config_value_name = \
+        openstack_resource.config.get('{0}_name'.format(prop_name))
+    if not (prop_value or config_value_id or config_value_name):
+        # If bdm is enabled, then it is not required to raise error since
+        # image_id is not required when using bdm when creating server
+        if not has_bdm:
+            raise NonRecoverableError(
+                'Must set {0} by either setting a "{0}" property '
+                'or by setting a "{0}_id" field under the "resource_config" '
+                'or by setting a "{0}_name" (deprecated) under'
+                ' the "resource_config"'
+                'property'.format(prop_name))
+        return None
+    else:
+        # Get the value from node property or from resource config
+        prop_value = config_value_id or prop_value or config_value_name
+        # Create instance from the class provided (OpenstackFlavor |
+        # OpenstackImage)
+        instance = class_name(
+            client_config=openstack_resource.client_config,
+            logger=ctx.logger)
+        # Prepare the method need to be invoked in order to check if the
+        # flavor or image provided is valid or not
+        remote_instance = \
+            getattr(instance, 'find_{0}'.format(prop_name))(prop_value)
+
+        if not remote_instance:
+            # If config_value_id is not None, then we are reading
+            # the value from resource_config (image_id | flavor_id)
+            if config_value_id:
+                prop_name = '{0}_id'.format(prop_name)
+            elif config_value_name:
+                prop_name = '{0}_name'.format(prop_name)
+            raise NonRecoverableError('The provided {0}:{1} is '
+                                      'invalid'.format(prop_name, prop_value))
+
+        return remote_instance.id
+
+
+def _update_flavor_and_image_config(openstack_resource):
+    """
+    This method will update flavor & image config for server based on the
+    configuration provided via resource_config and node properties
+    :param openstack_resource: An instance of OpenstackServer
+    """
+    server_config = openstack_resource.config
+    if server_config.get('block_device_mapping_v2'):
+        image_id = _get_flavor_or_image_from_server(OpenstackImage,
+                                                    openstack_resource,
+                                                    'image',
+                                                    has_bdm=True)
+        if image_id:
+            bdm_dict = {
+                'uuid': image_id,
+                'source_type': 'image',
+                'destination_type': 'local',
+                'boot_index': 0,
+                'delete_on_termination': True
+            }
+            server_config['block_device_mapping_v2'].insert(0, bdm_dict)
+    else:
+        image_id = _get_flavor_or_image_from_server(OpenstackImage,
+                                                    openstack_resource,
+                                                    'image')
+
+    flavor_id = _get_flavor_or_image_from_server(OpenstackFlavor,
+                                                 openstack_resource,
+                                                 'flavor')
+    if flavor_id:
+        openstack_resource.config['flavor_id'] = flavor_id
+
+    if image_id:
+        openstack_resource.config['image_id'] = image_id
+
+
 def _update_ports_config(server_config):
     """
     This method will try to update server config with port configurations
@@ -553,7 +631,7 @@ def _update_bootable_volume_config(server_config):
             'volume_size':  resource_config.get('size'),
             'device_name': volume_target.node.properties.get('device_name'),
             'source_type': 'volume',
-            'delete_on_termination': False,
+            'delete_on_termination': True,
         }
         bootable_rel_volumes.append(volume_device)
         bootable_rel_uuids.append(volume_uuid)
@@ -655,6 +733,32 @@ def _update_networks_config(server_config):
         server_config['networks'].extend(networks_to_add)
 
 
+def _update_server_group_config(server_config):
+    """
+    Associate server with server group if it is provided via the
+    configuration in order to prepare and send them with the request
+    :param dict server_config: The server configuration required in order to
+    create the server instance using Openstack API
+    """
+    server_group_rel = \
+        find_relationship_by_node_type(ctx.instance, SERVER_GROUP_NODE_TYPE)
+
+    if server_group_rel:
+        server_group_id = \
+            get_resource_id_from_runtime_properties(server_group_rel.target)
+
+        scheduler_hints = server_config.get('scheduler_hints', {})
+        if server_group_id and scheduler_hints.get('group'):
+            raise NonRecoverableError('Server can\'t both have the '
+                                      '"group" property under '
+                                      'scheduler_hints and be connected to'
+                                      ' a server group via a relationship'
+                                      ' at the same time')
+
+        scheduler_hints['group'] = server_group_id
+        server_config['scheduler_hints'] = scheduler_hints
+
+
 def _update_server_config(server_config):
     """
     This method will try to resolve if there are any nodes connected to the
@@ -678,6 +782,10 @@ def _update_server_config(server_config):
     # Check if there is a key pair connected to the server via relationship
     # so that we can update server config when create server instance
     _update_keypair_config(server_config)
+
+    # Check if there is a server group connected to the server via relationship
+    # so that we can update server config when create server instance
+    _update_server_group_config(server_config)
 
 
 def _validate_external_server_networks(openstack_resource, ports, networks):
@@ -1089,6 +1197,7 @@ def _validate_external_volume_connection(openstack_resource):
         'connected'.format(openstack_resource.resource_id, volume_id))
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_connect_resources_to_external_server)
@@ -1107,8 +1216,8 @@ def create(openstack_resource):
     # Update server config by depending on relationships
     _update_server_config(openstack_resource.config)
 
-    # Handle server group
-    _handle_server_group(openstack_resource)
+    # Update flavor and image for server
+    _update_flavor_and_image_config(openstack_resource)
 
     # Create resource
     created_resource = openstack_resource.create()
@@ -1125,6 +1234,7 @@ def create(openstack_resource):
                                                   SERVER_OPENSTACK_TYPE)
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_validate_external_server_status)
@@ -1153,6 +1263,7 @@ def configure(openstack_resource):
                     'state. Retrying...'.format(SERVER_STATUS_ACTIVE, status))
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def delete(openstack_resource):
     """
@@ -1183,6 +1294,7 @@ def delete(openstack_resource):
     raise OperationRetry(message='Server has {0} state.'.format(server.status))
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_disconnect_resources_from_external_server)
@@ -1203,6 +1315,7 @@ def stop(openstack_resource):
     _stop_server(openstack_resource)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def reboot(openstack_resource, reboot_type='soft'):
     """
@@ -1243,6 +1356,7 @@ def reboot(openstack_resource, reboot_type='soft'):
                 server.state))
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def suspend(openstack_resource):
     """
@@ -1253,6 +1367,7 @@ def suspend(openstack_resource):
     openstack_resource.suspend()
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def resume(openstack_resource):
     """
@@ -1263,6 +1378,7 @@ def resume(openstack_resource):
     openstack_resource.resume()
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def snapshot_create(openstack_resource, **kwargs):
     """
@@ -1312,6 +1428,7 @@ def snapshot_create(openstack_resource, **kwargs):
                               snapshot_incremental)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def snapshot_apply(openstack_resource, **kwargs):
     """
@@ -1348,6 +1465,7 @@ def snapshot_apply(openstack_resource, **kwargs):
                              snapshot_name)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def snapshot_delete(openstack_resource, **kwargs):
     """
@@ -1409,6 +1527,7 @@ def snapshot_delete(openstack_resource, **kwargs):
                 del ctx.instance.runtime_properties[attr]
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_validate_external_volume_connection)
@@ -1469,6 +1588,7 @@ def attach_volume(openstack_resource, **kwargs):
         del ctx.target.instance.runtime_properties[attachment_task_key]
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_handle_detach_external_volume_from_server)
@@ -1531,6 +1651,7 @@ def detach_volume(openstack_resource, **kwargs):
         del ctx.target.instance.runtime_properties[detachment_task_key]
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_validate_external_floating_ip_connection)
@@ -1552,6 +1673,7 @@ def connect_floating_ip(openstack_resource, floating_ip, fixed_ip=''):
                                                  fixed_ip=fixed_ip)
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_handle_disconnect_external_ip_from_server)
@@ -1570,6 +1692,7 @@ def disconnect_floating_ip(openstack_resource, floating_ip):
     openstack_resource.remove_floating_ip_from_server(floating_ip)
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_validate_external_security_group_connection)
@@ -1587,6 +1710,7 @@ def connect_security_group(openstack_resource, security_group_id):
     openstack_resource.add_security_group_to_server(security_group_id)
 
 
+@with_compact_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_handle_disconnect_external_sg_from_server)
@@ -1619,6 +1743,7 @@ def disconnect_security_group(openstack_resource, security_group_id):
         )
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def update(openstack_resource, args):
     """
@@ -1635,6 +1760,7 @@ def update(openstack_resource, args):
                                                   SERVER_OPENSTACK_TYPE)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def list_servers(openstack_resource,
                  query=None,
@@ -1657,6 +1783,7 @@ def list_servers(openstack_resource,
     add_resource_list_to_runtime_properties(SERVER_OPENSTACK_TYPE, servers)
 
 
+@with_compact_node
 @with_openstack_resource(OpenstackServer)
 def creation_validation(openstack_resource):
     """

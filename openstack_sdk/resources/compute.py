@@ -421,6 +421,17 @@ class OpenstackFlavor(OpenstackResource):
             'Found flavor with this result: {0}'.format(flavor))
         return flavor
 
+    def find_flavor(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+        self.logger.debug('Attempting to find this flavor: {0}'
+                          ''.format(name_or_id))
+        flavor = self.connection.compute.find_flavor(name_or_id)
+        self.logger.debug(
+            'Found flavor with this result: {0}'.format(flavor))
+        return flavor
+
     def create(self):
         self.logger.debug(
             'Attempting to create flavor with these args: {0}'.format(

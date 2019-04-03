@@ -440,10 +440,8 @@ def prepare_resource_instance(class_decl, ctx_node, kwargs):
     # If name property is provided for the resource but it does not contain
     # any value, then we should generate a name based on the type of the
     # resource
-    if 'name' in resource_config and not resource_config.get('name'):
-        name = "{0}_{1}_{2}".format(class_decl.resource_type,
-                                    ctx_node.deployment.id,
-                                    ctx_node.instance.id)
+    name = get_resource_name(ctx_node, class_decl.resource_type)
+    if name:
         resource_config['name'] = name
 
     # If this arg is exist, that means user
@@ -717,6 +715,35 @@ def get_snapshot_name(object_type, snapshot_name, snapshot_incremental):
     return "{0}-{1}-{2}-{3}".format(
         object_type, get_resource_id_from_runtime_properties(ctx),
         snapshot_name, "increment" if snapshot_incremental else "backup")
+
+
+def get_resource_name(ctx_node, type_name):
+    """
+    This will return resource name and will generate a name based on
+    resource type if resource name is missing
+    :param ctx_node: Cloudify context cloudify.context.CloudifyContext
+    :param str type_name: Resource type (server | server_group ...etc)
+    :return str: resource name
+
+    **Note**: Not all openstack resources accept "name" property, so this
+    method will return None, if "resource_config" does not contain "name"
+    """
+    resource_config = ctx_node.node.properties.get('resource_config')
+    # This check means that resource_config is None or resource config does
+    # not have 'name' at all, in case it contains the "name" but the default
+    # is empty, then we need to generate a new name for that resource since
+    # it support name
+    if not resource_config or 'name' not in resource_config:
+        return None
+
+    elif resource_config.get('name'):
+        return resource_config['name']
+
+    node_instance_id = ctx_node.instance.id.replace('_', '-')
+    name = '{0}-{1}-{2}'.format(type_name,
+                                ctx_node.deployment.id,
+                                node_instance_id)
+    return name
 
 
 def get_current_operation():

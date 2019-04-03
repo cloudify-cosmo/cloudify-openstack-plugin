@@ -17,6 +17,7 @@
 import mock
 import openstack.compute.v2.server
 import openstack.compute.v2.server_interface
+import openstack.compute.v2.flavor
 import openstack.compute.v2.volume_attachment
 import openstack.compute.v2.keypair
 import openstack.image.v2.image
@@ -77,6 +78,13 @@ class ServerTestCase(OpenStackTestBase):
         properties['os_family'] = 'Linux'
         properties['device_name'] = 'test-device'
         return properties
+
+    @property
+    def resource_config(self):
+        config = super(ServerTestCase, self).resource_config
+        config['flavor_id'] = '4'
+        config['image_id'] = 'a95b5509-c122-4c2f-823e-884bb559da12'
+        return config
 
     def test_create(self, mock_connection):
         # Prepare the context for create operation
@@ -206,6 +214,34 @@ class ServerTestCase(OpenStackTestBase):
             'key_name': 'test_key_name',
 
         })
+
+        flavor_instance = openstack.compute.v2.flavor.Flavor(**{
+            'id': '4',
+            'name': 'test_flavor',
+            'links': '2',
+            'os-flavor-access:is_public': True,
+            'ram': 6,
+            'vcpus': 8,
+            'swap': 8
+
+        })
+        image_instance = openstack.image.v2.image.Image(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559da12',
+            'name': 'test-image-name',
+            'container_format': 'test_bare',
+            'disk_format': 'test_format',
+            'checksum': '6d8f1c8cf05e1fbdc8b543fda1a9fa7f',
+            'size': 258540032
+
+        })
+        # Mock get flavor response
+        mock_connection().compute.find_flavor = \
+            mock.MagicMock(return_value=flavor_instance)
+
+        # Mock get image response
+        mock_connection().image.find_image = \
+            mock.MagicMock(return_value=image_instance)
+
         mock_connection().compute.create_server = \
             mock.MagicMock(return_value=server_instance)
         server.create()

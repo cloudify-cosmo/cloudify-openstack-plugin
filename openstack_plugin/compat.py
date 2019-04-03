@@ -17,6 +17,12 @@
 # Local imports
 from openstack_plugin.constants import USE_EXTERNAL_RESOURCE_PROPERTY
 
+NETWORKS_CONFIG_MAP = {
+    'net-id': 'uuid',
+    'port-id': 'port',
+    'v4-fixed-ip': 'fixed_ip',
+    'v6-fixed-ip': 'fixed_ip'
+}
 
 FLAVOR_RESOURCE_CONFIG = (
     'name',
@@ -45,6 +51,19 @@ KEYPAIR_RESOURCE_CONFIG = (
 SERVER_GROUP_RESOURCE_CONFIG = (
     'name',
     'policies',
+)
+
+SERVER_RESOURCE_CONFIG = (
+    'name',
+    'description',
+    'image_id',
+    'flavor_id',
+    'availability_zone',
+    'user_data',
+    'metadata',
+    'security_groups',
+    'networks',
+    'key_name'
 )
 
 USER_RESOURCE_CONFIG = (
@@ -99,7 +118,8 @@ class Compat(object):
                 self._transform_server_group,
             'cloudify.openstack.nodes.User': self._transform_user,
             'cloudify.openstack.nodes.Project': self._transform_project,
-            'cloudify.openstack.nodes.Volume': self._transform_volume
+            'cloudify.openstack.nodes.Volume': self._transform_volume,
+            'cloudify.openstack.nodes.Server': self._transform_server
         }
 
     def get_common_properties(self):
@@ -131,6 +151,25 @@ class Compat(object):
                     self._properties['resource_id']
 
         return common
+
+    def _map_server_networks_config(self):
+        """
+        This method will do a mapping between the networks config for the
+        server using openstack plugin 2.x so that it can works under
+        openstack plugin 3.x
+        """
+        for key, value in self._properties.items('server', {}):
+            if key == 'networks' and value:
+                networks = dict()
+                for net_key, net_value in value.items():
+                    map_key = NETWORKS_CONFIG_MAP.get(net_key)
+                    if map_key:
+                        networks[map_key] = net_value
+                    else:
+                        networks[net_key] = net_value
+                # update the networks object to match the networks object
+                # used and accepted by openstack 3.x
+                self._properties['server']['networks'] = networks
 
     def _transform(self, openstack_type, resource_config_keys):
         """
@@ -199,6 +238,16 @@ class Compat(object):
             sg_properties['resource_config']['policies'] = \
                 [self._properties['policy']]
         return sg_properties
+
+    def _transform_server(self):
+        """
+        This method will do transform operation for server node to be
+        compatible with openstack server version 3
+        :return dict: Compatible server openstack version 3 properties
+        """
+        # Do a conversion for networks object
+        self._map_server_networks_config()
+        return self._transform('server', SERVER_RESOURCE_CONFIG)
 
     def _transform_user(self):
         """

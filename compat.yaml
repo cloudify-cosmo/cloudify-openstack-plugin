@@ -22,8 +22,10 @@ node_types:
       <<: *common_config
       flavor:
         default: {}
+      # extra_specs will be ignore on new SDK since it does not support set set keys for flavor
       extra_specs:
         default: {}
+      # tenants will be ignore on new SDK since it does not support add tenant access
       tenants:
         default: []
 
@@ -65,6 +67,27 @@ node_types:
           'anti-affinity', 'soft-affinity', or 'soft-anti-affinity'.
 
 
+  cloudify.openstack.nodes.Server:
+    derived_from: cloudify.nodes.openstack.Server
+    properties:
+      <<: *common_config
+      server:
+        default: {}
+      # This is no longer supported by the new SDK
+      management_network_name:
+          type: string
+          required: false
+          description: >
+            Old requirement called management network name. Not required. Leave blank. Retained for backward compatibility.
+            Not every server need be connected to a management network.
+            If the management network's name information is available in the Provider Context,
+            this connection is made automatically and there's no need to override this property
+            (See the Misc section for more information on the Openstack Provider Context).
+            It is not required to set the value of this property to the management network name. As of Cloudify 4.0, it has no relationship to the bootstrap process.
+
+
+
+
   cloudify.openstack.nodes.User:
     derived_from: cloudify.nodes.openstack.User
     properties:
@@ -97,6 +120,7 @@ node_types:
           If a Server instance is connected to this Volume by a relationship,
           this volume will be used as the boot volume for that Server.
           This option will be deprecated in the future.
+
 
 relationships:
 

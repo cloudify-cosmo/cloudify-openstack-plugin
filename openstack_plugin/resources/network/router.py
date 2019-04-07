@@ -21,7 +21,11 @@ from cloudify.exceptions import NonRecoverableError
 from openstack_sdk.resources.networks import (OpenstackRouter,
                                               OpenstackPort,
                                               OpenstackNetwork)
-from openstack_plugin.decorators import with_openstack_resource
+
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node,
+                                         with_multiple_data_sources)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         ROUTER_OPENSTACK_TYPE,
                                         NETWORK_OPENSTACK_TYPE)
@@ -74,13 +78,17 @@ def _get_connected_external_network_from_relationship(network_resource):
     return external_network_ids[0] if external_network_ids else None
 
 
-def _connect_router_to_external_network(router_resource):
+@with_multiple_data_sources()
+def _connect_router_to_external_network(router_resource, allow_multiple=False):
     """
     This method will update router config with external network by checking
     if it is provided using node property "resource_config" or via
     relationship and we should only connect router to external network from
     one source
     :param router_resource: Instance of openstack router resource
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    networks configuration from multiple resources relationships + node
+    properties
     """
     if not router_resource or router_resource and not router_resource.config:
         return
@@ -97,7 +105,7 @@ def _connect_router_to_external_network(router_resource):
     rel_ext_net_id = \
         _get_connected_external_network_from_relationship(network_resource)
 
-    if ext_net_id and rel_ext_net_id:
+    if ext_net_id and rel_ext_net_id and not allow_multiple:
         raise NonRecoverableError('Router can\'t both have the '
                                   '"external_gateway_info" property and be '
                                   'connected to a network via a '
@@ -163,6 +171,7 @@ def _handle_disconnect_external_subnet_from_router():
                     'subnet and router are being used')
 
 
+@with_compat_node
 @with_openstack_resource(
     OpenstackRouter,
     existing_resource_handler=_handle_external_router_resource)
@@ -182,6 +191,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def delete(openstack_resource):
     """
@@ -191,6 +201,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def update(openstack_resource, args):
     """
@@ -203,6 +214,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def list_routers(openstack_resource, query=None):
     """
@@ -215,6 +227,7 @@ def list_routers(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(ROUTER_OPENSTACK_TYPE, routers)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def creation_validation(openstack_resource):
     """
@@ -225,6 +238,7 @@ def creation_validation(openstack_resource):
     ctx.logger.debug('OK: router configuration is valid')
 
 
+@with_compat_node
 @with_openstack_resource(
     OpenstackRouter,
     existing_resource_handler=_validate_external_interface_connections)
@@ -239,6 +253,7 @@ def add_interface_to_router(openstack_resource, **kwargs):
     openstack_resource.add_interface(kwargs)
 
 
+@with_compat_node
 @with_openstack_resource(
     OpenstackRouter,
     existing_resource_handler=_handle_disconnect_external_subnet_from_router)
@@ -253,6 +268,7 @@ def remove_interface_from_router(openstack_resource, **kwargs):
     openstack_resource.remove_interface(kwargs)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def start(openstack_resource, **kwargs):
     """
@@ -269,6 +285,7 @@ def start(openstack_resource, **kwargs):
         openstack_resource.update(routes)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def stop(openstack_resource):
     """

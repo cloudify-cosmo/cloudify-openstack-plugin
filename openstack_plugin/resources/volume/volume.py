@@ -27,7 +27,7 @@ from openstack_sdk.resources.volume import (OpenstackVolume,
                                             OpenstackVolumeSnapshot)
 
 from openstack_plugin.decorators import (with_openstack_resource,
-                                         with_compact_node)
+                                         with_compat_node)
 
 from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_AZ_PROPERTY,
@@ -355,7 +355,7 @@ def _restore_volume_from_backup(volume_resource, backup_name):
         raise NonRecoverableError('No such {0} backup.'.format(backup_name))
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackVolume)
 def create(openstack_resource, args={}):
     """
@@ -378,7 +378,7 @@ def create(openstack_resource, args={}):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackVolume)
 def start(openstack_resource, **kwargs):
     """
@@ -397,7 +397,7 @@ def start(openstack_resource, **kwargs):
     _set_volume_runtime_properties(volume)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackVolume)
 def snapshot_create(openstack_resource, **kwargs):
     """
@@ -426,7 +426,7 @@ def snapshot_create(openstack_resource, **kwargs):
         _create_volume_snapshot(openstack_resource, backup_name, snapshot_type)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackVolume)
 def snapshot_apply(openstack_resource, **kwargs):
     """
@@ -448,7 +448,7 @@ def snapshot_apply(openstack_resource, **kwargs):
         raise NonRecoverableError('Apply snapshot is not supported')
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackVolume)
 def snapshot_delete(openstack_resource, **kwargs):
     """
@@ -481,7 +481,7 @@ def snapshot_delete(openstack_resource, **kwargs):
         _delete_volume_snapshot(openstack_resource, search_opts)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackVolume)
 def delete(openstack_resource):
     """
@@ -512,7 +512,7 @@ def delete(openstack_resource):
             openstack_resource.resource_id))
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackVolume)
 def list_volumes(openstack_resource, query=None):
     """
@@ -525,7 +525,7 @@ def list_volumes(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(VOLUME_OPENSTACK_TYPE, volumes)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackVolume)
 def creation_validation(openstack_resource):
     """

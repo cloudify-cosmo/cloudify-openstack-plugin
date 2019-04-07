@@ -19,11 +19,14 @@ from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.networks import OpenstackNetwork
-from openstack_plugin.decorators import with_openstack_resource
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node)
+
 from openstack_plugin.constants import RESOURCE_ID
 from openstack_plugin.utils import (validate_resource_quota,
                                     reset_dict_empty_keys,
                                     add_resource_list_to_runtime_properties)
+
 from openstack_plugin.constants import NETWORK_OPENSTACK_TYPE
 
 
@@ -41,6 +44,7 @@ def handle_external_network(openstack_resource):
             '"admin_state_up"=True'.format(remote_network.id))
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackNetwork,
                          existing_resource_handler=handle_external_network)
 def create(openstack_resource):
@@ -52,6 +56,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackNetwork)
 def delete(openstack_resource):
     """
@@ -61,6 +66,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackNetwork)
 def update(openstack_resource, args):
     """
@@ -73,6 +79,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackNetwork)
 def list_networks(openstack_resource, query=None):
     """
@@ -85,6 +92,7 @@ def list_networks(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(NETWORK_OPENSTACK_TYPE, networks)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackNetwork)
 def creation_validation(openstack_resource):
     """

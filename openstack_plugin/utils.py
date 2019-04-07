@@ -46,7 +46,8 @@ from openstack_plugin.constants import (PS_OPEN,
                                         OPENSTACK_NAME_PROPERTY,
                                         CLOUDIFY_NEW_NODE_OPERATIONS,
                                         CLOUDIFY_CREATE_OPERATION,
-                                        CLOUDIFY_DELETE_OPERATION)
+                                        CLOUDIFY_DELETE_OPERATION,
+                                        USE_COMPACT_NODE)
 
 
 def find_relationships_by_node_type_hierarchy(ctx_node_instance, node_type):
@@ -529,6 +530,17 @@ def is_external_resource(_ctx):
         _ctx.node.properties.get(USE_EXTERNAL_RESOURCE_PROPERTY) else False
 
 
+def is_compat_node(_ctx):
+    """
+    This method is to check if the current node need to be converted to
+    openstack version 3.0.0 node
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :return bool:  Return boolean flag to indicate if it has
+    "use_compact_node" property or not
+    """
+    return True if _ctx.node.properties.get(USE_COMPACT_NODE) else False
+
+
 def is_create_if_missing(_ctx):
     """
     This method is to check if the current node has a "create_if_missing"
@@ -879,3 +891,12 @@ def allow_to_run_operation_for_external_node(operation_name):
     if operation_name not in CLOUDIFY_NEW_NODE_OPERATIONS:
         return True
     return False
+
+
+def remove_duplicates_items(items):
+    """
+    This method will clean duplicates items (dict) from list
+    :param items: List of dicts
+    :return: Updated list that without duplicate items
+    """
+    return [dict(t) for t in {tuple(d.items()) for d in items}]

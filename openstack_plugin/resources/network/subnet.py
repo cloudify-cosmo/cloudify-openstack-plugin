@@ -19,7 +19,10 @@ from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.networks import OpenstackSubnet
-from openstack_plugin.decorators import with_openstack_resource
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node,
+                                         with_multiple_data_sources)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         SUBNET_OPENSTACK_TYPE,
                                         NETWORK_OPENSTACK_TYPE)
@@ -47,12 +50,16 @@ def _get_subnet_network_id_from_relationship():
     return network_ids[0] if network_ids else None
 
 
-def _update_subnet_config(subnet_config):
+@with_multiple_data_sources()
+def _update_subnet_config(subnet_config, allow_multiple=False):
     """
     This method will try to update subnet config with network configurations
     using the relationships connected with subnet node
     :param dict subnet_config: The subnet configuration required in order to
     create the subnet instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    networks configuration from multiple resources relationships + node
+    properties
     """
 
     # Check to see if the network id is provided on the subnet config
@@ -61,7 +68,7 @@ def _update_subnet_config(subnet_config):
 
     # Get the network id from relationship if it is existed
     rel_network_id = _get_subnet_network_id_from_relationship()
-    if network_id and rel_network_id:
+    if network_id and rel_network_id and not allow_multiple:
         raise NonRecoverableError('Subnet can\'t both have the '
                                   '"network_id" property and be '
                                   'connected to a network via a '
@@ -84,6 +91,7 @@ def _handle_external_subnet_resource(openstack_resource):
             ' {1} to be connected'.format(remote_subnet.id, network_id))
 
 
+@with_compat_node
 @with_openstack_resource(
     OpenstackSubnet,
     existing_resource_handler=_handle_external_subnet_resource)
@@ -100,6 +108,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSubnet)
 def delete(openstack_resource):
     """
@@ -109,6 +118,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSubnet)
 def update(openstack_resource, args):
     """
@@ -121,6 +131,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSubnet)
 def list_subnets(openstack_resource, query=None):
     """
@@ -133,6 +144,7 @@ def list_subnets(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(SUBNET_OPENSTACK_TYPE, subnets)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSubnet)
 def creation_validation(openstack_resource):
     """

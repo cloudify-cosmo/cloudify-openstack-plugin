@@ -5,10 +5,11 @@ imports:
   - compat.yaml
 
 inputs:
-  keystone_username:
-    default: { get_secret: keystone_username }
 
-  keystone_password:
+  openstack_username:
+    default: { get_secret: openstack_username }
+
+  openstack_password:
     default: { get_secret: keystone_password }
 
   keystone_tenant_name:

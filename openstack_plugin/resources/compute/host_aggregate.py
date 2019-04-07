@@ -20,7 +20,7 @@ from cloudify.exceptions import NonRecoverableError
 # Local imports
 from openstack_sdk.resources.compute import OpenstackHostAggregate
 from openstack_plugin.decorators import (with_openstack_resource,
-                                         with_compact_node)
+                                         with_compat_node)
 from openstack_plugin.constants import (RESOURCE_ID,
                                         HOST_AGGREGATE_OPENSTACK_TYPE)
 from openstack_plugin.utils import add_resource_list_to_runtime_properties
@@ -77,7 +77,7 @@ def _remove_hosts(openstack_resource, hosts):
         del ctx.instance.runtime_properties['hosts']
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackHostAggregate)
 def create(openstack_resource):
     """
@@ -92,7 +92,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackHostAggregate)
 def configure(openstack_resource):
     """
@@ -115,7 +115,7 @@ def configure(openstack_resource):
         _add_hosts(openstack_resource, ctx.node.properties['hosts'])
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackHostAggregate)
 def update(openstack_resource, args):
     """
@@ -133,7 +133,7 @@ def update(openstack_resource, args):
         'Openstack SDK does not support host aggregate  update operation')
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackHostAggregate)
 def list_aggregates(openstack_resource):
     """
@@ -145,7 +145,7 @@ def list_aggregates(openstack_resource):
                                             aggregates)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackHostAggregate)
 def delete(openstack_resource):
     """
@@ -162,7 +162,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackHostAggregate)
 def add_hosts(openstack_resource, hosts):
     """
@@ -174,7 +174,7 @@ def add_hosts(openstack_resource, hosts):
     _add_hosts(openstack_resource, hosts)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackHostAggregate)
 def remove_hosts(openstack_resource, hosts):
     """

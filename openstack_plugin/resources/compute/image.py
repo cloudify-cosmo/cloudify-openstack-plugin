@@ -19,14 +19,14 @@ from cloudify import ctx
 # Local imports
 from openstack_sdk.resources.images import OpenstackImage
 from openstack_plugin.decorators import (with_openstack_resource,
-                                         with_compact_node)
+                                         with_compat_node)
 from openstack_plugin.constants import (RESOURCE_ID, IMAGE_OPENSTACK_TYPE)
 from openstack_plugin.utils import (validate_resource_quota,
                                     reset_dict_empty_keys,
                                     add_resource_list_to_runtime_properties)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackImage)
 def create(openstack_resource):
     # TODO Need to handle image upload to openstack when image_url is
@@ -36,7 +36,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackImage)
 def start(openstack_resource):
     # TODO This should be implemented in order to check if uploading image
@@ -44,14 +44,14 @@ def start(openstack_resource):
     pass
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackImage)
 def delete(openstack_resource):
     # Delete the image resource after lookup the resource_id values
     openstack_resource.delete()
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackImage)
 def update(openstack_resource, args):
     """
@@ -64,7 +64,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackImage)
 def list_images(openstack_resource, query=None):
     """
@@ -77,7 +77,7 @@ def list_images(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(IMAGE_OPENSTACK_TYPE, images)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackImage)
 def creation_validation(openstack_resource):
     """

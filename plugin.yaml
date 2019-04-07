@@ -682,6 +682,14 @@ node_types:
       <<: *external_resource
       <<: *create_if_missing
       <<: *client_config
+      fixed_ip:
+        type: string
+        default: ''
+        description: >
+          may be used to request a specific fixed IP for the port.
+          If the IP is unavailable
+          (either already taken or does not belong to a subnet the port is on)
+          an error will be raised.
       resource_config:
         type: cloudify.types.openstack.Port
         description: A dictionary that may contain these keys https://developer.openstack.org/api-ref/network/v2/#create-port.

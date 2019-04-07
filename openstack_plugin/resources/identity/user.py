@@ -18,14 +18,16 @@ from cloudify import ctx
 
 # Local imports
 from openstack_sdk.resources.identity import OpenstackUser
+
 from openstack_plugin.decorators import (with_openstack_resource,
-                                         with_compact_node)
+                                         with_compat_node)
+
 from openstack_plugin.constants import (RESOURCE_ID, USER_OPENSTACK_TYPE)
 from openstack_plugin.utils import (reset_dict_empty_keys,
                                     add_resource_list_to_runtime_properties)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackUser)
 def create(openstack_resource):
     """
@@ -36,7 +38,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackUser)
 def delete(openstack_resource):
     """
@@ -46,7 +48,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackUser)
 def update(openstack_resource, args):
     """
@@ -59,7 +61,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackUser)
 def list_users(openstack_resource, query=None):
     """

@@ -1,0 +1,71 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
+  - ../../compat.yaml
+
+inputs:
+
+  openstack_username:
+    default: { get_secret: openstack_username }
+
+  openstack_password:
+    default: { get_secret: openstack_password }
+
+  openstack_tenant_name:
+    default: { get_secret: openstack_tenant_name }
+
+  openstack_url:
+    default: { get_secret: openstack_url }
+
+  region:
+    default: { get_secret: region }
+
+  subnet_cidr:
+    default: '192.168.1.0/24'
+
+
+dsl_definitions:
+
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_tenant_name }
+    auth_url: { get_input: openstack_url }
+    region: { get_input: region }
+
+node_templates:
+
+  example-server:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *openstack_config
+      agent_config:
+        install_method: none
+      server:
+        key_name: 'test'
+        image: '70de1e0f-2951-4eae-9a8f-05afd97cd036'
+        flavor: '4'
+        networks:
+          - net-id: 'e85c855d-b5f5-47a4-92f0-cc47438c4271'
+    relationships:
+      - target: example-network
+        type: cloudify.relationships.contained_in
+
+
+  example-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      openstack_config: *openstack_config
+      resource_id: test-network
+
+  example-subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      openstack_config: *openstack_config
+      subnet:
+        ip_version: 4
+        cidr: { get_input: subnet_cidr }
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: example-network

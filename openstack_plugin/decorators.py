@@ -24,13 +24,13 @@ from cloudify.utils import exception_to_error_cause
 
 # Local imports
 from openstack_plugin.compat import Compat
-from openstack_plugin.constants import USE_COMPACT_NODE
 from openstack_plugin.utils \
     import (resolve_ctx,
             get_current_operation,
             prepare_resource_instance,
             use_external_resource,
-            update_runtime_properties_for_operation_task)
+            update_runtime_properties_for_operation_task,
+            is_compat_node)
 
 
 def with_openstack_resource(class_decl,
@@ -46,7 +46,6 @@ def with_openstack_resource(class_decl,
     to pass to the external resource  handler
     :return: a wrapper object encapsulating the invoked function
     """
-
     def wrapper_outer(func):
         def wrapper_inner(**kwargs):
             # Get the context for the current task operation
@@ -81,12 +80,11 @@ def with_openstack_resource(class_decl,
                     'Failure while trying to request '
                     'Openstack API: {}'.format(error.message),
                     causes=[exception_to_error_cause(error, tb)])
-
         return wrapper_inner
     return wrapper_outer
 
 
-def with_compact_node(func):
+def with_compat_node(func):
     """
     This decorator is used to transform nodes properties for openstack nodes
     with version 2.X to be compatible with new nodes support by version 3.x
@@ -101,10 +99,23 @@ def with_compact_node(func):
         # node context
         ctx_node = resolve_ctx(ctx)
         # Check to see if we need to do properties transformation or not
-        if ctx_node.node.properties.get(USE_COMPACT_NODE):
+        if is_compat_node(ctx_node):
             compat = Compat(context=ctx_node)
             properties = compat.transform()
             for key, value in properties.items():
                 kwargs[key] = value
         func(**kwargs)
     return wrapper
+
+
+def with_multiple_data_sources(clean_duplicates_handler=None):
+    def wrapper_outer(func):
+        def wrapper_inner(config, **kwargs):
+            # Check if the current node has "use_compact_node"
+            if is_compat_node(CloudifyContext):
+                kwargs['allow_multiple'] = True
+            func(config, **kwargs)
+            if kwargs.get('allow_multiple') and clean_duplicates_handler:
+                clean_duplicates_handler(config)
+        return wrapper_inner
+    return wrapper_outer

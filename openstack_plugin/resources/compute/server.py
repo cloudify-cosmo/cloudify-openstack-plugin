@@ -36,7 +36,8 @@ from openstack_sdk.resources.networks import (OpenstackPort,
                                               OpenstackFloatingIP)
 
 from openstack_plugin.decorators import (with_openstack_resource,
-                                         with_compact_node)
+                                         with_compat_node,
+                                         with_multiple_data_sources)
 
 from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_RESOURCE_UUID,
@@ -95,7 +96,8 @@ from openstack_plugin.utils import \
      get_resource_id_from_runtime_properties,
      get_snapshot_name,
      generate_attachment_volume_key,
-     assign_resource_payload_as_runtime_properties)
+     assign_resource_payload_as_runtime_properties,
+     remove_duplicates_items)
 
 
 def _stop_server(server):
@@ -505,6 +507,30 @@ def _get_flavor_or_image_from_server(class_name,
         return remote_instance.id
 
 
+def _clean_duplicate_networks(server_config):
+    """
+    This method will clean all duplicates network items from server config
+    :param dict server_config: The server configuration required in order to
+    create the server instance using Openstack API
+    """
+    networks = server_config.get('networks')
+    if networks:
+        networks = remove_duplicates_items(networks)
+        server_config['networks'] = networks
+
+
+def _clean_duplicate_volumes(server_config):
+    """
+    This method will clean all duplicates volume items from server config
+    :param dict server_config: The server configuration required in order to
+    create the server instance using Openstack API
+    """
+    volumes = server_config.get('block_device_mapping_v2')
+    if volumes:
+        volumes = remove_duplicates_items(volumes)
+        server_config['block_device_mapping_v2'] = volumes
+
+
 def _update_flavor_and_image_config(openstack_resource):
     """
     This method will update flavor & image config for server based on the
@@ -541,12 +567,16 @@ def _update_flavor_and_image_config(openstack_resource):
         openstack_resource.config['image_id'] = image_id
 
 
-def _update_ports_config(server_config):
+@with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_networks)
+def _update_ports_config(server_config, allow_multiple=False):
     """
     This method will try to update server config with port configurations
     using the relationships connected with server node
     :param dict server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+     networks configuration from multiple resources relationships + node
+     properties
     """
     # Check to see if the network dict is provided on the server config
     # properties
@@ -572,7 +602,7 @@ def _update_ports_config(server_config):
     if not (server_ports or port_ids):
         return
     # Try to merge them
-    elif port_ids and server_ports:
+    elif port_ids and server_ports and not allow_multiple:
         raise NonRecoverableError('Server can\'t both have the '
                                   '"networks" property and be '
                                   'connected to a network via a '
@@ -592,11 +622,15 @@ def _update_ports_config(server_config):
         server_config['networks'].extend(ports_to_add)
 
 
-def _update_bootable_volume_config(server_config):
+@with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_volumes)
+def _update_bootable_volume_config(server_config, allow_multiple=False):
     """
     This method will help to get volume info from relationship
     :param server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    volumes configuration from multiple resources relationships + node
+    properties
     """
     mapping_devices = server_config.get('block_device_mapping_v2', [])
 
@@ -641,24 +675,30 @@ def _update_bootable_volume_config(server_config):
     if not (bootable_rel_uuids or volume_uuids):
         return
     # Try to merge them
-    elif bootable_rel_uuids and volume_uuids:
+    elif bootable_rel_uuids and volume_uuids and not allow_multiple:
         raise NonRecoverableError('Server can\'t both have the '
                                   '"block_device_mapping_v2" property and be '
                                   'connected to a volume via a '
                                   'relationship at the same time')
 
-    elif bootable_rel_uuids and not volume_uuids:
-        mapping_devices = bootable_rel_volumes
+    if not mapping_devices:
+        server_config['block_device_mapping_v2'] = bootable_rel_volumes
 
-    server_config['block_device_mapping_v2'] = mapping_devices
+    elif mapping_devices and isinstance(mapping_devices, list) and \
+            bootable_rel_volumes:
+        server_config['block_device_mapping_v2'].extend(bootable_rel_volumes)
 
 
-def _update_keypair_config(server_config):
+@with_multiple_data_sources()
+def _update_keypair_config(server_config, allow_multiple=False):
     """
     This method will try to get key pair info connected with server node if
     there is any relationships
     :param server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    keypairs configuration from multiple resources relationships + node
+    properties
     """
     # Get the key name from server if it exists
     server_keyname = server_config.get('key_name')
@@ -669,7 +709,7 @@ def _update_keypair_config(server_config):
     # If server have two keyname from server node and from relationship then
     # we should raise error
     rel_keyname = rel_keyname[0] if rel_keyname else None
-    if server_keyname and rel_keyname:
+    if server_keyname and rel_keyname and not allow_multiple:
         raise NonRecoverableError('Server can\'t both have the '
                                   '"key_name" property and be '
                                   'connected to a keypair via a '
@@ -681,12 +721,16 @@ def _update_keypair_config(server_config):
         server_config['key_name'] = key_name
 
 
-def _update_networks_config(server_config):
+@with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_networks)
+def _update_networks_config(server_config, allow_multiple=False):
     """
     This method will try to update server config with network configurations
     using the relationships connected with server node
     :param dict server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param boolean allow_multiple: A flag to indicate that it is allowed to
+    update server_config with network from multiple sources (node properties
+    + relationships)
     """
 
     # Check to see if the network dict is provided on the server config
@@ -713,7 +757,7 @@ def _update_networks_config(server_config):
     if not (server_networks or network_ids):
         return
     # Try to merge them
-    elif server_networks and network_ids:
+    elif server_networks and network_ids and not allow_multiple:
         raise NonRecoverableError('Server can\'t both have the '
                                   '"networks" property and be '
                                   'connected to a network via a '
@@ -733,12 +777,16 @@ def _update_networks_config(server_config):
         server_config['networks'].extend(networks_to_add)
 
 
-def _update_server_group_config(server_config):
+@with_multiple_data_sources()
+def _update_server_group_config(server_config, allow_multiple=False):
     """
     Associate server with server group if it is provided via the
     configuration in order to prepare and send them with the request
     :param dict server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    server groups configuration from multiple resources relationships + node
+    properties
     """
     server_group_rel = \
         find_relationship_by_node_type(ctx.instance, SERVER_GROUP_NODE_TYPE)
@@ -748,7 +796,8 @@ def _update_server_group_config(server_config):
             get_resource_id_from_runtime_properties(server_group_rel.target)
 
         scheduler_hints = server_config.get('scheduler_hints', {})
-        if server_group_id and scheduler_hints.get('group'):
+        if server_group_id and scheduler_hints.get('group')\
+                and not allow_multiple:
             raise NonRecoverableError('Server can\'t both have the '
                                       '"group" property under '
                                       'scheduler_hints and be connected to'
@@ -1197,7 +1246,7 @@ def _validate_external_volume_connection(openstack_resource):
         'connected'.format(openstack_resource.resource_id, volume_id))
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_connect_resources_to_external_server)
@@ -1234,7 +1283,7 @@ def create(openstack_resource):
                                                   SERVER_OPENSTACK_TYPE)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_validate_external_server_status)
@@ -1263,7 +1312,7 @@ def configure(openstack_resource):
                     'state. Retrying...'.format(SERVER_STATUS_ACTIVE, status))
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def delete(openstack_resource):
     """
@@ -1294,7 +1343,7 @@ def delete(openstack_resource):
     raise OperationRetry(message='Server has {0} state.'.format(server.status))
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_disconnect_resources_from_external_server)
@@ -1315,7 +1364,7 @@ def stop(openstack_resource):
     _stop_server(openstack_resource)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def reboot(openstack_resource, reboot_type='soft'):
     """
@@ -1356,7 +1405,7 @@ def reboot(openstack_resource, reboot_type='soft'):
                 server.state))
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def suspend(openstack_resource):
     """
@@ -1367,7 +1416,7 @@ def suspend(openstack_resource):
     openstack_resource.suspend()
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def resume(openstack_resource):
     """
@@ -1378,7 +1427,7 @@ def resume(openstack_resource):
     openstack_resource.resume()
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def snapshot_create(openstack_resource, **kwargs):
     """
@@ -1428,7 +1477,7 @@ def snapshot_create(openstack_resource, **kwargs):
                               snapshot_incremental)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def snapshot_apply(openstack_resource, **kwargs):
     """
@@ -1465,7 +1514,7 @@ def snapshot_apply(openstack_resource, **kwargs):
                              snapshot_name)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def snapshot_delete(openstack_resource, **kwargs):
     """
@@ -1527,7 +1576,7 @@ def snapshot_delete(openstack_resource, **kwargs):
                 del ctx.instance.runtime_properties[attr]
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_validate_external_volume_connection)
@@ -1588,7 +1637,7 @@ def attach_volume(openstack_resource, **kwargs):
         del ctx.target.instance.runtime_properties[attachment_task_key]
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_handle_detach_external_volume_from_server)
@@ -1651,7 +1700,7 @@ def detach_volume(openstack_resource, **kwargs):
         del ctx.target.instance.runtime_properties[detachment_task_key]
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_validate_external_floating_ip_connection)
@@ -1673,7 +1722,7 @@ def connect_floating_ip(openstack_resource, floating_ip, fixed_ip=''):
                                                  fixed_ip=fixed_ip)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_handle_disconnect_external_ip_from_server)
@@ -1692,7 +1741,7 @@ def disconnect_floating_ip(openstack_resource, floating_ip):
     openstack_resource.remove_floating_ip_from_server(floating_ip)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_validate_external_security_group_connection)
@@ -1710,7 +1759,7 @@ def connect_security_group(openstack_resource, security_group_id):
     openstack_resource.add_security_group_to_server(security_group_id)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(
     OpenstackServer,
     existing_resource_handler=_handle_disconnect_external_sg_from_server)
@@ -1743,7 +1792,7 @@ def disconnect_security_group(openstack_resource, security_group_id):
         )
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def update(openstack_resource, args):
     """
@@ -1760,7 +1809,7 @@ def update(openstack_resource, args):
                                                   SERVER_OPENSTACK_TYPE)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def list_servers(openstack_resource,
                  query=None,
@@ -1783,7 +1832,7 @@ def list_servers(openstack_resource,
     add_resource_list_to_runtime_properties(SERVER_OPENSTACK_TYPE, servers)
 
 
-@with_compact_node
+@with_compat_node
 @with_openstack_resource(OpenstackServer)
 def creation_validation(openstack_resource):
     """

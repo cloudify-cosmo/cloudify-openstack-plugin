@@ -20,7 +20,11 @@ from cloudify.exceptions import (RecoverableError, NonRecoverableError)
 # Local imports
 from openstack_sdk.resources.networks import (OpenstackFloatingIP,
                                               OpenstackNetwork)
-from openstack_plugin.decorators import with_openstack_resource
+
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node,
+                                         with_multiple_data_sources)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         FLOATING_IP_OPENSTACK_TYPE,
                                         NETWORK_OPENSTACK_TYPE,
@@ -78,12 +82,16 @@ def _get_floating_network_id_from_relationship(resource_type):
     return resource_ids[0] if resource_ids else None
 
 
-def _update_floating_ip_port(floating_ip_resource):
+@with_multiple_data_sources()
+def _update_floating_ip_port(floating_ip_resource, allow_multiple=False):
     """
     This method will try to update floating ip config with port
     configurations using the relationships connected with floating ip node
     :param dict floating_ip_resource: Instance of openstack floating ip
     resource
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    ports configuration from multiple resources relationships + node
+    properties
     """
 
     # Check to see if the floating port id is provided on the floating ip
@@ -94,7 +102,7 @@ def _update_floating_ip_port(floating_ip_resource):
     # Get the floating port id from relationship if it is existed
     rel_port_id = \
         _get_floating_network_id_from_relationship(PORT_OPENSTACK_TYPE)
-    if port_id and rel_port_id:
+    if port_id and rel_port_id and not allow_multiple:
         raise NonRecoverableError('Floating IP can\'t both have the '
                                   '"port_id" property and be '
                                   'connected to a port via a '
@@ -104,12 +112,16 @@ def _update_floating_ip_port(floating_ip_resource):
         floating_ip_config['port_id'] = rel_port_id or port_id
 
 
-def _update_floating_ip_subnet(floating_ip_resource):
+@with_multiple_data_sources()
+def _update_floating_ip_subnet(floating_ip_resource, allow_multiple=False):
     """
     This method will try to update floating ip config with subnet
     configurations using the relationships connected with floating ip node
     :param dict floating_ip_resource: Instance of openstack floating ip
     resource
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    subnets configuration from multiple resources relationships + node
+    properties
     """
     # Check to see if the floating port id is provided on the floating ip
     # config properties
@@ -119,7 +131,7 @@ def _update_floating_ip_subnet(floating_ip_resource):
     # Get the floating subnet id from relationship if it is existed
     rel_subnet_id = \
         _get_floating_network_id_from_relationship(SUBNET_OPENSTACK_TYPE)
-    if subnet_id and rel_subnet_id:
+    if subnet_id and rel_subnet_id and not allow_multiple:
         raise NonRecoverableError('Floating IP can\'t both have the '
                                   '"subnet_id" property and be '
                                   'connected to a subnet via a '
@@ -129,12 +141,16 @@ def _update_floating_ip_subnet(floating_ip_resource):
         floating_ip_config['subnet_id'] = rel_subnet_id or subnet_id
 
 
-def _update_floating_ip_network(floating_ip_resource):
+@with_multiple_data_sources()
+def _update_floating_ip_network(floating_ip_resource, allow_multiple=False):
     """
     This method will try to update floating ip config with network
     configurations using the relationships connected with floating ip node
     :param dict floating_ip_resource: Instance of openstack floating ip
     resource
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    networks configuration from multiple resources relationships + node
+    properties
     """
 
     # Check to see if the floating network id is provided on the floating ip
@@ -149,9 +165,10 @@ def _update_floating_ip_network(floating_ip_resource):
     rel_floating_network_id = \
         _get_floating_network_id_from_relationship(NETWORK_OPENSTACK_TYPE)
 
-    if floating_network_id and floating_network_name \
-            or (floating_network_id and rel_floating_network_id)\
-            or (floating_network_name and rel_floating_network_id):
+    if (floating_network_id and floating_network_name or
+        (floating_network_id and rel_floating_network_id) or
+        (floating_network_name and rel_floating_network_id))\
+            and not allow_multiple:
         raise NonRecoverableError('Floating ip can\'t have the '
                                   '"floating network properties and be '
                                   'connected to a network via a '
@@ -198,6 +215,7 @@ def _update_floating_ip_config(floating_ip_resource):
     _update_floating_ip_subnet(floating_ip_resource)
 
 
+@with_compat_node
 @with_openstack_resource(class_decl=OpenstackFloatingIP,
                          existing_resource_handler=use_external_floating_ip)
 def create(openstack_resource):
@@ -216,6 +234,7 @@ def create(openstack_resource):
         created_resource.floating_ip_address
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackFloatingIP)
 def delete(openstack_resource):
     """
@@ -225,6 +244,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackFloatingIP)
 def update(openstack_resource, args):
     """
@@ -240,6 +260,7 @@ def update(openstack_resource, args):
     openstack_resource.update(new_config)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackFloatingIP)
 def list_floating_ips(openstack_resource, query=None):
     """
@@ -253,6 +274,7 @@ def list_floating_ips(openstack_resource, query=None):
         FLOATING_IP_OPENSTACK_TYPE, floating_ips)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackFloatingIP)
 def creation_validation(openstack_resource):
     """

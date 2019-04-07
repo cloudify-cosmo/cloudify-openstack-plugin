@@ -67,6 +67,8 @@ node_types:
           'anti-affinity', 'soft-affinity', or 'soft-anti-affinity'.
 
 
+
+
   cloudify.openstack.nodes.Server:
     derived_from: cloudify.nodes.openstack.Server
     properties:
@@ -84,7 +86,6 @@ node_types:
             this connection is made automatically and there's no need to override this property
             (See the Misc section for more information on the Openstack Provider Context).
             It is not required to set the value of this property to the management network name. As of Cloudify 4.0, it has no relationship to the bootstrap process.
-
 
 
 
@@ -108,7 +109,7 @@ node_types:
       <<: *common_config
       volume:
         default: {}
-      # In new SDK, this property is going to be ignored because when user
+      # In new plugin 3.x, this property is going to be ignored because when user
       # specify "imageRef" in volume, that means the volume is bootable and
       # for backward compatibility, the new SDK store runtime property
       # called "bootable" to give an indication if this volume is bootable
@@ -122,7 +123,67 @@ node_types:
           This option will be deprecated in the future.
 
 
+
+
+
+
+  cloudify.openstack.nodes.Network:
+    derived_from: cloudify.nodes.openstack.Network
+    properties:
+      <<: *common_config
+      network:
+        default: {}
+
+  cloudify.openstack.nodes.Subnet:
+    derived_from: cloudify.nodes.openstack.Subnet
+    properties:
+      <<: *common_config
+      subnet:
+        default: {}
+
+  cloudify.openstack.nodes.Port:
+    derived_from: cloudify.nodes.openstack.Port
+    properties:
+      <<: *common_config
+      port:
+        default: {}
+
+  cloudify.openstack.nodes.FloatingIP:
+    derived_from: cloudify.nodes.openstack.FloatingIP
+    properties:
+      <<: *common_config
+      floatingip:
+        default: {}
+
+  cloudify.openstack.nodes.Router:
+    derived_from: cloudify.nodes.openstack.Router
+    properties:
+      <<: *common_config
+      router:
+        default: {}
+      # In new plugin, this node property is no longer supported and it will ignored
+      default_to_managers_external_network:
+        type: boolean
+        default: true
+        description: >
+          A boolean which determines whether to use the Cloudify Manager's external network if no other external network was given (whether by a relationship, by the `external_network` property or by the nested `external_gateway_info` key in the `router` property). This is only relevant if the manager's external network appears in the Provider-context. Defaults to `true`.
+
 relationships:
 
   cloudify.openstack.volume_attached_to_server:
     derived_from: cloudify.relationships.openstack.volume_attached_to_server
+
+  cloudify.openstack.server_connected_to_keypair:
+    derived_from: cloudify.relationships.openstack.server_connected_to_keypair
+
+  cloudify.openstack.server_connected_to_port:
+    derived_from: cloudify.relationships.openstack.server_connected_to_port
+
+  cloudify.openstack.port_connected_to_security_group:
+    derived_from: cloudify.relationships.openstack.port_connected_to_security_group
+
+  cloudify.openstack.port_connected_to_floating_ip:
+    derived_from: cloudify.relationships.openstack.port_connected_to_floating_ip
+
+  cloudify.openstack.subnet_connected_to_router:
+    derived_from: cloudify.relationships.openstack.subnet_connected_to_router

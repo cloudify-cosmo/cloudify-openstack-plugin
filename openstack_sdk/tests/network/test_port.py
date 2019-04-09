@@ -75,7 +75,10 @@ class PortTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.binding_host_id, '3')
         self.assertEqual(response.binding_profile, {'4': 4})
 
-    def test_list_ports(self):
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_list_ports(self, mock_project):
+        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
         ports = [
             openstack.network.v2.port.Port(**{
                 'id': '1',

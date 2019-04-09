@@ -218,6 +218,10 @@ class HostAggregateTestCase(OpenStackTestBase):
         mock_connection().compute.aggregates = \
             mock.MagicMock(return_value=aggregate_list)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list aggregates
         host_aggregate.list_aggregates()
 

@@ -21,6 +21,31 @@ inputs:
   region:
     default: { get_secret: region }
 
+  external_network_name:
+    description: The name of external network in your Openstack account.
+
+  network_id:
+    type: string
+    description: The id of network in your Openstack account.
+
+  subnet_cidr:
+    default: '192.168.1.0/24'
+
+  security_group_rules:
+    default:
+    - remote_ip_prefix: 0.0.0.0/0
+      port: 22
+
+  image:
+    type: string
+    description: The name of an image in your Openstack account.
+    default: 'CentOS-7-x86_64-GenericCloud'
+
+  flavor:
+    type: string
+    description: The name of small flavor in your Openstack account.
+    default: 'm1.medium'
+
 dsl_definitions:
 
   openstack_config: &openstack_config
@@ -37,3 +62,101 @@ node_templates:
     properties:
       openstack_config: *openstack_config
       policy: affinity
+
+  example-external-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      openstack_config: *openstack_config
+      use_external_resource: true
+      resource_id: { get_input: external_network_name }
+
+  example-router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+      resource_id: 'simple-router'
+      openstack_config: *openstack_config
+    relationships:
+      - target: example-external-network
+        type: cloudify.relationships.connected_to
+
+  example-server:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *openstack_config
+      agent_config:
+        install_method: none
+      server:
+        image:  { get_input: image }
+        flavor: { get_input: flavor }
+        networks:
+          - net-id: { get_input: network_id }
+    relationships:
+      - target: example-server-group
+        type: cloudify.openstack.server_connected_to_server_group
+      - target: example-network
+        type: cloudify.relationships.contained_in
+      - target: example-keypair
+        type: cloudify.openstack.server_connected_to_keypair
+      - target: example-port
+        type: cloudify.openstack.server_connected_to_port
+
+  example-keypair:
+    type: cloudify.openstack.nodes.KeyPair
+    properties:
+      openstack_config: *openstack_config
+      resource_id: test-keypair
+      # Private key path is not supported in the new openstack plugin 3.x.x
+      private_key_path: { concat: [ '~/.ssh/', { get_property: [ SELF, resource_id ] }, '.pem' ] }
+
+  example-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      resource_id: 'simple-network'
+      openstack_config: *openstack_config
+
+  example-subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      resource_id: 'simple-subnet'
+      subnet:
+        ip_version: '4'
+        cidr: '10.0.0.0/24'
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
+      openstack_config: *openstack_config
+    relationships:
+      - target: example-network
+        type: cloudify.relationships.contained_in
+      - target: example-router
+        type: cloudify.openstack.subnet_connected_to_router
+
+  example-port:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: example-network
+      - type: cloudify.relationships.depends_on
+        target: example-subnet
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: example-security-group
+      - type: cloudify.openstack.port_connected_to_floating_ip
+        target: example-ip
+
+  example-security-group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      openstack_config: *openstack_config
+      security_group:
+        name: basic_security_group
+      rules: { get_input: security_group_rules }
+
+  example-ip:
+    type: cloudify.openstack.nodes.FloatingIP
+    properties:
+      openstack_config: *openstack_config
+      floatingip:
+        floating_network_id: { get_attribute: [ example-external-network, external_id ] }
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: example-external-network

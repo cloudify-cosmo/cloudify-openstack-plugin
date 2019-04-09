@@ -22,7 +22,7 @@ inputs:
     default: { get_secret: region }
 
   external_network_name:
-    default: { get_input: external_network_name }
+    description: The name of external network in your Openstack account.
 
   network_id:
     type: string
@@ -58,17 +58,6 @@ dsl_definitions:
 
 node_templates:
 
-  volume:
-    type: cloudify.openstack.nodes.Volume
-    properties:
-      resource_id: 'volume-1'
-      openstack_config: *openstack_config
-      volume:
-        size: 30
-    relationships:
-      - target: example-server
-        type: cloudify.openstack.volume_attached_to_server
-
   example-external-network:
     type: cloudify.openstack.nodes.Network
     properties:
@@ -99,8 +88,12 @@ node_templates:
     relationships:
       - target: example-network
         type: cloudify.relationships.contained_in
+      - target: example-security-group
+        type: cloudify.openstack.server_connected_to_security_group
       - target: example-keypair
         type: cloudify.openstack.server_connected_to_keypair
+      - target: example-ip
+        type: cloudify.openstack.server_connected_to_floating_ip
       - target: example-port
         type: cloudify.openstack.server_connected_to_port
 
@@ -111,6 +104,7 @@ node_templates:
       resource_id: test-keypair
       # Private key path is not supported in the new openstack plugin 3.x.x
       private_key_path: { concat: [ '~/.ssh/', { get_property: [ SELF, resource_id ] }, '.pem' ] }
+
 
   example-network:
     type: cloudify.openstack.nodes.Network
@@ -142,10 +136,6 @@ node_templates:
         target: example-network
       - type: cloudify.relationships.depends_on
         target: example-subnet
-      - type: cloudify.openstack.port_connected_to_security_group
-        target: example-security-group
-      - type: cloudify.openstack.port_connected_to_floating_ip
-        target: example-ip
 
   example-security-group:
     type: cloudify.openstack.nodes.SecurityGroup

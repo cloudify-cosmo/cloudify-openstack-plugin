@@ -37,6 +37,17 @@ class OpenstackServer(OpenstackResource):
             'Found server with this result: {0}'.format(server))
         return server
 
+    def find_server(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this server: {0}'.format(name_or_id))
+        server = self.connection.compute.find_server(name_or_id)
+        self.logger.debug(
+            'Found server with this result: {0}'.format(server))
+        return server
+
     def create(self):
         self.logger.debug(
             'Attempting to create server with these args: {0}'.format(
@@ -266,6 +277,17 @@ class OpenstackHostAggregate(OpenstackResource):
             'Found aggregate with this result: {0}'.format(aggregate))
         return aggregate
 
+    def find_aggregate(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this aggregate: {0}'.format(self.resource_id))
+        aggregate = self.connection.compute.get_aggregate(self.resource_id)
+        self.logger.debug(
+            'Found aggregate with this result: {0}'.format(aggregate))
+        return aggregate
+
     def create(self):
         self.logger.debug(
             'Attempting to create aggregate with these args: {0}'.format(
@@ -347,6 +369,17 @@ class OpenstackServerGroup(OpenstackResource):
             'Found server group with this result: {0}'.format(server_group))
         return server_group
 
+    def find_server_group(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this server group: {0}'.format(name_or_id))
+        server_group = self.connection.compute.find_server_group(name_or_id)
+        self.logger.debug(
+            'Found server group with this result: {0}'.format(server_group))
+        return server_group
+
     def create(self):
         self.logger.debug(
             'Attempting to create server group with these args: {0}'.format(
@@ -382,6 +415,17 @@ class OpenstackKeyPair(OpenstackResource):
         self.logger.debug(
             'Attempting to find this key pair: {0}'.format(name))
         key_pair = self.connection.compute.get_keypair(name)
+        self.logger.debug(
+            'Found key pair with this result: {0}'.format(key_pair))
+        return key_pair
+
+    def find_keypair(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this key pair: {0}'.format(name_or_id))
+        key_pair = self.connection.compute.find_keypair(name_or_id)
         self.logger.debug(
             'Found key pair with this result: {0}'.format(key_pair))
         return key_pair

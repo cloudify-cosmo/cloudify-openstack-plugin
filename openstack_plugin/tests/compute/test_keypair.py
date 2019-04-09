@@ -131,6 +131,10 @@ class KeyPairTestCase(OpenStackTestBase):
         mock_connection().compute.keypairs = \
             mock.MagicMock(return_value=keypair_list)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list keypair
         keypair.list_keypairs()
 

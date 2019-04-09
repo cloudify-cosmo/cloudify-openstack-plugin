@@ -162,6 +162,10 @@ class UserTestCase(OpenStackTestBase):
         mock_connection().identity.users = \
             mock.MagicMock(return_value=users)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list user
         user.list_users()
 

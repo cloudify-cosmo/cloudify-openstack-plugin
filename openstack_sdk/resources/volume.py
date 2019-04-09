@@ -36,6 +36,17 @@ class OpenstackVolume(OpenstackResource):
             'Found volume with this result: {0}'.format(volume))
         return volume
 
+    def find_volume(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this volume: {0}'.format(name_or_id))
+        volume = self.connection.block_storage.get_volume(name_or_id)
+        self.logger.debug(
+            'Found volume with this result: {0}'.format(volume))
+        return volume
+
     def create(self):
         self.logger.debug(
             'Attempting to create volume with these args: {0}'.format(

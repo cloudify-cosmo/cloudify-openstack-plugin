@@ -13,13 +13,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Standard imports
+import copy
+
+# Third party imports
+import openstack.exceptions
+from cloudify import ctx as _ctx
 
 # Local imports
 from openstack_plugin.constants import USE_EXTERNAL_RESOURCE_PROPERTY
+from openstack_sdk.resources.compute import (OpenstackFlavor,
+                                             OpenstackHostAggregate,
+                                             OpenstackKeyPair,
+                                             OpenstackServer,
+                                             OpenstackServerGroup)
 
-# Third party imports
-from openstack_sdk.resources.compute import OpenstackFlavor
+from openstack_sdk.resources.identity import (OpenstackUser,
+                                              OpenstackProject)
+
+from openstack_sdk.resources.networks import (OpenstackFloatingIP,
+                                              OpenstackNetwork,
+                                              OpenstackPort,
+                                              OpenstackRBACPolicy,
+                                              OpenstackRouter,
+                                              OpenstackSecurityGroup,
+                                              OpenstackSubnet)
+
+from openstack_sdk.resources.volume import OpenstackVolume
 from openstack_sdk.resources.images import OpenstackImage
+from openstack_plugin.utils import get_target_node_from_capabilities
 
 NETWORK_CONFIG_MAP = {
     'net-id': 'uuid',
@@ -146,19 +168,33 @@ ROUTER_RESOURCE_CONFIG = (
     'name',
 )
 
+SECURITY_GROUP_RESOURCE_CONFIG = (
+    'name',
+    'description',
+)
+
+RBAC_POLICY_RESOURCE_CONFIG = (
+    'target_tenant',
+    'object_type',
+    'object_id',
+    'action'
+)
+
 
 class Compat(object):
-    def __init__(self, context):
+    def __init__(self, context, **kwargs):
         """
         This will set current node context in order to help do the
         transformation process
         :param context: Cloudify context cloudify.context.CloudifyContext
         """
         self.context = context
+        self.kwargs = kwargs
         self._properties = self.context.node.properties
         self._type = self.context.node.type
 
-    def get_transformation_handler(self):
+    @property
+    def transformation_handler_map(self):
         return {
             'cloudify.openstack.nodes.Flavor': self._transform_flavor,
             'cloudify.openstack.nodes.HostAggregate':
@@ -175,7 +211,31 @@ class Compat(object):
             'cloudify.openstack.nodes.Subnet': self._transform_subnet,
             'cloudify.openstack.nodes.Port': self._transform_port,
             'cloudify.openstack.nodes.FloatingIP': self._transform_floating_ip,
-            'cloudify.openstack.nodes.Router': self._transform_router
+            'cloudify.openstack.nodes.Router': self._transform_router,
+            'cloudify.openstack.nodes.SecurityGroup':
+                self._transform_security_group,
+            'cloudify.openstack.nodes.RBACPolicy': self._transform_rbac_policy
+        }
+
+    @property
+    def resource_class_map(self):
+        return {
+            'flavor': OpenstackFlavor,
+            'aggregate': OpenstackHostAggregate,
+            'image': OpenstackImage,
+            'keypair': OpenstackKeyPair,
+            'server': OpenstackServer,
+            'server_group': OpenstackServerGroup,
+            'user': OpenstackUser,
+            'project': OpenstackProject,
+            'floatingip': OpenstackFloatingIP,
+            'network': OpenstackNetwork,
+            'port': OpenstackPort,
+            'rbac_policy': OpenstackRBACPolicy,
+            'router': OpenstackRouter,
+            'security_group': OpenstackSecurityGroup,
+            'subnet': OpenstackSubnet,
+            'volume': OpenstackVolume
         }
 
     @property
@@ -194,16 +254,33 @@ class Compat(object):
         Return an instance of cloudify context logger
         :return logger: Instance of cloudify logger
         """
-        return self.context.logger
+        return self.context.logger\
+            if hasattr(self.context, 'logger') else _ctx.logger
 
     @property
     def has_server(self):
         return True if self._properties.get('server') else None
 
+    @property
+    def default_security_group_rule(self):
+        """
+        Property to return default security group rule
+        :return dict: Return default rules
+        """
+        return {
+            'direction': 'ingress',
+            'ethertype': 'IPv4',
+            'port_range_min': 1,
+            'port_range_max': 65535,
+            'protocol': 'tcp',
+            'remote_group_id': None,
+            'remote_ip_prefix': '0.0.0.0/0',
+        }
+
     def get_openstack_resource_id(self,
                                   class_resource,
                                   resource_type,
-                                  resource_name):
+                                  resource_name_or_id):
         """
         This method is used to lookup the resource id for openstack resource
         using openstack sdk api
@@ -211,19 +288,24 @@ class Compat(object):
         :param resource_type: The resource type ("flavor" or "image") that we
         need to fetch
         resource id for
-        :param resource_name: The name of the resource requested
+        :param resource_name_or_id: The name | id of the resource requested
         :return str: The uuid resource
         """
         resource = class_resource(client_config=self.openstack_config,
                                   logger=self.logger)
         remote_instance = \
-            getattr(resource, 'find_{0}'.format(resource_type))(resource_name)
+            getattr(resource,
+                    'find_{0}'.format(resource_type))(resource_name_or_id)
+        if not remote_instance:
+            raise openstack.exceptions.ResourceNotFound(
+                'Resource {0} is not found'.format(resource_name_or_id))
         return remote_instance.id
 
-    def get_common_properties(self):
+    def get_common_properties(self, openstack_type):
         """
         This method will prepare common compatible openstack version 3
         properties
+        :param str openstack_type: Openstack object type.
         :return dict: Common Compatible openstack version 3 properties
         """
         common = dict()
@@ -241,14 +323,82 @@ class Compat(object):
         # Check if use external resource is set to "True" so that we can
         # update the resource config with external resource id
         if self._properties.get('resource_id'):
+            resource_id = self._properties['resource_id']
             if self._properties.get(USE_EXTERNAL_RESOURCE_PROPERTY):
-                common['resource_config']['id'] = \
-                    self._properties['resource_id']
+                # Get the class corresponding to the resource type provided
+                class_resource = self.resource_class_map[openstack_type]
+                # In the old plugin, resource_id could be a resource id or
+                # could be a name, so before send that to the 3.x plugin we
+                # should make sure that the plugin has the "id" translated
+                # successfully according to the resource type
+                resource_id = self.get_openstack_resource_id(class_resource,
+                                                             openstack_type,
+                                                             resource_id)
+                common['resource_config']['id'] = resource_id
             else:
                 common['resource_config']['name'] = \
                     self._properties['resource_id']
 
         return common
+
+    def _process_security_group_rules(self):
+        """
+        This method will process and transform rules provided by user to
+        the security group node so that, it can be compatible and
+        consistent with openstack 3.x
+        """
+        if not self.kwargs.get('security_group_rules'):
+            return
+
+        rules = []
+        sg_rule = copy.deepcopy(self.default_security_group_rule)
+        for rule in self.kwargs['security_group_rules']:
+            # Check if 'port' exists and then translate it
+            if rule.get('port'):
+                rule['port_range_min'] = rule['port']
+                rule['port_range_max'] = rule['port']
+                del rule['port']
+            # Update rules
+            sg_rule.update(rule)
+
+            # Check if 'remote_group_id' exists, then we need to make sure
+            # that 'remote_ip_prefix' is set to None because one of them
+            # should only be set
+            if sg_rule.get('remote_group_id'):
+                sg_rule['remote_ip_prefix'] = None
+            # Check if 'remote_group_node' is provided or not, then we need
+            # to resolve the security group id from provided remote group
+            # node name
+            elif sg_rule.get('remote_group_node'):
+                # lookup the remote group node in order to get the resource
+                # id which is stored as runtime property
+                _, remote_group_node = \
+                    get_target_node_from_capabilities(
+                        sg_rule['remote_group_node'])
+
+                # Get the "external_id" for remote group node
+                sg_rule['remote_group_id'] = \
+                    remote_group_node.get('external_id')
+
+                # Remove 'remote_group_node' because it is not longer needed
+                del sg_rule['remote_group_node']
+                # Set "remote_ip_prefix" since "remote_group_id" is set
+                sg_rule['remote_ip_prefix'] = None
+            # If the the name of the remote group is provided then we need
+            # also to resolve it and update the "remote_group_id"
+            elif sg_rule.get('remote_group_name'):
+                sg_rule['remote_group_id'] =\
+                    self.get_openstack_resource_id(
+                        OpenstackSecurityGroup,
+                        'security_group',
+                        sg_rule['remote_group_name'])
+                del sg_rule['remote_group_name']
+                sg_rule['remote_ip_prefix'] = None
+
+            rules.append(sg_rule)
+
+        if rules:
+            self.kwargs['security_group_rules'] = rules
 
     def _map_server_networks_config(self):
         """
@@ -298,6 +448,22 @@ class Compat(object):
                 self._properties['server']['image_id'] = image_id or ''
                 del self._properties['server']['image']
 
+    def _map_security_group_config(self):
+        """
+        This method will map the security group information to be
+        consistent with openstack plugin 3.x
+        """
+        if self._properties.get('description'):
+            self._properties['security_group']['description'] = \
+                self._properties['description']
+
+        # Map and process security group rules
+        # "security_group_rules" is set from "rules" node property and
+        # before we create/add rules to security group, we need to clean and
+        # process them so that it can be consistent and matched openstack
+        # plugin 3.x
+        self._process_security_group_rules()
+
     def _transform(self, openstack_type, resource_config_keys):
         """
         This method will transform old node properties to the new node
@@ -307,7 +473,7 @@ class Compat(object):
         "resource_config" property for openstack nodes powered by version 3.x
         :return dict: Compatible node openstack version 3 properties
         """
-        properties = self.get_common_properties()
+        properties = self.get_common_properties(openstack_type)
         for key, value in self._properties.get(openstack_type, {}).items():
             if key in resource_config_keys:
                 properties['resource_config'][key] = value
@@ -442,10 +608,32 @@ class Compat(object):
         """
         return self._transform('router', ROUTER_RESOURCE_CONFIG)
 
+    def _transform_security_group(self):
+        """
+        This method will do transform operation for security group node to be
+        compatible with openstack security group version 3
+        :return dict: Compatible security group openstack version 3 properties
+        """
+        self._map_security_group_config()
+        return self._transform('security_group',
+                               SECURITY_GROUP_RESOURCE_CONFIG)
+
+    def _transform_rbac_policy(self):
+        """
+        This method will do transform operation for rbac policy node to be
+        compatible with openstack rbac policy version 3
+        :return dict: Compatible rbac policy openstack version 3 properties
+        """
+        return self._transform('rbac_policy',
+                               RBAC_POLICY_RESOURCE_CONFIG)
+
     def transform(self):
         """
         This method will do the transform operation to get a compatible
         openstack version 3 properties based on the current node type
         :return dict: Compatible openstack version 3 properties
         """
-        return self.get_transformation_handler()[self._type]()
+        properties = self.transformation_handler_map[self._type]()
+        for key, value in properties.items():
+            self.kwargs[key] = value
+        return self.kwargs

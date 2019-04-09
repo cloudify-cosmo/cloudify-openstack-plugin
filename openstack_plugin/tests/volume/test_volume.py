@@ -619,6 +619,10 @@ class VolumeTestCase(OpenStackTestBase):
         mock_connection().block_storage.volumes = \
             mock.MagicMock(return_value=volumes)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list volumes
         volume.list_volumes()
 

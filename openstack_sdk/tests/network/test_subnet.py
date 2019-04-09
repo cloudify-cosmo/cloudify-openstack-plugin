@@ -66,7 +66,10 @@ class SubnetTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.id, 'a95b5509-c122-4c2f-823e-884bb559afe8')
         self.assertEqual(response.name, 'test_name')
 
-    def test_list_subnets(self):
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_list_subnets(self, mock_project):
+        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
         subnets = [
             openstack.network.v2.subnet.Subnet(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',

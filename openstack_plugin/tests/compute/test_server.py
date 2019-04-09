@@ -1667,6 +1667,10 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().network.get_ip = \
             mock.MagicMock(return_value=floating_ip_instance)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         self._pepare_relationship_context_for_operation(
             deployment_id='ServerTest',
             source=source,

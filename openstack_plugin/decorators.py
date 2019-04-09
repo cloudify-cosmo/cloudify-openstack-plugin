@@ -99,12 +99,23 @@ def with_compat_node(func):
         # node context
         ctx_node = resolve_ctx(ctx)
         # Check to see if we need to do properties transformation or not
+        kwargs_config = {}
         if is_compat_node(ctx_node):
-            compat = Compat(context=ctx_node)
-            properties = compat.transform()
-            for key, value in properties.items():
-                kwargs[key] = value
-        func(**kwargs)
+            compat = Compat(context=ctx_node, **kwargs)
+            kwargs_config = compat.transform()
+
+        if not kwargs_config:
+            kwargs_config = kwargs
+        func(**kwargs_config)
+        # After this the resource should be created and we should have the
+        # "id" runtime property set correctly
+        # Get the "external_id" if it exists
+        external_id = ctx_node.instance.runtime_properties.get('external_id')
+        # This is the resource id for openstack 3.x nodes
+        resource_id = ctx_node.instance.runtime_properties.get('id')
+        if is_compat_node(ctx_node) and resource_id and not external_id:
+            ctx_node.instance.runtime_properties['external_id']\
+                = ctx_node.instance.runtime_properties['id']
     return wrapper
 
 

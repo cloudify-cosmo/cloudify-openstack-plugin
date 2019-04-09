@@ -35,10 +35,12 @@ class OpenstackUser(OpenstackResource):
         self.logger.debug('Found user with this result: {0}'.format(user))
         return user
 
-    def find_user(self, name_or_id):
+    def find_user(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not \
+                self.resource_id else self.resource_id
         self.logger.debug(
-            'Attempting to find this user: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
+            'Attempting to find this user: {0}'.format(name_or_id))
         user = self.connection.identity.find_user(name_or_id)
         self.logger.debug('Found user with this result: {0}'.format(user))
         return user
@@ -147,6 +149,17 @@ class OpenstackProject(OpenstackResource):
         self.logger.debug(
             'Attempting to find this project: {0}'.format(self.resource_id))
         project = self.connection.identity.get_project(self.resource_id)
+        self.logger.debug(
+            'Found project with this result: {0}'.format(project))
+        return project
+
+    def find_project(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not \
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this project: {0}'.format(name_or_id))
+        project = self.connection.identity.find_project(name_or_id)
         self.logger.debug(
             'Found project with this result: {0}'.format(project))
         return project

@@ -69,6 +69,7 @@ node_types:
 
 
 
+
   cloudify.openstack.nodes.Server:
     derived_from: cloudify.nodes.openstack.Server
     properties:
@@ -86,6 +87,7 @@ node_types:
             this connection is made automatically and there's no need to override this property
             (See the Misc section for more information on the Openstack Provider Context).
             It is not required to set the value of this property to the management network name. As of Cloudify 4.0, it has no relationship to the bootstrap process.
+
 
 
 
@@ -121,7 +123,6 @@ node_types:
           If a Server instance is connected to this Volume by a relationship,
           this volume will be used as the boot volume for that Server.
           This option will be deprecated in the future.
-
 
 
 
@@ -168,10 +169,35 @@ node_types:
         description: >
           A boolean which determines whether to use the Cloudify Manager's external network if no other external network was given (whether by a relationship, by the `external_network` property or by the nested `external_gateway_info` key in the `router` property). This is only relevant if the manager's external network appears in the Provider-context. Defaults to `true`.
 
+
+  cloudify.openstack.nodes.SecurityGroup:
+    derived_from: cloudify.nodes.openstack.SecurityGroup
+    properties:
+      <<: *common_config
+      security_group:
+        default: {}
+      description:
+        type: string
+        default: ''
+      rules:
+        default: []
+        description: >
+          key-value security_group_rule configuration as described in:
+          https://developer.openstack.org/api-ref/network/v2/index.html#security-group-rules-security-group-rules.
+      security_group_rules:
+        default: { get_property: [ SELF, rules ] }
+
+  cloudify.openstack.nodes.RBACPolicy:
+    derived_from: cloudify.nodes.openstack.RBACPolicy
+    properties:
+      <<: *common_config
+      rbac_policy:
+        default: {}
+
 relationships:
 
-  cloudify.openstack.volume_attached_to_server:
-    derived_from: cloudify.relationships.openstack.volume_attached_to_server
+  cloudify.openstack.server_connected_to_server_group:
+    derived_from: cloudify.relationships.openstack.server_connected_to_server_group
 
   cloudify.openstack.server_connected_to_keypair:
     derived_from: cloudify.relationships.openstack.server_connected_to_keypair
@@ -179,11 +205,29 @@ relationships:
   cloudify.openstack.server_connected_to_port:
     derived_from: cloudify.relationships.openstack.server_connected_to_port
 
+  cloudify.openstack.server_connected_to_floating_ip:
+    derived_from: cloudify.relationships.openstack.server_connected_to_floating_ip
+
+  cloudify.openstack.server_connected_to_security_group:
+    derived_from: cloudify.relationships.openstack.server_connected_to_security_group
+
   cloudify.openstack.port_connected_to_security_group:
     derived_from: cloudify.relationships.openstack.port_connected_to_security_group
 
   cloudify.openstack.port_connected_to_floating_ip:
     derived_from: cloudify.relationships.openstack.port_connected_to_floating_ip
 
+  cloudify.openstack.port_connected_to_subnet:
+    derived_from: cloudify.relationships.openstack.port_connected_to_subnet
+
   cloudify.openstack.subnet_connected_to_router:
     derived_from: cloudify.relationships.openstack.subnet_connected_to_router
+
+  cloudify.openstack.volume_attached_to_server:
+    derived_from: cloudify.relationships.openstack.volume_attached_to_server
+
+  cloudify.openstack.route_connected_to_router:
+    derived_from: cloudify.relationships.openstack.route_connected_to_router
+
+  cloudify.openstack.rbac_policy_applied_to:
+    derived_from: cloudify.relationships.openstack.rbac_policy_applied_to

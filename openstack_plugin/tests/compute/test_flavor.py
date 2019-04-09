@@ -150,6 +150,10 @@ class KeyPairTestCase(OpenStackTestBase):
         mock_connection().compute.flavors = \
             mock.MagicMock(return_value=flavors)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         flavor.list_flavors()
 
         # Check if the flavor list saved as runtime properties

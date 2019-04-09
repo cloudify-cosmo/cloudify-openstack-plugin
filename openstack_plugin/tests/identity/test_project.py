@@ -229,6 +229,10 @@ class ProjectTestCase(OpenStackTestBase):
         mock_connection().identity.projects = \
             mock.MagicMock(return_value=projects)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list projects
         project.list_projects()
 

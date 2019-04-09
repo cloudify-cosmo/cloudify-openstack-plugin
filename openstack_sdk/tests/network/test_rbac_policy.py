@@ -56,7 +56,10 @@ class RBACPolicyTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.id, 'a95b5509-c122-4c2f-823e-884bb559afe8')
         self.assertEqual(response.target_project_id, 'test_target_project_id')
 
-    def test_list_rbac_policies(self):
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_list_rbac_policies(self, mock_project):
+        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
         policies = [
             openstack.network.v2.rbac_policy.RBACPolicy(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',

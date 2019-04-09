@@ -1,7 +1,7 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
   - compat.yaml
 
 inputs:
@@ -24,27 +24,13 @@ inputs:
   external_network_name:
     default: { get_input: external_network_name }
 
-  network_id:
-    type: string
-    description: The id of network in your Openstack account.
-
-  subnet_cidr:
-    default: '192.168.1.0/24'
+  fixed_ip:
+    default: '10.0.0.8'
 
   security_group_rules:
     default:
     - remote_ip_prefix: 0.0.0.0/0
       port: 22
-
-  image:
-    type: string
-    description: The name of an image in your Openstack account.
-    default: 'CentOS-7-x86_64-GenericCloud'
-
-  flavor:
-    type: string
-    description: The name of small flavor in your Openstack account.
-    default: 'm1.medium'
 
 
 dsl_definitions:
@@ -57,17 +43,6 @@ dsl_definitions:
     region: { get_input: region }
 
 node_templates:
-
-  volume:
-    type: cloudify.openstack.nodes.Volume
-    properties:
-      resource_id: 'volume-1'
-      openstack_config: *openstack_config
-      volume:
-        size: 30
-    relationships:
-      - target: example-server
-        type: cloudify.openstack.volume_attached_to_server
 
   example-external-network:
     type: cloudify.openstack.nodes.Network
@@ -84,33 +59,6 @@ node_templates:
     relationships:
       - target: example-external-network
         type: cloudify.relationships.connected_to
-
-  example-server:
-    type: cloudify.openstack.nodes.Server
-    properties:
-      openstack_config: *openstack_config
-      agent_config:
-        install_method: none
-      server:
-        image:  { get_input: image }
-        flavor: { get_input: flavor }
-        networks:
-          - net-id: { get_input: network_id }
-    relationships:
-      - target: example-network
-        type: cloudify.relationships.contained_in
-      - target: example-keypair
-        type: cloudify.openstack.server_connected_to_keypair
-      - target: example-port
-        type: cloudify.openstack.server_connected_to_port
-
-  example-keypair:
-    type: cloudify.openstack.nodes.KeyPair
-    properties:
-      openstack_config: *openstack_config
-      resource_id: test-keypair
-      # Private key path is not supported in the new openstack plugin 3.x.x
-      private_key_path: { concat: [ '~/.ssh/', { get_property: [ SELF, resource_id ] }, '.pem' ] }
 
   example-network:
     type: cloudify.openstack.nodes.Network
@@ -137,10 +85,11 @@ node_templates:
     type: cloudify.openstack.nodes.Port
     properties:
       openstack_config: *openstack_config
+      fixed_ip: { get_input: fixed_ip }
     relationships:
       - type: cloudify.relationships.contained_in
         target: example-network
-      - type: cloudify.relationships.depends_on
+      - type: cloudify.openstack.port_connected_to_subnet
         target: example-subnet
       - type: cloudify.openstack.port_connected_to_security_group
         target: example-security-group

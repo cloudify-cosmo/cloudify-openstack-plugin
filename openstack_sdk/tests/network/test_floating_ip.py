@@ -68,7 +68,10 @@ class FloatingIPTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.name, '127.0.0.1')
         self.assertEqual(response.description, 'test_description')
 
-    def test_list_floating_ips(self):
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_list_floating_ips(self, mock_project):
+        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
         ips = [
             openstack.network.v2.floating_ip.FloatingIP(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',

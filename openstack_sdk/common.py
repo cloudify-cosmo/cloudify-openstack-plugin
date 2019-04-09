@@ -18,6 +18,7 @@ import uuid
 
 # Third party imports
 import openstack
+import openstack.exceptions
 
 
 class QuotaException(Exception):
@@ -39,6 +40,23 @@ class OpenstackResource(object):
 
     def __str__(self):
         return self.name if not self.resource_id else self.resource_id
+
+    def get_project_id_by_name(self, project_name=None):
+        project_name = project_name or self.project_name
+        project = self.connection.identity.find_project(project_name)
+        if not project:
+            raise openstack.exceptions.ResourceNotFound(
+                'Project {0} is not found'.format(project_name))
+        return project.id
+
+    @property
+    def project_name(self):
+        return self.client_config.get('project_name') or  \
+               self.client_config.get('tenant_name')
+
+    @property
+    def project_id(self):
+        return self.config.get('project_id') or self.get_project_id_by_name()
 
     def validate_resource_identifier(self):
         """
@@ -68,11 +86,9 @@ class OpenstackResource(object):
         return error_message
 
     def get_quota_sets(self, quota_type):
-        project_name = self.client_config.get('project_name') or  \
-                       self.client_config.get('tenant_name')
         quota = getattr(
             self.connection,
-            'get_{0}_quotas'.format(self.service_type))(project_name)
+            'get_{0}_quotas'.format(self.service_type))(self.project_name)
 
         if not quota:
             raise QuotaException(

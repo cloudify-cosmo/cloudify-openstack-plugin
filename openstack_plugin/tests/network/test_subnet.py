@@ -289,6 +289,10 @@ class SubnetTestCase(OpenStackTestBase):
         mock_connection().network.subnets = \
             mock.MagicMock(return_value=subnets)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list subnets
         subnet.list_subnets()
 

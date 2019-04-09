@@ -22,7 +22,10 @@ from openstack_sdk.resources.networks import (OpenstackRBACPolicy,
                                               OpenstackNetwork,
                                               OpenstackSubnet,
                                               OpenstackPort)
-from openstack_plugin.decorators import with_openstack_resource
+
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_TYPE_PROPERTY,
                                         NETWORK_OPENSTACK_TYPE,
@@ -263,6 +266,7 @@ def _clean_resources_from_target_object(client_config,
         pass
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
 def create(openstack_resource, args):
     """
@@ -274,6 +278,7 @@ def create(openstack_resource, args):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
 def delete(openstack_resource):
     """
@@ -283,6 +288,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
 def update(openstack_resource, args):
     """
@@ -295,6 +301,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
 def list_rbac_policies(openstack_resource, query=None):
     """
@@ -309,6 +316,7 @@ def list_rbac_policies(openstack_resource, query=None):
                                             rbac_policies)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
 def find_and_delete(openstack_resource,
                     args,
@@ -392,6 +400,7 @@ def find_and_delete(openstack_resource,
     ctx.logger.warn('No suitable RBAC policy found')
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
 def creation_validation(openstack_resource):
     """
@@ -402,6 +411,7 @@ def creation_validation(openstack_resource):
     ctx.logger.debug('OK: rbac policy configuration is valid')
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
 def unlink_target_object(openstack_resource,
                          resource_id,

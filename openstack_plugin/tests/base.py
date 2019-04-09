@@ -19,6 +19,7 @@ import uuid
 import unittest
 
 # Third party imports
+import openstack.identity.v3.project
 from cloudify.manager import DirtyTrackingDict
 from cloudify.state import current_ctx
 from cloudify.mocks import (
@@ -90,6 +91,20 @@ class OpenStackTestBase(unittest.TestCase):
             'client_config': self.client_config,
             'resource_config': self.resource_config
         }
+
+    @property
+    def project_resource(self):
+        return openstack.identity.v3.project.Project(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bcs2efda6',
+            'name': 'test_project',
+            'description': 'Testing Project',
+            'domain_id': 'test_domain_id',
+            'enabled': True,
+            'is_domain': True,
+            'links': ['test1', 'test2'],
+            'parent_id': 'test_parent_id'
+
+        })
 
     @property
     def runtime_properties(self):

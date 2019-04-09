@@ -853,6 +853,10 @@ class RouterTestCase(OpenStackTestBase):
         mock_connection().network.routers = \
             mock.MagicMock(return_value=routers)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list routers
         router.list_routers()
 

@@ -17,11 +17,11 @@
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html.
 
 # Local imports
-from openstack_sdk.common import OpenstackResource
+from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 
 
-class OpenstackVolume(OpenstackResource):
-    service_type = 'volume'
+class OpenstackVolume(ResourceMixin, OpenstackResource):
+    service_type = 'block_storage'
     resource_type = 'volume'
 
     def list(self, query=None):
@@ -37,12 +37,9 @@ class OpenstackVolume(OpenstackResource):
         return volume
 
     def find_volume(self, name_or_id=None):
-        if not name_or_id:
-            name_or_id = self.name if not\
-                self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this volume: {0}'.format(name_or_id))
-        volume = self.connection.block_storage.get_volume(name_or_id)
+        volume = self.find_resource(name_or_id)
         self.logger.debug(
             'Found volume with this result: {0}'.format(volume))
         return volume
@@ -63,18 +60,28 @@ class OpenstackVolume(OpenstackResource):
         self.connection.block_storage.delete_volume(volume)
 
 
-class OpenstackVolumeType(OpenstackResource):
-    service_type = 'volume'
-    resource_type = 'volume_type'
+class OpenstackVolumeType(ResourceMixin, OpenstackResource):
+    service_type = 'block_storage'
+    resource_type = 'type'
 
-    def list(self):
-        return self.connection.block_storage.types()
+    def list(self, query=None):
+        query = query or {}
+        return self.connection.block_storage.types(**query)
 
     def get(self):
         self.logger.debug(
             'Attempting to find this volume type: {0}'
             ''.format(self.resource_id))
         volume_type = self.connection.block_storage.get_type(self.resource_id)
+        self.logger.debug(
+            'Found volume type with this result: {0}'.format(volume_type))
+        return volume_type
+
+    def find_type(self, name_or_id=None):
+        self.logger.debug(
+            'Attempting to find this volume type: {0}'
+            ''.format(self.resource_id))
+        volume_type = self.find_resource(name_or_id)
         self.logger.debug(
             'Found volume type with this result: {0}'.format(volume_type))
         return volume_type
@@ -96,8 +103,8 @@ class OpenstackVolumeType(OpenstackResource):
 
 
 class OpenstackVolumeBackup(OpenstackResource):
-    resource_type = 'backup'
-    service_type = 'volume'
+    resource_type = 'block_storage'
+    service_type = 'backup'
 
     def list(self, query=None):
         query = query or {}
@@ -141,8 +148,8 @@ class OpenstackVolumeBackup(OpenstackResource):
 
 
 class OpenstackVolumeSnapshot(OpenstackResource):
-    resource_type = 'snapshot'
-    service_type = 'volume'
+    resource_type = 'block_storage'
+    service_type = 'snapshot'
 
     def list(self, query=None):
         query = query or {}

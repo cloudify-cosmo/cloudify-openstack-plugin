@@ -57,9 +57,15 @@ class RBACPolicyTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.target_project_id, 'test_target_project_id')
 
     @mock.patch('openstack_sdk.common.'
+                'ResourceMixin.get_project_id_location')
+    @mock.patch('openstack_sdk.common.'
                 'OpenstackResource.get_project_id_by_name')
-    def test_list_rbac_policies(self, mock_project):
+    def test_list_rbac_policies(self,
+                                mock_project,
+                                mock_project_id_location):
         mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
+        mock_project_id_location.return_value =\
+            '1b6s22a21fdf512d973b325ddd843306'
         policies = [
             openstack.network.v2.rbac_policy.RBACPolicy(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
@@ -67,7 +73,6 @@ class RBACPolicyTestCase(base.OpenStackSDKTestBase):
                 'target_project_id': 'test_target_project_id_1',
                 'object_type': 'test_object_type_1',
                 'object_id': 3,
-                'location': None,
                 'action': 'test_action_1',
                 'project_id': 4
 
@@ -78,7 +83,6 @@ class RBACPolicyTestCase(base.OpenStackSDKTestBase):
                 'target_project_id': 'test_target_project_id_2',
                 'object_type': 'test_object_type_2',
                 'object_id': 4,
-                'location': None,
                 'action': 'test_action_2',
                 'project_id': 5,
             })

@@ -1813,8 +1813,7 @@ def update(openstack_resource, args):
 @with_openstack_resource(OpenstackServer)
 def list_servers(openstack_resource,
                  query=None,
-                 all_projects=False,
-                 details=True):
+                 all_projects=False,):
     """
     List openstack servers based on filters applied
     :param openstack_resource: Instance of current openstack server
@@ -1822,13 +1821,8 @@ def list_servers(openstack_resource,
             the servers being returned.
     :param bool all_projects: Flag to request servers be returned from all
                             projects, not just the currently scoped one.
-    :param bool details: When set to ``False``
-                :class:`~openstack.compute.v2.server.Server` instances
-                will be returned. The default, ``True``, will cause
-                :class:`~openstack.compute.v2.server.ServerDetail`
-                instances to be returned.
     """
-    servers = openstack_resource.list(details, all_projects, query)
+    servers = openstack_resource.list(all_projects, query)
     add_resource_list_to_runtime_properties(SERVER_OPENSTACK_TYPE, servers)
 
 

@@ -49,7 +49,8 @@ from openstack_plugin.constants import (PS_OPEN,
                                         CLOUDIFY_NEW_NODE_OPERATIONS,
                                         CLOUDIFY_CREATE_OPERATION,
                                         CLOUDIFY_DELETE_OPERATION,
-                                        USE_COMPACT_NODE)
+                                        USE_COMPACT_NODE,
+                                        RBAC_POLICY_OPENSTACK_TYPE)
 
 
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
@@ -331,7 +332,10 @@ def validate_resource_quota(resource, openstack_type):
         'validating resource {0} (node {1})'
         ''.format(openstack_type, ctx.node.id)
     )
-    openstack_type_plural = resource.resource_plural(openstack_type)
+    if openstack_type != RBAC_POLICY_OPENSTACK_TYPE:
+        openstack_type_plural = resource.resource_plural(openstack_type)
+    else:
+        openstack_type_plural = openstack_type
 
     resource_list = list(resource.list())
 

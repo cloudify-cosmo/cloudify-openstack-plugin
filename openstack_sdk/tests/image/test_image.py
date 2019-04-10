@@ -53,7 +53,16 @@ class ImageTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.name, 'test_image')
         self.assertEqual(response.container_format, 'test_bare')
 
-    def test_list_images(self):
+    @mock.patch('openstack_sdk.common.'
+                'ResourceMixin.get_project_id_location')
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_list_images(self,
+                         mock_project,
+                         mock_project_id_location):
+        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
+        mock_project_id_location.return_value =\
+            '1b6s22a21fdf512d973b325ddd843306'
         image_list = [
             openstack.image.v2.image.Image(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',

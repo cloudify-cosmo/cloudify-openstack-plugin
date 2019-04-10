@@ -86,9 +86,13 @@ class OpenstackResource(object):
         return error_message
 
     def get_quota_sets(self, quota_type):
+        service_type = self.service_type
+        if service_type == 'block_storage':
+            service_type = 'volume'
+
         quota = getattr(
             self.connection,
-            'get_{0}_quotas'.format(self.service_type))(self.project_name)
+            'get_{0}_quotas'.format(service_type))(self.project_name)
 
         if not quota:
             raise QuotaException(
@@ -110,3 +114,93 @@ class OpenstackResource(object):
 
     def delete(self):
         raise NotImplementedError()
+
+
+class ResourceMixin(object):
+    """
+    This mixin used in order to filter resources that do not support filter
+    based on project_id and to also to be able to find resources from
+    specific projects
+    """
+    @staticmethod
+    def get_project_id_location(item):
+        return item.location.project.id
+
+    def get_one_match(self, name_or_id, items):
+        """
+        This method will try to only return one resource match the
+        name_or_id based on the items provided
+        :param str name_or_id: The name or id of the resource
+        :param items: List of instances that extend
+        openstack.resource.Resource
+        :return: Return target object which will be subtype of
+        openstack.resource.Resource
+        """
+        target = None
+        for resource in items:
+            if (resource.id == name_or_id) or (resource.name == name_or_id):
+                if target is None:
+                    target = resource
+                else:
+                    msg = \
+                        'More than one {0} ' \
+                        'exists with the name {1}'.format(
+                            self.resource_type, name_or_id)
+                    raise openstack.exceptions.DuplicateResource(msg)
+        if not target:
+            raise openstack.exceptions.ResourceNotFound(
+                'Resource {0} is not found'.format(name_or_id))
+        return target
+
+    def list_resources(self, query=None, all_projects=False, details=True):
+        """
+        This method will try to list all resources based on provided filters
+        :param dict query: Dict that contains filters to use fetch resources
+        :param boolean all_projects: Flag to indicat that we need to list
+        all resources from all projects
+        :return: List of instances that extend openstack.resource.Resource
+        """
+        query = query or {}
+        target_resources = []
+
+        service_type = getattr(self.connection, self.service_type)
+        items = getattr(service_type, self.resource_plural(self.resource_type))
+        # There is no 'project_id' filter to list some resources for specific
+        # project, so in order to avoid list resources from all projects,
+        # it is required to add custom filter and just return the resources we
+        # care about for project
+        # User also will have the ability to list resources from all projects
+        # if he wants by passing "all_projects=True"
+        if not all_projects:
+            project_id = query.get('project_id') or self.project_id
+            if query.get('project_id'):
+                del query['project_id']
+
+            items = items(**query) if query else items()
+            for item in items:
+                if ResourceMixin.get_project_id_location(item) == project_id:
+                    target_resources.append(item)
+        else:
+            target_resources = items(**query) if query else items()
+
+        return target_resources
+
+    def find_resource(self, name_or_id):
+        """
+        This method will try to lookup resource if it exists
+        :param str name_or_id: The name or id of the resource
+        :return: Return target object which will be subtype of
+        openstack.resource.Resource
+        """
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+
+        # try to lookup the project first
+        self.resource_id = name_or_id
+        try:
+            return self.get()
+        except openstack.exceptions.NotFoundException:
+            pass
+
+        return self.get_one_match(name_or_id, self.list())

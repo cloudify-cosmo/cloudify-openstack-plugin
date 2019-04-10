@@ -17,16 +17,15 @@
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html.
 
 # Local imports
-from openstack_sdk.common import OpenstackResource
+from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 
 
-class OpenstackUser(OpenstackResource):
+class OpenstackUser(ResourceMixin, OpenstackResource):
     service_type = 'identity'
     resource_type = 'user'
 
-    def list(self, query=None):
-        query = query or {}
-        return self.connection.identity.users(**query)
+    def list(self, query=None, all_projects=False):
+        return self.list_resources(query, all_projects)
 
     def get(self):
         self.logger.debug(
@@ -36,12 +35,9 @@ class OpenstackUser(OpenstackResource):
         return user
 
     def find_user(self, name_or_id=None):
-        if not name_or_id:
-            name_or_id = self.name if not \
-                self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this user: {0}'.format(name_or_id))
-        user = self.connection.identity.find_user(name_or_id)
+        user = self.find_resource(name_or_id)
         self.logger.debug('Found user with this result: {0}'.format(user))
         return user
 
@@ -70,13 +66,12 @@ class OpenstackUser(OpenstackResource):
         return result
 
 
-class OpenstackRole(OpenstackResource):
+class OpenstackRole(ResourceMixin, OpenstackResource):
     service_type = 'identity'
     resource_type = 'role'
 
-    def list(self, query=None):
-        query = query or {}
-        return self.connection.identity.roles(**query)
+    def list(self, query=None, all_projects=False):
+        return self.list_resources(query, all_projects)
 
     def get(self):
         self.logger.debug(
@@ -85,11 +80,11 @@ class OpenstackRole(OpenstackResource):
         self.logger.debug('Found role with this result: {0}'.format(role))
         return role
 
-    def find_role(self, name_or_id):
+    def find_role(self, name_or_id=None):
         self.logger.debug(
             'Attempting to find this role: {0}'.format(
                 self.name if not self.resource_id else self.resource_id))
-        role = self.connection.identity.find_role(name_or_id)
+        role = self.find_resource(name_or_id)
         self.logger.debug('Found role with this result: {0}'.format(role))
         return role
 

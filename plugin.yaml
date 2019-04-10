@@ -995,8 +995,6 @@ node_types:
               default: {}
             all_projects:
               default: False
-            details:
-              default: True
 
   cloudify.nodes.openstack.WindowsServer:
     derived_from: cloudify.nodes.openstack.Server
@@ -1193,8 +1191,6 @@ node_types:
           inputs:
             query:
               default: {}
-            details:
-              default: True
 
   cloudify.nodes.openstack.User:
     derived_from: cloudify.nodes.Root

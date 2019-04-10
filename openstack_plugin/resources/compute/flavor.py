@@ -39,7 +39,7 @@ def create(openstack_resource):
 
 @with_compat_node
 @with_openstack_resource(OpenstackFlavor)
-def list_flavors(openstack_resource, query=None, details=True):
+def list_flavors(openstack_resource, query=None):
     """
 
     :param openstack_resource:
@@ -47,7 +47,7 @@ def list_flavors(openstack_resource, query=None, details=True):
     :param details:
     :return:
     """
-    flavors = openstack_resource.list(details=details, query=query)
+    flavors = openstack_resource.list(query=query)
     add_resource_list_to_runtime_properties(FLAVOR_OPENSTACK_TYPE, flavors)
 
 

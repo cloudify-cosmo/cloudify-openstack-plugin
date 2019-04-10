@@ -195,7 +195,13 @@ class HostAggregateTestCase(OpenStackTestBase):
             self.assertNotIn(attr,
                              self._ctx.instance.runtime_properties)
 
-    def test_list_aggregates(self, mock_connection):
+    @mock.patch('openstack_sdk.common.'
+                'ResourceMixin.get_project_id_location')
+    def test_list_aggregates(self,
+                             mock_project_id_location,
+                             mock_connection):
+        mock_project_id_location.return_value =\
+            'a95b5509-c122-4c2f-823e-884bcs2efda6'
         # Prepare the context for list aggregates operation
         self._prepare_context_for_operation(
             test_name='HostAggregateTestCase',

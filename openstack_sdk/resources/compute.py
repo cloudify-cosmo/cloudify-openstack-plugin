@@ -17,17 +17,17 @@
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html.
 
 # Local imports
-from openstack_sdk.common import OpenstackResource
+from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 
 
 class OpenstackServer(OpenstackResource):
     service_type = 'compute'
     resource_type = 'server'
 
-    def list(self, details=True, all_projects=False, query=None):
+    def list(self, all_projects=False, query=None):
         query = query or {}
         self.logger.debug('Attempting to list servers')
-        return self.connection.compute.servers(details, all_projects, **query)
+        return self.connection.compute.servers(all_projects, **query)
 
     def get(self):
         self.logger.debug(
@@ -258,16 +258,16 @@ class OpenstackServer(OpenstackResource):
             'successfully'.format(floating_ip, self.resource_id))
 
 
-class OpenstackHostAggregate(OpenstackResource):
+class OpenstackHostAggregate(ResourceMixin, OpenstackResource):
     service_type = 'compute'
     resource_type = 'aggregate'
 
     def validate_resource_identifier(self):
         return None
 
-    def list(self):
+    def list(self, all_projects=False):
         self.logger.debug('Attempting to list aggregates')
-        return self.connection.compute.aggregates()
+        return self.list_resources(all_projects=all_projects)
 
     def get(self):
         self.logger.debug(
@@ -278,12 +278,9 @@ class OpenstackHostAggregate(OpenstackResource):
         return aggregate
 
     def find_aggregate(self, name_or_id=None):
-        if not name_or_id:
-            name_or_id = self.name if not\
-                self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this aggregate: {0}'.format(self.resource_id))
-        aggregate = self.connection.compute.get_aggregate(self.resource_id)
+        aggregate = self.find_resource(name_or_id)
         self.logger.debug(
             'Found aggregate with this result: {0}'.format(aggregate))
         return aggregate
@@ -449,13 +446,12 @@ class OpenstackKeyPair(OpenstackResource):
         return result
 
 
-class OpenstackFlavor(OpenstackResource):
+class OpenstackFlavor(ResourceMixin, OpenstackResource):
     service_type = 'compute'
     resource_type = 'flavor'
 
-    def list(self, details=True, query=None):
-        query = query or {}
-        return self.connection.compute.flavors(details, **query)
+    def list(self, query=None, all_projects=False):
+        return self.list_resources(query, all_projects)
 
     def get(self):
         self.logger.debug(
@@ -466,12 +462,9 @@ class OpenstackFlavor(OpenstackResource):
         return flavor
 
     def find_flavor(self, name_or_id=None):
-        if not name_or_id:
-            name_or_id = self.name if not\
-                self.resource_id else self.resource_id
         self.logger.debug('Attempting to find this flavor: {0}'
                           ''.format(name_or_id))
-        flavor = self.connection.compute.find_flavor(name_or_id)
+        flavor = self.find_resource(name_or_id)
         self.logger.debug(
             'Found flavor with this result: {0}'.format(flavor))
         return flavor

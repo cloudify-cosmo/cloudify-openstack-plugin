@@ -979,7 +979,18 @@ class ServerTestCase(OpenStackTestBase):
             SERVER_TASK_BACKUP_DONE,
             self._ctx.instance.runtime_properties)
 
-    def test_apply_snapshot(self, mock_connection):
+    @mock.patch('openstack_sdk.common.'
+                'ResourceMixin.get_project_id_location')
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_apply_snapshot(self,
+                            mock_project,
+                            mock_project_id_location,
+                            mock_connection):
+
+        mock_project.return_value = 'a95b5509-c122-4c2f-823e-884bcs2efda6'
+        mock_project_id_location.return_value =\
+            'a95b5509-c122-4c2f-823e-884bcs2efda6'
         # Prepare the context for snapshot apply operation
         self._prepare_context_for_operation(
             test_name='ServerTestCase',
@@ -1016,6 +1027,10 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Mock backup operation
         mock_connection().compute.backup = \
             mock.MagicMock(return_value=None)
@@ -1043,7 +1058,18 @@ class ServerTestCase(OpenStackTestBase):
         }
         server.snapshot_apply(**snapshot_params)
 
-    def test_apply_backup(self, mock_connection):
+    @mock.patch('openstack_sdk.common.'
+                'ResourceMixin.get_project_id_location')
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_apply_backup(self,
+                          mock_project,
+                          mock_project_id_location,
+                          mock_connection):
+
+        mock_project.return_value = 'a95b5509-c122-4c2f-823e-884bcs2efda6'
+        mock_project_id_location.return_value =\
+            'a95b5509-c122-4c2f-823e-884bcs2efda6'
         # Prepare the context for backup apply operation
         self._prepare_context_for_operation(
             test_name='ServerTestCase',
@@ -1081,6 +1107,10 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Mock backup operation
         mock_connection().compute.backup = \
             mock.MagicMock(return_value=None)
@@ -1108,7 +1138,18 @@ class ServerTestCase(OpenStackTestBase):
         }
         server.snapshot_apply(**snapshot_params)
 
-    def test_delete_snapshot(self, mock_connection):
+    @mock.patch('openstack_sdk.common.'
+                'ResourceMixin.get_project_id_location')
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_delete_snapshot(self,
+                             mock_project,
+                             mock_project_id_location,
+                             mock_connection):
+        mock_project.return_value = 'a95b5509-c122-4c2f-823e-884bcs2efda6'
+        mock_project_id_location.return_value =\
+            'a95b5509-c122-4c2f-823e-884bcs2efda6'
+
         # Prepare the context for snapshot delete operation
         self._prepare_context_for_operation(
             test_name='ServerTestCase',
@@ -1154,6 +1195,9 @@ class ServerTestCase(OpenStackTestBase):
             'size': 258540032
 
         })
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
 
         # Mock get server operation
         mock_connection().compute.get_server = \
@@ -1180,7 +1224,18 @@ class ServerTestCase(OpenStackTestBase):
                      SERVER_TASK_START]:
             self.assertNotIn(attr, self._ctx.instance.runtime_properties)
 
-    def test_delete_backup(self, mock_connection):
+    @mock.patch('openstack_sdk.common.'
+                'ResourceMixin.get_project_id_location')
+    @mock.patch('openstack_sdk.common.'
+                'OpenstackResource.get_project_id_by_name')
+    def test_delete_backup(self,
+                           mock_project,
+                           mock_project_id_location,
+                           mock_connection):
+
+        mock_project.return_value = 'a95b5509-c122-4c2f-823e-884bcs2efda6'
+        mock_project_id_location.return_value =\
+            'a95b5509-c122-4c2f-823e-884bcs2efda6'
         # Prepare the context for snapshot delete backup
         self._prepare_context_for_operation(
             test_name='ServerTestCase',
@@ -1226,6 +1281,10 @@ class ServerTestCase(OpenStackTestBase):
             'size': 258540032
 
         })
+
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
 
         # Mock get server operation
         mock_connection().compute.get_server = \

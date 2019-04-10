@@ -17,17 +17,16 @@
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html.
 
 # Local imports
-from openstack_sdk.common import OpenstackResource
+from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 
 
-class OpenstackImage(OpenstackResource):
-    service_type = 'compute'
+class OpenstackImage(ResourceMixin, OpenstackResource):
+    service_type = 'image'
     resource_type = 'image'
     infinite_resource_quota = 10 ** 9
 
-    def list(self, query=None):
-        query = query or {}
-        return self.connection.image.images(**query)
+    def list(self, query=None, all_projects=False):
+        return self.list_resources(query, all_projects)
 
     def get_quota_sets(self, quota_type=None):
         return self.infinite_resource_quota
@@ -40,12 +39,9 @@ class OpenstackImage(OpenstackResource):
         return image
 
     def find_image(self, name_or_id=None):
-        if not name_or_id:
-            name_or_id = self.name if not\
-                self.resource_id else self.resource_id
         self.logger.debug('Attempting to find this image: {0}'
                           ''.format(name_or_id))
-        image = self.connection.image.find_image(name_or_id)
+        image = self.find_resource(name_or_id)
         self.logger.debug('Found image with this result: {0}'.format(image))
         return image
 

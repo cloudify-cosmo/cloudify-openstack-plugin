@@ -664,6 +664,9 @@ node_types:
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.openstack_plugin.resources.network.subnet.creation_validation
+          inputs:
+            args:
+              default: {}
       cloudify.interfaces.operations:
         update:
           implementation: openstack.openstack_plugin.resources.network.subnet.update
@@ -967,6 +970,9 @@ node_types:
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.openstack_plugin.resources.compute.server.creation_validation
+          inputs:
+            args:
+              default: {}
       cloudify.interfaces.freeze:
         suspend:
           implementation: openstack.openstack_plugin.resources.compute.server.suspend
@@ -1251,6 +1257,9 @@ node_types:
           implementation: openstack.openstack_plugin.resources.identity.project.create
         start:
           implementation: openstack.openstack_plugin.resources.identity.project.start
+          inputs:
+            quota_dict:
+              default: {}
         delete:
           implementation: openstack.openstack_plugin.resources.identity.project.delete
       cloudify.interfaces.operations:

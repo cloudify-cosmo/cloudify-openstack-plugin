@@ -483,7 +483,7 @@ def _get_flavor_or_image_from_server(class_name,
         return None
     else:
         # Get the value from node property or from resource config
-        prop_value = config_value_id or prop_value or config_value_name
+        prop_value = config_value_id or config_value_name or prop_value
         # Create instance from the class provided (OpenstackFlavor |
         # OpenstackImage)
         instance = class_name(
@@ -1828,10 +1828,16 @@ def list_servers(openstack_resource,
 
 @with_compat_node
 @with_openstack_resource(OpenstackServer)
-def creation_validation(openstack_resource):
+def creation_validation(openstack_resource, args={}):
     """
     This method is to check if we can create server resource in openstack
     :param openstack_resource: Instance of current openstack server
+    :param dict args: Server Configuration
     """
     validate_resource_quota(openstack_resource, INSTANCE_OPENSTACK_TYPE)
     ctx.logger.debug('OK: server configuration is valid')
+
+    openstack_resource.config.update(args)
+    _get_flavor_or_image_from_server(OpenstackFlavor,
+                                     openstack_resource,
+                                     'flavor')

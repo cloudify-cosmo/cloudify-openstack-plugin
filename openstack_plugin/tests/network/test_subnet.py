@@ -40,6 +40,7 @@ class SubnetTestCase(OpenStackTestBase):
         return {
             'name': 'test_subnet',
             'description': 'subnet_description',
+            'cidr': '10.0.0.0/24'
         }
 
     def test_create(self, mock_connection):

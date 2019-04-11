@@ -133,10 +133,11 @@ def create(openstack_resource):
 
 @with_compat_node
 @with_openstack_resource(OpenstackProject)
-def start(openstack_resource):
+def start(openstack_resource, quota_dict={}):
     """
     Prepare users to be added to created project
     :param openstack_resource: Instance of openstack project resource
+    :param quota_dict: Configuration to update project quota
     """
 
     # Check if project node has associated users that should be added
@@ -155,7 +156,7 @@ def start(openstack_resource):
     # project
     # TODO The openstack should be extended in order to add support for
     #  quota update
-    if ctx.node.properties.get(IDENTITY_QUOTA):
+    if ctx.node.properties.get(IDENTITY_QUOTA) or quota_dict:
         raise NonRecoverableError('Openstack SDK does not support updating '
                                   'quota for project')
 
@@ -222,10 +223,11 @@ def get_project_quota(openstack_resource):
 
 @with_compat_node
 @with_openstack_resource(OpenstackProject)
-def update_project_quota(openstack_resource):
+def update_project_quota(openstack_resource, quota={}):
     """
     This method is to update quota project resource in openstack
     :param openstack_resource: Instance of current openstack project
+    :param quota: Quota configuration
     """
     # TODO The openstack should be extended in order to add support for
     #  get update

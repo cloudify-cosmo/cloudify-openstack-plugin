@@ -30,7 +30,8 @@ from openstack_plugin.utils import (
     reset_dict_empty_keys,
     validate_resource_quota,
     add_resource_list_to_runtime_properties,
-    find_openstack_ids_of_connected_nodes_by_openstack_type)
+    find_openstack_ids_of_connected_nodes_by_openstack_type,
+    validate_ip_or_range_syntax)
 
 
 def _get_subnet_network_id_from_relationship():
@@ -146,10 +147,20 @@ def list_subnets(openstack_resource, query=None):
 
 @with_compat_node
 @with_openstack_resource(OpenstackSubnet)
-def creation_validation(openstack_resource):
+def creation_validation(openstack_resource, args={}):
     """
     This method is to check if we can create subnet resource in openstack
     :param openstack_resource: Instance of current openstack subnet
+    :param dict args: Subnet Configuration
     """
     validate_resource_quota(openstack_resource, SUBNET_OPENSTACK_TYPE)
-    ctx.logger.debug('OK: port configuration is valid')
+    ctx.logger.debug('OK: subnet configuration is valid')
+
+    subnet = dict(openstack_resource.config, **args)
+
+    if 'cidr' not in subnet:
+        err = '"cidr" property must appear under the "subnet" property of a ' \
+              'subnet node'
+        ctx.logger.error('VALIDATION ERROR: ' + err)
+        raise NonRecoverableError(err)
+    validate_ip_or_range_syntax(ctx, subnet['cidr'])

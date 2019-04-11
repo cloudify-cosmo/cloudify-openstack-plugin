@@ -41,7 +41,10 @@ from openstack_sdk.resources.networks import (OpenstackFloatingIP,
 
 from openstack_sdk.resources.volume import OpenstackVolume
 from openstack_sdk.resources.images import OpenstackImage
-from openstack_plugin.utils import get_target_node_from_capabilities
+from openstack_plugin.constants import (CLOUDIFY_CREATE_OPERATION,
+                                        CLOUDIFY_LIST_OPERATION)
+from openstack_plugin.utils import (get_target_node_from_capabilities,
+                                    get_current_operation)
 
 NETWORK_CONFIG_MAP = {
     'net-id': 'uuid',
@@ -180,6 +183,22 @@ RBAC_POLICY_RESOURCE_CONFIG = (
     'action'
 )
 
+DEPRECATED_CLINE_CONFIG = (
+    'nova_url',
+    'neutron_url',
+    'custom_configuration',
+    'logging'
+)
+
+DEPRECATED_ARGS = (
+    'start_retry_interval',
+    'private_key_path',
+    'status_attempts',
+    'status_timeout'
+)
+
+DEPRECATED_CONFIG = DEPRECATED_CLINE_CONFIG + DEPRECATED_ARGS
+
 
 class Compat(object):
     def __init__(self, context, **kwargs):
@@ -190,8 +209,8 @@ class Compat(object):
         """
         self.context = context
         self.kwargs = kwargs
-        self._properties = self.context.node.properties
         self._type = self.context.node.type
+        self._properties = {}
 
     @property
     def transformation_handler_map(self):
@@ -249,6 +268,10 @@ class Compat(object):
         return self._properties.get('openstack_config')
 
     @property
+    def node_properties(self):
+        return self.context.node.properties
+
+    @property
     def logger(self):
         """
         Return an instance of cloudify context logger
@@ -256,10 +279,6 @@ class Compat(object):
         """
         return self.context.logger\
             if hasattr(self.context, 'logger') else _ctx.logger
-
-    @property
-    def has_server(self):
-        return True if self._properties.get('server') else None
 
     @property
     def default_security_group_rule(self):
@@ -276,6 +295,10 @@ class Compat(object):
             'remote_group_id': None,
             'remote_ip_prefix': '0.0.0.0/0',
         }
+
+    @property
+    def operation_name(self):
+        return get_current_operation()
 
     def get_openstack_resource_id(self,
                                   class_resource,
@@ -336,8 +359,8 @@ class Compat(object):
                                                              resource_id)
                 common['resource_config']['id'] = resource_id
             else:
-                common['resource_config']['name'] = \
-                    self._properties['resource_id']
+                common['resource_config']['name']\
+                    = self._properties['resource_id']
 
         return common
 
@@ -400,53 +423,91 @@ class Compat(object):
         if rules:
             self.kwargs['security_group_rules'] = rules
 
-    def _map_server_networks_config(self):
+    def _process_operation_inputs(self, openstack_type):
+        """
+        This method will process and the args provided via interface
+        operations and try to merge them if possible to be compatible and
+        consistent with plugin 3.x
+        :param str openstack_type: Openstack object type.
+        """
+        # For all operations, old plugin allow to override the resource_id &
+        # openstack_config via interface operations inputs, so these need to
+        # handle and merge/update with the one provided using node properties
+        openstack_config = self._properties.get('openstack_config', {})
+        if self.kwargs.get('openstack_config'):
+            op_config = self.kwargs.pop('openstack_config')
+            openstack_config.update(op_config)
+
+        if self.kwargs.get('resource_id'):
+            self._properties['resource_id'] = self.kwargs.pop('resource_id')
+
+        # Ignore any deprecated config
+        for item in DEPRECATED_CONFIG:
+            if self.kwargs.get(item):
+                self.kwargs.pop(item)
+            elif openstack_config.get(item):
+                openstack_config.pop(item)
+
+        # Check if the provided operation is create, so that we can handle
+        # arguments provided from inputs if they are exits
+        if Compat.operation_name == CLOUDIFY_CREATE_OPERATION:
+            openstack_resource = self._properties.get(openstack_type, {})
+            if self.kwargs.get('args'):
+                openstack_resource.update(copy.deepcopy(self.kwargs['args']))
+                del self.kwargs['args']
+
+        elif Compat.operation_name == CLOUDIFY_LIST_OPERATION:
+            # TODO parsing args for list resources and try to translate them
+            #  to support new SDK need more investigations and more work
+            if self.kwargs.get('args'):
+                self.kwargs['query'] = self.kwargs.pop('args', {})
+
+    @staticmethod
+    def _map_server_networks_config(config):
         """
         This method will do a mapping between the networks config for the
         server using openstack plugin 2.x so that it can works under
         openstack plugin 3.x
         """
-        if self.has_server:
-            for key, value in self._properties['server'].items():
-                if key == 'networks' and value and isinstance(value, list):
-                    networks = list()
-                    for item in value:
-                        if item and isinstance(item, dict):
-                            item_net = dict()
-                            for item_key, item_value in item.items():
-                                map_key = NETWORK_CONFIG_MAP.get(item_key)
-                                if map_key:
-                                    item_net[map_key] = item_value
-                                else:
-                                    item_net[item_key] = item_value
+        for key, value in config.items():
+            if key == 'networks' and value and isinstance(value, list):
+                networks = list()
+                for item in value:
+                    if item and isinstance(item, dict):
+                        item_net = dict()
+                        for item_key, item_value in item.items():
+                            map_key = NETWORK_CONFIG_MAP.get(item_key)
+                            if map_key:
+                                item_net[map_key] = item_value
+                            else:
+                                item_net[item_key] = item_value
 
-                            networks.append(item_net)
-                    # update the networks object to match the networks object
-                    # used and accepted by openstack 3.x
-                    self._properties['server']['networks'] = networks
+                        networks.append(item_net)
+                # update the networks object to match the networks object
+                # used and accepted by openstack 3.x
+                config['networks'] = networks
 
-    def _map_server_flavor_and_image(self):
+    def _map_server_flavor_and_image(self, config):
         """
         This method will map the flavor and image information to be
         consistent with openstack plugin 3.x
         """
-        if self.has_server:
-            flavor = self._properties['server'].get('flavor')
-            image = self._properties['server'].get('image')
-            if flavor:
-                flavor_id = \
-                    self.get_openstack_resource_id(OpenstackFlavor,
-                                                   'flavor',
-                                                   flavor)
-                self._properties['server']['flavor_id'] = flavor_id
-                del self._properties['server']['flavor']
-            if image:
-                image_id = \
-                    self.get_openstack_resource_id(OpenstackImage,
-                                                   'image',
-                                                   image)
-                self._properties['server']['image_id'] = image_id or ''
-                del self._properties['server']['image']
+        flavor = config.get('flavor')
+        image = config.get('image')
+        if flavor:
+            flavor_id = \
+                self.get_openstack_resource_id(OpenstackFlavor,
+                                               'flavor',
+                                               flavor)
+            config['flavor_id'] = flavor_id
+            del config['flavor']
+        if image:
+            image_id = \
+                self.get_openstack_resource_id(OpenstackImage,
+                                               'image',
+                                               image)
+            config['image_id'] = image_id or ''
+            del config['image']
 
     def _map_security_group_config(self):
         """
@@ -473,6 +534,13 @@ class Compat(object):
         "resource_config" property for openstack nodes powered by version 3.x
         :return dict: Compatible node openstack version 3 properties
         """
+        # Because node properties are ImmutableProperties and we cannot do
+        # any update operations on them, then we need to copy all the data
+        # to another new dict which allow use to update it as we want
+        for key, value in self.node_properties:
+            self._properties[key] = value
+
+        self._process_operation_inputs(openstack_type)
         properties = self.get_common_properties(openstack_type)
         for key, value in self._properties.get(openstack_type, {}).items():
             if key in resource_config_keys:
@@ -538,10 +606,14 @@ class Compat(object):
         compatible with openstack server version 3
         :return dict: Compatible server openstack version 3 properties
         """
-        # Do a conversion for networks object
-        self._map_server_networks_config()
-        # Do a conversion for flavor and image
-        self._map_server_flavor_and_image()
+        server_config = self._properties.get('server', {})
+        args_config = self.kwargs.get('args', {})
+        for config in [server_config, args_config]:
+            # Do a conversion for networks object
+            Compat._map_server_networks_config(config)
+            # Do a conversion for flavor and image
+            self._map_server_flavor_and_image(config)
+
         return self._transform('server', SERVER_RESOURCE_CONFIG)
 
     def _transform_user(self):

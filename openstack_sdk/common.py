@@ -152,7 +152,7 @@ class ResourceMixin(object):
                 'Resource {0} is not found'.format(name_or_id))
         return target
 
-    def list_resources(self, query=None, all_projects=False, details=True):
+    def list_resources(self, query=None, all_projects=False):
         """
         This method will try to list all resources based on provided filters
         :param dict query: Dict that contains filters to use fetch resources

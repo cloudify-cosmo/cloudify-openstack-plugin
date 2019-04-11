@@ -2384,8 +2384,14 @@ class ServerTestCase(OpenStackTestBase):
         self.assertEqual(
             len(self._ctx.instance.runtime_properties['server_list']), 2)
 
+    @mock.patch('openstack_plugin.resources.compute.server'
+                '._get_flavor_or_image_from_server')
     @mock.patch('openstack_sdk.common.OpenstackResource.get_quota_sets')
-    def test_creation_validation(self, mock_quota_sets, mock_connection):
+    def test_creation_validation(self,
+                                 mock_quota_sets,
+                                 mock_flavor_id,
+                                 mock_connection):
+        mock_flavor_id.return_value = '4'
         # Prepare the context for creation validation servers operation
         self._prepare_context_for_operation(
             test_name='ServerTestCase',

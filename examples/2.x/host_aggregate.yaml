@@ -25,7 +25,6 @@ inputs:
       availability_zone: nova
 
 dsl_definitions:
-
   openstack_config: &openstack_config
     username: { get_input: openstack_username }
     password: { get_input: openstack_password }
@@ -39,10 +38,17 @@ node_templates:
     type: cloudify.openstack.nodes.HostAggregate
     properties:
       openstack_config: *openstack_config
-      aggregate: { get_input: host_aggregate_config }
+      aggregate: {}
       resource_id: 'host_aggregate'
       metadata:
         ssd: 'True'
       hosts:
         - 'compute005'
         - 'compute006'
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args: { get_input: host_aggregate_config }
+            openstack_config: { get_property: [ SELF, openstack_config ] }
+            resource_id: { get_property: [ SELF, resource_id ] }

@@ -65,10 +65,7 @@ node_types:
         description: >
           the policy of the server group, this must be either 'affinity',
           'anti-affinity', 'soft-affinity', or 'soft-anti-affinity'.
-
-
-
-
+        default: {}
 
   cloudify.openstack.nodes.Server:
     derived_from: cloudify.nodes.openstack.Server
@@ -87,6 +84,7 @@ node_types:
             this connection is made automatically and there's no need to override this property
             (See the Misc section for more information on the Openstack Provider Context).
             It is not required to set the value of this property to the management network name. As of Cloudify 4.0, it has no relationship to the bootstrap process.
+
 
 
 
@@ -123,6 +121,7 @@ node_types:
           If a Server instance is connected to this Volume by a relationship,
           this volume will be used as the boot volume for that Server.
           This option will be deprecated in the future.
+
 
 
 
@@ -168,6 +167,7 @@ node_types:
         default: true
         description: >
           A boolean which determines whether to use the Cloudify Manager's external network if no other external network was given (whether by a relationship, by the `external_network` property or by the nested `external_gateway_info` key in the `router` property). This is only relevant if the manager's external network appears in the Provider-context. Defaults to `true`.
+
 
 
   cloudify.openstack.nodes.SecurityGroup:

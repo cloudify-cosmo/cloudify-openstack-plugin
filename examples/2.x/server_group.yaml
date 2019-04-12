@@ -61,7 +61,16 @@ node_templates:
     type: cloudify.openstack.nodes.ServerGroup
     properties:
       openstack_config: *openstack_config
-      policy: affinity
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              policies:
+                - anti-affinity
+            openstack_config: { get_property: [ SELF, openstack_config ] }
+            resource_id: 'server-group-1'
+
 
   example-external-network:
     type: cloudify.openstack.nodes.Network
@@ -160,3 +169,8 @@ node_templates:
     relationships:
       - type: cloudify.relationships.connected_to
         target: example-external-network
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            openstack_config: { get_property: [ SELF, openstack_config ] }

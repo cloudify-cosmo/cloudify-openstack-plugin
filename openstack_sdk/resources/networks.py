@@ -50,8 +50,7 @@ class OpenstackNetwork(OpenstackResource):
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this network: {0}'.format(name_or_id))
-        network = self.connection.network.find_network(
-            name_or_id, project_id=self.project_id)
+        network = self.connection.network.find_network(name_or_id)
         self.logger.debug(
             'Found network with this result: {0}'.format(network))
         return network

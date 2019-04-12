@@ -24,10 +24,11 @@ class OpenstackServer(OpenstackResource):
     service_type = 'compute'
     resource_type = 'server'
 
-    def list(self, all_projects=False, query=None):
+    def list(self, details=True, all_projects=False, query=None):
         query = query or {}
+        all_projects = query.pop('all_projects', False) or all_projects
         self.logger.debug('Attempting to list servers')
-        return self.connection.compute.servers(all_projects, **query)
+        return self.connection.compute.servers(details, all_projects, **query)
 
     def get(self):
         self.logger.debug(

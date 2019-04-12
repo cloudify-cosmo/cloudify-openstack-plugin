@@ -42,7 +42,9 @@ from openstack_sdk.resources.networks import (OpenstackFloatingIP,
 from openstack_sdk.resources.volume import OpenstackVolume
 from openstack_sdk.resources.images import OpenstackImage
 from openstack_plugin.constants import (CLOUDIFY_CREATE_OPERATION,
-                                        CLOUDIFY_LIST_OPERATION)
+                                        CLOUDIFY_LIST_OPERATION,
+                                        CLOUDIFY_UPDATE_OPERATION,
+                                        CLOUDIFY_UPDATE_PROJECT_OPERATION)
 from openstack_plugin.utils import (get_target_node_from_capabilities,
                                     get_current_operation)
 
@@ -197,6 +199,78 @@ DEPRECATED_ARGS = (
     'status_timeout'
 )
 
+OS_PARAMS_MAP = {
+    'detailed': 'details',
+    'offset': 'marker'
+}
+
+# List of params supported by the Openstack SDK (openstack plugin 3.x) and
+# old clients
+FLAVOR_LIST_PARAMS = (
+   'limit',
+   'marker',
+   'is_public',
+   'sort_key',
+   'sort_dir',
+   'is_public',
+   'min_disk',
+   'min_ram'
+)
+
+SERVER_GROUP_LIST_PARAMS = (
+    'all_projects',
+    'limit',
+    'marker'
+)
+
+IMAGE_LIST_PARAMS = (
+    'limit',
+    'marker',
+    'name',
+    'visibility',
+    'member_status',
+    'owner',
+    'status',
+    'size_min',
+    'size_max',
+    'protected',
+    'is_hidden',
+    'sort_key',
+    'sort_dir',
+    'sort',
+    'tag',
+    'created_at',
+    'updated_at'
+)
+
+SERVER_LIST_PARAMS = (
+    'limit',
+    'marker',
+    'image',
+    'flavor',
+    'name',
+    'status',
+    'host',
+    'sort_key',
+    'sort_dir',
+    'reservation_id',
+    'tags',
+    'is_deleted',
+    'ipv4_address',
+    'ipv6_address',
+    'changes_since',
+    'all_projects',
+)
+
+# Map to link each openstack resource to allowed params supported by
+# openstack plugin 3.x
+RESOURCE_LIST_PARAMS_MAP = {
+    'flavor': FLAVOR_LIST_PARAMS,
+    'server_group': SERVER_GROUP_LIST_PARAMS,
+    'image': IMAGE_LIST_PARAMS,
+    'server': SERVER_LIST_PARAMS
+}
+
 DEPRECATED_CONFIG = DEPRECATED_CLINE_CONFIG + DEPRECATED_ARGS
 
 
@@ -210,7 +284,7 @@ class Compat(object):
         self.context = context
         self.kwargs = kwargs
         self._type = self.context.node.type
-        self._properties = {}
+        self._properties = dict(self.node_properties)
 
     @property
     def transformation_handler_map(self):
@@ -423,6 +497,20 @@ class Compat(object):
         if rules:
             self.kwargs['security_group_rules'] = rules
 
+    def _process_keypair_config(self):
+        """
+        This method is to drop any configuration that does not support
+        keypair in openstack sdk
+        """
+        keypairs_params = KEYPAIR_RESOURCE_CONFIG + ('private_key',)
+        for key in self.kwargs.get('args', {}).keys():
+            if key not in keypairs_params:
+                self.kwargs['args'].pop(key)
+
+        for key in self._properties.get('keypair', {}).keys():
+            if key not in keypairs_params:
+                self._properties['keypair'].pop(key)
+
     def _process_operation_inputs(self, openstack_type):
         """
         This method will process and the args provided via interface
@@ -448,19 +536,74 @@ class Compat(object):
             elif openstack_config.get(item):
                 openstack_config.pop(item)
 
-        # Check if the provided operation is create, so that we can handle
-        # arguments provided from inputs if they are exits
-        if Compat.operation_name == CLOUDIFY_CREATE_OPERATION:
-            openstack_resource = self._properties.get(openstack_type, {})
-            if self.kwargs.get('args'):
-                openstack_resource.update(copy.deepcopy(self.kwargs['args']))
-                del self.kwargs['args']
+        if 'args' in self.kwargs and not self.kwargs['args']:
+            del self.kwargs['args']
 
-        elif Compat.operation_name == CLOUDIFY_LIST_OPERATION:
-            # TODO parsing args for list resources and try to translate them
-            #  to support new SDK need more investigations and more work
-            if self.kwargs.get('args'):
-                self.kwargs['query'] = self.kwargs.pop('args', {})
+        if self.kwargs.get('args'):
+            if self.operation_name == CLOUDIFY_CREATE_OPERATION:
+                self._process_create_operation_inputs(openstack_type)
+            elif self.operation_name == CLOUDIFY_LIST_OPERATION:
+                self._process_list_operation(openstack_type)
+            elif self.operation_name in [CLOUDIFY_UPDATE_OPERATION,
+                                         CLOUDIFY_UPDATE_PROJECT_OPERATION]:
+                self._process_update_operation_inputs(openstack_type)
+
+    def _process_create_operation_inputs(self, openstack_type):
+        """
+        This method will lookup the args provided from input opertaions and
+        merge them with resource config
+        """
+        openstack_resource = self._properties.get(openstack_type, {})
+        openstack_resource.update(copy.deepcopy(self.kwargs['args']))
+        del self.kwargs['args']
+
+    def _process_update_operation_inputs(self, openstack_type):
+        """
+        Openstack plugin 2.x only supports update operation for the
+        following resources:
+         - Project
+         - User
+         - Router
+         - Aggregate
+         - Image
+         In order to have a successful update operation using openstack
+         plugin 3.x, we need to do some mapping/filtering before do the
+         actual update via openstack sdk
+         :param str openstack_type: Openstack object type.
+        """
+        if openstack_type == 'aggregate':
+            self.kwargs['args'] = self.kwargs.get('args').pop('aggregate', {})
+        elif openstack_type == 'image':
+            for key, value in self.kwargs['args'].items():
+                if key == 'image_id':
+                    self.kwargs['args']['image'] = self.kwargs['args'].pop(key)
+                elif key == 'remove_props':
+                    # image update does not support remove_props key
+                    self.kwargs['args'].pop('remove_props')
+
+    def _process_list_operation(self, openstack_type):
+        """
+        This method will try to match and map list params used by openstack
+        old plugin to be compatible and consistent with openstack plugin 3.x
+        :param str openstack_type: Openstack object type.
+        """
+        if openstack_type == 'image' and self.kwargs['args'].get('filters'):
+            filters = self.kwargs['args'].pop('filters')
+            self.kwargs['args'].update(filters)
+        elif openstack_type == 'server':
+            search_opts = self.kwargs['args'].pop('search_opts')
+            self.kwargs['args'].update(search_opts)
+
+        params = dict()
+        for key, value in self.kwargs['args'].items():
+            if RESOURCE_LIST_PARAMS_MAP.get(openstack_type):
+                if key in RESOURCE_LIST_PARAMS_MAP[openstack_type]:
+                    params[key] = value
+                elif key in OS_PARAMS_MAP.keys():
+                    params[OS_PARAMS_MAP[key]] = value
+        if params:
+            self.kwargs['query'] = params
+        del self.kwargs['args']
 
     @staticmethod
     def _map_server_networks_config(config):
@@ -534,12 +677,6 @@ class Compat(object):
         "resource_config" property for openstack nodes powered by version 3.x
         :return dict: Compatible node openstack version 3 properties
         """
-        # Because node properties are ImmutableProperties and we cannot do
-        # any update operations on them, then we need to copy all the data
-        # to another new dict which allow use to update it as we want
-        for key, value in self.node_properties:
-            self._properties[key] = value
-
         self._process_operation_inputs(openstack_type)
         properties = self.get_common_properties(openstack_type)
         for key, value in self._properties.get(openstack_type, {}).items():
@@ -580,6 +717,7 @@ class Compat(object):
         compatible with openstack keypair version 3
         :return dict: Compatible keypair openstack version 3 properties
         """
+        self._process_keypair_config()
         return self._transform('keypair', KEYPAIR_RESOURCE_CONFIG)
 
     def _transform_server_group(self):

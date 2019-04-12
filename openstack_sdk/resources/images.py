@@ -61,7 +61,7 @@ class OpenstackImage(ResourceMixin, OpenstackResource):
         self.connection.image.delete_image(image)
 
     def update(self, new_config=None):
-        image = self.get()
+        image = new_config.pop('image', None) or self.get()
         self.logger.debug(
             'Attempting to update this image: {0} with args {1}'.format(
                 image, new_config))

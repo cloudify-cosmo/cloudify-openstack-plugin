@@ -35,6 +35,12 @@ node_templates:
     type: cloudify.openstack.nodes.KeyPair
     properties:
       openstack_config: *openstack_config
-      resource_id: test
+      resource_id: test-key
       # Private key path is not supported in the new openstack plugin 3.x.x
       private_key_path: { concat: [ '~/.ssh/', { get_property: [ SELF, resource_id ] }, '.pem' ] }
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            openstack_config: { get_property: [ SELF, openstack_config ] }
+            resource_id: { get_property: [ SELF, resource_id ] }

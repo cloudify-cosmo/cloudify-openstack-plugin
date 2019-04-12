@@ -156,7 +156,7 @@ class ResourceMixin(object):
         """
         This method will try to list all resources based on provided filters
         :param dict query: Dict that contains filters to use fetch resources
-        :param boolean all_projects: Flag to indicat that we need to list
+        :param boolean all_projects: Flag to indicate that we need to list
         all resources from all projects
         :return: List of instances that extend openstack.resource.Resource
         """
@@ -171,6 +171,7 @@ class ResourceMixin(object):
         # care about for project
         # User also will have the ability to list resources from all projects
         # if he wants by passing "all_projects=True"
+        all_projects = query.get('all_projects') or all_projects
         if not all_projects:
             project_id = query.get('project_id') or self.project_id
             if query.get('project_id'):

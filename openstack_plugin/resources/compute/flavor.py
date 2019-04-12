@@ -39,14 +39,19 @@ def create(openstack_resource):
 
 @with_compat_node
 @with_openstack_resource(OpenstackFlavor)
-def list_flavors(openstack_resource, query=None):
+def list_flavors(openstack_resource, query={}, details=True):
     """
 
-    :param openstack_resource:
-    :param query:
-    :param details:
-    :return:
+    :param openstack_resource: Instance of openstack flavor resource
+    :param kwargs query: Optional query parameters to be sent to limit
+                                 the resources being returned.
+    :param bool details: When set to ``False``
+                :class:`~openstack.compute.v2.flavor.Flavor` instances
+                will be returned. The default, ``True``, will cause
+                :class:`~openstack.compute.v2.flavor.FlavorDetail`
+                instances to be returned.
     """
+    query['details'] = details
     flavors = openstack_resource.list(query=query)
     add_resource_list_to_runtime_properties(FLAVOR_OPENSTACK_TYPE, flavors)
 

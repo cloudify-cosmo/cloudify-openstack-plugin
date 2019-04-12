@@ -1001,6 +1001,8 @@ node_types:
               default: {}
             all_projects:
               default: False
+            details:
+              default: True
 
   cloudify.nodes.openstack.WindowsServer:
     derived_from: cloudify.nodes.openstack.Server
@@ -1016,10 +1018,6 @@ node_types:
           port: 5985
         description: >
           updates the defaults for the agent_config for Windows)
-
-
-
-
 
 
   cloudify.nodes.openstack.ServerGroup:
@@ -1197,6 +1195,8 @@ node_types:
           inputs:
             query:
               default: {}
+            details:
+              default: True
 
   cloudify.nodes.openstack.User:
     derived_from: cloudify.nodes.Root

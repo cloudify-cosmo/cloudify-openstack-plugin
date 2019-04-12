@@ -55,3 +55,16 @@ node_templates:
       tenants: { get_input: flavor_tenants }
       resource_id: 'cfy_test_flavor'
       openstack_config: *openstack_config
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              vcpus: 2
+              ram: 4096
+              disk: 35
+              swap: 0
+              ephemeral: 0
+              is_public: true
+            resource_id: 'override_cfy_test_flavor'
+            openstack_config: { get_property: [ SELF, openstack_config ] }

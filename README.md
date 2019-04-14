@@ -4,7 +4,7 @@
 
 ### Cloudify Manager versions compatibility
 
-| Plugin Version | Cloudify Version |
+| Plugin version | Cloudify version |
 | --- | --- |
-| 2.14.7 | 3.4.1 |
+| 2.14.7 | 3.4.1 | 
 | 3.0.0 | 4.5.5 |

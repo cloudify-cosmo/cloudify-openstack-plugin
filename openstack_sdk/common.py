@@ -25,6 +25,10 @@ class QuotaException(Exception):
     pass
 
 
+class InvalidDomainException(Exception):
+    pass
+
+
 class OpenstackResource(object):
     service_type = None
     resource_type = None
@@ -37,9 +41,26 @@ class OpenstackResource(object):
         self.resource_id =\
             None if 'id' not in self.config else self.config['id']
         self.logger = logger
+        self.validate_keystone_v3()
 
     def __str__(self):
         return self.name if not self.resource_id else self.resource_id
+
+    def validate_keystone_v3(self):
+        if self.auth_url and 'v3' in self.auth_url:
+            client_config_keys = set(self.client_config.keys())
+            for item in self.domain_auth_sets:
+                common = list(item & client_config_keys)
+                if len(common) == 2:
+                    break
+            else:
+                message = 'Invalid domain combinations, they must be ' \
+                          'consistent with the following patterns: {0}'
+                pattern = ''
+                for item in self.domain_auth_sets:
+                    item = list(item)
+                    pattern = pattern + '({0}, {1}),'.format(item[0], item[1])
+                raise InvalidDomainException(message.format(pattern))
 
     def get_project_id_by_name(self, project_name=None):
         project_name = project_name or self.project_name
@@ -57,6 +78,19 @@ class OpenstackResource(object):
     @property
     def project_id(self):
         return self.config.get('project_id') or self.get_project_id_by_name()
+
+    @property
+    def auth_url(self):
+        return self.client_config.get('auth_url')
+
+    @property
+    def domain_auth_sets(self):
+        return [
+            {'user_domain_id', 'project_domain_id'},
+            {'user_domain_name', 'project_domain_name'},
+            {'user_domain_id', 'project_domain_name'},
+            {'user_domain_name', 'project_domain_id'},
+        ]
 
     def validate_resource_identifier(self):
         """

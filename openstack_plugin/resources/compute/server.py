@@ -246,11 +246,13 @@ def _set_server_ips_runtime_properties(server):
     ctx.instance.runtime_properties['ipv6_addresses'] = ipv6_list
 
 
-def _log_snapshot_message(resource_id,
+def _log_snapshot_message(action,
+                          resource_id,
                           snapshot_name,
                           snapshot_incremental):
     """
     Log message for backup operation
+    :param str action: Snapshot action (Apply | Delete)
     :param str resource_id: Server resource id
     :param str snapshot_name: Server snapshot name
     :param bool snapshot_incremental: Flag to create an incremental snapshots
@@ -260,8 +262,8 @@ def _log_snapshot_message(resource_id,
     backup_type = 'snapshot' if snapshot_incremental else 'backup'
 
     # Format message to be logged when applying this task
-    backup_msg = 'Apply {0} {1} for {2}' \
-                 ''.format(backup_type, snapshot_name, resource_id)
+    backup_msg = '{0} {1} {2} for {3}' \
+                 ''.format(action, backup_type, snapshot_name, resource_id)
 
     # Log message when start the snapshot restore operation
     ctx.logger.info(backup_msg)
@@ -1492,7 +1494,8 @@ def snapshot_apply(openstack_resource, **kwargs):
     snapshot_name = \
         get_snapshot_name('vm', snapshot_name, snapshot_incremental)
 
-    _log_snapshot_message(openstack_resource.resource_id,
+    _log_snapshot_message('Apply',
+                          openstack_resource.resource_id,
                           snapshot_name,
                           snapshot_incremental)
 
@@ -1530,7 +1533,8 @@ def snapshot_delete(openstack_resource, **kwargs):
         get_snapshot_name('vm', snapshot_name, snapshot_incremental)
 
     # log the message for snapshot operation
-    _log_snapshot_message(openstack_resource.resource_id,
+    _log_snapshot_message('Delete',
+                          openstack_resource.resource_id,
                           snapshot_name,
                           snapshot_incremental)
 

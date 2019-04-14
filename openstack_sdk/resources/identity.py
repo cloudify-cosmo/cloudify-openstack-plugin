@@ -23,9 +23,13 @@ from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 class OpenstackUser(ResourceMixin, OpenstackResource):
     service_type = 'identity'
     resource_type = 'user'
+    infinite_resource_quota = 10 ** 9
 
     def list(self, query=None, all_projects=False):
         return self.list_resources(query, all_projects)
+
+    def get_quota_sets(self, quota_type=None):
+        return self.infinite_resource_quota
 
     def get(self):
         self.logger.debug(
@@ -57,7 +61,7 @@ class OpenstackUser(ResourceMixin, OpenstackResource):
         return result
 
     def update(self, new_config=None):
-        user = self.get()
+        user = new_config.pop('user', None) or self.get()
         self.logger.debug(
             'Attempting to update this user: {0} with args {1}'.format(
                 user, new_config))
@@ -69,9 +73,13 @@ class OpenstackUser(ResourceMixin, OpenstackResource):
 class OpenstackRole(ResourceMixin, OpenstackResource):
     service_type = 'identity'
     resource_type = 'role'
+    infinite_resource_quota = 10 ** 9
 
     def list(self, query=None, all_projects=False):
         return self.list_resources(query, all_projects)
+
+    def get_quota_sets(self, quota_type=None):
+        return self.infinite_resource_quota
 
     def get(self):
         self.logger.debug(
@@ -178,11 +186,67 @@ class OpenstackProject(OpenstackResource):
         return result
 
     def update(self, new_config=None):
-        project = self.get()
+        project = new_config.pop('project', None) or self.get()
         self.logger.debug(
             'Attempting to update this project: {0} with args {1}'.format(
                 project, new_config))
         result = self.connection.identity.update_project(project, **new_config)
         self.logger.debug(
             'Updated project with this result: {0}'.format(result))
+        return result
+
+
+class OpenstackDomain(OpenstackResource):
+    service_type = 'identity'
+    resource_type = 'domain'
+
+    def list(self, query=None):
+        query = query or {}
+        return self.connection.identity.domains(**query)
+
+    def get(self):
+        self.logger.debug(
+            'Attempting to find this domain: {0}'.format(self.resource_id))
+        domain = self.connection.identity.get_domain(self.resource_id)
+        self.logger.debug(
+            'Found domain with this result: {0}'.format(domain))
+        return domain
+
+    def find_domain(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not \
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this domain: {0}'.format(name_or_id))
+        domain = self.connection.identity.find_domain(name_or_id)
+        self.logger.debug(
+            'Found domain with this result: {0}'.format(domain))
+        return domain
+
+    def create(self):
+        self.logger.debug(
+            'Attempting to create domain with these args: {0}'.format(
+                self.config))
+        domain = self.connection.identity.create_domain(**self.config)
+        self.logger.debug(
+            'Created domain with this result: {0}'.format(domain))
+        return domain
+
+    def delete(self):
+        domain = self.get()
+        self.logger.debug(
+            'Attempting to delete this domain: {0}'.format(domain))
+        result = self.connection.identity.delete_domain(domain)
+        self.logger.debug(
+            'Deleted domain with this result: {0}'.format(result))
+        return result
+
+    def update(self, new_config=None):
+        domain = self.get()
+        self.logger.debug(
+            'Attempting to update this domain: {0} with args {1}'.format(
+                domain, new_config))
+        result = self.connection.identity.update_domain(domain, **new_config)
+        self.logger.debug(
+            'Updated domain with this result: {0}'.format(result))
         return result

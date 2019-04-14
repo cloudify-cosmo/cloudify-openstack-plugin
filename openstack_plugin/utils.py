@@ -283,7 +283,9 @@ def reset_dict_empty_keys(dict_object):
     :return dict_object: Updated dict_object
     """
     for key, value in dict_object.iteritems():
-        if not value:
+        # Value could be boolean type, we do not need to convert it and lose
+        # the actual value
+        if value is None:
             dict_object[key] = None
     return dict_object
 

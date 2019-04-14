@@ -86,7 +86,15 @@ data_types:
         required: false
       project_domain_id:
         type: string
-        description: The user domain id
+        description: The Project domain id
+        required: false
+      user_domain_name:
+        description: Domain name to operate on.
+        type: string
+        required: false
+      project_domain_name:
+        description: Project domain name to operate on.
+        type: string
         required: false
       kwargs:
         description: >

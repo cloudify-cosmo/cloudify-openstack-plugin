@@ -1,8 +1,8 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
-  - compat.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - ../../compat.yaml
 
 inputs:
 
@@ -39,8 +39,17 @@ node_templates:
       resource_id: test-project
       # Users & roles must be exist in order to assign them to this group,
       # otherwise the install workflow will fail
-      users:
-        - name: mohammeda
-          roles:
-            - test-role-1
+#      users:
+#        - name: mohammeda
+#          roles:
+#            - test-role-1
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              is_domain: False
+              description: 'Test Project'
+            resource_id: { get_property: [ SELF, resource_id ] }
+            openstack_config: { get_property: [ SELF, openstack_config ] }
 

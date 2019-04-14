@@ -1,25 +1,25 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
-  - ../../compat.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - compat.yaml
 
 inputs:
 
   openstack_username:
-    default: ''
+    default: { get_secret: openstack_username }
 
   openstack_password:
-    default: ''
+    default: { get_secret: openstack_password }
 
   openstack_tenant_name:
-    default: ''
+    default: { get_secret: openstack_tenant_name }
 
   openstack_url:
-    default: ''
+    default: { get_secret: openstack_url }
 
   region:
-    default: ''
+    default: { get_secret: region }
 
 dsl_definitions:
 
@@ -37,3 +37,12 @@ node_templates:
     properties:
       openstack_config: *openstack_config
       resource_id: test-user
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              is_enabled: True
+              email: test@test.com
+            resource_id: { get_property: [ SELF, resource_id ] }
+            openstack_config: { get_property: [ SELF, openstack_config ] }

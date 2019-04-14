@@ -29,7 +29,8 @@ from openstack_sdk.resources.compute import (OpenstackFlavor,
                                              OpenstackServerGroup)
 
 from openstack_sdk.resources.identity import (OpenstackUser,
-                                              OpenstackProject)
+                                              OpenstackProject,
+                                              OpenstackDomain)
 
 from openstack_sdk.resources.networks import (OpenstackFloatingIP,
                                               OpenstackNetwork,
@@ -54,6 +55,9 @@ NETWORK_CONFIG_MAP = {
     'v4-fixed-ip': 'fixed_ip',
     'v6-fixed-ip': 'fixed_ip'
 }
+
+# The exposed configuration from cloudify node types under "resource_config"
+# which allow to create openstack resource using 3.x
 
 FLAVOR_RESOURCE_CONFIG = (
     'name',
@@ -204,8 +208,8 @@ OS_PARAMS_MAP = {
     'offset': 'marker'
 }
 
-# List of params supported by the Openstack SDK (openstack plugin 3.x) and
-# old clients
+# List of params allowed by the Openstack SDK (openstack plugin 3.x) in
+# order to list & filter resources
 FLAVOR_LIST_PARAMS = (
    'limit',
    'marker',
@@ -262,13 +266,58 @@ SERVER_LIST_PARAMS = (
     'all_projects',
 )
 
+USER_LIST_PARAMS = (
+    'limit',
+    'marker',
+    'domain_id',
+    'name',
+    'password_expires_at',
+    'enabled'
+)
+
+PROJECT_LIST_PARAMS = (
+    'limit',
+    'marker',
+    'domain_id',
+    'is_domain',
+    'name',
+    'parent_id',
+    'tags',
+    'any_tags',
+    'not_tags',
+    'not_any_tags'
+)
+
+# List of params allowed by the Openstack SDK (openstack plugin 3.x) in
+# order to update resources
+USER_UPDATE_CREATE_PARAMS = (
+    'default_project_id',
+    'domain_id',
+    'enabled',
+    'name',
+    'description',
+    'email',
+    'password',
+)
+
+PROJECT_UPDATE_PARAMS = (
+    'name',
+    'is_domain',
+    'description',
+    'domain_id',
+    'enabled',
+    'tags'
+)
+
 # Map to link each openstack resource to allowed params supported by
 # openstack plugin 3.x
 RESOURCE_LIST_PARAMS_MAP = {
     'flavor': FLAVOR_LIST_PARAMS,
     'server_group': SERVER_GROUP_LIST_PARAMS,
     'image': IMAGE_LIST_PARAMS,
-    'server': SERVER_LIST_PARAMS
+    'server': SERVER_LIST_PARAMS,
+    'user': USER_LIST_PARAMS,
+    'project': PROJECT_LIST_PARAMS
 }
 
 DEPRECATED_CONFIG = DEPRECATED_CLINE_CONFIG + DEPRECATED_ARGS
@@ -543,7 +592,7 @@ class Compat(object):
             if self.operation_name == CLOUDIFY_CREATE_OPERATION:
                 self._process_create_operation_inputs(openstack_type)
             elif self.operation_name == CLOUDIFY_LIST_OPERATION:
-                self._process_list_operation(openstack_type)
+                self._process_list_operation_inputs(openstack_type)
             elif self.operation_name in [CLOUDIFY_UPDATE_OPERATION,
                                          CLOUDIFY_UPDATE_PROJECT_OPERATION]:
                 self._process_update_operation_inputs(openstack_type)
@@ -574,14 +623,50 @@ class Compat(object):
         if openstack_type == 'aggregate':
             self.kwargs['args'] = self.kwargs.get('args').pop('aggregate', {})
         elif openstack_type == 'image':
-            for key, value in self.kwargs['args'].items():
-                if key == 'image_id':
-                    self.kwargs['args']['image'] = self.kwargs['args'].pop(key)
-                elif key == 'remove_props':
-                    # image update does not support remove_props key
-                    self.kwargs['args'].pop('remove_props')
+            self._process_update_operation_inputs_for_image()
+        elif openstack_type == 'user':
+            self._process_update_operation_inputs_for_user()
+        elif openstack_type == 'project':
+            self._process_update_operation_inputs_for_project()
 
-    def _process_list_operation(self, openstack_type):
+    def _process_update_operation_inputs_for_user(self):
+        """
+        This method will handle update operation inputs for user
+        """
+        self._map_user_config(self.kwargs.get('args', {}))
+
+    def _process_update_operation_inputs_for_project(self):
+        """
+        This method will handle update operation inputs for project
+        """
+        for key, value in self.kwargs['args'].items():
+            if key == 'project':
+                project_id = self.get_openstack_resource_id(OpenstackProject,
+                                                            'project',
+                                                            value)
+                self.kwargs.get('args').pop('project')
+                self.kwargs.get('args')['project'] = project_id
+            elif key == 'domain':
+                domain_id = self.get_openstack_resource_id(OpenstackDomain,
+                                                           'domain',
+                                                           value)
+                self.kwargs.get('args').pop('domain')
+                self.kwargs.get('args')['domain_id'] = domain_id
+            elif key not in PROJECT_UPDATE_PARAMS:
+                self.kwargs['args'].pop(key)
+
+    def _process_update_operation_inputs_for_image(self):
+        """
+        This method will handle update operation inputs for image
+        """
+        for key, value in self.kwargs['args'].items():
+            if key == 'image_id':
+                self.kwargs['args']['image'] = self.kwargs['args'].pop(key)
+            elif key == 'remove_props':
+                # image update does not support remove_props key
+                self.kwargs['args'].pop('remove_props')
+
+    def _process_list_operation_inputs(self, openstack_type):
         """
         This method will try to match and map list params used by openstack
         old plugin to be compatible and consistent with openstack plugin 3.x
@@ -593,6 +678,13 @@ class Compat(object):
         elif openstack_type == 'server':
             search_opts = self.kwargs['args'].pop('search_opts')
             self.kwargs['args'].update(search_opts)
+        elif openstack_type in ['user', 'project']:
+            domain = self.kwargs['args'].pop('domain', None)
+            if domain:
+                domain_id = self.get_openstack_resource_id(OpenstackDomain,
+                                                           'domain',
+                                                           domain)
+                self.kwargs['args']['domain_id'] = domain_id
 
         params = dict()
         for key, value in self.kwargs['args'].items():
@@ -634,6 +726,8 @@ class Compat(object):
         """
         This method will map the flavor and image information to be
         consistent with openstack plugin 3.x
+        :param dict config: Resource configuration needed to create flavor
+        or image
         """
         flavor = config.get('flavor')
         image = config.get('image')
@@ -667,6 +761,34 @@ class Compat(object):
         # process them so that it can be consistent and matched openstack
         # plugin 3.x
         self._process_security_group_rules()
+
+    def _map_user_config(self, config):
+        """
+        This method will map the user information to be
+        consistent with openstack plugin 3.x
+        :param dict config: Resource configuration needed to create/update user
+        """
+        for key, value in config.items():
+            if key == 'user':
+                user_id = self.get_openstack_resource_id(OpenstackUser,
+                                                         'user',
+                                                         value)
+                config.pop('user')
+                config['user'] = user_id
+            elif key == 'domain':
+                domain_id = self.get_openstack_resource_id(OpenstackDomain,
+                                                           'domain',
+                                                           value)
+                config.pop('domain')
+                config['domain_id'] = domain_id
+            elif key == 'default_project':
+                project_id = self.get_openstack_resource_id(OpenstackProject,
+                                                            'project',
+                                                            value)
+                config.pop('default_project')
+                config['default_project_id'] = project_id
+            elif key not in USER_UPDATE_CREATE_PARAMS:
+                config.pop(key)
 
     def _transform(self, openstack_type, resource_config_keys):
         """

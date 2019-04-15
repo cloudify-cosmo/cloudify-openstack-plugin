@@ -289,10 +289,10 @@ PROJECT_LIST_PARAMS = (
 )
 
 # List of params allowed by the Openstack SDK (openstack plugin 3.x) in
-# order to update resources
-USER_UPDATE_CREATE_PARAMS = (
+# order to update/create resources
+
+USER_COMMON_PARAMS = (
     'default_project_id',
-    'domain_id',
     'enabled',
     'name',
     'description',
@@ -300,7 +300,10 @@ USER_UPDATE_CREATE_PARAMS = (
     'password',
 )
 
-PROJECT_UPDATE_PARAMS = (
+USER_UPDATE_PARAMS = USER_COMMON_PARAMS
+USER_CREATE_PARAMS = ('domain_id',) + USER_COMMON_PARAMS
+
+PROJECT_COMMON_PARAMS = (
     'name',
     'is_domain',
     'description',
@@ -308,6 +311,9 @@ PROJECT_UPDATE_PARAMS = (
     'enabled',
     'tags'
 )
+
+PROJECT_UPDATE_PARAMS = PROJECT_COMMON_PARAMS
+PROJECT_CREATE_PARAMS = ('parent_id',) + PROJECT_COMMON_PARAMS
 
 # Map to link each openstack resource to allowed params supported by
 # openstack plugin 3.x
@@ -588,10 +594,11 @@ class Compat(object):
         if 'args' in self.kwargs and not self.kwargs['args']:
             del self.kwargs['args']
 
+        if self.operation_name == CLOUDIFY_CREATE_OPERATION:
+            self._process_create_operation_inputs(openstack_type)
+
         if self.kwargs.get('args'):
-            if self.operation_name == CLOUDIFY_CREATE_OPERATION:
-                self._process_create_operation_inputs(openstack_type)
-            elif self.operation_name == CLOUDIFY_LIST_OPERATION:
+            if self.operation_name == CLOUDIFY_LIST_OPERATION:
                 self._process_list_operation_inputs(openstack_type)
             elif self.operation_name in [CLOUDIFY_UPDATE_OPERATION,
                                          CLOUDIFY_UPDATE_PROJECT_OPERATION]:
@@ -602,9 +609,13 @@ class Compat(object):
         This method will lookup the args provided from input opertaions and
         merge them with resource config
         """
-        openstack_resource = self._properties.get(openstack_type, {})
-        openstack_resource.update(copy.deepcopy(self.kwargs['args']))
+        resource_config = self._properties.get(openstack_type, {})
+        resource_config.update(copy.deepcopy(self.kwargs.get('args', {})))
         del self.kwargs['args']
+        if openstack_type == 'user':
+            self._map_user_config(resource_config, USER_CREATE_PARAMS)
+        elif openstack_type == 'project':
+            self._map_project_config(resource_config, PROJECT_CREATE_PARAMS)
 
     def _process_update_operation_inputs(self, openstack_type):
         """
@@ -633,27 +644,19 @@ class Compat(object):
         """
         This method will handle update operation inputs for user
         """
-        self._map_user_config(self.kwargs.get('args', {}))
+        args = self.kwargs.get('args', {})
+        # Update domain is not allowed in update user
+        args.pop('domain', None)
+        self._map_user_config(args, USER_UPDATE_PARAMS)
 
     def _process_update_operation_inputs_for_project(self):
         """
         This method will handle update operation inputs for project
         """
-        for key, value in self.kwargs['args'].items():
-            if key == 'project':
-                project_id = self.get_openstack_resource_id(OpenstackProject,
-                                                            'project',
-                                                            value)
-                self.kwargs.get('args').pop('project')
-                self.kwargs.get('args')['project'] = project_id
-            elif key == 'domain':
-                domain_id = self.get_openstack_resource_id(OpenstackDomain,
-                                                           'domain',
-                                                           value)
-                self.kwargs.get('args').pop('domain')
-                self.kwargs.get('args')['domain_id'] = domain_id
-            elif key not in PROJECT_UPDATE_PARAMS:
-                self.kwargs['args'].pop(key)
+        args = self.kwargs.get('args', {})
+        # Update domain is not allowed in update project
+        args.pop('domain', None)
+        self._map_project_config(args, PROJECT_UPDATE_PARAMS)
 
     def _process_update_operation_inputs_for_image(self):
         """
@@ -762,11 +765,13 @@ class Compat(object):
         # plugin 3.x
         self._process_security_group_rules()
 
-    def _map_user_config(self, config):
+    def _map_user_config(self, config, allowed_params):
         """
         This method will map the user information to be
         consistent with openstack plugin 3.x
         :param dict config: Resource configuration needed to create/update user
+        :param tuple allowed_params: Tuple of keys supported by openstack
+        3.x to update/create user
         """
         for key, value in config.items():
             if key == 'user':
@@ -787,7 +792,37 @@ class Compat(object):
                                                             value)
                 config.pop('default_project')
                 config['default_project_id'] = project_id
-            elif key not in USER_UPDATE_CREATE_PARAMS:
+            elif key not in allowed_params:
+                config.pop(key)
+
+    def _map_project_config(self, config, allowed_params):
+        """
+        This method will map the project information to be
+        consistent with openstack plugin 3.x
+        :param dict config: Resource configuration needed to update project
+        :param tuple allowed_params: Tuple of keys supported by openstack
+        3.x to update project
+        """
+        for key, value in config.items():
+            if key == 'project':
+                project_id = self.get_openstack_resource_id(OpenstackProject,
+                                                            'project',
+                                                            value)
+                config.pop('project')
+                config['project'] = project_id
+            elif key == 'parent':
+                parent_id = self.get_openstack_resource_id(OpenstackProject,
+                                                           'project',
+                                                           value)
+                config.pop('parent')
+                config['parent_id'] = parent_id
+            elif key == 'domain':
+                domain_id = self.get_openstack_resource_id(OpenstackDomain,
+                                                           'domain',
+                                                           value)
+                config.pop('domain')
+                config['domain_id'] = domain_id
+            elif key not in allowed_params:
                 config.pop(key)
 
     def _transform(self, openstack_type, resource_config_keys):

@@ -21,6 +21,9 @@ inputs:
   region:
     default: { get_secret: region }
 
+  domain_name:
+    default: 'Default'
+
 dsl_definitions:
 
   openstack_config: &openstack_config
@@ -37,12 +40,17 @@ node_templates:
     properties:
       openstack_config: *openstack_config
       resource_id: test-user
+      user:
+        domain: { get_input: domain_name }
+        description: 'Test User'
+        default_project: { get_input: openstack_tenant_name }
+        password: '123456789'
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
           inputs:
             args:
-              is_enabled: True
+              enabled: True
               email: test@test.com
             resource_id: { get_property: [ SELF, resource_id ] }
             openstack_config: { get_property: [ SELF, openstack_config ] }

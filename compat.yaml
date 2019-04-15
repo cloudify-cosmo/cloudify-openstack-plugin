@@ -13,7 +13,6 @@ dsl_definitions:
     resource_id:
       default: ''
 
-
 node_types:
 
   cloudify.openstack.nodes.Flavor:
@@ -86,6 +85,30 @@ node_types:
             It is not required to set the value of this property to the management network name. As of Cloudify 4.0, it has no relationship to the bootstrap process.
 
 
+  cloudify.openstack.nodes.WindowsServer:
+    derived_from: cloudify.openstack.nodes.Server
+    properties:
+      use_password:
+        type: boolean
+        default: true
+        description: >
+          Default changed for derived type
+          because Windows instances need a password for agent installation
+      os_family:
+        type: string
+        default: windows
+        description: >
+          (updates the os_family default as a convenience)
+      agent_config:
+        type: cloudify.datatypes.AgentConfig
+        default:
+          port: 5985
+        description: >
+          (updates the defaults for the agent_config for Windows)
+
+
+
+
 
 
 
@@ -121,6 +144,7 @@ node_types:
           If a Server instance is connected to this Volume by a relationship,
           this volume will be used as the boot volume for that Server.
           This option will be deprecated in the future.
+
 
 
 
@@ -167,6 +191,7 @@ node_types:
         default: true
         description: >
           A boolean which determines whether to use the Cloudify Manager's external network if no other external network was given (whether by a relationship, by the `external_network` property or by the nested `external_gateway_info` key in the `router` property). This is only relevant if the manager's external network appears in the Provider-context. Defaults to `true`.
+
 
 
 

@@ -2,7 +2,7 @@ tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
-  - ../../compat.yaml
+  - compat.yaml
 
 inputs:
 
@@ -21,6 +21,10 @@ inputs:
   region:
     default: { get_secret: region }
 
+  parent_project_name:
+    description: The name of parent project
+    default: { get_input: openstack_tenant_name }
+
 dsl_definitions:
 
   openstack_config: &openstack_config
@@ -37,6 +41,13 @@ node_templates:
     properties:
       openstack_config: *openstack_config
       resource_id: test-project
+      project:
+        enabled: False
+        tags:
+          - 'tag1'
+          - 'tag2'
+          - 'tag3'
+        parent: { get_input: parent_project_name }
       # Users & roles must be exist in order to assign them to this group,
       # otherwise the install workflow will fail
 #      users:

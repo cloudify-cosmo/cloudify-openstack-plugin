@@ -24,17 +24,7 @@ inputs:
   external_network_name:
     description: Openstack tenant external network name.
 
-  fixed_ip:
-    default: '10.0.0.8'
-
-  security_group_rules:
-    default:
-    - remote_ip_prefix: 0.0.0.0/0
-      port: 22
-
-
 dsl_definitions:
-
   openstack_config: &openstack_config
     username: { get_input: openstack_username }
     password: { get_input: openstack_password }
@@ -47,67 +37,62 @@ node_templates:
   example-external-network:
     type: cloudify.openstack.nodes.Network
     properties:
-      openstack_config: *openstack_config
       use_external_resource: true
       resource_id: { get_input: external_network_name }
-
-  example-router:
-    type: cloudify.openstack.nodes.Router
-    properties:
-      resource_id: 'simple-router'
       openstack_config: *openstack_config
-    relationships:
-      - target: example-external-network
-        type: cloudify.relationships.connected_to
 
   example-network:
     type: cloudify.openstack.nodes.Network
     properties:
-      resource_id: 'simple-network'
+      resource_id: 'ja-simple-vm-network'
       openstack_config: *openstack_config
+
+  example-network-2:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      resource_id: 'ja-simple-vm-network2'
+      openstack_config: *openstack_config
+
+  example-router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+        use_external_resource: false
+        resource_id: router-resource
+        openstack_config: *openstack_config
+        router:
+          admin_state_up: True
+    relationships:
+      - target: example-external-network
+        type: cloudify.relationships.connected_to
+
+  example-subnet-2:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      resource_id: 'ja-simple-vm-subnet2'
+      subnet:
+        ip_version: 4
+        cidr: 192.168.123.0/24
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
+      openstack_config: *openstack_config
+    relationships:
+      - target: example-network-2
+        type: cloudify.relationships.contained_in
+      - target: example-router
+        type: cloudify.openstack.subnet_connected_to_router
 
   example-subnet:
     type: cloudify.openstack.nodes.Subnet
     properties:
-      resource_id: 'simple-subnet'
+      resource_id: 'ja-simple-vm-subnet'
       subnet:
-        ip_version: '4'
-        cidr: '10.0.0.0/24'
+        ip_version: 4
+        cidr: 10.0.0.0/24
         dns_nameservers: [8.8.4.4, 8.8.8.8]
       openstack_config: *openstack_config
     relationships:
       - target: example-network
         type: cloudify.relationships.contained_in
+      - target: example-subnet-2
+        type: cloudify.relationships.depends_on
       - target: example-router
         type: cloudify.openstack.subnet_connected_to_router
-
-  example-port:
-    type: cloudify.openstack.nodes.Port
-    properties:
-      openstack_config: *openstack_config
-      fixed_ip: { get_input: fixed_ip }
-    relationships:
-      - type: cloudify.relationships.contained_in
-        target: example-network
-      - type: cloudify.openstack.port_connected_to_subnet
-        target: example-subnet
-      - type: cloudify.openstack.port_connected_to_security_group
-        target: example-security-group
-      - type: cloudify.openstack.port_connected_to_floating_ip
-        target: example-ip
-
-  example-security-group:
-    type: cloudify.openstack.nodes.SecurityGroup
-    properties:
-      openstack_config: *openstack_config
-      security_group:
-        name: basic_security_group
-      rules: { get_input: security_group_rules }
-
-  example-ip:
-    type: cloudify.openstack.nodes.FloatingIP
-    properties:
-      openstack_config: *openstack_config
-    relationships:
-      - type: cloudify.relationships.connected_to
-        target: example-external-network

@@ -194,7 +194,6 @@ node_types:
 
 
 
-
   cloudify.openstack.nodes.SecurityGroup:
     derived_from: cloudify.nodes.openstack.SecurityGroup
     properties:

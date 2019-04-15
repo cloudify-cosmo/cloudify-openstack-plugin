@@ -611,7 +611,8 @@ class Compat(object):
         """
         resource_config = self._properties.get(openstack_type, {})
         resource_config.update(copy.deepcopy(self.kwargs.get('args', {})))
-        del self.kwargs['args']
+        if self.kwargs.get('args'):
+            del self.kwargs['args']
         if openstack_type == 'user':
             self._map_user_config(resource_config, USER_CREATE_PARAMS)
         elif openstack_type == 'project':
@@ -696,6 +697,11 @@ class Compat(object):
                     params[key] = value
                 elif key in OS_PARAMS_MAP.keys():
                     params[OS_PARAMS_MAP[key]] = value
+            else:
+                # If we reach here, that means no need to do a mapping
+                # between old and new plugin because there are identical
+                if key != 'retrieve_all':
+                    params[key] = value
         if params:
             self.kwargs['query'] = params
         del self.kwargs['args']

@@ -23,8 +23,7 @@ from openstack_sdk.resources.networks import (OpenstackRouter,
                                               OpenstackNetwork)
 
 from openstack_plugin.decorators import (with_openstack_resource,
-                                         with_compat_node,
-                                         with_multiple_data_sources)
+                                         with_compat_node)
 
 from openstack_plugin.constants import (RESOURCE_ID,
                                         ROUTER_OPENSTACK_TYPE,
@@ -36,15 +35,17 @@ from openstack_plugin.utils import (
     find_openstack_ids_of_connected_nodes_by_openstack_type)
 
 
-def _get_external_network_id(ext_gateway_info):
+def _get_external_network_id(ext_gateway_info, network_key):
     """
     This method will lookup the external network id from external gateway
     info object
     :param dict ext_gateway_info: External info dict
+    :param str network_key: Network key to get from ext_gateway_info,
+    it could be 'network_id' or 'network_name'
     :return str: External network id
     """
-    if ext_gateway_info and ext_gateway_info.get('network_id'):
-        return ext_gateway_info['network_id']
+    if ext_gateway_info and ext_gateway_info.get(network_key):
+        return ext_gateway_info[network_key]
     return None
 
 
@@ -78,17 +79,13 @@ def _get_connected_external_network_from_relationship(network_resource):
     return external_network_ids[0] if external_network_ids else None
 
 
-@with_multiple_data_sources()
-def _connect_router_to_external_network(router_resource, allow_multiple=False):
+def _connect_router_to_external_network(router_resource):
     """
     This method will update router config with external network by checking
     if it is provided using node property "resource_config" or via
     relationship and we should only connect router to external network from
     one source
     :param router_resource: Instance of openstack router resource
-    :param boolean allow_multiple: This flag to set if it is allowed to have
-    networks configuration from multiple resources relationships + node
-    properties
     """
     if not router_resource or router_resource and not router_resource.config:
         return
@@ -99,17 +96,34 @@ def _connect_router_to_external_network(router_resource, allow_multiple=False):
     # Get network id from "resource_config" which represent "router_config"
     ext_net_id = \
         _get_external_network_id(
-            router_resource.config.get('external_gateway_info'))
+            router_resource.config.get('external_gateway_info'), 'network_id')
+
+    # Get network name from "resource_config" which represent "router_config"
+    ext_net_name = \
+        _get_external_network_id(
+            router_resource.config.get(
+                'external_gateway_info'), 'network_name')
+
+    # Get the network name from node property "external_network"
+    ext_net_by_property = ctx.node.properties.get('external_network')
+    ext_net = None
+    if ext_net_by_property:
+        ext_net = network_resource.find_network(ext_net_by_property)
+    elif ext_net_name:
+        del router_resource.config['external_gateway_info']['network_name']
+        ext_net = network_resource.find_network(ext_net_name)
+
+    if ext_net:
+        ext_net_id = ext_net.id
 
     # Get network id id from relationship connected to router
     rel_ext_net_id = \
         _get_connected_external_network_from_relationship(network_resource)
 
-    if ext_net_id and rel_ext_net_id and not allow_multiple:
-        raise NonRecoverableError('Router can\'t both have the '
-                                  '"external_gateway_info" property and be '
-                                  'connected to a network via a '
-                                  'relationship at the same time')
+    if ext_net_id and rel_ext_net_id:
+        raise NonRecoverableError('Router can\'t an'
+                                  ' external network connected by both a '
+                                  'relationship and by a network name/id')
 
     if 'external_gateway_info' not in router_resource.config:
         router_resource.config['external_gateway_info'] = {}

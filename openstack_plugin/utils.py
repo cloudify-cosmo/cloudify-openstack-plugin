@@ -285,7 +285,7 @@ def reset_dict_empty_keys(dict_object):
     for key, value in dict_object.iteritems():
         # Value could be boolean type, we do not need to convert it and lose
         # the actual value
-        if value is None:
+        if not (value or isinstance(value, bool)):
             dict_object[key] = None
     return dict_object
 

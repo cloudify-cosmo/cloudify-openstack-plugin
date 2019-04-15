@@ -736,6 +736,12 @@ node_types:
         type: cloudify.types.openstack.Router
         description: A dictionary that may contain these keys https://developer.openstack.org/api-ref/network/v2/#create-router.
         required: true
+      external_network:
+        type: string
+        default: ''
+        description: >
+          An external network name or ID.
+          If given, the router will use this external network as a gateway.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:

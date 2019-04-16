@@ -18,6 +18,7 @@ import copy
 
 # Third party imports
 import openstack.exceptions
+from cloudify.exceptions import NonRecoverableError
 from cloudify import ctx as _ctx
 
 # Local imports
@@ -47,7 +48,9 @@ from openstack_plugin.constants import (CLOUDIFY_CREATE_OPERATION,
                                         CLOUDIFY_UPDATE_OPERATION,
                                         CLOUDIFY_UPDATE_PROJECT_OPERATION)
 from openstack_plugin.utils import (get_target_node_from_capabilities,
-                                    get_current_operation)
+                                    get_current_operation,
+                                    find_relationship_by_node_type,
+                                    remove_duplicates_items)
 
 NETWORK_CONFIG_MAP = {
     'net-id': 'uuid',
@@ -328,6 +331,8 @@ RESOURCE_LIST_PARAMS_MAP = {
 
 DEPRECATED_CONFIG = DEPRECATED_CLINE_CONFIG + DEPRECATED_ARGS
 
+OLD_ROUTER_NODE = 'cloudify.openstack.nodes.Router'
+
 
 class Compat(object):
     def __init__(self, context, **kwargs):
@@ -360,6 +365,7 @@ class Compat(object):
             'cloudify.openstack.nodes.Port': self._transform_port,
             'cloudify.openstack.nodes.FloatingIP': self._transform_floating_ip,
             'cloudify.openstack.nodes.Router': self._transform_router,
+            'cloudify.openstack.nodes.Routes': self._transform_routes,
             'cloudify.openstack.nodes.SecurityGroup':
                 self._transform_security_group,
             'cloudify.openstack.nodes.RBACPolicy': self._transform_rbac_policy
@@ -453,25 +459,16 @@ class Compat(object):
                 'Resource {0} is not found'.format(resource_name_or_id))
         return remote_instance.id
 
-    def get_common_properties(self, openstack_type):
+    def populate_resource_id(self, openstack_type, properties):
         """
-        This method will prepare common compatible openstack version 3
-        properties
+        This method will populate properties with resource_id based on
+        openstack_type provided
         :param str openstack_type: Openstack object type.
-        :return dict: Common Compatible openstack version 3 properties
+        :param dict properties: Common Compatible openstack version 3
+        properties
         """
-        common = dict()
-        # Populate client config from openstack config
-        if self.openstack_config:
-            client_config = dict()
-            # Parse openstack config so that we can populate the client
-            # config for the `client_config` object
-            for key, value in self._properties['openstack_config'].items():
-                client_config[key] = value
-            common['client_config'] = client_config
-
-        common['resource_config'] = dict()
-        common['resource_config']['kwargs'] = dict()
+        if 'resource_config' not in properties:
+            properties['resource_config'] = dict()
         # Check if use external resource is set to "True" so that we can
         # update the resource config with external resource id
         if self._properties.get('resource_id'):
@@ -486,11 +483,40 @@ class Compat(object):
                 resource_id = self.get_openstack_resource_id(class_resource,
                                                              openstack_type,
                                                              resource_id)
-                common['resource_config']['id'] = resource_id
+                properties['resource_config']['id'] = resource_id
             else:
-                common['resource_config']['name']\
+                properties['resource_config']['name']\
                     = self._properties['resource_id']
 
+    def populate_openstack_config(self, properties):
+        """
+        This method will prepare common compatible openstack version 3
+        properties for openstack config, so that we can use it with
+        openstack 3.x plugin
+        :param dict properties: Common Compatible openstack version 3
+        properties for client config
+        """
+        client_config = dict()
+        if self.openstack_config:
+            # Parse openstack config so that we can populate the client
+            # config for the `client_config` object
+            for key, value in self._properties['openstack_config'].items():
+                client_config[key] = value
+            properties['client_config'] = client_config
+
+    def get_common_properties(self, openstack_type):
+        """
+        This method will prepare common compatible openstack version 3
+        properties
+        :param str openstack_type: Openstack object type.
+        :return dict: Common Compatible openstack version 3 properties
+        """
+        common = dict()
+        # Populate client config from openstack config
+        self.populate_openstack_config(common)
+        common['resource_config'] = dict()
+        common['resource_config']['kwargs'] = dict()
+        self.populate_resource_id(openstack_type, common)
         return common
 
     def _process_security_group_rules(self):
@@ -980,6 +1006,49 @@ class Compat(object):
         :return dict: Compatible router openstack version 3 properties
         """
         return self._transform('router', ROUTER_RESOURCE_CONFIG)
+
+    def _transform_routes(self):
+        """
+        This method will do transform operation for routes node to be
+        compatible with openstack routes version 3
+        :return dict: Compatible routes openstack version 3 properties
+        """
+        properties = dict()
+        self.populate_openstack_config(properties)
+        router_id = None
+        rel_router = find_relationship_by_node_type(self.context.instance,
+                                                    OLD_ROUTER_NODE)
+        if rel_router:
+            router_instance = rel_router.target.instance
+            router_id = \
+                router_instance.runtime_properties.get('id') or \
+                router_instance.runtime_properties.get('external_id')
+        else:
+            self.populate_resource_id('router', properties)
+            router_id = properties['resource_config'].get('id')
+            router_name = properties['resource_config'].get('name')
+            if not (router_id or router_name):
+                raise NonRecoverableError('Unable to transform routes node '
+                                          'because router id is not missing')
+            if not router_id:
+                router_id = self.get_openstack_resource_id(
+                    OpenstackRouter,
+                    'router',
+                    properties['resource_config']['name'])
+
+        # Set runtime for node routes
+        self.context.instance.runtime_properties['id'] = router_id
+        self.context.instance.runtime_properties['external_id'] = router_id
+        # Get routes data from node properties
+        # and args via input operations
+        routes = self._properties.get('routes', {})
+        routes = remove_duplicates_items(routes)
+        # Remove args from kwargs
+        if 'args' in self.kwargs:
+            del self.kwargs['args']
+        if self.operation_name == CLOUDIFY_CREATE_OPERATION:
+            properties['routes'] = routes
+        return properties
 
     def _transform_security_group(self):
         """

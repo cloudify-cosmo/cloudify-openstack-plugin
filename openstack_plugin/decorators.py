@@ -32,6 +32,8 @@ from openstack_plugin.utils \
             update_runtime_properties_for_operation_task,
             is_compat_node)
 
+from openstack_plugin.constants import OPENSTACK_TYPE_PROPERTY
+
 
 def with_openstack_resource(class_decl,
                             existing_resource_handler=None,
@@ -116,6 +118,12 @@ def with_compat_node(func):
         if is_compat_node(ctx_node) and resource_id and not external_id:
             ctx_node.instance.runtime_properties['external_id']\
                 = ctx_node.instance.runtime_properties['id']
+
+        # Check if the 'routes' exists in 'kwargs_config' and override the
+        # 'type' property to match 'routes'
+        if 'routes' in kwargs_config:
+            ctx_node.instance.runtime_properties[
+                OPENSTACK_TYPE_PROPERTY] = 'routes'
     return wrapper
 
 

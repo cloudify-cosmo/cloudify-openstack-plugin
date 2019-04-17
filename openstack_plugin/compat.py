@@ -759,9 +759,9 @@ class Compat(object):
                 # Keypair in openstack sdk does not support any query param
                 # to list keypair resources, which means we cannot apply the
                 # same query list to openstack sdk
-                if openstack_type == 'keypair' and key in \
-                        KEYPAIR_PARAMS_TO_IGNORE:
-                        self.kwargs['args'].pop(key)
+                if openstack_type == 'keypair'\
+                        and key in KEYPAIR_PARAMS_TO_IGNORE:
+                    self.kwargs['args'].pop(key)
                 # All neutron resource support these two params which are
                 # not supported by openstack sdk, and they should be ignored
                 elif key not in ['retrieve_all', 'page_reverse']:

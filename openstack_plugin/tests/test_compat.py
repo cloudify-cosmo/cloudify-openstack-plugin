@@ -28,8 +28,7 @@ from openstack_sdk.resources import images
 from openstack_plugin.compat import Compat
 from openstack_plugin.constants import (CLOUDIFY_CREATE_OPERATION,
                                         CLOUDIFY_LIST_OPERATION,
-                                        CLOUDIFY_UPDATE_OPERATION,
-                                        CLOUDIFY_UPDATE_PROJECT_OPERATION)
+                                        CLOUDIFY_UPDATE_OPERATION)
 
 
 class CompatTestCase(OpenStackTestBase):

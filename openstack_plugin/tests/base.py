@@ -116,6 +116,7 @@ class OpenStackTestBase(unittest.TestCase):
                      test_runtime_properties={},
                      test_relationships=None,
                      type_hierarchy=['cloudify.nodes.Root'],
+                     node_type='cloudify.nodes.Root',
                      test_source=None,
                      test_target=None,
                      ctx_operation_name=None):
@@ -141,6 +142,9 @@ class OpenStackTestBase(unittest.TestCase):
         )
 
         ctx.node.type_hierarchy = type_hierarchy
+        # In order to set type for the node, we need to set it using _node
+        # instance
+        ctx._node._type = node_type
 
         return ctx
 

@@ -65,6 +65,17 @@ node_templates:
       openstack_config: *openstack_config
       volume:
         size: 30
+        description: 'volume-1-description'
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              metadata:
+                key: name
+                value: volume-1
+            openstack_config: { get_property: [ SELF, openstack_config ] }
+            resource_id: { get_property: [ SELF, resource_id ] }
     relationships:
       - target: example-server
         type: cloudify.openstack.volume_attached_to_server

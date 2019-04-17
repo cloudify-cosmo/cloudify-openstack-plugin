@@ -231,7 +231,6 @@ node_templates:
       client_config: *client_config
       resource_config:
         name: { concat: [ { get_input: name_prefix }, 'public_subnet' ] }
-        network_id: { get_attribute: [ example-public-network, id ] }
         cidr: { get_input: example_public_subnet_cidr }
         ip_version: 4
     relationships:

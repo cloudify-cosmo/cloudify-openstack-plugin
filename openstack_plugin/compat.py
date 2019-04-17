@@ -219,7 +219,6 @@ FLAVOR_LIST_PARAMS = (
    'is_public',
    'sort_key',
    'sort_dir',
-   'is_public',
    'min_disk',
    'min_ram'
 )
@@ -291,6 +290,15 @@ PROJECT_LIST_PARAMS = (
     'not_any_tags'
 )
 
+VOLUME_LIST_PARAMS = (
+    'limit',
+    'marker',
+    'name',
+    'status',
+    'project_id',
+    'all_tenants',
+)
+
 # List of params allowed by the Openstack SDK (openstack plugin 3.x) in
 # order to update/create resources
 
@@ -315,9 +323,30 @@ PROJECT_COMMON_PARAMS = (
     'tags'
 )
 
+VOLUME_CREATE_PARAMS = (
+    'name',
+    'description',
+    'size',
+    'imageRef',
+    'multiattach',
+    'availability_zone',
+    'source_volid',
+    'consistencygroup_id',
+    'volume_type',
+    'snapshot_id',
+    'metadata',
+    'scheduler_hints'
+)
+
 PROJECT_UPDATE_PARAMS = PROJECT_COMMON_PARAMS
 PROJECT_CREATE_PARAMS = ('parent_id',) + PROJECT_COMMON_PARAMS
 
+# Common params to ignore
+KEYPAIR_PARAMS_TO_IGNORE = (
+    'user_id',
+    'marker',
+    'limit'
+)
 # Map to link each openstack resource to allowed params supported by
 # openstack plugin 3.x
 RESOURCE_LIST_PARAMS_MAP = {
@@ -326,7 +355,8 @@ RESOURCE_LIST_PARAMS_MAP = {
     'image': IMAGE_LIST_PARAMS,
     'server': SERVER_LIST_PARAMS,
     'user': USER_LIST_PARAMS,
-    'project': PROJECT_LIST_PARAMS
+    'project': PROJECT_LIST_PARAMS,
+    'volume': VOLUME_LIST_PARAMS
 }
 
 DEPRECATED_CONFIG = DEPRECATED_CLINE_CONFIG + DEPRECATED_ARGS
@@ -643,6 +673,8 @@ class Compat(object):
             self._map_user_config(resource_config, USER_CREATE_PARAMS)
         elif openstack_type == 'project':
             self._map_project_config(resource_config, PROJECT_CREATE_PARAMS)
+        elif openstack_type == 'volume':
+            Compat._map_volume_config(resource_config, VOLUME_CREATE_PARAMS)
 
     def _process_update_operation_inputs(self, openstack_type):
         """
@@ -724,10 +756,18 @@ class Compat(object):
                 elif key in OS_PARAMS_MAP.keys():
                     params[OS_PARAMS_MAP[key]] = value
             else:
-                # If we reach here, that means no need to do a mapping
-                # between old and new plugin because there are identical
-                if key != 'retrieve_all':
+                # Keypair in openstack sdk does not support any query param
+                # to list keypair resources, which means we cannot apply the
+                # same query list to openstack sdk
+                if openstack_type == 'keypair' and key in \
+                        KEYPAIR_PARAMS_TO_IGNORE:
+                        self.kwargs['args'].pop(key)
+                # All neutron resource support these two params which are
+                # not supported by openstack sdk, and they should be ignored
+                elif key not in ['retrieve_all', 'page_reverse']:
                     params[key] = value
+                else:
+                    self.kwargs['args'].pop(key)
         if params:
             self.kwargs['query'] = params
         del self.kwargs['args']
@@ -855,6 +895,19 @@ class Compat(object):
                 config.pop('domain')
                 config['domain_id'] = domain_id
             elif key not in allowed_params:
+                config.pop(key)
+
+    @staticmethod
+    def _map_volume_config(config, allowed_params):
+        """
+        This method will map the volume information to be
+        consistent with openstack plugin 3.x
+        :param dict config: Resource configuration needed to create volume
+        :param tuple allowed_params: Tuple of keys supported by openstack
+        3.x to create volume
+        """
+        for key in config.keys():
+            if key not in allowed_params:
                 config.pop(key)
 
     def _transform(self, openstack_type, resource_config_keys):

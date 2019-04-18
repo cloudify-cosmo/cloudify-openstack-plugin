@@ -107,10 +107,6 @@ data_types:
       <<: *data_type_kwargs
       <<: *data_type_name
       <<: *data_type_id
-      external:
-        description: Whether this network is externally accessible.
-        type: boolean
-        default: false
       admin_state_up:
         description: The administrative state of the network, which is up (true) or down (false).
         type: boolean

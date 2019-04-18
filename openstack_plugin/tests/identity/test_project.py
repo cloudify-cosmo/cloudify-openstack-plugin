@@ -117,7 +117,7 @@ class ProjectTestCase(OpenStackTestBase):
             'parent_id': 'test_parent_id'
 
         })
-        # Mock delete project response
+        # Mock get project response
         mock_connection().identity.get_project = \
             mock.MagicMock(return_value=project_instance)
 

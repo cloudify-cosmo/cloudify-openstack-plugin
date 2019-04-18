@@ -135,7 +135,6 @@ VOLUME_RESOURCE_CONFIG = (
 
 NETWORK_RESOURCE_CONFIG = (
     'name',
-    'external',
     'admin_state_up',
 )
 
@@ -328,6 +327,7 @@ VOLUME_CREATE_PARAMS = (
     'description',
     'size',
     'imageRef',
+    'project_id',
     'multiattach',
     'availability_zone',
     'source_volid',
@@ -465,6 +465,11 @@ class Compat(object):
     def operation_name(self):
         return get_current_operation()
 
+    @property
+    def is_update_operation(self):
+        return self.operation_name in [CLOUDIFY_UPDATE_OPERATION,
+                                       CLOUDIFY_UPDATE_PROJECT_OPERATION]
+
     def get_openstack_resource_id(self,
                                   class_resource,
                                   resource_type,
@@ -515,8 +520,9 @@ class Compat(object):
                                                              resource_id)
                 properties['resource_config']['id'] = resource_id
             else:
-                properties['resource_config']['name']\
-                    = self._properties['resource_id']
+                if not self.is_update_operation:
+                    properties['resource_config']['name'] = \
+                        self._properties['resource_id']
 
     def populate_openstack_config(self, properties):
         """
@@ -608,20 +614,6 @@ class Compat(object):
         if rules:
             self.kwargs['security_group_rules'] = rules
 
-    def _process_keypair_config(self):
-        """
-        This method is to drop any configuration that does not support
-        keypair in openstack sdk
-        """
-        keypairs_params = KEYPAIR_RESOURCE_CONFIG + ('private_key',)
-        for key in self.kwargs.get('args', {}).keys():
-            if key not in keypairs_params:
-                self.kwargs['args'].pop(key)
-
-        for key in self._properties.get('keypair', {}).keys():
-            if key not in keypairs_params:
-                self._properties['keypair'].pop(key)
-
     def _process_operation_inputs(self, openstack_type):
         """
         This method will process and the args provided via interface
@@ -656,8 +648,7 @@ class Compat(object):
         if self.kwargs.get('args'):
             if self.operation_name == CLOUDIFY_LIST_OPERATION:
                 self._process_list_operation_inputs(openstack_type)
-            elif self.operation_name in [CLOUDIFY_UPDATE_OPERATION,
-                                         CLOUDIFY_UPDATE_PROJECT_OPERATION]:
+            elif self.is_update_operation:
                 self._process_update_operation_inputs(openstack_type)
 
     def _process_create_operation_inputs(self, openstack_type):
@@ -674,7 +665,11 @@ class Compat(object):
         elif openstack_type == 'project':
             self._map_project_config(resource_config, PROJECT_CREATE_PARAMS)
         elif openstack_type == 'volume':
-            Compat._map_volume_config(resource_config, VOLUME_CREATE_PARAMS)
+            Compat._clean_resource_config(resource_config,
+                                          VOLUME_CREATE_PARAMS)
+        elif openstack_type == 'keypair':
+            self._clean_resource_config(resource_config,
+                                        KEYPAIR_RESOURCE_CONFIG)
 
     def _process_update_operation_inputs(self, openstack_type):
         """
@@ -737,8 +732,8 @@ class Compat(object):
         if openstack_type == 'image' and self.kwargs['args'].get('filters'):
             filters = self.kwargs['args'].pop('filters')
             self.kwargs['args'].update(filters)
-        elif openstack_type == 'server':
-            search_opts = self.kwargs['args'].pop('search_opts')
+        elif openstack_type in ['server', 'volume']:
+            search_opts = self.kwargs['args'].pop('search_opts', {})
             self.kwargs['args'].update(search_opts)
         elif openstack_type in ['user', 'project']:
             domain = self.kwargs['args'].pop('domain', None)
@@ -898,13 +893,13 @@ class Compat(object):
                 config.pop(key)
 
     @staticmethod
-    def _map_volume_config(config, allowed_params):
+    def _clean_resource_config(config, allowed_params):
         """
-        This method will map the volume information to be
-        consistent with openstack plugin 3.x
-        :param dict config: Resource configuration needed to create volume
+        This method will clean the resource config from unsupported
+        configuration that does not support by openstack plugin 3.x
+        :param dict config: Resource configuration needed to create resource
         :param tuple allowed_params: Tuple of keys supported by openstack
-        3.x to create volume
+        3.x to create resource
         """
         for key in config.keys():
             if key not in allowed_params:
@@ -959,7 +954,7 @@ class Compat(object):
         compatible with openstack keypair version 3
         :return dict: Compatible keypair openstack version 3 properties
         """
-        self._process_keypair_config()
+        # self._process_keypair_config()
         return self._transform('keypair', KEYPAIR_RESOURCE_CONFIG)
 
     def _transform_server_group(self):

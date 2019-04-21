@@ -1,5 +1,5 @@
 imports:
-  - plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/CY-1063-add-compact-yaml-to-transform-old-plugin-to-new-plugin/plugin.yaml
 
 dsl_definitions:
 

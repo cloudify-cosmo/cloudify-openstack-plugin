@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.0.0.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/CY-1063-add-compact-yaml-to-transform-old-plugin-to-new-plugin.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.0.0'
+    package_version: '3.1.0'
 
 dsl_definitions:
 
@@ -199,18 +199,6 @@ data_types:
       <<: *data_type_name
       <<: *data_type_id
       <<: *data_type_description
-
-  cloudify.types.openstack.Routes:
-    properties:
-      <<: *data_type_name
-      <<: *data_type_id
-      host_routes:
-        description: >
-          Additional routes for the subnet.
-          A list of dictionaries with destination and nexthop parameters.
-          Default value is an empty list.
-        required: false
-        default: []
 
   cloudify.types.openstack.Router:
     properties:
@@ -744,6 +732,9 @@ node_types:
           implementation: openstack.openstack_plugin.resources.network.router.create
         start:
           implementation: openstack.openstack_plugin.resources.network.router.start
+          inputs:
+            routes:
+              default: []
         stop:
           implementation: openstack.openstack_plugin.resources.network.router.stop
         delete:
@@ -927,8 +918,7 @@ node_types:
         type: boolean
         default: false
         description: >
-          A boolean describing whether this server image supports
-          user-password authentication.
+          A boolean describing whether this server image supports user-password authentication.
           Images that do should post the administrator user's password to the Openstack metadata service (e.g. via cloudbase);
           The password would then be retrieved by the plugin,
           decrypted using the server's keypair and then saved in the server's runtime properties.

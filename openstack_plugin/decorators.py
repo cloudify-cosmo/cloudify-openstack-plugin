@@ -24,6 +24,7 @@ from cloudify.utils import exception_to_error_cause
 
 # Local imports
 from openstack_plugin.compat import Compat
+from openstack_sdk.common import (InvalidDomainException, QuotaException)
 from openstack_plugin.utils \
     import (resolve_ctx,
             get_current_operation,
@@ -33,6 +34,10 @@ from openstack_plugin.utils \
             is_compat_node)
 
 from openstack_plugin.constants import OPENSTACK_TYPE_PROPERTY
+
+EXCEPTIONS = (exceptions.SDKException,
+              InvalidDomainException,
+              QuotaException)
 
 
 def with_openstack_resource(class_decl,
@@ -60,28 +65,27 @@ def with_openstack_resource(class_decl,
 
             # Get the current operation name
             operation_name = get_current_operation()
-
-            # Prepare the openstack resource that need to execute the
-            # current task operation
-            resource = \
-                prepare_resource_instance(class_decl, ctx_node, kwargs)
-
-            if use_external_resource(ctx_node, resource,
-                                     existing_resource_handler,
-                                     **existing_resource_kwargs):
-                return
             try:
+                # Prepare the openstack resource that need to execute the
+                # current task operation
+                resource = \
+                    prepare_resource_instance(class_decl, ctx_node, kwargs)
+
+                if use_external_resource(ctx_node, resource,
+                                         existing_resource_handler,
+                                         **existing_resource_kwargs):
+                    return
                 kwargs['openstack_resource'] = resource
                 func(**kwargs)
                 update_runtime_properties_for_operation_task(operation_name,
                                                              ctx_node,
                                                              resource)
-            except exceptions.SDKException as error:
+            except EXCEPTIONS as errors:
                 _, _, tb = sys.exc_info()
                 raise NonRecoverableError(
-                    'Failure while trying to request '
-                    'Openstack API: {}'.format(error.message),
-                    causes=[exception_to_error_cause(error, tb)])
+                    'Failure while trying to run operation:'
+                    '{0}: {1}'.format(operation_name, errors.message),
+                    causes=[exception_to_error_cause(errors, tb)])
         return wrapper_inner
     return wrapper_outer
 

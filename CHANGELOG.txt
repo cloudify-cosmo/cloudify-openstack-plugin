@@ -1,5 +1,5 @@
 3.1.0:
-    - Fix bugs and add enchantments to openstakc plugin
+    - Fix bugs and add enchantments to Openstack plugin
     - Add backwards compatible support for openstack 2.x
 3.0.0:
     - Openstack Plugin v3: new plugin based on openstacksdk official library (instead of CLI package), new types, new examples, new tests.

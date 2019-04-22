@@ -1,8 +1,8 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
-  - compat.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/3.1.0/compat.yaml
 
 inputs:
 
@@ -83,7 +83,7 @@ node_templates:
       server:
         image:  { get_input: image }
         flavor: { get_input: flavor }
-        networks:
+        nics:
           - net-id: { get_input: network_id }
     relationships:
       - target: example-network

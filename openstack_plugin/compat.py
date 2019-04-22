@@ -50,7 +50,8 @@ from openstack_plugin.constants import (CLOUDIFY_CREATE_OPERATION,
 from openstack_plugin.utils import (get_target_node_from_capabilities,
                                     get_current_operation,
                                     find_relationship_by_node_type,
-                                    remove_duplicates_items)
+                                    remove_duplicates_items
+                                    )
 
 NETWORK_CONFIG_MAP = {
     'net-id': 'uuid',
@@ -565,9 +566,9 @@ class Compat(object):
             return
 
         rules = []
-        sg_rule = copy.deepcopy(self.default_security_group_rule)
         for rule in self.kwargs['security_group_rules']:
             # Check if 'port' exists and then translate it
+            sg_rule = copy.deepcopy(self.default_security_group_rule)
             if rule.get('port'):
                 rule['port_range_min'] = rule['port']
                 rule['port_range_max'] = rule['port']
@@ -670,6 +671,13 @@ class Compat(object):
         elif openstack_type == 'keypair':
             self._clean_resource_config(resource_config,
                                         KEYPAIR_RESOURCE_CONFIG)
+
+        # if there are any key provided as empty string, drop it from the
+        # config, since it could cause issues when create resource using
+        # openstack sdk
+        for key, value in resource_config.items():
+            if not (value or isinstance(value, bool)):
+                del resource_config[key]
 
     def _process_update_operation_inputs(self, openstack_type):
         """
@@ -775,7 +783,8 @@ class Compat(object):
         openstack plugin 3.x
         """
         for key, value in config.items():
-            if key == 'networks' and value and isinstance(value, list):
+            if key in ['nics', 'networks']\
+                    and value and isinstance(value, list):
                 networks = list()
                 for item in value:
                     if item and isinstance(item, dict):

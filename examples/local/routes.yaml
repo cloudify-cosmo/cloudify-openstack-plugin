@@ -3,7 +3,7 @@ tosca_definitions_version: cloudify_dsl_1_3
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
   # For use with a manager use: plugin:cloudify-openstack-plugin
-  - plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/CY-1063-add-compact-yaml-to-transform-old-plugin-to-new-plugin/plugin.yaml
 
 inputs:
 
@@ -21,14 +21,6 @@ inputs:
 
   project_name:
     type: string
-
-  image:
-    type: string
-    description: The UUID of an Ubuntu Trusty 14.04 image in your Openstack account.
-
-  flavor:
-    type: string
-    description: The UUID of small flavor in your Openstack account.
 
   external_network_id:
     type: string

@@ -2,7 +2,7 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/CY-1063-add-compact-yaml-to-transform-old-plugin-to-new-plugin.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.1.0.zip
     package_name: cloudify-openstack-plugin
     package_version: '3.1.0'
 

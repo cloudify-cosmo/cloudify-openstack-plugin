@@ -1,11 +1,11 @@
 imports:
-  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/CY-1063-add-compact-yaml-to-transform-old-plugin-to-new-plugin/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/3.1.0/plugin.yaml
 
 dsl_definitions:
 
   common_config: &common_config
     use_compact_node:
-      description: This to indicate that this node is going to be converted to openstack version 3.0.0 node
+      description: This to indicate that this node is going to be converted to openstack version 3.x node
       type: boolean
       default: true
     openstack_config:

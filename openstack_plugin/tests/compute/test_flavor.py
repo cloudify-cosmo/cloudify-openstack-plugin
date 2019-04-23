@@ -89,6 +89,8 @@ class KeyPairTestCase(OpenStackTestBase):
             'swap': 8
 
         })
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
         # Mock delete flavor response
         mock_connection().compute.delete_flavor = \
             mock.MagicMock(return_value=flavor_instance)

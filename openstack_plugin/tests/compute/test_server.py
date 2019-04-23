@@ -450,14 +450,14 @@ class ServerTestCase(OpenStackTestBase):
         })
 
         # Mock keypair response gor get
-        mock_connection().compute.get_keypair = \
+        mock_connection().compute.find_keypair = \
             mock.MagicMock(return_value=keypair_instance)
 
         # Mock get operation in two places
         # First one will be when get the server for the first time
         # Second one will be when we update the server with all interfaces
         # Third one will be when set the runtime properties
-        mock_connection().compute.get_server = \
+        mock_connection().compute.find_server = \
             mock.MagicMock(side_effect=[old_server_instance,
                                         updated_server_instance,
                                         updated_server_instance])
@@ -534,7 +534,7 @@ class ServerTestCase(OpenStackTestBase):
             'status': 'ACTIVE'
 
         })
-        mock_connection().compute.get_server = \
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         server.configure()
@@ -569,7 +569,7 @@ class ServerTestCase(OpenStackTestBase):
             'status': 'UNKNOWN'
 
         })
-        mock_connection().compute.get_server = \
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         with self.assertRaises(OperationRetry):
@@ -605,7 +605,7 @@ class ServerTestCase(OpenStackTestBase):
             'status': 'ERROR'
 
         })
-        mock_connection().compute.get_server = \
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         with self.assertRaises(NonRecoverableError):
@@ -672,8 +672,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.stop_server = \
             mock.MagicMock(return_value=None)
 
-        # Mock get operation
-        mock_connection().compute.get_server = \
+        # Mock find operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(side_effect=[server_instance,
                                         stopped_server_instance,
                                         stopped_server_instance])
@@ -741,8 +741,8 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
-        # Mock get operation
-        mock_connection().compute.get_server = \
+        # Mock find operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
         # Stop the server
         server.stop()
@@ -795,7 +795,7 @@ class ServerTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=None)
 
         # Mock get operation
-        mock_connection().compute.get_server = \
+        mock_connection().compute.find_server = \
             mock.MagicMock(side_effect=[server_instance,
                                         rebooted_server_instance])
 
@@ -836,8 +836,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.suspend_server = \
             mock.MagicMock(return_value=None)
 
-        # Mock get operation
-        mock_connection().compute.get_server = \
+        # Mock find operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Call suspend
@@ -872,8 +872,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.resume_server = \
             mock.MagicMock(return_value=None)
 
-        # Mock get operation
-        mock_connection().compute.get_server = \
+        # Mock find operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Call resume
@@ -908,8 +908,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.backup = \
             mock.MagicMock(return_value=None)
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock list image operation
@@ -957,8 +957,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.create_image = \
             mock.MagicMock(return_value=None)
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock list image operation
@@ -1035,8 +1035,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.backup = \
             mock.MagicMock(return_value=None)
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock list image operation
@@ -1115,8 +1115,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.backup = \
             mock.MagicMock(return_value=None)
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock list image operation
@@ -1199,8 +1199,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().identity.find_project = \
             mock.MagicMock(return_value=self.project_resource)
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock list image operation
@@ -1286,8 +1286,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().identity.find_project = \
             mock.MagicMock(return_value=self.project_resource)
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock list image operation
@@ -1718,8 +1718,8 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock get floating ip response
@@ -1793,8 +1793,8 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock remove floating ip from server operation
@@ -1866,8 +1866,8 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         self._pepare_relationship_context_for_operation(
@@ -1933,8 +1933,8 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock add security group to server operation
@@ -2012,8 +2012,8 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         self._pepare_relationship_context_for_operation(
@@ -2096,8 +2096,8 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Mock remove security group from server operation
@@ -2187,8 +2187,8 @@ class ServerTestCase(OpenStackTestBase):
 
         })
 
-        # Mock get server operation
-        mock_connection().compute.get_server = \
+        # Mock find server operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         self._pepare_relationship_context_for_operation(
@@ -2231,8 +2231,8 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.delete_server = \
             mock.MagicMock(return_value=None)
 
-        # Mock get operation
-        mock_connection().compute.get_server = \
+        # Mock find operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
         # Call delete server operation
@@ -2255,7 +2255,7 @@ class ServerTestCase(OpenStackTestBase):
             })
 
         # Mock get operation
-        mock_connection().compute.get_server = \
+        mock_connection().compute.find_server = \
             mock.MagicMock(side_effect=openstack.exceptions.ResourceNotFound)
 
         server.delete()
@@ -2270,8 +2270,8 @@ class ServerTestCase(OpenStackTestBase):
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8'
             })
 
-        # Mock get operation
-        mock_connection().compute.get_server = \
+        # Mock find operation
+        mock_connection().compute.find_server = \
             mock.MagicMock(side_effect=openstack.exceptions.ResourceNotFound)
 
         with self.assertRaises(NonRecoverableError):
@@ -2317,7 +2317,7 @@ class ServerTestCase(OpenStackTestBase):
             'availability_zone': 'test_availability_zone',
             'key_name': 'test_key_name',
         })
-        mock_connection().compute.get_server = \
+        mock_connection().compute.find_server = \
             mock.MagicMock(return_value=old_server)
         mock_connection().compute.update_server = \
             mock.MagicMock(return_value=new_server)

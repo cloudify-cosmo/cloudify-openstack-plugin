@@ -54,7 +54,7 @@ class ServerTestCase(base.OpenStackSDKTestBase):
 
         self.server_instance.name = 'test_server'
         self.server_instance.id = 'a34b5509-c122-4c2f-823e-884bb559afe8'
-        self.fake_client.get_server = mock.MagicMock(return_value=server)
+        self.fake_client.find_server = mock.MagicMock(return_value=server)
 
         response = self.server_instance.get()
         self.assertEqual(response.id, 'a34b5509-c122-4c2f-823e-884bb559afe8')

@@ -29,14 +29,15 @@ class OpenstackVolume(ResourceMixin, OpenstackResource):
         return self.connection.block_storage.volumes(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this volume: {0}'.format(self.resource_id))
-        volume = self.connection.block_storage.get_volume(self.resource_id)
-        self.logger.debug(
-            'Found volume with this result: {0}'.format(volume))
-        return volume
+        return self._find_volume()
 
     def find_volume(self, name_or_id=None):
+        return self._find_volume(name_or_id)
+
+    def _find_volume(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not \
+                self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this volume: {0}'.format(name_or_id))
         volume = self.find_resource(name_or_id)
@@ -69,15 +70,15 @@ class OpenstackVolumeType(ResourceMixin, OpenstackResource):
         return self.connection.block_storage.types(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this volume type: {0}'
-            ''.format(self.resource_id))
-        volume_type = self.connection.block_storage.get_type(self.resource_id)
-        self.logger.debug(
-            'Found volume type with this result: {0}'.format(volume_type))
-        return volume_type
+        return self._find_type()
 
     def find_type(self, name_or_id=None):
+        return self._find_type(name_or_id)
+
+    def _find_type(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not \
+                self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this volume type: {0}'
             ''.format(self.resource_id))

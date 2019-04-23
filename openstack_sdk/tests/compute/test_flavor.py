@@ -47,7 +47,7 @@ class FlavorTestCase(base.OpenStackSDKTestBase):
         })
         self.flavor_instance.resource_id = \
             'a95b5509-c122-4c2f-823e-884bb559afe8'
-        self.fake_client.get_flavor = mock.MagicMock(return_value=flavor)
+        self.fake_client.find_flavor = mock.MagicMock(return_value=flavor)
 
         response = self.flavor_instance.get()
         self.assertEqual(response.id, 'a95b5509-c122-4c2f-823e-884bb559afe8')

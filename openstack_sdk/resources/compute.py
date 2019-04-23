@@ -31,11 +31,7 @@ class OpenstackServer(OpenstackResource):
         return self.connection.compute.servers(details, all_projects, **query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this server: {0}'.format(self.resource_id))
-        server = self.connection.compute.get_server(self.resource_id)
-        self.logger.debug(
-            'Found server with this result: {0}'.format(server))
+        server = self.find_server()
         return server
 
     def find_server(self, name_or_id=None):
@@ -44,7 +40,9 @@ class OpenstackServer(OpenstackResource):
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this server: {0}'.format(name_or_id))
-        server = self.connection.compute.find_server(name_or_id)
+        server = self.connection.compute.find_server(
+            name_or_id, ignore_missing=False
+        )
         self.logger.debug(
             'Found server with this result: {0}'.format(server))
         return server
@@ -271,16 +269,17 @@ class OpenstackHostAggregate(ResourceMixin, OpenstackResource):
         return self.list_resources(all_projects=all_projects)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this aggregate: {0}'.format(self.resource_id))
-        aggregate = self.connection.compute.get_aggregate(self.resource_id)
-        self.logger.debug(
-            'Found aggregate with this result: {0}'.format(aggregate))
-        return aggregate
+        return self._find_aggregate()
 
     def find_aggregate(self, name_or_id=None):
+        return self._find_aggregate(name_or_id)
+
+    def _find_aggregate(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
         self.logger.debug(
-            'Attempting to find this aggregate: {0}'.format(self.resource_id))
+            'Attempting to find this aggregate: {0}'.format(name_or_id))
         aggregate = self.find_resource(name_or_id)
         self.logger.debug(
             'Found aggregate with this result: {0}'.format(aggregate))
@@ -357,14 +356,7 @@ class OpenstackServerGroup(OpenstackResource):
         return self.connection.compute.server_groups(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this server group: {0}'
-            ''.format(self.resource_id))
-        server_group = self.connection.compute.get_server_group(
-            self.resource_id
-        )
-        self.logger.debug(
-            'Found server group with this result: {0}'.format(server_group))
+        server_group = self.find_server_group()
         return server_group
 
     def find_server_group(self, name_or_id=None):
@@ -373,7 +365,9 @@ class OpenstackServerGroup(OpenstackResource):
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this server group: {0}'.format(name_or_id))
-        server_group = self.connection.compute.find_server_group(name_or_id)
+        server_group = self.connection.compute.find_server_group(
+            name_or_id, ignore_missing=False
+        )
         self.logger.debug(
             'Found server group with this result: {0}'.format(server_group))
         return server_group
@@ -409,12 +403,7 @@ class OpenstackKeyPair(OpenstackResource):
         return self.connection.compute.keypairs()
 
     def get(self):
-        name = self.name if not self.resource_id else self.resource_id
-        self.logger.debug(
-            'Attempting to find this key pair: {0}'.format(name))
-        key_pair = self.connection.compute.get_keypair(name)
-        self.logger.debug(
-            'Found key pair with this result: {0}'.format(key_pair))
+        key_pair = self.find_keypair()
         return key_pair
 
     def find_keypair(self, name_or_id=None):
@@ -423,7 +412,8 @@ class OpenstackKeyPair(OpenstackResource):
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this key pair: {0}'.format(name_or_id))
-        key_pair = self.connection.compute.find_keypair(name_or_id)
+        key_pair = self.connection.compute.find_keypair(name_or_id,
+                                                        ignore_missing=False)
         self.logger.debug(
             'Found key pair with this result: {0}'.format(key_pair))
         return key_pair
@@ -451,21 +441,26 @@ class OpenstackFlavor(ResourceMixin, OpenstackResource):
     service_type = 'compute'
     resource_type = 'flavor'
 
+    def validate_resource_identifier(self):
+        return None
+
     def list(self, query=None, all_projects=False):
         return self.list_resources(query, all_projects)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this flavor: {0}'.format(self.resource_id))
-        flavor = self.connection.compute.get_flavor(self.resource_id)
-        self.logger.debug(
-            'Found flavor with this result: {0}'.format(flavor))
-        return flavor
+        return self._find_flavor()
 
     def find_flavor(self, name_or_id=None):
+        return self._find_flavor(name_or_id)
+
+    def _find_flavor(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
         self.logger.debug('Attempting to find this flavor: {0}'
                           ''.format(name_or_id))
-        flavor = self.find_resource(name_or_id)
+        flavor = self.connection.compute.find_flavor(
+            name_or_id, ignore_missing=False)
         self.logger.debug(
             'Found flavor with this result: {0}'.format(flavor))
         return flavor

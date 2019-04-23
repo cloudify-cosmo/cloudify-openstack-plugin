@@ -109,6 +109,9 @@ class HostAggregateTestCase(OpenStackTestBase):
             'hosts': hosts_to_add
         })
 
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
+
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \
             mock.MagicMock(return_value=old_aggregate_instance)
@@ -171,6 +174,9 @@ class HostAggregateTestCase(OpenStackTestBase):
                 },
                 'hosts': ['host-2']
             })
+
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
 
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \
@@ -260,6 +266,9 @@ class HostAggregateTestCase(OpenStackTestBase):
             'hosts': hosts_to_add
         })
 
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
+
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \
             mock.MagicMock(return_value=old_aggregate_instance)
@@ -305,6 +314,8 @@ class HostAggregateTestCase(OpenStackTestBase):
             'availability_zone': 'test_availability_zone',
             'hosts': ['host-2']
         })
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
 
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \

@@ -248,7 +248,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock find flavor response
-        mock_connection().compute.get_flavor = \
+        mock_connection().compute.find_flavor = \
             mock.MagicMock(return_value=flavor_instance)
         self.assertEqual(
             compat_node.get_openstack_resource_id(
@@ -290,7 +290,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock get flavor response
-        mock_connection().compute.get_flavor = \
+        mock_connection().compute.find_flavor = \
             mock.MagicMock(return_value=flavor_instance)
         compat_node.populate_resource_id('flavor', properties)
         self.assertEqual(
@@ -688,7 +688,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock get flavor response
-        mock_connection().compute.get_flavor = \
+        mock_connection().compute.find_flavor = \
             mock.MagicMock(return_value=flavor_instance)
 
         image_instance = openstack.image.v2.image.Image(**{
@@ -851,7 +851,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock find project response
-        mock_connection().identity.find_project = \
+        mock_connection().identity.get_project = \
             mock.MagicMock(return_value=project_instance)
 
         domain_instance = openstack.identity.v3.domain.Domain(**{
@@ -861,7 +861,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock find domain response
-        mock_connection().identity.find_domain = \
+        mock_connection().identity.get_domain = \
             mock.MagicMock(return_value=domain_instance)
 
         compat_node = Compat(context=context, **kwargs)
@@ -942,7 +942,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock find project response
-        mock_connection().identity.find_project = \
+        mock_connection().identity.get_project = \
             mock.MagicMock(return_value=project_instance)
 
         compat_node = Compat(context=context, **kwargs)
@@ -988,7 +988,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock find domain response
-        mock_connection().identity.find_domain = \
+        mock_connection().identity.get_domain = \
             mock.MagicMock(return_value=domain_instance)
 
         compat_node = Compat(context=context, **kwargs)
@@ -1043,7 +1043,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock find project response
-        mock_connection().identity.find_project = \
+        mock_connection().identity.get_project = \
             mock.MagicMock(return_value=project_instance)
 
         domain_instance = openstack.identity.v3.domain.Domain(**{
@@ -1053,7 +1053,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock find domain response
-        mock_connection().identity.find_domain = \
+        mock_connection().identity.get_domain = \
             mock.MagicMock(return_value=domain_instance)
 
         compat_node = Compat(context=context, **kwargs)
@@ -1106,7 +1106,7 @@ class CompatTestCase(OpenStackTestBase):
         })
 
         # Mock find project response
-        mock_connection().identity.find_project = \
+        mock_connection().identity.get_project = \
             mock.MagicMock(return_value=project_instance)
 
         compat_node = Compat(context=context, **kwargs)
@@ -1149,7 +1149,7 @@ class CompatTestCase(OpenStackTestBase):
 
         })
         # Mock find domain response
-        mock_connection().identity.find_domain = \
+        mock_connection().identity.get_domain = \
             mock.MagicMock(return_value=domain_instance)
 
         compat_node = Compat(context=context, **kwargs)

@@ -27,17 +27,17 @@ inputs:
     default: 'external-server-blueprint-'
     description: Prefix string for all resources
 
-  external_network_id:
+  external_network_name:
     type: string
-    description: A network that provisions floating IPs.
+    description: Name external network that provisions floating IPs.
 
-  external_key_pair_id:
+  external_key_pair_name:
     type: string
-    description: An external keypair already created
+    description: Name for external keypair already created
 
-  external_server_id:
+  external_server_name:
     type: string
-    description: An external server already provisioned
+    description: Name for external server already provisioned
 
   example_subnet_cidr_1:
     type: string
@@ -65,7 +65,7 @@ node_templates:
       client_config: *client_config
       use_external_resource: true
       resource_config:
-        id: { get_input: external_network_id }
+        name: { get_input: external_network_name }
         kwargs:
           routing:
             external: true
@@ -78,7 +78,7 @@ node_templates:
       agent_config:
         install_method: none
       resource_config:
-        id: { get_input: external_server_id }
+        name: { get_input: external_server_name }
     relationships:
       - type: cloudify.relationships.openstack.server_connected_to_port
         target: example-port
@@ -93,7 +93,7 @@ node_templates:
       use_external_resource: true
       client_config: *client_config
       resource_config:
-        id: { get_input: external_key_pair_id }
+        name: { get_input: external_key_pair_name }
 
   example-router:
     type: cloudify.nodes.openstack.Router

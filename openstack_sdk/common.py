@@ -220,6 +220,17 @@ class ResourceMixin(object):
 
         return target_resources
 
+    def _get(self, resource_id):
+        """
+        This method will try to lookup openstack resource based on id if
+        possible
+        :param str resource_id: Resource id
+        :return: Instance that extend openstack.resource.Resource
+        """
+        service_type = getattr(self.connection, self.service_type)
+        return getattr(service_type,
+                       'get_{0}'.format(self.resource_type))(resource_id)
+
     def find_resource(self, name_or_id):
         """
         This method will try to lookup resource if it exists
@@ -230,11 +241,8 @@ class ResourceMixin(object):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
-
-        # try to lookup the project first
-        self.resource_id = name_or_id
         try:
-            return self.get()
+            return self._get(name_or_id)
         except openstack.exceptions.NotFoundException:
             pass
 

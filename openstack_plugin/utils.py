@@ -685,6 +685,8 @@ def use_external_resource(_ctx,
     if is_create or is_not_external_rel:
         return None
 
+    if remote_resource:
+        openstack_resource.resource_id = remote_resource.id
     # Just log message that we cannot delete resource since it is an
     # external resource
     if operation_name == CLOUDIFY_CREATE_OPERATION:

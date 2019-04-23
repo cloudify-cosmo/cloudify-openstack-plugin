@@ -16,6 +16,9 @@
 # Based on this documentation:
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html.
 
+# Third part imports
+import openstack.exceptions
+
 # Local imports
 from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 
@@ -32,13 +35,15 @@ class OpenstackUser(ResourceMixin, OpenstackResource):
         return self.infinite_resource_quota
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this user: {0}'.format(self.resource_id))
-        user = self.connection.identity.get_user(self.resource_id)
-        self.logger.debug('Found user with this result: {0}'.format(user))
-        return user
+        return self._find_user()
 
     def find_user(self, name_or_id=None):
+        return self._find_user(name_or_id)
+
+    def _find_user(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this user: {0}'.format(name_or_id))
         user = self.find_resource(name_or_id)
@@ -82,13 +87,15 @@ class OpenstackRole(ResourceMixin, OpenstackResource):
         return self.infinite_resource_quota
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this role: {0}'.format(self.resource_id))
-        role = self.connection.identity.get_role(self.resource_id)
-        self.logger.debug('Found role with this result: {0}'.format(role))
-        return role
+        return self._find_role()
 
     def find_role(self, name_or_id=None):
+        return self._find_role(name_or_id)
+
+    def _find_role(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this role: {0}'.format(
                 self.name if not self.resource_id else self.resource_id))
@@ -149,20 +156,25 @@ class OpenstackProject(OpenstackResource):
         return self.infinite_resource_quota
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this project: {0}'.format(self.resource_id))
-        project = self.connection.identity.get_project(self.resource_id)
-        self.logger.debug(
-            'Found project with this result: {0}'.format(project))
+        project = self._find_project()
         return project
 
     def find_project(self, name_or_id=None):
+        return self._find_project(name_or_id)
+
+    def _find_project(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not \
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this project: {0}'.format(name_or_id))
-        project = self.connection.identity.find_project(name_or_id)
+        try:
+            project = self.connection.identity.get_project(name_or_id)
+        except openstack.exceptions.NotFoundException:
+            project = self.connection.identity.find_project(
+                name_or_id, ignore_missing=False
+            )
+
         self.logger.debug(
             'Found project with this result: {0}'.format(project))
         return project
@@ -205,20 +217,23 @@ class OpenstackDomain(OpenstackResource):
         return self.connection.identity.domains(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this domain: {0}'.format(self.resource_id))
-        domain = self.connection.identity.get_domain(self.resource_id)
-        self.logger.debug(
-            'Found domain with this result: {0}'.format(domain))
-        return domain
+        return self._find_domain()
 
     def find_domain(self, name_or_id=None):
+        return self._find_domain(name_or_id)
+
+    def _find_domain(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not \
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this domain: {0}'.format(name_or_id))
-        domain = self.connection.identity.find_domain(name_or_id)
+        try:
+            domain = self.connection.identity.get_domain(name_or_id)
+        except openstack.exceptions.NotFoundException:
+            domain = self.connection.identity.find_domain(
+                name_or_id, ignore_missing=False
+            )
         self.logger.debug(
             'Found domain with this result: {0}'.format(domain))
         return domain

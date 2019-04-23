@@ -32,13 +32,15 @@ class OpenstackImage(ResourceMixin, OpenstackResource):
         return self.infinite_resource_quota
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this image: {0}'.format(self.resource_id))
-        image = self.connection.image.get_image(self.resource_id)
-        self.logger.debug('Found image with this result: {0}'.format(image))
-        return image
+        return self._find_image()
 
     def find_image(self, name_or_id=None):
+        return self._find_image(name_or_id)
+
+    def _find_image(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
         self.logger.debug('Attempting to find this image: {0}'
                           ''.format(name_or_id))
         image = self.find_resource(name_or_id)

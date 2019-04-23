@@ -42,7 +42,7 @@ class KeyPairTestCase(base.OpenStackSDKTestBase):
 
         })
         self.keypair_instance.name = 'test_key_pair'
-        self.fake_client.get_keypair = mock.MagicMock(return_value=keypair)
+        self.fake_client.find_keypair = mock.MagicMock(return_value=keypair)
 
         response = self.keypair_instance.get()
         self.assertEqual(response.name, 'test_key_pair')

@@ -17,6 +17,9 @@
 # Based on this documentation:
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/network.html.
 
+# Third part imports
+import openstack.exceptions
+
 # Local imports
 from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 
@@ -37,20 +40,26 @@ class OpenstackNetwork(OpenstackResource):
         return self.connection.network.networks(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this network: {0}'.format(self.resource_id))
-        network = self.connection.network.get_network(self.resource_id)
-        self.logger.debug(
-            'Found network with this result: {0}'.format(network))
-        return network
+        return self._find_network()
 
     def find_network(self, name_or_id=None):
+        return self._find_network(name_or_id)
+
+    def _find_network(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this network: {0}'.format(name_or_id))
-        network = self.connection.network.find_network(name_or_id)
+        try:
+            network = self.connection.network.get_network(
+                name_or_id
+            )
+        except openstack.exceptions.NotFoundException:
+            network = self.connection.network.find_network(
+                name_or_id,
+                ignore_missing=False
+            )
         self.logger.debug(
             'Found network with this result: {0}'.format(network))
         return network
@@ -101,20 +110,26 @@ class OpenstackSubnet(OpenstackResource):
         return self.connection.network.subnets(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this subnet: {0}'.format(self.resource_id))
-        subnet = self.connection.network.get_subnet(self.resource_id)
-        self.logger.debug('Found subnet with this result: {0}'.format(subnet))
+        subnet = self._find_subnet()
         return subnet
 
     def find_subnet(self, name_or_id=None):
+        return self._find_subnet(name_or_id)
+
+    def _find_subnet(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this subnet: {0}'.format(name_or_id))
-        subnet = self.connection.network.find_subnet(
-            name_or_id, project_id=self.project_id)
+        try:
+            subnet = self.connection.network.get_subnet(name_or_id)
+        except openstack.exceptions.NotFoundException:
+            subnet = \
+                self.connection.network.find_subnet(
+                    name_or_id,
+                    ignore_missing=False
+                )
         self.logger.debug(
             'Found subnet with this result: {0}'.format(subnet))
         return subnet
@@ -164,21 +179,26 @@ class OpenstackPort(OpenstackResource):
         return self.connection.network.ports(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this port: {0}'.format(self.resource_id))
-        port = self.connection.network.get_port(self.resource_id)
-        self.logger.debug(
-            'Found port with this result: {0}'.format(port))
-        return port
+        return self._find_port()
 
     def find_port(self, name_or_id=None):
+        return self._find_port(name_or_id)
+
+    def _find_port(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this port: {0}'.format(name_or_id))
-        port = self.connection.network.find_port(
-            name_or_id, project_id=self.project_id)
+
+        try:
+            port = self.connection.network.get_port(name_or_id)
+        except openstack.exceptions.NotFoundException:
+            port = \
+                self.connection.network.find_port(
+                    name_or_id,
+                    ignore_missing=False
+                )
         self.logger.debug(
             'Found port with this result: {0}'.format(port))
         return port
@@ -228,20 +248,27 @@ class OpenstackRouter(OpenstackResource):
         return self.connection.network.routers(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this router: {0}'.format(self.resource_id))
-        router = self.connection.network.get_router(self.resource_id)
-        self.logger.debug('Found router with this result: {0}'.format(router))
+        router = self._find_router()
         return router
 
     def find_router(self, name_or_id=None):
+        return self._find_router(name_or_id)
+
+    def _find_router(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this router: {0}'.format(name_or_id))
-        router = self.connection.network.find_router(
-            name_or_id, project_id=self.project_id)
+
+        try:
+            router = self.connection.network.get_router(name_or_id)
+        except openstack.exceptions.NotFoundException:
+            router = \
+                self.connection.network.find_router(
+                    name_or_id,
+                    ignore_missing=False
+                )
         self.logger.debug(
             'Found router with this result: {0}'.format(router))
         return router
@@ -313,24 +340,28 @@ class OpenstackFloatingIP(OpenstackResource):
         return self.connection.network.ips(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this floating ip: {0}'
-            ''.format(self.resource_id))
-        floating_ip = self.connection.network.get_ip(self.resource_id)
-        self.logger.debug(
-            'Found floating ip with this result: {0}'.format(floating_ip))
-        return floating_ip
+        return self._find_floatingip()
 
     def find_floatingip(self, name_or_id=None):
+        return self._find_floatingip(name_or_id)
+
+    def _find_floatingip(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this floating ip: {0}'.format(name_or_id))
-        floating_ip = self.connection.network.find_ip(
-            name_or_id, project_id=self.project_id)
+
+        try:
+            floating_ip = self.connection.network.get_ip(name_or_id)
+        except openstack.exceptions.NotFoundException:
+            floating_ip = \
+                self.connection.network.find_ip(
+                    name_or_id,
+                    ignore_missing=False
+                )
         self.logger.debug(
-            'Found floating ip with this result: {0}'.format(floating_ip))
+            'Found ip with this result: {0}'.format(floating_ip))
         return floating_ip
 
     def create(self):
@@ -375,27 +406,31 @@ class OpenstackSecurityGroup(OpenstackResource):
         return self.connection.network.security_groups(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this security group: {0}'
-            ''.format(self.resource_id))
-        security_group = self.connection.network.get_security_group(
-            self.resource_id)
-        self.logger.debug(
-            'Found security group with this result: {0}'.format(
-                security_group))
-        return security_group
+        return self._find_security_group()
 
     def find_security_group(self, name_or_id=None):
+        return self._find_security_group(name_or_id)
+
+    def _find_security_group(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this security group: {0}'.format(name_or_id))
-        security_group = self.connection.network.find_security_group(
-            name_or_id, project_id=self.project_id)
+        try:
+            security_group = \
+                self.connection.network.get_security_group(
+                    name_or_id
+                )
+        except openstack.exceptions.NotFoundException:
+            security_group = \
+                self.connection.network.find_security_group(
+                    name_or_id,
+                    ignore_missing=False
+                )
         self.logger.debug(
-            'Found security group with this result: {0}'.format(
-                security_group))
+            'Found security group '
+            'with this result: {0}'.format(security_group))
         return security_group
 
     def create(self):
@@ -447,29 +482,32 @@ class OpenstackSecurityGroupRule(OpenstackResource):
         return self.connection.network.security_group_rules(**query)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this security group rule: {0}'
-            ''.format(self.resource_id))
-        security_group_rule = self.connection.network.get_security_group_rule(
-            self.resource_id)
-        self.logger.debug(
-            'Found security group with this result: {0}'.format(
-                security_group_rule))
-        return security_group_rule
+        return self._find_security_group_rule()
 
     def find_security_group_rule(self, name_or_id=None):
+        return self._find_security_group_rule(name_or_id)
+
+    def _find_security_group_rule(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find '
             'this security group rule: {0}'.format(name_or_id))
-        security_group_rule = \
-            self.connection.network.find_security_group_rule(
-                name_or_id, project_id=self.project_id)
+        try:
+            security_group_rule = \
+                self.connection.network.get_security_group_rule(
+                    name_or_id
+                )
+        except openstack.exceptions.NotFoundException:
+            security_group_rule = \
+                self.connection.network.find_security_group_rule(
+                    name_or_id,
+                    ignore_missing=False
+                )
         self.logger.debug(
-            'Found security group with this result: {0}'.format(
-                security_group_rule))
+            'Found security group rule '
+            'with this result: {0}'.format(security_group_rule))
         return security_group_rule
 
     def create(self):
@@ -507,22 +545,27 @@ class OpenstackRBACPolicy(ResourceMixin, OpenstackResource):
         return self.list_resources(query, all_projects)
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this rbac policy: {0}'
-            ''.format(self.resource_id))
-        rbac_policy = self.connection.network.get_rbac_policy(self.resource_id)
-        self.logger.debug(
-            'Found rbac policy with this result: {0}'.format(rbac_policy))
-        return rbac_policy
+        return self._find_rbac_policy()
 
     def find_rbac_policy(self, name_or_id=None):
+        return self._find_rbac_policy(name_or_id)
+
+    def _find_rbac_policy(self, name_or_id=None):
         if not name_or_id:
             name_or_id = self.name if not\
                 self.resource_id else self.resource_id
+
         self.logger.debug(
             'Attempting to find this rbac policy: {0}'.format(name_or_id))
-        rbac_policy = self.connection.network.find_rbac_policy(
-            name_or_id, project_id=self.project_id)
+        try:
+            rbac_policy = \
+                self.connection.network.get_rbac_policy(self.resource_id)
+        except openstack.exceptions.NotFoundException:
+            rbac_policy = self.connection.network.find_rbac_policy(
+                name_or_id,
+                ignore_missing=False
+            )
+
         self.logger.debug(
             'Found rbac policy with this result: {0}'.format(rbac_policy))
         return rbac_policy

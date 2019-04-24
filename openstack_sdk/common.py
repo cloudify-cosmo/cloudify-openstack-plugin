@@ -186,37 +186,17 @@ class ResourceMixin(object):
                 'Resource {0} is not found'.format(name_or_id))
         return target
 
-    def list_resources(self, query=None, all_projects=False):
+    def list_resources(self, query=None):
         """
         This method will try to list all resources based on provided filters
         :param dict query: Dict that contains filters to use fetch resources
-        :param boolean all_projects: Flag to indicate that we need to list
-        all resources from all projects
         :return: List of instances that extend openstack.resource.Resource
         """
         query = query or {}
-        target_resources = []
 
         service_type = getattr(self.connection, self.service_type)
         items = getattr(service_type, self.resource_plural(self.resource_type))
-        # There is no 'project_id' filter to list some resources for specific
-        # project, so in order to avoid list resources from all projects,
-        # it is required to add custom filter and just return the resources we
-        # care about for project
-        # User also will have the ability to list resources from all projects
-        # if he wants by passing "all_projects=True"
-        all_projects = query.get('all_projects') or all_projects
-        if not all_projects:
-            project_id = query.get('project_id') or self.project_id
-            if query.get('project_id'):
-                del query['project_id']
-
-            items = items(**query) if query else items()
-            for item in items:
-                if ResourceMixin.get_project_id_location(item) == project_id:
-                    target_resources.append(item)
-        else:
-            target_resources = items(**query) if query else items()
+        target_resources = items(**query) if query else items()
 
         return target_resources
 

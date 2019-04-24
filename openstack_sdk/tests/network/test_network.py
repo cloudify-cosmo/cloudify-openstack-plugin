@@ -74,10 +74,7 @@ class NetworkTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.name, 'test_network')
         self.assertEqual(response.is_router_external, True)
 
-    @mock.patch('openstack_sdk.common.'
-                'OpenstackResource.get_project_id_by_name')
-    def test_list_networks(self, mock_project):
-        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
+    def test_list_networks(self):
         nets = [
             openstack.network.v2.network.Network(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',

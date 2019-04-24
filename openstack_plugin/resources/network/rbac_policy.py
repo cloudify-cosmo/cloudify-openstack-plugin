@@ -268,10 +268,11 @@ def _clean_resources_from_target_object(client_config,
 
 @with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
-def create(openstack_resource, args):
+def create(openstack_resource, args={}):
     """
     Create openstack rbac policy instance
     :param openstack_resource: instance of openstack rbac policy resource
+    :param args: Args added via operation task inputs
     """
     _prepare_rbac_policy_object(openstack_resource, args)
     created_resource = openstack_resource.create()
@@ -414,7 +415,7 @@ def creation_validation(openstack_resource):
 @with_compat_node
 @with_openstack_resource(OpenstackRBACPolicy)
 def unlink_target_object(openstack_resource,
-                         resource_id,
+                         resource_network_id,
                          disable_dhcp=False,
                          clean_ports=False):
     """
@@ -443,7 +444,7 @@ def unlink_target_object(openstack_resource,
        be passed as "False"
 
     :param openstack_resource: Instance of current openstack rbac policy
-    :param str resource_id: Resource id of the target object (network)
+    :param str resource_network_id: Resource id of the target object (network)
     :param bool disable_dhcp: Flag to allow disable dhcp for subnets
     :param bool clean_ports: Flag to allow unset & clear ports
     """
@@ -452,7 +453,7 @@ def unlink_target_object(openstack_resource,
 
     _clean_resources_from_target_object(
         openstack_resource.client_config,
-        resource_id,
+        resource_network_id,
         resource_type,
         disable_dhcp,
         clean_ports

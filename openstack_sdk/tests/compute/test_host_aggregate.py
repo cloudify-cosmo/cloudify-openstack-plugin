@@ -35,17 +35,7 @@ class HostAggregateTestCase(base.OpenStackSDKTestBase):
         )
         self.host_aggregate_instance.connection = self.connection
 
-    @mock.patch('openstack_sdk.common.'
-                'ResourceMixin.get_project_id_location')
-    @mock.patch('openstack_sdk.common.'
-                'OpenstackResource.get_project_id_by_name')
-    def test_get_host_aggregate(self,
-                                mock_project,
-                                mock_project_id_location
-                                ):
-        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
-        mock_project_id_location.return_value =\
-            '1b6s22a21fdf512d973b325ddd843306'
+    def test_get_host_aggregate(self):
         aggregate = openstack.compute.v2.aggregate.Aggregate(**{
             'id': 'a34b5509-c122-4c2f-823e-884bb559afe8',
             'name': 'test_aggregate',
@@ -64,16 +54,7 @@ class HostAggregateTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.id, 'a34b5509-c122-4c2f-823e-884bb559afe8')
         self.assertEqual(response.name, 'test_aggregate')
 
-    @mock.patch('openstack_sdk.common.'
-                'ResourceMixin.get_project_id_location')
-    @mock.patch('openstack_sdk.common.'
-                'OpenstackResource.get_project_id_by_name')
-    def test_list_aggregates(self,
-                             mock_project,
-                             mock_project_id_location):
-        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
-        mock_project_id_location.return_value =\
-            '1b6s22a21fdf512d973b325ddd843306'
+    def test_list_aggregates(self):
         aggregate_list = [
             openstack.compute.v2.aggregate.Aggregate(**{
                 'id': 'a34b5509-c122-4c2f-823e-884bb559afe8',

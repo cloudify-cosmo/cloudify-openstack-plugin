@@ -62,10 +62,7 @@ class RouterTestCase(base.OpenStackSDKTestBase):
         self.assertEqual(response.name, 'test_name')
         self.assertEqual(response.flavor_id, '5')
 
-    @mock.patch('openstack_sdk.common.'
-                'OpenstackResource.get_project_id_by_name')
-    def test_list_routers(self, mock_project):
-        mock_project.return_value = '1b6s22a21fdf512d973b325ddd843306'
+    def test_list_routers(self):
         routers = [
             openstack.network.v2.router.Router(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',

@@ -1428,7 +1428,7 @@ relationships:
         unlink:
           implementation: openstack.openstack_plugin.resources.network.rbac_policy.unlink_target_object
           inputs:
-            resource_id:
+            resource_network_id:
               default: { get_attribute: [ TARGET, id ] }
             disable_dhcp:
               default: false

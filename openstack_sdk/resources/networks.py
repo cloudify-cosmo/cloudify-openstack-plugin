@@ -35,8 +35,6 @@ class OpenstackNetwork(OpenstackResource):
 
     def list(self, query=None):
         query = query or {}
-        if 'project_id' not in query:
-            query['project_id'] = self.project_id
         return self.connection.network.networks(**query)
 
     def get(self):
@@ -105,8 +103,6 @@ class OpenstackSubnet(OpenstackResource):
 
     def list(self, query=None):
         query = query or {}
-        if 'project_id' not in query:
-            query['project_id'] = self.project_id
         return self.connection.network.subnets(**query)
 
     def get(self):
@@ -174,8 +170,6 @@ class OpenstackPort(OpenstackResource):
 
     def list(self, query=None):
         query = query or {}
-        if 'project_id' not in query:
-            query['project_id'] = self.project_id
         return self.connection.network.ports(**query)
 
     def get(self):
@@ -243,8 +237,6 @@ class OpenstackRouter(OpenstackResource):
 
     def list(self, query=None):
         query = query or {}
-        if 'project_id' not in query:
-            query['project_id'] = self.project_id
         return self.connection.network.routers(**query)
 
     def get(self):
@@ -335,8 +327,6 @@ class OpenstackFloatingIP(OpenstackResource):
 
     def list(self, query=None):
         query = query or {}
-        if 'project_id' not in query:
-            query['project_id'] = self.project_id
         return self.connection.network.ips(**query)
 
     def get(self):
@@ -401,8 +391,6 @@ class OpenstackSecurityGroup(OpenstackResource):
 
     def list(self, query=None):
         query = query or {}
-        if 'project_id' not in query:
-            query['project_id'] = self.project_id
         return self.connection.network.security_groups(**query)
 
     def get(self):
@@ -477,8 +465,6 @@ class OpenstackSecurityGroupRule(OpenstackResource):
 
     def list(self, query=None):
         query = query or {}
-        if 'project_id' not in query:
-            query['project_id'] = self.project_id
         return self.connection.network.security_group_rules(**query)
 
     def get(self):
@@ -541,8 +527,8 @@ class OpenstackRBACPolicy(ResourceMixin, OpenstackResource):
     def resource_plural(self, openstack_type):
         return 'rbac_policies'
 
-    def list(self, query=None, all_projects=False):
-        return self.list_resources(query, all_projects)
+    def list(self, query=None):
+        return self.list_resources(query)
 
     def get(self):
         return self._find_rbac_policy()

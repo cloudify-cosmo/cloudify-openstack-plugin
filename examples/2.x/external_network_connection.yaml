@@ -1,0 +1,123 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - plugin:cloudify-openstack-plugin
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/3.1.0/compat.yaml
+
+inputs:
+
+  openstack_username:
+    default: { get_secret: openstack_username }
+
+  openstack_password:
+    default: { get_secret: openstack_password }
+
+  openstack_tenant_name:
+    default: { get_secret: openstack_tenant_name }
+
+  openstack_url:
+    default: { get_secret: openstack_url }
+
+  region:
+    default: { get_secret: region }
+
+  external_network_name:
+    description: Openstack tenant external network name.
+
+  fixed_ip:
+    default: '10.0.1.8'
+
+  security_group_resource_name:
+    type: string
+    description: Secuirty group Openstack external resource name
+
+  router_resource_name:
+    type: string
+    description: Router Openstack external resource name
+
+  network_resource_name:
+    type: string
+    description: A Network Openstack resource external resource name.
+
+  subnet_resource_name:
+    type: string
+    description: A Subnet Openstack external resource name.
+
+
+dsl_definitions:
+
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_tenant_name }
+    auth_url: { get_input: openstack_url }
+    region: { get_input: region }
+
+node_templates:
+
+  example-external-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      openstack_config: *openstack_config
+      use_external_resource: true
+      resource_id: { get_input: external_network_name }
+
+  example-router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+      use_external_resource: true
+      resource_id: { get_input: router_resource_name }
+      openstack_config: *openstack_config
+    relationships:
+      - target: example-external-network
+        type: cloudify.relationships.connected_to
+
+  example-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      use_external_resource: true
+      resource_id: { get_input: network_resource_name }
+      openstack_config: *openstack_config
+
+  example-subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      use_external_resource: true
+      resource_id: { get_input: subnet_resource_name }
+      openstack_config: *openstack_config
+    relationships:
+      - target: example-network
+        type: cloudify.relationships.contained_in
+      - target: example-router
+        type: cloudify.openstack.subnet_connected_to_router
+
+  example-port:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *openstack_config
+      fixed_ip: { get_input: fixed_ip }
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: example-network
+      - type: cloudify.openstack.port_connected_to_subnet
+        target: example-subnet
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: example-security-group
+      - type: cloudify.openstack.port_connected_to_floating_ip
+        target: example-ip
+
+  example-security-group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      use_external_resource: true
+      openstack_config: *openstack_config
+      resource_id: { get_input: security_group_resource_name }
+
+  example-ip:
+    type: cloudify.openstack.nodes.FloatingIP
+    properties:
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: example-external-network

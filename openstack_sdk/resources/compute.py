@@ -264,9 +264,9 @@ class OpenstackHostAggregate(ResourceMixin, OpenstackResource):
     def validate_resource_identifier(self):
         return None
 
-    def list(self, all_projects=False):
+    def list(self):
         self.logger.debug('Attempting to list aggregates')
-        return self.list_resources(all_projects=all_projects)
+        return self.list_resources()
 
     def get(self):
         return self._find_aggregate()
@@ -444,8 +444,8 @@ class OpenstackFlavor(ResourceMixin, OpenstackResource):
     def validate_resource_identifier(self):
         return None
 
-    def list(self, query=None, all_projects=False):
-        return self.list_resources(query, all_projects)
+    def list(self, query=None):
+        return self.list_resources(query)
 
     def get(self):
         return self._find_flavor()

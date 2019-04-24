@@ -28,8 +28,8 @@ class OpenstackUser(ResourceMixin, OpenstackResource):
     resource_type = 'user'
     infinite_resource_quota = 10 ** 9
 
-    def list(self, query=None, all_projects=False):
-        return self.list_resources(query, all_projects)
+    def list(self, query=None):
+        return self.list_resources(query)
 
     def get_quota_sets(self, quota_type=None):
         return self.infinite_resource_quota
@@ -80,8 +80,8 @@ class OpenstackRole(ResourceMixin, OpenstackResource):
     resource_type = 'role'
     infinite_resource_quota = 10 ** 9
 
-    def list(self, query=None, all_projects=False):
-        return self.list_resources(query, all_projects)
+    def list(self, query=None):
+        return self.list_resources(query)
 
     def get_quota_sets(self, quota_type=None):
         return self.infinite_resource_quota

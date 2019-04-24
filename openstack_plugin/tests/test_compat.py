@@ -277,6 +277,7 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
         )
+        current_ctx.set(context)
         properties = dict()
         compat_node = Compat(context=context, **{})
         flavor_instance = openstack.compute.v2.flavor.Flavor(**{

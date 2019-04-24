@@ -110,8 +110,11 @@ class OpenstackResource(object):
             except ValueError:
                 # If it's a value error, then the string
                 # is not a valid hex code for a UUID.
-                error_message = 'Invalid resource id: {0}' \
-                                ''.format(self.resource_id)
+                try:
+                    int(self.resource_id)
+                except ValueError:
+                    error_message = 'Invalid resource id: {0}' \
+                                    ''.format(self.resource_id)
 
         elif self.name and not isinstance(self.name, basestring):
             error_message = 'Invalid resource name: {0} ' \

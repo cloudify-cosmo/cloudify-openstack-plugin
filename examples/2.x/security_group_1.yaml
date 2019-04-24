@@ -22,9 +22,6 @@ inputs:
   region:
     default: { get_secret: region }
 
-  remote_group_id:
-    description: The remote id for security group
-
   security_group_rules_config:
     default:
       - remote_ip_prefix: 0.0.0.0/0

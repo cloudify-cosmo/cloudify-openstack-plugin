@@ -14,10 +14,12 @@
 # limitations under the License.
 
 # Standard imports
+import sys
 import copy
 
 # Third party imports
 import openstack.exceptions
+from cloudify.utils import exception_to_error_cause
 from cloudify.exceptions import NonRecoverableError
 from cloudify import ctx as _ctx
 
@@ -50,8 +52,8 @@ from openstack_plugin.constants import (CLOUDIFY_CREATE_OPERATION,
 from openstack_plugin.utils import (get_target_node_from_capabilities,
                                     get_current_operation,
                                     find_relationship_by_node_type,
-                                    remove_duplicates_items
-                                    )
+                                    remove_duplicates_items,
+                                    is_create_if_missing)
 
 NETWORK_CONFIG_MAP = {
     'net-id': 'uuid',
@@ -487,12 +489,18 @@ class Compat(object):
         """
         resource = class_resource(client_config=self.openstack_config,
                                   logger=self.logger)
-        remote_instance = \
-            getattr(resource,
-                    'find_{0}'.format(resource_type))(resource_name_or_id)
-        if not remote_instance:
-            raise openstack.exceptions.ResourceNotFound(
-                'Resource {0} is not found'.format(resource_name_or_id))
+        try:
+            remote_instance = \
+                getattr(resource,
+                        'find_{0}'.format(resource_type))(resource_name_or_id)
+        except openstack.exceptions.NotFoundException as error:
+            _, _, tb = sys.exc_info()
+            if is_create_if_missing(self.context):
+                return None
+            raise NonRecoverableError(
+                'Failure while trying to request '
+                'Openstack API: {}'.format(error.message),
+                causes=[exception_to_error_cause(error, tb)])
         return remote_instance.id
 
     def populate_resource_id(self, openstack_type, properties):
@@ -516,10 +524,20 @@ class Compat(object):
                 # could be a name, so before send that to the 3.x plugin we
                 # should make sure that the plugin has the "id" translated
                 # successfully according to the resource type
-                resource_id = self.get_openstack_resource_id(class_resource,
-                                                             openstack_type,
-                                                             resource_id)
-                properties['resource_config']['id'] = resource_id
+                res_id = self.get_openstack_resource_id(class_resource,
+                                                        openstack_type,
+                                                        resource_id)
+                if is_create_if_missing(self.context) and not res_id:
+                    resource = class_resource(
+                        client_config=self.openstack_config,
+                        logger=self.logger)
+                    resource.resource_id = resource_id
+                    if not resource.validate_resource_identifier():
+                        properties['resource_config']['id'] = resource_id
+                    else:
+                        properties['resource_config']['name'] = resource_id
+                else:
+                    properties['resource_config']['id'] = res_id
             else:
                 if not self.is_update_operation:
                     properties['resource_config']['name'] = \

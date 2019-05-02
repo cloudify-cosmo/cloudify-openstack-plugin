@@ -17,30 +17,34 @@
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html.
 
 # Local imports
-from openstack_sdk.common import OpenstackResource
+from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 
 
-class OpenstackImage(OpenstackResource):
-    service_type = 'compute'
+class OpenstackImage(ResourceMixin, OpenstackResource):
+    service_type = 'image'
     resource_type = 'image'
     infinite_resource_quota = 10 ** 9
 
     def list(self, query=None):
-        query = query or {}
-        return self.connection.image.images(**query)
+        return self.list_resources(query)
 
     def get_quota_sets(self, quota_type=None):
         return self.infinite_resource_quota
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this image: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        image = self.connection.image.get_image(
-            self.name if not self.resource_id else self.resource_id
-        )
-        self.logger.debug(
-            'Found image with this result: {0}'.format(image))
+        return self._find_image()
+
+    def find_image(self, name_or_id=None):
+        return self._find_image(name_or_id)
+
+    def _find_image(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+        self.logger.debug('Attempting to find this image: {0}'
+                          ''.format(name_or_id))
+        image = self.find_resource(name_or_id)
+        self.logger.debug('Found image with this result: {0}'.format(image))
         return image
 
     def create(self):
@@ -59,7 +63,7 @@ class OpenstackImage(OpenstackResource):
         self.connection.image.delete_image(image)
 
     def update(self, new_config=None):
-        image = self.get()
+        image = new_config.pop('image', None) or self.get()
         self.logger.debug(
             'Attempting to update this image: {0} with args {1}'.format(
                 image, new_config))

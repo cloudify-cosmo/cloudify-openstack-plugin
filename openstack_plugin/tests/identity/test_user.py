@@ -36,7 +36,6 @@ class UserTestCase(OpenStackTestBase):
     def resource_config(self):
         return {
             'name': 'test_user',
-            'description': 'user_description',
             'is_enabled': True,
             'email': 'test_email@test.com'
         }
@@ -138,7 +137,8 @@ class UserTestCase(OpenStackTestBase):
         # Call update user
         user.update(args=new_config)
 
-    def test_list_users(self, mock_connection):
+    def test_list_users(self,
+                        mock_connection):
         # Prepare the context for list users operation
         self._prepare_context_for_operation(
             test_name='UserTestCase',
@@ -162,6 +162,10 @@ class UserTestCase(OpenStackTestBase):
         # Mock list users response
         mock_connection().identity.users = \
             mock.MagicMock(return_value=users)
+
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
 
         # Call list user
         user.list_users()

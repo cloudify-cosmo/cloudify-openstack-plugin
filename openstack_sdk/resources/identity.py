@@ -16,33 +16,37 @@
 # Based on this documentation:
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html.
 
+# Third part imports
+import openstack.exceptions
+
 # Local imports
-from openstack_sdk.common import OpenstackResource
+from openstack_sdk.common import (OpenstackResource, ResourceMixin)
 
 
-class OpenstackUser(OpenstackResource):
+class OpenstackUser(ResourceMixin, OpenstackResource):
     service_type = 'identity'
     resource_type = 'user'
+    infinite_resource_quota = 10 ** 9
 
     def list(self, query=None):
-        query = query or {}
-        return self.connection.identity.users(**query)
+        return self.list_resources(query)
+
+    def get_quota_sets(self, quota_type=None):
+        return self.infinite_resource_quota
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this user: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        user = self.connection.identity.get_user(
-            self.name if not self.resource_id else self.resource_id
-        )
-        self.logger.debug('Found user with this result: {0}'.format(user))
-        return user
+        return self._find_user()
 
-    def find_user(self, name_or_id):
+    def find_user(self, name_or_id=None):
+        return self._find_user(name_or_id)
+
+    def _find_user(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
         self.logger.debug(
-            'Attempting to find this user: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        user = self.connection.identity.find_user(name_or_id)
+            'Attempting to find this user: {0}'.format(name_or_id))
+        user = self.find_resource(name_or_id)
         self.logger.debug('Found user with this result: {0}'.format(user))
         return user
 
@@ -62,7 +66,7 @@ class OpenstackUser(OpenstackResource):
         return result
 
     def update(self, new_config=None):
-        user = self.get()
+        user = new_config.pop('user', None) or self.get()
         self.logger.debug(
             'Attempting to update this user: {0} with args {1}'.format(
                 user, new_config))
@@ -71,29 +75,31 @@ class OpenstackUser(OpenstackResource):
         return result
 
 
-class OpenstackRole(OpenstackResource):
+class OpenstackRole(ResourceMixin, OpenstackResource):
     service_type = 'identity'
     resource_type = 'role'
+    infinite_resource_quota = 10 ** 9
 
     def list(self, query=None):
-        query = query or {}
-        return self.connection.identity.roles(**query)
+        return self.list_resources(query)
+
+    def get_quota_sets(self, quota_type=None):
+        return self.infinite_resource_quota
 
     def get(self):
-        self.logger.debug(
-            'Attempting to find this role: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        role = self.connection.identity.get_role(
-            self.name if not self.resource_id else self.resource_id
-        )
-        self.logger.debug('Found role with this result: {0}'.format(role))
-        return role
+        return self._find_role()
 
-    def find_role(self, name_or_id):
+    def find_role(self, name_or_id=None):
+        return self._find_role(name_or_id)
+
+    def _find_role(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
         self.logger.debug(
             'Attempting to find this role: {0}'.format(
                 self.name if not self.resource_id else self.resource_id))
-        role = self.connection.identity.find_role(name_or_id)
+        role = self.find_resource(name_or_id)
         self.logger.debug('Found role with this result: {0}'.format(role))
         return role
 
@@ -150,12 +156,25 @@ class OpenstackProject(OpenstackResource):
         return self.infinite_resource_quota
 
     def get(self):
+        project = self._find_project()
+        return project
+
+    def find_project(self, name_or_id=None):
+        return self._find_project(name_or_id)
+
+    def _find_project(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not \
+                self.resource_id else self.resource_id
         self.logger.debug(
-            'Attempting to find this project: {0}'.format(
-                self.name if not self.resource_id else self.resource_id))
-        project = self.connection.identity.get_project(
-            self.name if not self.resource_id else self.resource_id
-        )
+            'Attempting to find this project: {0}'.format(name_or_id))
+        try:
+            project = self.connection.identity.get_project(name_or_id)
+        except openstack.exceptions.NotFoundException:
+            project = self.connection.identity.find_project(
+                name_or_id, ignore_missing=False
+            )
+
         self.logger.debug(
             'Found project with this result: {0}'.format(project))
         return project
@@ -179,11 +198,70 @@ class OpenstackProject(OpenstackResource):
         return result
 
     def update(self, new_config=None):
-        project = self.get()
+        project = new_config.pop('project', None) or self.get()
         self.logger.debug(
             'Attempting to update this project: {0} with args {1}'.format(
                 project, new_config))
         result = self.connection.identity.update_project(project, **new_config)
         self.logger.debug(
             'Updated project with this result: {0}'.format(result))
+        return result
+
+
+class OpenstackDomain(OpenstackResource):
+    service_type = 'identity'
+    resource_type = 'domain'
+
+    def list(self, query=None):
+        query = query or {}
+        return self.connection.identity.domains(**query)
+
+    def get(self):
+        return self._find_domain()
+
+    def find_domain(self, name_or_id=None):
+        return self._find_domain(name_or_id)
+
+    def _find_domain(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not \
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this domain: {0}'.format(name_or_id))
+        try:
+            domain = self.connection.identity.get_domain(name_or_id)
+        except openstack.exceptions.NotFoundException:
+            domain = self.connection.identity.find_domain(
+                name_or_id, ignore_missing=False
+            )
+        self.logger.debug(
+            'Found domain with this result: {0}'.format(domain))
+        return domain
+
+    def create(self):
+        self.logger.debug(
+            'Attempting to create domain with these args: {0}'.format(
+                self.config))
+        domain = self.connection.identity.create_domain(**self.config)
+        self.logger.debug(
+            'Created domain with this result: {0}'.format(domain))
+        return domain
+
+    def delete(self):
+        domain = self.get()
+        self.logger.debug(
+            'Attempting to delete this domain: {0}'.format(domain))
+        result = self.connection.identity.delete_domain(domain)
+        self.logger.debug(
+            'Deleted domain with this result: {0}'.format(result))
+        return result
+
+    def update(self, new_config=None):
+        domain = self.get()
+        self.logger.debug(
+            'Attempting to update this domain: {0} with args {1}'.format(
+                domain, new_config))
+        result = self.connection.identity.update_domain(domain, **new_config)
+        self.logger.debug(
+            'Updated domain with this result: {0}'.format(result))
         return result

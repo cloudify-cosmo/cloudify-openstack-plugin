@@ -1,0 +1,57 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - plugin:cloudify-openstack-plugin
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/3.1.0/compat.yaml
+
+inputs:
+
+  openstack_username:
+    default: { get_secret: openstack_username }
+
+  openstack_password:
+    default: { get_secret: openstack_password }
+
+  openstack_tenant_name:
+    default: { get_secret: openstack_tenant_name }
+
+  openstack_url:
+    default: { get_secret: openstack_url }
+
+  region:
+    default: { get_secret: region }
+
+  image_config:
+    default:
+     container_format: "bare"
+     disk_format: "qcow2"
+
+  # Uploading image via Image url is not supported yet in the new openstack plugin 3.0.0
+  image_url:
+    default: "http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1503.qcow2c"
+
+dsl_definitions:
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_tenant_name }
+    auth_url: { get_input: openstack_url }
+    region: { get_input: region }
+
+node_templates:
+
+  example-image:
+     type: cloudify.openstack.nodes.Image
+     properties:
+       image: {}
+       openstack_config: *openstack_config
+       image_url: { get_input : image_url }
+       resource_id: "image"
+     interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args: { get_input: image_config }
+            resource_id: { get_property: [ SELF, resource_id ] }
+            openstack_config: { get_property: [ SELF, openstack_config ] }

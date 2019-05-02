@@ -18,12 +18,14 @@ from cloudify import ctx
 
 # Local imports
 from openstack_sdk.resources.compute import OpenstackKeyPair
-from openstack_plugin.decorators import with_openstack_resource
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node)
 from openstack_plugin.constants import (RESOURCE_ID, KEYPAIR_OPENSTACK_TYPE)
 from openstack_plugin.utils import (validate_resource_quota,
                                     add_resource_list_to_runtime_properties)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackKeyPair)
 def create(openstack_resource):
     """
@@ -39,6 +41,7 @@ def create(openstack_resource):
         created_resource.public_key
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackKeyPair)
 def delete(openstack_resource):
     """
@@ -48,6 +51,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackKeyPair)
 def list_keypairs(openstack_resource):
     """
@@ -58,6 +62,7 @@ def list_keypairs(openstack_resource):
     add_resource_list_to_runtime_properties(KEYPAIR_OPENSTACK_TYPE, keypairs)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackKeyPair)
 def creation_validation(openstack_resource):
     """

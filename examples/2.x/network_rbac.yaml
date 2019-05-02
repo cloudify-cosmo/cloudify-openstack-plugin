@@ -1,0 +1,69 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - plugin:cloudify-openstack-plugin
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/3.1.0/compat.yaml
+
+inputs:
+  openstack_username:
+    default: { get_secret: openstack_username }
+
+  openstack_password:
+    default: { get_secret: openstack_password }
+
+  openstack_tenant_name:
+    default: { get_secret: openstack_tenant_name }
+
+  openstack_url:
+    default: { get_secret: openstack_url }
+
+  region:
+    default: { get_secret: region }
+
+  subnet_cidr:
+    type: string
+    default: '192.168.1.0/24'
+
+  admin_project_id:
+    type: string
+
+
+dsl_definitions:
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_tenant_name }
+    auth_url: { get_input: openstack_url }
+    region: { get_input: region }
+
+
+node_templates:
+
+  exmaple-rbac-policy:
+    type: cloudify.openstack.nodes.RBACPolicy
+    properties:
+      rbac_policy:
+        target_tenant: { get_input: admin_project_id }
+        action: access_as_shared
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.openstack.rbac_policy_applied_to
+        target: exmaple-network
+
+  exmaple-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      openstack_config: *openstack_config
+
+  exmaple-subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      openstack_config: *openstack_config
+      subnet:
+        ip_version: '4'
+        cidr: '10.0.0.0/24'
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
+    relationships:
+    - type: cloudify.relationships.contained_in
+      target: exmaple-network

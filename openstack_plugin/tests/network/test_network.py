@@ -298,6 +298,10 @@ class NetworkTestCase(OpenStackTestBase):
         mock_connection().network.networks = \
             mock.MagicMock(return_value=networks)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list networks
         network.list_networks()
 

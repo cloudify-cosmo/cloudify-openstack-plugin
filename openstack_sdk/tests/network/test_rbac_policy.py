@@ -64,7 +64,6 @@ class RBACPolicyTestCase(base.OpenStackSDKTestBase):
                 'target_project_id': 'test_target_project_id_1',
                 'object_type': 'test_object_type_1',
                 'object_id': 3,
-                'location': None,
                 'action': 'test_action_1',
                 'project_id': 4
 
@@ -75,7 +74,6 @@ class RBACPolicyTestCase(base.OpenStackSDKTestBase):
                 'target_project_id': 'test_target_project_id_2',
                 'object_type': 'test_object_type_2',
                 'object_id': 4,
-                'location': None,
                 'action': 'test_action_2',
                 'project_id': 5,
             })

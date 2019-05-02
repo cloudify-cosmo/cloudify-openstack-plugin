@@ -1,0 +1,128 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - plugin:cloudify-openstack-plugin
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/3.1.0/compat.yaml
+
+inputs:
+
+  openstack_username:
+    default: { get_secret: openstack_username }
+
+  openstack_password:
+    default: { get_secret: openstack_password }
+
+  openstack_tenant_name:
+    default: { get_secret: openstack_tenant_name }
+
+  openstack_url:
+    default: { get_secret: openstack_url }
+
+  region:
+    default: { get_secret: region }
+
+  external_network_name:
+    description: Openstack tenant external network name.
+
+  example_subnet_1_cidr:
+    type: string
+    default: 10.10.4.0/24
+
+  example_subnet_2_cidr:
+    type: string
+    default: 192.168.123.0/24
+
+
+dsl_definitions:
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_tenant_name }
+    auth_url: { get_input: openstack_url }
+    region: { get_input: region }
+
+node_templates:
+
+  example-external-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      use_external_resource: true
+      resource_id: { get_input: external_network_name }
+      openstack_config: *openstack_config
+
+  example-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      resource_id: 'simple-network-1'
+      openstack_config: *openstack_config
+
+  example-network-2:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      resource_id: 'simple-network-2'
+      openstack_config: *openstack_config
+
+  example-router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+        use_external_resource: false
+        resource_id: router-resource
+        openstack_config: *openstack_config
+        router: {}
+    relationships:
+      - target: example-external-network
+        type: cloudify.relationships.connected_to
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              admin_state_up: True
+            resource_id: { get_property: [ SELF, resource_id ] }
+            openstack_config: { get_property: [ SELF, openstack_config ] }
+
+  example-subnet-2:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      resource_id: 'simple-subnet-2'
+      subnet:
+        ip_version: 4
+        cidr: { get_input: example_subnet_2_cidr }
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
+      openstack_config: *openstack_config
+    relationships:
+      - target: example-network-2
+        type: cloudify.relationships.contained_in
+      - target: example-router
+        type: cloudify.openstack.subnet_connected_to_router
+
+  example-subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      resource_id: 'simple-subnet-1'
+      subnet:
+        ip_version: 4
+        cidr: { get_input: example_subnet_1_cidr }
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
+      openstack_config: *openstack_config
+    relationships:
+      - target: example-network
+        type: cloudify.relationships.contained_in
+      - target: example-subnet-2
+        type: cloudify.relationships.depends_on
+      - target: example-router
+        type: cloudify.openstack.subnet_connected_to_router
+
+  routes:
+    type: cloudify.openstack.nodes.Routes
+    properties:
+      routes:
+        - destination: 10.10.4.0/24
+          nexthop: 192.168.123.123
+      openstack_config: *openstack_config
+    relationships:
+      - target: example-subnet-2
+        type: cloudify.relationships.depends_on
+      - target: example-router
+        type: cloudify.openstack.route_connected_to_router

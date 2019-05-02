@@ -32,7 +32,7 @@ inputs:
 
   name_prefix:
     type: string
-    default: network-blueprint_
+    default: network-blueprint-
 
 dsl_definitions:
 

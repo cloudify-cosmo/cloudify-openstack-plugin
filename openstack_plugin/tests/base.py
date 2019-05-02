@@ -19,6 +19,7 @@ import uuid
 import unittest
 
 # Third party imports
+import openstack.identity.v3.project
 from cloudify.manager import DirtyTrackingDict
 from cloudify.state import current_ctx
 from cloudify.mocks import (
@@ -92,6 +93,20 @@ class OpenStackTestBase(unittest.TestCase):
         }
 
     @property
+    def project_resource(self):
+        return openstack.identity.v3.project.Project(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bcs2efda6',
+            'name': 'test_project',
+            'description': 'Testing Project',
+            'domain_id': 'test_domain_id',
+            'enabled': True,
+            'is_domain': True,
+            'links': ['test1', 'test2'],
+            'parent_id': 'test_parent_id'
+
+        })
+
+    @property
     def runtime_properties(self):
         return {}
 
@@ -101,6 +116,7 @@ class OpenStackTestBase(unittest.TestCase):
                      test_runtime_properties={},
                      test_relationships=None,
                      type_hierarchy=['cloudify.nodes.Root'],
+                     node_type='cloudify.nodes.Root',
                      test_source=None,
                      test_target=None,
                      ctx_operation_name=None):
@@ -126,6 +142,9 @@ class OpenStackTestBase(unittest.TestCase):
         )
 
         ctx.node.type_hierarchy = type_hierarchy
+        # In order to set type for the node, we need to set it using _node
+        # instance
+        ctx._node._type = node_type
 
         return ctx
 
@@ -155,7 +174,8 @@ class OpenStackTestBase(unittest.TestCase):
                                   test_properties={},
                                   test_runtime_properties={},
                                   test_source=None,
-                                  test_target=None):
+                                  test_target=None,
+                                  ctx_operation=None):
 
         ctx = MockCloudifyContext(
             node_id=node_id,
@@ -163,7 +183,8 @@ class OpenStackTestBase(unittest.TestCase):
             properties=copy.deepcopy(test_properties),
             source=test_source,
             target=test_target,
-            runtime_properties=copy.deepcopy(test_runtime_properties))
+            runtime_properties=copy.deepcopy(test_runtime_properties),
+            operation=ctx_operation)
         return ctx
 
     def get_mock_relationship_ctx_for_node(self, rel_specs):
@@ -218,3 +239,24 @@ class OpenStackTestBase(unittest.TestCase):
             relationships.append(rel_ctx)
 
         return relationships
+
+    def _pepare_relationship_context_for_operation(self,
+                                                   deployment_id,
+                                                   source,
+                                                   target,
+                                                   ctx_operation_name=None,
+                                                   node_id=None):
+
+        operation_ctx = {
+            'retry_number': 0, 'name': 'cloudify.interfaces.lifecycle.'
+        } if not ctx_operation_name else {
+            'retry_number': 0, 'name': ctx_operation_name
+        }
+
+        self._ctx = self.get_mock_relationship_ctx(
+            node_id=node_id,
+            deployment_name=deployment_id,
+            test_source=source,
+            test_target=target,
+            ctx_operation=operation_ctx)
+        current_ctx.set(self._ctx)

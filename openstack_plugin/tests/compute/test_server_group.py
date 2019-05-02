@@ -143,6 +143,10 @@ class ServerGroupTestCase(OpenStackTestBase):
         mock_connection().compute.server_groups = \
             mock.MagicMock(return_value=server_group_list)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list server groups
         server_group.list_server_groups()
 

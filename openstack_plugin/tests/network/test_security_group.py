@@ -364,6 +364,10 @@ class SecurityGroupTestCase(OpenStackTestBase):
         mock_connection().network.security_groups = \
             mock.MagicMock(return_value=security_groups)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list security groups
         security_group.list_security_groups()
 
@@ -379,6 +383,19 @@ class SecurityGroupTestCase(OpenStackTestBase):
 
     @mock.patch('openstack_sdk.common.OpenstackResource.get_quota_sets')
     def test_creation_validation(self, mock_quota_sets, mock_connection):
+        # Prepare the context for configure operation
+        properties = dict()
+        properties['security_group_rules'] = [
+            {
+                'remote_ip_prefix': '0.0.0.0/0',
+                'port_range_max': '80',
+                'port_range_min': '80',
+                'direction': 'egress',
+                'protocol': 'tcp'
+            }
+        ]
+        properties.update(self.node_properties)
+
         # Prepare the context for creation validation operation
         self._prepare_context_for_operation(
             test_name='SecurityGroupTestCase',

@@ -10,19 +10,19 @@ inputs:
 
   auth_url:
     type: string
-    default: { get_secret: keystone_url }
+    default: { get_secret: openstack_url }
 
   username:
     type: string
-    default: { get_secret: keystone_username }
+    default: { get_secret: openstack_username }
 
   password:
     type: string
-    default: { get_secret: keystone_password }
+    default: { get_secret: openstack_password }
 
   project_name:
     type: string
-    default: { get_secret: keystone_tenant_name }
+    default: { get_secret: openstack_tenant_name }
 
   region_name:
     type: string

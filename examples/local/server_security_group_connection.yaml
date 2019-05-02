@@ -32,7 +32,7 @@ inputs:
 
   name_prefix:
     type: string
-    default: 'server-blueprint_'
+    default: 'server-blueprint-'
     description: Prefix string for all resources
 
   external_network_id:

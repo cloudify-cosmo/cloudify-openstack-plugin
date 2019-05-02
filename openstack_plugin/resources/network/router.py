@@ -19,8 +19,12 @@ from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.networks import (OpenstackRouter,
+                                              OpenstackPort,
                                               OpenstackNetwork)
-from openstack_plugin.decorators import with_openstack_resource
+
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         ROUTER_OPENSTACK_TYPE,
                                         NETWORK_OPENSTACK_TYPE)
@@ -31,15 +35,17 @@ from openstack_plugin.utils import (
     find_openstack_ids_of_connected_nodes_by_openstack_type)
 
 
-def _get_external_network_id(ext_gateway_info):
+def _get_external_network_id(ext_gateway_info, network_key):
     """
     This method will lookup the external network id from external gateway
     info object
     :param dict ext_gateway_info: External info dict
+    :param str network_key: Network key to get from ext_gateway_info,
+    it could be 'network_id' or 'network_name'
     :return str: External network id
     """
-    if ext_gateway_info and ext_gateway_info.get('network_id'):
-        return ext_gateway_info['network_id']
+    if ext_gateway_info and ext_gateway_info.get(network_key):
+        return ext_gateway_info[network_key]
     return None
 
 
@@ -90,23 +96,42 @@ def _connect_router_to_external_network(router_resource):
     # Get network id from "resource_config" which represent "router_config"
     ext_net_id = \
         _get_external_network_id(
-            router_resource.config.get('external_gateway_info'))
+            router_resource.config.get('external_gateway_info'), 'network_id')
+
+    # Get network name from "resource_config" which represent "router_config"
+    ext_net_name = \
+        _get_external_network_id(
+            router_resource.config.get(
+                'external_gateway_info'), 'network_name')
+
+    # Get the network name from node property "external_network"
+    ext_net_by_property = ctx.node.properties.get('external_network')
+    ext_net = None
+    if ext_net_by_property:
+        ext_net = network_resource.find_network(ext_net_by_property)
+    elif ext_net_name:
+        del router_resource.config['external_gateway_info']['network_name']
+        ext_net = network_resource.find_network(ext_net_name)
+
+    if ext_net:
+        ext_net_id = ext_net.id
 
     # Get network id id from relationship connected to router
     rel_ext_net_id = \
         _get_connected_external_network_from_relationship(network_resource)
 
     if ext_net_id and rel_ext_net_id:
-        raise NonRecoverableError('Router can\'t both have the '
-                                  '"external_gateway_info" property and be '
-                                  'connected to a network via a '
-                                  'relationship at the same time')
+        raise NonRecoverableError('Router can\'t an'
+                                  ' external network connected by both a '
+                                  'relationship and by a network name/id')
 
     if 'external_gateway_info' not in router_resource.config:
         router_resource.config['external_gateway_info'] = {}
 
-    router_resource.config['external_gateway_info']['network_id'] = \
-        ext_net_id or rel_ext_net_id
+    network_id = ext_net_id or rel_ext_net_id
+    if network_id:
+        router_resource.config['external_gateway_info']['network_id'] = \
+            network_id
 
 
 def _handle_external_router_resource(openstack_resource):
@@ -122,13 +147,46 @@ def _handle_external_router_resource(openstack_resource):
     rel_network_id = \
         _get_connected_external_network_from_relationship(network_resource)
     ext_network_id = \
-        _get_external_network_id(remote_router.external_gateway_info)
+        _get_external_network_id(remote_router.external_gateway_info,
+                                 'network_id')
     if rel_network_id and ext_network_id != rel_network_id:
         raise NonRecoverableError(
             'Expected external resources subnet {0} and network'
             ' {1} to be connected'.format(rel_network_id, ext_network_id))
 
 
+def _validate_external_interface_connections(openstack_resource):
+    """
+    This method will validate if the external interfaces connected to the
+    external router are valid and match the id provided via cloudify node
+    :param openstack_resource: Instance of openstack router resource
+    """
+    ctx.logger.info('Validating external subnet and router are associated')
+    subnet_id = ctx.source.instance.runtime_properties.get(RESOURCE_ID)
+    port = OpenstackPort(client_config=openstack_resource.client_config,
+                         logger=ctx.logger)
+
+    for port_item in port.list(
+            query={'device_id': openstack_resource.resource_id}):
+        for fixed_ip in port_item.get('fixed_ips', []):
+            if fixed_ip.get('subnet_id') == subnet_id:
+                return
+
+    raise NonRecoverableError(
+        'Expected external resources router {0} and subnet {1} to be '
+        'connected'.format(openstack_resource.resource_id, subnet_id))
+
+
+def _handle_disconnect_external_subnet_from_router():
+    """
+    This method will trigger if both subnet and router are external when
+    disconnect links between them in order to log message to the user
+    """
+    ctx.logger.info('Not connecting subnet and router since external '
+                    'subnet and router are being used')
+
+
+@with_compat_node
 @with_openstack_resource(
     OpenstackRouter,
     existing_resource_handler=_handle_external_router_resource)
@@ -148,6 +206,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def delete(openstack_resource):
     """
@@ -157,6 +216,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def update(openstack_resource, args):
     """
@@ -169,6 +229,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def list_routers(openstack_resource, query=None):
     """
@@ -181,6 +242,7 @@ def list_routers(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(ROUTER_OPENSTACK_TYPE, routers)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def creation_validation(openstack_resource):
     """
@@ -191,7 +253,10 @@ def creation_validation(openstack_resource):
     ctx.logger.debug('OK: router configuration is valid')
 
 
-@with_openstack_resource(OpenstackRouter)
+@with_compat_node
+@with_openstack_resource(
+    OpenstackRouter,
+    existing_resource_handler=_validate_external_interface_connections)
 def add_interface_to_router(openstack_resource, **kwargs):
     """
     Add interface to router in order to link router with other services like
@@ -203,7 +268,10 @@ def add_interface_to_router(openstack_resource, **kwargs):
     openstack_resource.add_interface(kwargs)
 
 
-@with_openstack_resource(OpenstackRouter)
+@with_compat_node
+@with_openstack_resource(
+    OpenstackRouter,
+    existing_resource_handler=_handle_disconnect_external_subnet_from_router)
 def remove_interface_from_router(openstack_resource, **kwargs):
     """
     Remove interface to router in order to unlink router with other services
@@ -215,6 +283,7 @@ def remove_interface_from_router(openstack_resource, **kwargs):
     openstack_resource.remove_interface(kwargs)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def start(openstack_resource, **kwargs):
     """
@@ -231,6 +300,7 @@ def start(openstack_resource, **kwargs):
         openstack_resource.update(routes)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackRouter)
 def stop(openstack_resource):
     """

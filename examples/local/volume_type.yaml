@@ -24,7 +24,7 @@ inputs:
 
   name_prefix:
     type: string
-    default: block_storage_
+    default: block-storage-
 
   volume_type_config:
     default:

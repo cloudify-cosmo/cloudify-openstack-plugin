@@ -1,0 +1,63 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - plugin:cloudify-openstack-plugin
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/3.1.0/compat.yaml
+
+inputs:
+
+  openstack_username:
+    default: { get_secret: openstack_username }
+
+  openstack_password:
+    default: { get_secret: openstack_password }
+
+  openstack_tenant_name:
+    default: { get_secret: openstack_tenant_name }
+
+  openstack_url:
+    default: { get_secret: openstack_url }
+
+  region:
+    default: { get_secret: region }
+
+  external_network_name:
+    description: Openstack tenant external network name.
+
+
+dsl_definitions:
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_tenant_name }
+    auth_url: { get_input: openstack_url }
+    region: { get_input: region }
+
+node_templates:
+
+  example-external-network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      use_external_resource: true
+      resource_id: { get_input: external_network_name }
+      openstack_config: *openstack_config
+
+  example-router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+        use_external_resource: false
+        resource_id: router-resource
+        openstack_config: *openstack_config
+        router: {}
+    relationships:
+      - target: example-external-network
+        type: cloudify.relationships.connected_to
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              admin_state_up: True
+            resource_id: { get_property: [ SELF, resource_id ] }
+            openstack_config: { get_property: [ SELF, openstack_config ] }

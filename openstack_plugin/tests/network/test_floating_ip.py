@@ -321,17 +321,21 @@ class FloatingIPTestCase(OpenStackTestBase):
         mock_connection().network.ips = \
             mock.MagicMock(return_value=floating_ips)
 
+        # Mock list floating ip response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list floating ips
         floating_ip.list_floating_ips()
 
         # Check if the floating ips list saved as runtime properties
         self.assertIn(
-            'ip_list',
+            'floatingip_list',
             self._ctx.instance.runtime_properties)
 
         # Check the size of floating ips list
         self.assertEqual(
-            len(self._ctx.instance.runtime_properties['ip_list']), 2)
+            len(self._ctx.instance.runtime_properties['floatingip_list']), 2)
 
     @mock.patch('openstack_sdk.common.OpenstackResource.get_quota_sets')
     def test_creation_validation(self, mock_quota_sets, mock_connection):

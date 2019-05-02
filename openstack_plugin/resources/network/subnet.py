@@ -19,7 +19,10 @@ from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.networks import OpenstackSubnet
-from openstack_plugin.decorators import with_openstack_resource
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node,
+                                         with_multiple_data_sources)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         SUBNET_OPENSTACK_TYPE,
                                         NETWORK_OPENSTACK_TYPE)
@@ -27,7 +30,8 @@ from openstack_plugin.utils import (
     reset_dict_empty_keys,
     validate_resource_quota,
     add_resource_list_to_runtime_properties,
-    find_openstack_ids_of_connected_nodes_by_openstack_type)
+    find_openstack_ids_of_connected_nodes_by_openstack_type,
+    validate_ip_or_range_syntax)
 
 
 def _get_subnet_network_id_from_relationship():
@@ -47,12 +51,16 @@ def _get_subnet_network_id_from_relationship():
     return network_ids[0] if network_ids else None
 
 
-def _update_subnet_config(subnet_config):
+@with_multiple_data_sources()
+def _update_subnet_config(subnet_config, allow_multiple=False):
     """
     This method will try to update subnet config with network configurations
     using the relationships connected with subnet node
     :param dict subnet_config: The subnet configuration required in order to
     create the subnet instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    networks configuration from multiple resources relationships + node
+    properties
     """
 
     # Check to see if the network id is provided on the subnet config
@@ -61,7 +69,7 @@ def _update_subnet_config(subnet_config):
 
     # Get the network id from relationship if it is existed
     rel_network_id = _get_subnet_network_id_from_relationship()
-    if network_id and rel_network_id:
+    if network_id and rel_network_id and not allow_multiple:
         raise NonRecoverableError('Subnet can\'t both have the '
                                   '"network_id" property and be '
                                   'connected to a network via a '
@@ -84,6 +92,7 @@ def _handle_external_subnet_resource(openstack_resource):
             ' {1} to be connected'.format(remote_subnet.id, network_id))
 
 
+@with_compat_node
 @with_openstack_resource(
     OpenstackSubnet,
     existing_resource_handler=_handle_external_subnet_resource)
@@ -100,6 +109,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSubnet)
 def delete(openstack_resource):
     """
@@ -109,6 +119,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSubnet)
 def update(openstack_resource, args):
     """
@@ -121,6 +132,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSubnet)
 def list_subnets(openstack_resource, query=None):
     """
@@ -133,11 +145,22 @@ def list_subnets(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(SUBNET_OPENSTACK_TYPE, subnets)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSubnet)
-def creation_validation(openstack_resource):
+def creation_validation(openstack_resource, args={}):
     """
     This method is to check if we can create subnet resource in openstack
     :param openstack_resource: Instance of current openstack subnet
+    :param dict args: Subnet Configuration
     """
     validate_resource_quota(openstack_resource, SUBNET_OPENSTACK_TYPE)
-    ctx.logger.debug('OK: port configuration is valid')
+    ctx.logger.debug('OK: subnet configuration is valid')
+
+    subnet = dict(openstack_resource.config, **args)
+
+    if 'cidr' not in subnet:
+        err = '"cidr" property must appear under the "subnet" property of a ' \
+              'subnet node'
+        ctx.logger.error('VALIDATION ERROR: ' + err)
+        raise NonRecoverableError(err)
+    validate_ip_or_range_syntax(ctx, subnet['cidr'])

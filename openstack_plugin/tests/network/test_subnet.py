@@ -40,6 +40,7 @@ class SubnetTestCase(OpenStackTestBase):
         return {
             'name': 'test_subnet',
             'description': 'subnet_description',
+            'cidr': '10.0.0.0/24'
         }
 
     def test_create(self, mock_connection):
@@ -288,6 +289,10 @@ class SubnetTestCase(OpenStackTestBase):
         # Mock list subnets response
         mock_connection().network.subnets = \
             mock.MagicMock(return_value=subnets)
+
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
 
         # Call list subnets
         subnet.list_subnets()

@@ -20,11 +20,13 @@ from setuptools import find_packages
 
 setup(
     name='cloudify-openstack-plugin',
-    version='3.0.0',
+    version='3.1.0',
     author='Cloudify',
     author_email='info@cloudify.co',
     license='LICENSE',
     zip_safe=False,
     packages=find_packages(exclude=['tests*']),
-    install_requires=['cloudify-common', 'openstacksdk'],
+    install_requires=['cloudify-common',
+                      'openstacksdk',
+                      'IPy==0.81'],
     test_requires=['mock', 'requests-mock'])

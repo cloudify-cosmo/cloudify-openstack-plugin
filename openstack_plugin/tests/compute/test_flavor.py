@@ -37,7 +37,6 @@ class KeyPairTestCase(OpenStackTestBase):
     def resource_config(self):
         return {
             'name': 'test_flavor',
-            'description': 'flavor_description'
         }
 
     def test_create(self, mock_connection):
@@ -50,7 +49,6 @@ class KeyPairTestCase(OpenStackTestBase):
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
             'name': 'test_flavor',
             'links': '2',
-            'description': 'Testing flavor',
             'os-flavor-access:is_public': True,
             'ram': 6,
             'vcpus': 8,
@@ -85,13 +83,14 @@ class KeyPairTestCase(OpenStackTestBase):
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
             'name': 'test_flavor',
             'links': '2',
-            'description': 'Testing flavor',
             'os-flavor-access:is_public': True,
             'ram': 6,
             'vcpus': 8,
             'swap': 8
 
         })
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
         # Mock delete flavor response
         mock_connection().compute.delete_flavor = \
             mock.MagicMock(return_value=flavor_instance)
@@ -123,7 +122,8 @@ class KeyPairTestCase(OpenStackTestBase):
             # Call update flavor
             flavor.update(args=updated_config)
 
-    def test_list_flavors(self, mock_connection):
+    def test_list_flavors(self,
+                          mock_connection):
         # Prepare the context for delete operation
         self._prepare_context_for_operation(
             test_name='FlavorTestCase',
@@ -134,7 +134,6 @@ class KeyPairTestCase(OpenStackTestBase):
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
                 'name': 'test_flavor_1',
                 'links': '2',
-                'description': 'Testing flavor 1',
                 'os-flavor-access:is_public': True,
                 'ram': 6,
                 'vcpus': 8,
@@ -144,7 +143,6 @@ class KeyPairTestCase(OpenStackTestBase):
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe7',
                 'name': 'test_flavor_2',
                 'links': '3',
-                'description': 'Testing flavor 2',
                 'os-flavor-access:is_public': True,
                 'ram': 4,
                 'vcpus': 3,
@@ -154,6 +152,10 @@ class KeyPairTestCase(OpenStackTestBase):
         # Mock list flavors response
         mock_connection().compute.flavors = \
             mock.MagicMock(return_value=flavors)
+
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
 
         flavor.list_flavors()
 

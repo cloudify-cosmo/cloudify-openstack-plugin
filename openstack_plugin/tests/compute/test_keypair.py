@@ -36,7 +36,6 @@ class KeyPairTestCase(OpenStackTestBase):
     def resource_config(self):
         return {
             'name': 'test_key_pair',
-            'description': 'key_pair_description'
         }
 
     def test_create(self, mock_connection):
@@ -131,6 +130,10 @@ class KeyPairTestCase(OpenStackTestBase):
         # Mock list keypairs
         mock_connection().compute.keypairs = \
             mock.MagicMock(return_value=keypair_list)
+
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
 
         # Call list keypair
         keypair.list_keypairs()

@@ -45,7 +45,10 @@ class HostAggregateTestCase(base.OpenStackSDKTestBase):
         self.host_aggregate_instance.name = 'test_aggregate'
         self.host_aggregate_instance.id = \
             'a34b5509-c122-4c2f-823e-884bb559afe8'
-        self.fake_client.get_aggregate = mock.MagicMock(return_value=aggregate)
+        self.host_aggregate_instance.resource_id = \
+            'a34b5509-c122-4c2f-823e-884bb559afe8'
+        self.fake_client.get_aggregate = mock.MagicMock(
+            return_value=aggregate)
 
         response = self.host_aggregate_instance.get()
         self.assertEqual(response.id, 'a34b5509-c122-4c2f-823e-884bb559afe8')

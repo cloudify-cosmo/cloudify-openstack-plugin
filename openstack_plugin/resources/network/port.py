@@ -19,7 +19,11 @@ from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.networks import OpenstackPort
-from openstack_plugin.decorators import with_openstack_resource
+
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node,
+                                         with_multiple_data_sources)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         PORT_OPENSTACK_TYPE,
                                         NETWORK_OPENSTACK_TYPE,
@@ -33,12 +37,16 @@ from openstack_plugin.utils import (
 )
 
 
-def _update_network_config(port_config):
+@with_multiple_data_sources()
+def _update_network_config(port_config, allow_multiple=False):
     """
     This method will try to update oprt config with network configurations
     using the relationships connected with port node
     :param port_config: The port configuration required in order to
     create the port instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    networks configuration from multiple resources relationships + node
+    properties
     """
     # Get network id from port config
     network_id = port_config.get('network_id')
@@ -49,7 +57,7 @@ def _update_network_config(port_config):
 
     rel_network_id = rel_network_ids[0] if rel_network_ids else None
     # Check if network config comes from two sources or not
-    if network_id and rel_network_id:
+    if network_id and rel_network_id and not allow_multiple:
         raise NonRecoverableError('Port can\'t both have the '
                                   '"network_id" property and be '
                                   'connected to a network via a '
@@ -58,12 +66,16 @@ def _update_network_config(port_config):
     port_config['network_id'] = network_id or rel_network_id
 
 
-def _update_security_groups_config(port_config):
+@with_multiple_data_sources()
+def _update_security_groups_config(port_config, allow_multiple=False):
     """
     This method will try to update oprt config with securit groups
     configurations using the relationships connected with port node
     :param port_config: The port configuration required in order to
     create the port instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    security groups configuration from multiple resources relationships + node
+    properties
     """
 
     # Get security groups from port config
@@ -75,13 +87,36 @@ def _update_security_groups_config(port_config):
             ctx, SECURITY_GROUP_OPENSTACK_TYPE)
 
     # Check if network config comes from two sources or not
-    if rel_security_groups and security_groups:
+    if rel_security_groups and security_groups and not allow_multiple:
         raise NonRecoverableError('Port can\'t both have the '
                                   '"security_groups" property and be '
                                   'connected to a network via a '
                                   'relationship at the same time')
 
     port_config['security_groups'] = security_groups or rel_security_groups
+
+
+def _update_fixed_ips_config(port_config):
+    """
+    This method will handle updating the fixed ips for port when user
+    provide data for fixed ips using resource_config and from "fixed_ip"
+    node property
+    :param port_config: The port configuration required in order to
+    create the port instance using Openstack API
+    """
+    fixed_ip_prop = ctx.node.properties.get('fixed_ip')
+    if not (port_config.get('fixed_ips') or fixed_ip_prop):
+        return
+
+    elif not port_config.get('fixed_ips'):
+        port_config['fixed_ips'] = []
+
+    if fixed_ip_prop:
+        for item in port_config['fixed_ips']:
+            if item.get('ip_address') and item['ip_address'] == fixed_ip_prop:
+                break
+        else:
+            port_config['fixed_ips'].append({'ip_address': fixed_ip_prop})
 
 
 def _update_port_config(port_config):
@@ -95,6 +130,9 @@ def _update_port_config(port_config):
 
     # Update network config for port node
     _update_network_config(port_config)
+
+    # Update network fixed ips config
+    _update_fixed_ips_config(port_config)
 
     # Update security groups config for port node
     _update_security_groups_config(port_config)
@@ -206,6 +244,7 @@ def _clean_addresses_from_external_port(openstack_resource):
         openstack_resource.update({'allowed_address_pairs':  updated_pairs})
 
 
+@with_compat_node
 @with_openstack_resource(
     OpenstackPort,
     existing_resource_handler=_update_external_port)
@@ -231,6 +270,7 @@ def create(openstack_resource):
     )
 
 
+@with_compat_node
 @with_openstack_resource(
     OpenstackPort,
     existing_resource_handler=_clean_addresses_from_external_port)
@@ -242,6 +282,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackPort)
 def update(openstack_resource, args):
     """
@@ -254,6 +295,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackPort)
 def list_ports(openstack_resource, query=None):
     """
@@ -266,6 +308,7 @@ def list_ports(openstack_resource, query=None):
     add_resource_list_to_runtime_properties(PORT_OPENSTACK_TYPE, ports)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackPort)
 def creation_validation(openstack_resource):
     """

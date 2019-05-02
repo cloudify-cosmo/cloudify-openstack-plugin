@@ -19,14 +19,34 @@ from cloudify import ctx
 # Local imports
 from openstack_sdk.resources.networks import OpenstackSecurityGroup
 from openstack_sdk.resources.networks import OpenstackSecurityGroupRule
-from openstack_plugin.decorators import with_openstack_resource
+
+from openstack_plugin.decorators import (with_openstack_resource,
+                                         with_compat_node)
+
 from openstack_plugin.constants import (RESOURCE_ID,
                                         SECURITY_GROUP_OPENSTACK_TYPE)
 from openstack_plugin.utils import (reset_dict_empty_keys,
                                     validate_resource_quota,
-                                    add_resource_list_to_runtime_properties)
+                                    add_resource_list_to_runtime_properties,
+                                    validate_ip_or_range_syntax)
 
 
+def security_group_creation_validation(openstack_resource):
+    """
+    This method will do validations for security groups related to quota
+    resources and to validate ip range syntax for rules
+    :param openstack_resource: instance of openstack security group resource
+    """
+    # Validate quota
+    validate_resource_quota(openstack_resource, SECURITY_GROUP_OPENSTACK_TYPE)
+
+    ctx.logger.debug('validating CIDR for rules with a remote_ip_prefix field')
+    for rule in ctx.node.properties.get('security_group_rules', []):
+        if 'remote_ip_prefix' in rule:
+            validate_ip_or_range_syntax(ctx, rule['remote_ip_prefix'])
+
+
+@with_compat_node
 @with_openstack_resource(OpenstackSecurityGroup)
 def create(openstack_resource):
     """
@@ -37,6 +57,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSecurityGroup)
 def configure(openstack_resource, security_group_rules=None):
     """
@@ -76,6 +97,7 @@ def configure(openstack_resource, security_group_rules=None):
         security_group_rule.create()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSecurityGroup)
 def delete(openstack_resource):
     """
@@ -85,6 +107,7 @@ def delete(openstack_resource):
     openstack_resource.delete()
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSecurityGroup)
 def update(openstack_resource, args):
     """
@@ -97,6 +120,7 @@ def update(openstack_resource, args):
     openstack_resource.update(args)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSecurityGroup)
 def list_security_groups(openstack_resource, query=None):
     """
@@ -111,6 +135,7 @@ def list_security_groups(openstack_resource, query=None):
                                             security_groups)
 
 
+@with_compat_node
 @with_openstack_resource(OpenstackSecurityGroup)
 def creation_validation(openstack_resource):
     """
@@ -118,5 +143,5 @@ def creation_validation(openstack_resource):
     in openstack
     :param openstack_resource: Instance of current openstack security group
     """
-    validate_resource_quota(openstack_resource, SECURITY_GROUP_OPENSTACK_TYPE)
+    security_group_creation_validation(openstack_resource)
     ctx.logger.debug('OK: security group configuration is valid')

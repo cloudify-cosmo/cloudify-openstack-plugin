@@ -44,6 +44,7 @@ class HostAggregateTestCase(OpenStackTestBase):
     def node_properties(self):
         properties = super(HostAggregateTestCase, self).node_properties
         properties['metadata'] = {'key-1': 'test-1', 'key-2': 'test-2'}
+        properties['hosts'] = ['host-1', 'host-2']
         return properties
 
     def test_create(self, mock_connection):
@@ -80,14 +81,14 @@ class HostAggregateTestCase(OpenStackTestBase):
         self._prepare_context_for_operation(
             test_name='HostAggregateTestCase',
             ctx_operation_name='cloudify.interfaces.lifecycle.configure')
-
+        hosts_to_add = ['host-1', 'host-2']
         old_aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
             'name': 'test_host_aggregate',
             'availability_zone': 'test_availability_zone',
         })
 
-        new_aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
+        aggregate_with_metadata_ = openstack.compute.v2.aggregate.Aggregate(**{
             'id': '1',
             'name': 'test_host_aggregate',
             'availability_zone': 'test_availability_zone',
@@ -97,16 +98,37 @@ class HostAggregateTestCase(OpenStackTestBase):
             }
         })
 
+        aggregate_with_hosts = openstack.compute.v2.aggregate.Aggregate(**{
+            'id': '1',
+            'name': 'test_host_aggregate',
+            'availability_zone': 'test_availability_zone',
+            'metadata': {
+                'key-1': 'test-1',
+                'key-2': 'test-2'
+            },
+            'hosts': hosts_to_add
+        })
+
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
+
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \
             mock.MagicMock(return_value=old_aggregate_instance)
 
         # Mock aggregate response
         mock_connection().compute.set_aggregate_metadata = \
-            mock.MagicMock(return_value=new_aggregate_instance)
+            mock.MagicMock(return_value=aggregate_with_metadata_)
+
+        # Mock add host aggregate response
+        mock_connection().compute.add_host_to_aggregate = \
+            mock.MagicMock(return_value=aggregate_with_hosts)
 
         # Call configure aggregate
-        host_aggregate.set_metadata()
+        host_aggregate.configure()
+
+        self.assertEqual(
+            len(self._ctx.instance.runtime_properties['hosts']), 2)
 
     def test_update(self, _):
         # Prepare the context for update operation
@@ -126,17 +148,44 @@ class HostAggregateTestCase(OpenStackTestBase):
         # Prepare the context for configure operation
         self._prepare_context_for_operation(
             test_name='HostAggregateTestCase',
-            ctx_operation_name='cloudify.interfaces.lifecycle.delete')
-
-        aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
-            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            ctx_operation_name='cloudify.interfaces.lifecycle.delete',
+            test_runtime_properties={
+                'hosts': ['host-1']
+            })
+        old_aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
+            'id': '1',
             'name': 'test_host_aggregate',
             'availability_zone': 'test_availability_zone',
+            'metadata': {
+                'key-1': 'test-1',
+                'key-2': 'test-2'
+            },
+            'hosts': ['host-1', 'host-2']
         })
+
+        updated_aggregate_instance = \
+            openstack.compute.v2.aggregate.Aggregate(**{
+                'id': '1',
+                'name': 'test_host_aggregate',
+                'availability_zone': 'test_availability_zone',
+                'metadata': {
+                    'key-1': 'test-1',
+                    'key-2': 'test-2'
+                },
+                'hosts': ['host-2']
+            })
+
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
 
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \
-            mock.MagicMock(return_value=aggregate_instance)
+            mock.MagicMock(side_effect=[old_aggregate_instance,
+                                        updated_aggregate_instance])
+
+        # Mock remove host aggregate response
+        mock_connection().compute.remove_host_from_aggregate = \
+            mock.MagicMock(return_value=updated_aggregate_instance)
 
         # Mock aggregate response
         mock_connection().compute.delete_aggregate = \
@@ -147,11 +196,13 @@ class HostAggregateTestCase(OpenStackTestBase):
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
-                     OPENSTACK_TYPE_PROPERTY]:
+                     OPENSTACK_TYPE_PROPERTY,
+                     'hosts']:
             self.assertNotIn(attr,
                              self._ctx.instance.runtime_properties)
 
-    def test_list_aggregates(self, mock_connection):
+    def test_list_aggregates(self,
+                             mock_connection):
         # Prepare the context for list aggregates operation
         self._prepare_context_for_operation(
             test_name='HostAggregateTestCase',
@@ -173,6 +224,10 @@ class HostAggregateTestCase(OpenStackTestBase):
         # Mock list aggregate response
         mock_connection().compute.aggregates = \
             mock.MagicMock(return_value=aggregate_list)
+
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
 
         # Call list aggregates
         host_aggregate.list_aggregates()
@@ -206,6 +261,9 @@ class HostAggregateTestCase(OpenStackTestBase):
             'hosts': hosts_to_add
         })
 
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
+
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \
             mock.MagicMock(return_value=old_aggregate_instance)
@@ -232,7 +290,10 @@ class HostAggregateTestCase(OpenStackTestBase):
         # Prepare the context for remove hosts operation
         self._prepare_context_for_operation(
             test_name='HostAggregateTestCase',
-            ctx_operation_name='cloudify.interfaces.operations.remove_hosts')
+            ctx_operation_name='cloudify.interfaces.operations.remove_hosts',
+            test_runtime_properties={
+                'hosts': ['host-1', 'host-2']
+            })
 
         hosts_to_remove = ['host-1']
         old_aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
@@ -248,6 +309,8 @@ class HostAggregateTestCase(OpenStackTestBase):
             'availability_zone': 'test_availability_zone',
             'hosts': ['host-2']
         })
+        self._ctx.instance.runtime_properties[RESOURCE_ID] = \
+            'a95b5509-c122-4c2f-823e-884bb559afe8'
 
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \
@@ -259,6 +322,9 @@ class HostAggregateTestCase(OpenStackTestBase):
 
         # Call remove hosts from aggregate
         host_aggregate.remove_hosts(hosts=hosts_to_remove)
+
+        self.assertEqual(
+            len(self._ctx.instance.runtime_properties['hosts']), 1)
 
     def test_remove_invalid_hosts(self, _):
         # Prepare the context for remove hosts operation

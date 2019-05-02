@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.0.0.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.1.0.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.0.0'
+    package_version: '3.1.0'
 
 dsl_definitions:
 
@@ -12,7 +12,7 @@ dsl_definitions:
     client_config:
       type: cloudify.types.openstack.ClientConfig
       description: Your OpenStack client configuration.
-      required: true
+      required: false
 
   # Every resource uses this property unless noted.
   external_resource: &external_resource
@@ -21,12 +21,11 @@ dsl_definitions:
       type: boolean
       default: false
 
-  # Every resource uses this property unless noted.
-  resource_id: &resource_id
-    resource_id:
-      description: The Openstack resource ID of the external resource, if use_external_resource is true. Otherwise it is an empty string.
-      type: string
-      default: ''
+  create_if_missing: &create_if_missing
+    create_if_missing:
+      type: boolean
+      default: false
+      description: If use_external_resource is ``true`` and the resource is missing,create it instead of failing.
 
   id: &data_type_id
     id:
@@ -44,6 +43,7 @@ dsl_definitions:
       description: Resource name.
       type: string
       required: false
+      default: ''
 
   description: &data_type_description
     description:
@@ -59,18 +59,22 @@ data_types:
       auth_url:
         type: string
         description: Your OpenStack Client Authorization URL.
-        required: true
+        required: false
       username:
         type: string
         description: Your OpenStack username.
-        required: true
+        required: false
       password:
         type: string
         description: Your OpenStack password.
-        required: true
+        required: false
       project_name:
         type: string
         description: The name of your OpenStack project.
+        required: false
+      tenant_name:
+        type: string
+        description: The name of your OpenStack tenant.
         required: false
       region_name:
         type: string
@@ -80,16 +84,29 @@ data_types:
         type: string
         description: The user domain id
         required: false
+      project_domain_id:
+        type: string
+        description: The Project domain id
+        required: false
+      user_domain_name:
+        description: Domain name to operate on.
+        type: string
+        required: false
+      project_domain_name:
+        description: Project domain name to operate on.
+        type: string
+        required: false
+      kwargs:
+        description: >
+          A dictionary of keys and values that is not validated
+          but will override other values in the client config.
+        default: {}
 
   cloudify.types.openstack.Network:
     properties:
       <<: *data_type_kwargs
       <<: *data_type_name
       <<: *data_type_id
-      external:
-        description: Whether this network is externally accessible.
-        type: boolean
-        default: false
       admin_state_up:
         description: The administrative state of the network, which is up (true) or down (false).
         type: boolean
@@ -183,18 +200,6 @@ data_types:
       <<: *data_type_id
       <<: *data_type_description
 
-  cloudify.types.openstack.Routes:
-    properties:
-      <<: *data_type_name
-      <<: *data_type_id
-      host_routes:
-        description: >
-          Additional routes for the subnet.
-          A list of dictionaries with destination and nexthop parameters.
-          Default value is an empty list.
-        required: false
-        default: []
-
   cloudify.types.openstack.Router:
     properties:
       <<: *data_type_kwargs
@@ -241,7 +246,6 @@ data_types:
 
   cloudify.types.openstack.SecurityGroupRule:
     properties:
-      <<: *data_type_name
       <<: *data_type_kwargs
       <<: *data_type_id
       remote_group_id:
@@ -303,6 +307,7 @@ data_types:
       <<: *data_type_kwargs
       <<: *data_type_name
       <<: *data_type_id
+      <<: *data_type_description
       image_id:
         description: >
           The UUID of the image to use for your server instance.
@@ -380,6 +385,7 @@ data_types:
   cloudify.types.openstack.HostAggregate:
     properties:
       <<: *data_type_name
+      <<: *data_type_id
       availability_zone:
         required: false
         type: string
@@ -438,8 +444,7 @@ data_types:
       <<: *data_type_kwargs
       <<: *data_type_name
       <<: *data_type_id
-      <<: *data_type_description
-      ram: 
+      ram:
         description: >
               The amount of RAM a flavor has, in MiB
         required: false
@@ -464,7 +469,6 @@ data_types:
       <<: *data_type_kwargs
       <<: *data_type_name
       <<: *data_type_id
-      <<: *data_type_description
       default_project_id:
         description: >
           The ID of the default project for the user.
@@ -605,6 +609,7 @@ node_types:
     derived_from: cloudify.nodes.Network
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
 
   cloudify.nodes.openstack.Network:
@@ -651,6 +656,9 @@ node_types:
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.openstack_plugin.resources.network.subnet.creation_validation
+          inputs:
+            args:
+              default: {}
       cloudify.interfaces.operations:
         update:
           implementation: openstack.openstack_plugin.resources.network.subnet.update
@@ -667,7 +675,16 @@ node_types:
     derived_from: cloudify.nodes.Port
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
+      fixed_ip:
+        type: string
+        default: ''
+        description: >
+          may be used to request a specific fixed IP for the port.
+          If the IP is unavailable
+          (either already taken or does not belong to a subnet the port is on)
+          an error will be raised.
       resource_config:
         type: cloudify.types.openstack.Port
         description: A dictionary that may contain these keys https://developer.openstack.org/api-ref/network/v2/#create-port.
@@ -697,17 +714,27 @@ node_types:
     derived_from: cloudify.nodes.Router
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.Router
         description: A dictionary that may contain these keys https://developer.openstack.org/api-ref/network/v2/#create-router.
         required: true
+      external_network:
+        type: string
+        default: ''
+        description: >
+          An external network name or ID.
+          If given, the router will use this external network as a gateway.
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
           implementation: openstack.openstack_plugin.resources.network.router.create
         start:
           implementation: openstack.openstack_plugin.resources.network.router.start
+          inputs:
+            routes:
+              default: []
         stop:
           implementation: openstack.openstack_plugin.resources.network.router.stop
         delete:
@@ -731,6 +758,7 @@ node_types:
     derived_from: cloudify.nodes.VirtualIP
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       allow_reallocation:
         type: boolean
@@ -769,6 +797,7 @@ node_types:
     derived_from: cloudify.nodes.SecurityGroup
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       disable_default_egress_rules:
         description: >
@@ -814,6 +843,7 @@ node_types:
     derived_from: cloudify.nodes.SecurityGroup
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.SecurityGroupRule
@@ -839,6 +869,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.RBACPolicy
@@ -877,11 +908,20 @@ node_types:
     derived_from: cloudify.nodes.Compute
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.Server
         description: A dictionary that may contain these keys https://developer.openstack.org/api-ref/compute/?expanded=create-server-detail
         required: true
+      use_password:
+        type: boolean
+        default: false
+        description: >
+          A boolean describing whether this server image supports user-password authentication.
+          Images that do should post the administrator user's password to the Openstack metadata service (e.g. via cloudbase);
+          The password would then be retrieved by the plugin,
+          decrypted using the server's keypair and then saved in the server's runtime properties.
       use_ipv6_ip:
         type: boolean
         description: >
@@ -893,6 +933,24 @@ node_types:
           Tells the deployment to use the public IP (if available) of the resource
           for Cloudify Agent connections
         default: false
+      image:
+        type: string
+        default: ''
+        description: >
+          The image for the server.
+          May receive either the ID or the name of the image.
+          note: This property is currently optional for backwards compatibility,
+          but will be modified to become a required property in future versions
+          (Default: '').
+      flavor:
+        type: string
+        default: ''
+        description: >
+          The flavor for the server.
+          May receive either the ID or the name of the flavor.
+          note: This property is currently optional for backwards compatibility,
+          but will be modified to become a required property in future versions
+          (Default: '').
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -912,6 +970,9 @@ node_types:
       cloudify.interfaces.validation:
         creation:
           implementation: openstack.openstack_plugin.resources.compute.server.creation_validation
+          inputs:
+            args:
+              default: {}
       cloudify.interfaces.freeze:
         suspend:
           implementation: openstack.openstack_plugin.resources.compute.server.suspend
@@ -946,12 +1007,6 @@ node_types:
   cloudify.nodes.openstack.WindowsServer:
     derived_from: cloudify.nodes.openstack.Server
     properties:
-      use_password:
-        type: boolean
-        default: true
-        description: >
-          Default changed for derived type
-          because Windows instances need a password for agent installation
       os_family:
         type: string
         default: windows
@@ -965,11 +1020,11 @@ node_types:
           updates the defaults for the agent_config for Windows)
 
 
-
   cloudify.nodes.openstack.ServerGroup:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.ServerGroup
@@ -995,6 +1050,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.KeyPair
@@ -1017,6 +1073,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       metadata:
         required: false
@@ -1028,6 +1085,11 @@ node_types:
           metadata:
             ssd: 'True'
             max_number: '1233'
+      hosts:
+        required: false
+        default: []
+        description: >
+          list of hosts IDs, which will be a members of host aggregate
       resource_config:
         type: cloudify.types.openstack.HostAggregate
         description: https://developer.openstack.org/api-ref/compute/?expanded=create-aggregate-detail
@@ -1037,7 +1099,7 @@ node_types:
         create:
           implementation: openstack.openstack_plugin.resources.compute.host_aggregate.create
         configure:
-          implementation: openstack.openstack_plugin.resources.compute.host_aggregate.set_metadata
+          implementation: openstack.openstack_plugin.resources.compute.host_aggregate.configure
         delete:
           implementation: openstack.openstack_plugin.resources.compute.host_aggregate.delete
       cloudify.interfaces.operations:
@@ -1063,6 +1125,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       image_url:
         type: string
@@ -1100,11 +1163,21 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.Flavor
         description: https://developer.openstack.org/api-ref/compute/?expanded=create-flavor-detail
         required: true
+      extra_specs:
+        default: {}
+        description: >
+          key-value user configuration, according to:
+          https://developer.openstack.org/api-ref/compute/#create-extra-specs-for-a-flavor
+      tenants:
+        default: []
+        description: >
+          List of tenants to add to flavor access
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -1129,6 +1202,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.User
@@ -1156,23 +1230,23 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       users:
         default: []
         description: >
           List of users assigned to this project in the following format:
             { name: string, roles: [string] }
-#      quota:
-#        default: {}
-#        description: |
-#          A dictionary mapping service names to quota definitions for a project
-#
-#          e.g::
-#
-#            quota:
-#              compute: <quota>
-#              network: <quota>
-#              volume: <quota>
+      quota:
+        default: {}
+        description: |
+          A dictionary mapping service names to quota definitions for a project
+          e.g::
+
+            quota:
+              compute: <quota>
+              network: <quota>
+              volume: <quota>
       resource_config:
         type: cloudify.types.openstack.Project
         description: https://developer.openstack.org/api-ref/identity/v3/?expanded=update-user.yaml-detail,create-user.yaml-detail,update-project-detail#projects
@@ -1183,6 +1257,9 @@ node_types:
           implementation: openstack.openstack_plugin.resources.identity.project.create
         start:
           implementation: openstack.openstack_plugin.resources.identity.project.start
+          inputs:
+            quota_dict:
+              default: {}
         delete:
           implementation: openstack.openstack_plugin.resources.identity.project.delete
       cloudify.interfaces.operations:
@@ -1210,6 +1287,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       device_name:
         type: string
@@ -1263,6 +1341,7 @@ node_types:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
+      <<: *create_if_missing
       <<: *client_config
       resource_config:
         type: cloudify.types.openstack.VolumeType
@@ -1349,7 +1428,7 @@ relationships:
         unlink:
           implementation: openstack.openstack_plugin.resources.network.rbac_policy.unlink_target_object
           inputs:
-            resource_id:
+            resource_network_id:
               default: { get_attribute: [ TARGET, id ] }
             disable_dhcp:
               default: false

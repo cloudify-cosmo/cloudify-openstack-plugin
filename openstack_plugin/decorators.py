@@ -23,14 +23,21 @@ from cloudify.exceptions import NonRecoverableError
 from cloudify.utils import exception_to_error_cause
 
 # Local imports
-from openstack_plugin.constants import USE_EXTERNAL_RESOURCE_PROPERTY
+from openstack_plugin.compat import Compat
+from openstack_sdk.common import (InvalidDomainException, QuotaException)
 from openstack_plugin.utils \
     import (resolve_ctx,
             get_current_operation,
             prepare_resource_instance,
-            handle_external_resource,
+            use_external_resource,
             update_runtime_properties_for_operation_task,
-            allow_to_run_operation_for_external_node)
+            is_compat_node)
+
+from openstack_plugin.constants import OPENSTACK_TYPE_PROPERTY
+
+EXCEPTIONS = (exceptions.SDKException,
+              InvalidDomainException,
+              QuotaException)
 
 
 def with_openstack_resource(class_decl,
@@ -46,7 +53,6 @@ def with_openstack_resource(class_decl,
     to pass to the external resource  handler
     :return: a wrapper object encapsulating the invoked function
     """
-
     def wrapper_outer(func):
         def wrapper_inner(**kwargs):
             # Get the context for the current task operation
@@ -59,41 +65,80 @@ def with_openstack_resource(class_decl,
 
             # Get the current operation name
             operation_name = get_current_operation()
-
-            # Prepare the openstack resource that need to execute the
-            # current task operation
-            resource = \
-                prepare_resource_instance(class_decl, ctx_node, kwargs)
-
-            # Handle external resource when it is enabled
-            if ctx_node.node.properties.get(USE_EXTERNAL_RESOURCE_PROPERTY):
-                handle_external_resource(ctx_node,
-                                         resource,
-                                         existing_resource_handler,
-                                         **existing_resource_kwargs)
-
-                # Update runtime properties
-                if not allow_to_run_operation_for_external_node(
-                        operation_name):
-                    # Update runtime properties for operation
-                    update_runtime_properties_for_operation_task(
-                        operation_name,
-                        ctx_node,
-                        resource)
-
-                    return
             try:
+                # Prepare the openstack resource that need to execute the
+                # current task operation
+                resource = \
+                    prepare_resource_instance(class_decl, ctx_node, kwargs)
+
+                if use_external_resource(ctx_node, resource,
+                                         existing_resource_handler,
+                                         **existing_resource_kwargs):
+                    return
                 kwargs['openstack_resource'] = resource
                 func(**kwargs)
                 update_runtime_properties_for_operation_task(operation_name,
                                                              ctx_node,
                                                              resource)
-            except exceptions.SDKException as error:
+            except EXCEPTIONS as errors:
                 _, _, tb = sys.exc_info()
                 raise NonRecoverableError(
-                    'Failure while trying to request '
-                    'Openstack API: {}'.format(error.message),
-                    causes=[exception_to_error_cause(error, tb)])
+                    'Failure while trying to run operation:'
+                    '{0}: {1}'.format(operation_name, errors.message),
+                    causes=[exception_to_error_cause(errors, tb)])
+        return wrapper_inner
+    return wrapper_outer
 
+
+def with_compat_node(func):
+    """
+    This decorator is used to transform nodes properties for openstack nodes
+    with version 2.X to be compatible with new nodes support by version 3.x
+    :param func: The decorated function
+    :return: Wrapped function
+    """
+    def wrapper(**kwargs):
+        ctx = kwargs.get('ctx', CloudifyContext)
+
+        # Resolve the actual context which need to run operation,
+        # the context could be belongs to relationship context or actual
+        # node context
+        ctx_node = resolve_ctx(ctx)
+        # Check to see if we need to do properties transformation or not
+        kwargs_config = {}
+        if is_compat_node(ctx_node):
+            compat = Compat(context=ctx_node, **kwargs)
+            kwargs_config = compat.transform()
+
+        if not kwargs_config:
+            kwargs_config = kwargs
+        func(**kwargs_config)
+        # After this the resource should be created and we should have the
+        # "id" runtime property set correctly
+        # Get the "external_id" if it exists
+        external_id = ctx_node.instance.runtime_properties.get('external_id')
+        # This is the resource id for openstack 3.x nodes
+        resource_id = ctx_node.instance.runtime_properties.get('id')
+        if is_compat_node(ctx_node) and resource_id and not external_id:
+            ctx_node.instance.runtime_properties['external_id']\
+                = ctx_node.instance.runtime_properties['id']
+
+        # Check if the 'routes' exists in 'kwargs_config' and override the
+        # 'type' property to match 'routes'
+        if 'routes' in kwargs_config:
+            ctx_node.instance.runtime_properties[
+                OPENSTACK_TYPE_PROPERTY] = 'routes'
+    return wrapper
+
+
+def with_multiple_data_sources(clean_duplicates_handler=None):
+    def wrapper_outer(func):
+        def wrapper_inner(config, **kwargs):
+            # Check if the current node has "use_compact_node"
+            if is_compat_node(CloudifyContext):
+                kwargs['allow_multiple'] = True
+            func(config, **kwargs)
+            if kwargs.get('allow_multiple') and clean_duplicates_handler:
+                clean_duplicates_handler(config)
         return wrapper_inner
     return wrapper_outer

@@ -736,6 +736,10 @@ class PortTestCase(OpenStackTestBase):
         # Mock list port response
         mock_connection().network.ports = mock.MagicMock(return_value=ports)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list ports
         port.list_ports()
 

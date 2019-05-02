@@ -1,0 +1,286 @@
+dsl_definitions:
+
+  common_config: &common_config
+    use_compact_node:
+      description: This to indicate that this node is going to be converted to openstack version 3.x node
+      type: boolean
+      default: true
+    openstack_config:
+      default: {}
+    resource_id:
+      default: ''
+
+node_types:
+
+  cloudify.openstack.nodes.Flavor:
+    derived_from: cloudify.nodes.openstack.Flavor
+    properties:
+      <<: *common_config
+      flavor:
+        default: {}
+      # extra_specs will be ignore on new SDK since it does not support set set keys for flavor
+      extra_specs:
+        default: {}
+      # tenants will be ignore on new SDK since it does not support add tenant access
+      tenants:
+        default: []
+
+  cloudify.openstack.nodes.HostAggregate:
+    derived_from: cloudify.nodes.openstack.HostAggregate
+    properties:
+      <<: *common_config
+      aggregate:
+        default: {}
+
+  cloudify.openstack.nodes.Image:
+    derived_from: cloudify.nodes.openstack.Image
+    properties:
+      <<: *common_config
+      image:
+        default: {}
+
+  cloudify.openstack.nodes.KeyPair:
+    derived_from: cloudify.nodes.openstack.KeyPair
+    properties:
+      <<: *common_config
+      keypair:
+        default: {}
+      # Openstack 3.x.x does not support generating private key file, this property will be ignored
+      private_key_path:
+        type: string
+        default: ''
+
+  cloudify.openstack.nodes.ServerGroup:
+    derived_from: cloudify.nodes.openstack.ServerGroup
+    properties:
+      <<: *common_config
+      server_group:
+        default: {}
+      policy:
+        type: string
+        description: >
+          the policy of the server group, this must be either 'affinity',
+          'anti-affinity', 'soft-affinity', or 'soft-anti-affinity'.
+        default: {}
+
+  cloudify.openstack.nodes.Server:
+    derived_from: cloudify.nodes.openstack.Server
+    properties:
+      <<: *common_config
+      server:
+        default: {}
+      # This is no longer supported by the new SDK
+      management_network_name:
+          type: string
+          required: false
+          description: >
+            Old requirement called management network name. Not required. Leave blank. Retained for backward compatibility.
+            Not every server need be connected to a management network.
+            If the management network's name information is available in the Provider Context,
+            this connection is made automatically and there's no need to override this property
+            (See the Misc section for more information on the Openstack Provider Context).
+            It is not required to set the value of this property to the management network name. As of Cloudify 4.0, it has no relationship to the bootstrap process.
+
+
+
+  cloudify.openstack.nodes.WindowsServer:
+    derived_from: cloudify.openstack.nodes.Server
+    properties:
+      use_password:
+        type: boolean
+        default: true
+        description: >
+          Default changed for derived type
+          because Windows instances need a password for agent installation
+      os_family:
+        type: string
+        default: windows
+        description: >
+          (updates the os_family default as a convenience)
+      agent_config:
+        type: cloudify.datatypes.AgentConfig
+        default:
+          port: 5985
+        description: >
+          (updates the defaults for the agent_config for Windows)
+
+
+
+
+
+
+
+
+
+  cloudify.openstack.nodes.User:
+    derived_from: cloudify.nodes.openstack.User
+    properties:
+      <<: *common_config
+      user:
+        default: {}
+
+  cloudify.openstack.nodes.Project:
+    derived_from: cloudify.nodes.openstack.Project
+    properties:
+      <<: *common_config
+      project:
+        default: {}
+
+  cloudify.openstack.nodes.Volume:
+    derived_from: cloudify.nodes.openstack.Volume
+    properties:
+      <<: *common_config
+      volume:
+        default: {}
+      # In new plugin 3.x, this property is going to be ignored because when user
+      # specify "imageRef" in volume, that means the volume is bootable and
+      # for backward compatibility, the new SDK store runtime property
+      # called "bootable" to give an indication if this volume is bootable
+      # or not when it is connected to the server via relationship
+      boot:
+        type: boolean
+        required: false
+        description: >
+          If a Server instance is connected to this Volume by a relationship,
+          this volume will be used as the boot volume for that Server.
+          This option will be deprecated in the future.
+
+
+
+
+
+
+
+
+  cloudify.openstack.nodes.Network:
+    derived_from: cloudify.nodes.openstack.Network
+    properties:
+      <<: *common_config
+      network:
+        default: {}
+
+  cloudify.openstack.nodes.Subnet:
+    derived_from: cloudify.nodes.openstack.Subnet
+    properties:
+      <<: *common_config
+      subnet:
+        default: {}
+
+  cloudify.openstack.nodes.Port:
+    derived_from: cloudify.nodes.openstack.Port
+    properties:
+      <<: *common_config
+      port:
+        default: {}
+
+  cloudify.openstack.nodes.FloatingIP:
+    derived_from: cloudify.nodes.openstack.FloatingIP
+    properties:
+      <<: *common_config
+      floatingip:
+        default: {}
+
+  cloudify.openstack.nodes.Router:
+    derived_from: cloudify.nodes.openstack.Router
+    properties:
+      <<: *common_config
+      router:
+        default: {}
+      # In new plugin, this node property is no longer supported and it will ignored
+      default_to_managers_external_network:
+        type: boolean
+        default: true
+        description: >
+          A boolean which determines whether to use the Cloudify Manager's external network if no other external network was given (whether by a relationship, by the `external_network` property or by the nested `external_gateway_info` key in the `router` property). This is only relevant if the manager's external network appears in the Provider-context. Defaults to `true`.
+
+
+  cloudify.openstack.nodes.Routes:
+    derived_from: cloudify.nodes.openstack.Router
+    properties:
+      <<: *common_config
+      routes:
+        default: []
+        description: >
+          The extra routes configuration for L3 router.
+          A list of dictionaries with destination and nexthop parameters.
+          It is available when extraroute extension is enabled.
+          Default is an empty list ([]).
+          https://developer.openstack.org/api-ref/network/v2/index.html#update-router
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.openstack_plugin.resources.network.router.start
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+            resource_id:
+              type: string
+              default: { get_property: [ SELF, resource_id ] }
+        start: {}
+        stop: {}
+        delete:
+          implementation: openstack.openstack_plugin.resources.network.router.stop
+
+  cloudify.openstack.nodes.SecurityGroup:
+    derived_from: cloudify.nodes.openstack.SecurityGroup
+    properties:
+      <<: *common_config
+      security_group:
+        default: {}
+      description:
+        type: string
+        default: ''
+      rules:
+        default: []
+        description: >
+          key-value security_group_rule configuration as described in:
+          https://developer.openstack.org/api-ref/network/v2/index.html#security-group-rules-security-group-rules.
+      security_group_rules:
+        default: { get_property: [ SELF, rules ] }
+
+  cloudify.openstack.nodes.RBACPolicy:
+    derived_from: cloudify.nodes.openstack.RBACPolicy
+    properties:
+      <<: *common_config
+      rbac_policy:
+        default: {}
+
+relationships:
+
+  cloudify.openstack.server_connected_to_server_group:
+    derived_from: cloudify.relationships.openstack.server_connected_to_server_group
+
+  cloudify.openstack.server_connected_to_keypair:
+    derived_from: cloudify.relationships.openstack.server_connected_to_keypair
+
+  cloudify.openstack.server_connected_to_port:
+    derived_from: cloudify.relationships.openstack.server_connected_to_port
+
+  cloudify.openstack.server_connected_to_floating_ip:
+    derived_from: cloudify.relationships.openstack.server_connected_to_floating_ip
+
+  cloudify.openstack.server_connected_to_security_group:
+    derived_from: cloudify.relationships.openstack.server_connected_to_security_group
+
+  cloudify.openstack.port_connected_to_security_group:
+    derived_from: cloudify.relationships.openstack.port_connected_to_security_group
+
+  cloudify.openstack.port_connected_to_floating_ip:
+    derived_from: cloudify.relationships.openstack.port_connected_to_floating_ip
+
+  cloudify.openstack.port_connected_to_subnet:
+    derived_from: cloudify.relationships.openstack.port_connected_to_subnet
+
+  cloudify.openstack.subnet_connected_to_router:
+    derived_from: cloudify.relationships.openstack.subnet_connected_to_router
+
+  cloudify.openstack.volume_attached_to_server:
+    derived_from: cloudify.relationships.openstack.volume_attached_to_server
+
+  cloudify.openstack.route_connected_to_router:
+    derived_from: cloudify.relationships.openstack.route_connected_to_router
+
+  cloudify.openstack.rbac_policy_applied_to:
+    derived_from: cloudify.relationships.openstack.rbac_policy_applied_to

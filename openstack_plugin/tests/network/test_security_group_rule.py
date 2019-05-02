@@ -163,6 +163,10 @@ class SecurityGroupRuleTestCase(OpenStackTestBase):
         mock_connection().network.security_group_rules = \
             mock.MagicMock(return_value=security_group_rules)
 
+        # Mock find project response
+        mock_connection().identity.find_project = \
+            mock.MagicMock(return_value=self.project_resource)
+
         # Call list security group rules
         security_group_rule.list_security_group_rules()
 

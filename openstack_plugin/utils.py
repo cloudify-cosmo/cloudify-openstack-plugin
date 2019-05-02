@@ -17,10 +17,12 @@
 import sys
 import base64
 import inspect
+import re
 
 
 # Third part imports
 import openstack.exceptions
+from IPy import IP
 from cloudify import compute
 from cloudify import ctx
 from cloudify.exceptions import (NonRecoverableError, OperationRetry)
@@ -39,11 +41,19 @@ from openstack_plugin.constants import (PS_OPEN,
                                         QUOTA_INVALID_MSG,
                                         INFINITE_RESOURCE_QUOTA,
                                         RESOURCE_ID,
+                                        CONDITIONALLY_CREATED,
+                                        USE_EXTERNAL_RESOURCE_PROPERTY,
+                                        CREATE_IF_MISSING_PROPERTY,
                                         OPENSTACK_TYPE_PROPERTY,
                                         OPENSTACK_NAME_PROPERTY,
                                         CLOUDIFY_NEW_NODE_OPERATIONS,
                                         CLOUDIFY_CREATE_OPERATION,
-                                        CLOUDIFY_DELETE_OPERATION)
+                                        CLOUDIFY_DELETE_OPERATION,
+                                        USE_COMPACT_NODE,
+                                        RBAC_POLICY_OPENSTACK_TYPE)
+
+
+NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
 
 
 def find_relationships_by_node_type_hierarchy(ctx_node_instance, node_type):
@@ -112,15 +122,14 @@ def find_relationships_by_relationship_type(_ctx, type_name):
             type_name in rel.type_hierarchy]
 
 
-def get_resource_id_from_runtime_properties(ctx_node_instance):
+def get_resource_id_from_runtime_properties(_ctx):
     """
     This method will lookup the resource id which is stored as part of
     runtime properties
-    :param ctx_node_instance: Cloudify node instance which is an instance of
-     cloudify.context.NodeInstanceContext
+    :param _ctx: Cloudify context instance cloudify.context.CloudifyContext
     :return: Resource id
     """
-    return ctx_node_instance.instance.runtime_properties.get(RESOURCE_ID)
+    return _ctx.instance.runtime_properties.get(RESOURCE_ID)
 
 
 def resolve_node_ctx_from_relationship(_ctx):
@@ -274,7 +283,9 @@ def reset_dict_empty_keys(dict_object):
     :return dict_object: Updated dict_object
     """
     for key, value in dict_object.iteritems():
-        if not value:
+        # Value could be boolean type, we do not need to convert it and lose
+        # the actual value
+        if not (value or isinstance(value, bool)):
             dict_object[key] = None
     return dict_object
 
@@ -323,7 +334,10 @@ def validate_resource_quota(resource, openstack_type):
         'validating resource {0} (node {1})'
         ''.format(openstack_type, ctx.node.id)
     )
-    openstack_type_plural = resource.resource_plural(openstack_type)
+    if openstack_type != RBAC_POLICY_OPENSTACK_TYPE:
+        openstack_type_plural = resource.resource_plural(openstack_type)
+    else:
+        openstack_type_plural = openstack_type
 
     resource_list = list(resource.list())
 
@@ -363,63 +377,62 @@ def validate_resource_quota(resource, openstack_type):
         raise NonRecoverableError(err_message)
 
 
-def set_runtime_properties_from_resource(ctx_node_instance,
+def set_runtime_properties_from_resource(_ctx,
                                          openstack_resource):
     """
     Set openstack "type" & "name" as runtime properties for current cloudify
     node instance
-    :param ctx_node_instance: Cloudify node instance which is an instance of
-     cloudify.context.NodeInstanceContext
+    :param _ctx: Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
     :param openstack_resource: Openstack resource instance
     """
-    if ctx_node_instance and openstack_resource:
-        ctx_node_instance.instance.runtime_properties[
+    if _ctx and openstack_resource:
+        _ctx.instance.runtime_properties[
             OPENSTACK_TYPE_PROPERTY] = openstack_resource.resource_type
 
-        ctx_node_instance.instance.runtime_properties[
+        _ctx.instance.runtime_properties[
             OPENSTACK_NAME_PROPERTY] = openstack_resource.name
 
 
-def unset_runtime_properties_from_instance(ctx_node_instance):
+def unset_runtime_properties_from_instance(_ctx):
     """
     Unset all runtime properties from node instance when delete operation
     task if finished
-    :param ctx_node_instance: Cloudify node instance which is an instance of
-     cloudify.context.NodeInstanceContext
+    :param _ctx: Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
     """
-    for key, _ in ctx_node_instance.instance.runtime_properties.items():
-        del ctx_node_instance.instance.runtime_properties[key]
+    for key, _ in _ctx.instance.runtime_properties.items():
+        del _ctx.instance.runtime_properties[key]
 
 
-def prepare_resource_instance(class_decl, ctx_node_instance, kwargs):
+def prepare_resource_instance(class_decl, _ctx, kwargs):
     """
     This method used to prepare and instantiate instance of openstack resource
     So that it can be used to make API request to execute required operations
     :param class_decl: Class name of the resource instance we need to create
-    :param ctx_node_instance: Cloudify node instance which is an instance of
-     cloudify.context.NodeInstanceContext
+    :param _ctx: Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
     :param kwargs: Some config contains data for openstack resource that
     could be provided via input task operation
     :return: Instance of openstack resource
     """
     def get_property_by_name(property_name):
         property_value = None
-        # TODO: Improve this to be more thorough.
-        if property_name in ctx_node_instance.node.properties:
+        if _ctx.node.properties.get(property_name):
             property_value = \
-                ctx_node_instance.node.properties.get(property_name)
+                _ctx.node.properties.get(property_name)
 
-        if property_name in ctx_node_instance.instance.runtime_properties:
+        if _ctx.instance.runtime_properties.get(property_name):
             if isinstance(property_value, dict):
                 property_value.update(
-                    ctx_node_instance.instance.runtime_properties.get(
+                    _ctx.instance.runtime_properties.get(
                         property_name))
             else:
                 property_value = \
-                    ctx_node_instance.instance.runtime_properties.get(
+                    _ctx.instance.runtime_properties.get(
                         property_name)
 
-        if property_name in kwargs:
+        if kwargs.get(property_name):
             kwargs_value = kwargs.pop(property_name)
             if isinstance(property_value, dict):
                 property_value.update(kwargs_value)
@@ -432,15 +445,28 @@ def prepare_resource_instance(class_decl, ctx_node_instance, kwargs):
 
     # If this arg is exist, that means user
     # provide extra/optional configuration for the defined node
-    if resource_config.get('kwargs'):
-        extra_config = resource_config.pop('kwargs')
-        resource_config.update(extra_config)
+    extra_resource_config = resource_config.pop('kwargs', None)
+    if extra_resource_config:
+        resource_config.update(extra_resource_config)
+
+    # If name property is provided for the resource but it does not contain
+    # any value, then we should generate a name based on the type of the
+    # resource
+    name = get_resource_name(_ctx, class_decl.resource_type)
+    if name:
+        resource_config['name'] = name
+
+    # If this arg is exist, that means user
+    # provide extra/optional client configuration for the defined node
+    extra_client_config = client_config.pop('kwargs', None)
+    if extra_client_config:
+        client_config.update(extra_client_config)
 
     # Check if resource_id is part of runtime properties so that we
     # can add it to the resource_config
-    if RESOURCE_ID in ctx_node_instance.instance.runtime_properties:
+    if RESOURCE_ID in _ctx.instance.runtime_properties:
         resource_config['id'] = \
-            ctx_node_instance.instance.runtime_properties[RESOURCE_ID]
+            _ctx.instance.runtime_properties[RESOURCE_ID]
 
     resource = class_decl(client_config=client_config,
                           resource_config=resource_config,
@@ -450,41 +476,191 @@ def prepare_resource_instance(class_decl, ctx_node_instance, kwargs):
 
 
 def update_runtime_properties_for_operation_task(operation_name,
-                                                 ctx_node_instance,
+                                                 _ctx,
                                                  openstack_resource):
     """
     This method will update runtime properties for node instance based on
     the operation task being running
     :param str operation_name:
-    :param ctx_node_instance: Cloudify node instance which is an instance of
-     cloudify.context.NodeInstanceContext
+    :param _ctx: Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
     :param openstack_resource: Openstack resource instance
     """
 
     # Set runtime properties for "name" & "type" when current
     # operation is "create", so that they can be used later on
     if operation_name == CLOUDIFY_CREATE_OPERATION:
-        set_runtime_properties_from_resource(ctx_node_instance,
+        set_runtime_properties_from_resource(_ctx,
                                              openstack_resource)
     # Clean all runtime properties for node instance when current operation
     # is delete
     elif operation_name == CLOUDIFY_DELETE_OPERATION:
-        unset_runtime_properties_from_instance(ctx_node_instance)
+        unset_runtime_properties_from_instance(_ctx)
 
 
-def handle_external_resource(ctx_node_instance,
-                             openstack_resource,
-                             existing_resource_handler=None,
-                             **kwargs):
+def lookup_remote_resource(_ctx, openstack_resource):
     """
-    :param ctx_node_instance: Cloudify context cloudify.context.CloudifyContext
+    This method will try to lookup openstack remote resource based on the
+    instance type
+    :param _ctx Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
+    :param openstack_resource: Instance derived from "OpenstackResource",
+    it could be "OpenstackNetwork" or "OpenstackRouter" ..etc
+    :return: Remote resource instance derived from openstack.resource.Resource
+    """
+
+    try:
+        # Get the remote resource
+        remote_resource = openstack_resource.get()
+    except openstack.exceptions.SDKException as error:
+        _, _, tb = sys.exc_info()
+        # If external resource does not exist then try to create it instead
+        # of failed, when "create_if_missing" is set to "True"
+        if is_create_if_missing(_ctx):
+            _ctx.instance.runtime_properties[CONDITIONALLY_CREATED] = True
+            # Since openstack SDK does not allow to have "id" on the payload
+            # request, "id" must be pop from openstack resource config so
+            # that it cannot be sent when trying to create API
+            openstack_resource.config.pop('id', None)
+            openstack_resource.resource_id = None
+            return None
+        raise NonRecoverableError(
+            'Failure while trying to request '
+            'Openstack API: {}'.format(error.message),
+            causes=[exception_to_error_cause(error, tb)])
+    return remote_resource
+
+
+def is_external_resource(_ctx):
+    """
+    This method is to check if the current node is an external openstack
+    resource or not
+    :param _ctx Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
+    :return bool: Return boolean flag to indicate if it is external or not
+    """
+    return True if \
+        _ctx.node.properties.get(USE_EXTERNAL_RESOURCE_PROPERTY) else False
+
+
+def is_compat_node(_ctx):
+    """
+    This method is to check if the current node need to be converted to
+    openstack version 3.0.0 node
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :return bool:  Return boolean flag to indicate if it has
+    "use_compact_node" property or not
+    """
+    return True if _ctx.node.properties.get(USE_COMPACT_NODE) else False
+
+
+def is_create_if_missing(_ctx):
+    """
+    This method is to check if the current node has a "create_if_missing"
+    property in order to create resource even when "use_external_resource"
+    is set to "True"
+    resource or not
+    :param _ctx Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
+    :return bool: Return boolean flag in order to decided if we should
+    create external resource or not
+    """
+    return True if \
+        _ctx.node.properties.get(CREATE_IF_MISSING_PROPERTY) else False
+
+
+def is_external_relationship(_ctx):
+    """
+    This method is to check if both target & source nodes are external
+    resources with "use_external_resource"
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :return bool: Return boolean flag in order to decide if both resources
+    are external
+    """
+    if is_external_resource(_ctx.source) and is_external_resource(_ctx.target):
+        return True
+    return False
+
+
+def is_external_relationship_not_conditionally_created(_ctx):
+    """
+    This method is to check if the relationship between two nodes are
+    external and not conditional created "create_if_missing" is set to
+    "False" to the node which in turn does not have "conditionally_created"
+    runtime property for the node instance
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :return bool: Return boolean to indicate if both source/target are
+    external resources and do not have "conditionally_created" runtime property
+    """
+    source_conditional_created = \
+        _ctx.source.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+    target_conditional_created = \
+        _ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+    return \
+        is_external_resource(ctx.source) and is_external_resource(ctx.target)\
+        and not (source_conditional_created or target_conditional_created)
+
+
+def use_external_resource(_ctx,
+                          openstack_resource,
+                          existing_resource_handler=None,
+                          **kwargs):
+    """
+    :param _ctx Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
     :param openstack_resource: Openstack resource instance
     :param existing_resource_handler: Callback handler that used to be
     called in order to execute custom operation when "use_external_resource" is
     enabled
     :param kwargs: Any extra param passed to the existing_resource_handler
     """
+    # The cases when it is allowed to run operation tasks for resources
+    # 1- When "use_external_resource=False"
+    # 2- When "create_if_missing=True" and "use_external_resource=True"
+    # 3- When "use_external_resource=True" and the current operation name
+    # is not included in the following operation list
+    #   - "cloudify.interfaces.lifecycle.create"
+    #   - "cloudify.interfaces.lifecycle.configure"
+    #   - "cloudify.interfaces.lifecycle.start"
+    #   - "cloudify.interfaces.lifecycle.stop"
+    #   - "cloudify.interfaces.lifecycle.delete"
+    #   - "cloudify.interfaces.validation.creation"
 
+    # 4- When "use_external_resource=True" for (source|target) node node but
+    # "use_external_resource=False" for (target|source) node for the
+    # following relationship operations:
+    #   - "cloudify.interfaces.relationship_lifecycle.preconfigure"
+    #   - "cloudify.interfaces.relationship_lifecycle.postconfigure"
+    #   - "cloudify.interfaces.relationship_lifecycle.establish"
+    #   - "cloudify.interfaces.relationship_lifecycle.unlink"
+
+    # Run custom operation When "existing_resource_handler" is not None,
+    # so that it helps to validate or run that operation for external
+    # existing resource in the following cases only:
+
+    # 1- When "use_external_resource=True" for the following tasks:
+    #   - "cloudify.interfaces.lifecycle.create"
+    #   - "cloudify.interfaces.lifecycle.configure"
+    #   - "cloudify.interfaces.lifecycle.start"
+    #   - "cloudify.interfaces.lifecycle.stop"
+    #   - "cloudify.interfaces.lifecycle.delete"
+    #   - "cloudify.interfaces.validation.creation"
+
+    # 2- When "use_external_resource=True" for both source & target node on
+    # the for the following opertaions:
+    #   - "cloudify.interfaces.relationship_lifecycle.preconfigure"
+    #   - "cloudify.interfaces.relationship_lifecycle.postconfigure"
+    #   - "cloudify.interfaces.relationship_lifecycle.establish"
+    #   - "cloudify.interfaces.relationship_lifecycle.unlink"
+
+    # Return None to indicate that this is the resource is not created and
+    # we should continue and run operation node tasks
+    if not is_external_resource(_ctx):
+        return None
+
+    ctx.logger.info('Using external resource {0}'.format(RESOURCE_ID))
     # Get the current operation name
     operation_name = get_current_operation()
 
@@ -497,37 +673,37 @@ def handle_external_resource(ctx_node_instance,
     if error_message:
         raise NonRecoverableError(error_message)
 
-    # Cannot delete/create resource when it is external
-    if operation_name in [CLOUDIFY_CREATE_OPERATION,
-                          CLOUDIFY_DELETE_OPERATION]:
-        ctx.logger.info(
-            'Using external resource {0}'.format(RESOURCE_ID))
+    # Try to lookup remote resource
+    remote_resource = lookup_remote_resource(_ctx, openstack_resource)
+    # Check if the current node instance is conditional created or not
+    is_create = _ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+    # Check if context type is "relationship-instance" and to check if both
+    # target and source are not external
+    is_not_external_rel = \
+        ctx.type == RELATIONSHIP_INSTANCE and not is_external_relationship(ctx)
 
-        try:
-            # Get the remote resource
-            remote_resource = openstack_resource.get()
-        except openstack.exceptions.SDKException as error:
-            _, _, tb = sys.exc_info()
-            raise NonRecoverableError(
-                'Failure while trying to request '
-                'Openstack API: {}'.format(error.message),
-                causes=[exception_to_error_cause(error, tb)])
+    if is_create or is_not_external_rel:
+        return None
 
-        # Check the operation type and based on that decide what to do
-        if operation_name == CLOUDIFY_CREATE_OPERATION:
-            ctx.logger.info(
-                'not creating resource {0}'
-                ' since an external resource is being used'
-                ''.format(remote_resource.name))
-            ctx_node_instance.instance.runtime_properties[RESOURCE_ID] \
-                = remote_resource.id
-
-        # Just log message that we cannot delete resource
-        elif operation_name == CLOUDIFY_DELETE_OPERATION:
-            ctx.logger.info(
-                'not deleting resource {0}'
-                ' since an external resource is being used'
-                ''.format(remote_resource.name))
+    if remote_resource:
+        openstack_resource.resource_id = remote_resource.id
+    # Just log message that we cannot delete resource since it is an
+    # external resource
+    if operation_name == CLOUDIFY_CREATE_OPERATION:
+        _ctx.logger.info(
+            'not creating resource {0}'
+            ' since an external resource is being used'
+            ''.format(remote_resource.name))
+        _ctx.instance.runtime_properties[RESOURCE_ID] = remote_resource.id
+        if hasattr(remote_resource, 'name') and remote_resource.name:
+            openstack_resource.name = remote_resource.name
+    # Just log message that we cannot delete resource since it is an
+    # external resource
+    elif operation_name == CLOUDIFY_DELETE_OPERATION:
+        _ctx.logger.info(
+            'not deleting resource {0}'
+            ' since an external resource is being used'
+            ''.format(remote_resource.name))
 
     # Check if we need to run custom operation for already existed
     # resource for operation task
@@ -540,6 +716,19 @@ def handle_external_resource(ctx_node_instance,
             kwargs['openstack_resource'] = openstack_resource
 
         existing_resource_handler(**kwargs)
+
+    # Check which operations are allowed to execute when
+    # "use_external_resource" is set to "True" and "node_type" is instance
+    if ctx.type == NODE_INSTANCE\
+            and allow_to_run_operation_for_external_node(operation_name):
+        return None
+    else:
+        # Update runtime properties for operation create | delete operations
+        update_runtime_properties_for_operation_task(operation_name,
+                                                     _ctx,
+                                                     openstack_resource)
+        # Return instance of the external node
+        return openstack_resource
 
 
 def get_snapshot_name(object_type, snapshot_name, snapshot_incremental):
@@ -555,6 +744,38 @@ def get_snapshot_name(object_type, snapshot_name, snapshot_incremental):
     return "{0}-{1}-{2}-{3}".format(
         object_type, get_resource_id_from_runtime_properties(ctx),
         snapshot_name, "increment" if snapshot_incremental else "backup")
+
+
+def get_resource_name(_ctx, type_name):
+    """
+    This will return resource name and will generate a name based on
+    resource type if resource name is missing
+    :param _ctx: Cloudify node instance which is could be an instance of
+    RelationshipSubjectContext or CloudifyContext
+    :param str type_name: Resource type (server | server_group ...etc)
+    :return str: resource name
+
+    **Note**: Not all openstack resources accept "name" property, so this
+    method will return None, if "resource_config" does not contain "name"
+    """
+    resource_config = _ctx.node.properties.get('resource_config')
+    # This check means that resource_config is None or resource config does
+    # not have 'name' at all, in case it contains the "name" but the default
+    # is empty, then we need to generate a new name for that resource since
+    # it support name
+    if not resource_config or 'name' not in resource_config:
+        return None
+
+    elif resource_config.get('name'):
+        return resource_config['name']
+
+    dep_id = _ctx.deployment.id\
+        if hasattr(_ctx, 'deployment') else ctx.deployment.id
+    node_instance_id = _ctx.instance.id.replace('_', '-')
+    name = '{0}-{1}-{2}'.format(type_name,
+                                dep_id,
+                                node_instance_id)
+    return name
 
 
 def get_current_operation():
@@ -690,3 +911,55 @@ def allow_to_run_operation_for_external_node(operation_name):
     if operation_name not in CLOUDIFY_NEW_NODE_OPERATIONS:
         return True
     return False
+
+
+def remove_duplicates_items(items):
+    """
+    This method will clean duplicates items (dict) from list
+    :param items: List of dicts
+    :return: Updated list that without duplicate items
+    """
+    return [dict(t) for t in {tuple(d.items()) for d in items}]
+
+
+def validate_ip_or_range_syntax(_ctx, address):
+    """
+    This method will check if provided address is valid or not
+    :param _ctx: Cloudify context cloudify.context.CloudifyContext
+    :param str address: Provided address
+    """
+    _ctx.logger.debug('Checking if {0} is a valid address'.format(address))
+    try:
+        IP(address)
+        _ctx.logger.debug('OK:{0} is a valid address.'.format(address))
+    except ValueError as e:
+        err = ('{0} is not a valid address;{1}'.format(address, e.message))
+        _ctx.logger.error('VALIDATION ERROR:{0}'.format(err))
+        raise NonRecoverableError(err)
+
+
+def get_target_node_from_capabilities(node_name):
+    """
+    This method will use cloudify context capabilities in order to find
+    target node
+    :param str node_name: Node name
+    :return tuple: Return tuple that contains node_id with node instance
+    runtime properties for target node if it exists
+    """
+    result = None
+    caps = ctx.capabilities.get_all()
+    for node_id in caps:
+        match = NODE_NAME_RE.match(node_id)
+        if match:
+            candidate_node_name = match.group(1)
+            if candidate_node_name == node_name:
+                if result:
+                    raise NonRecoverableError(
+                        "More than one node named '{0}' "
+                        "in capabilities".format(node_name))
+                result = (node_id, caps[node_id])
+    if not result:
+        raise NonRecoverableError(
+            "Could not find node named '{0}' "
+            "in capabilities".format(node_name))
+    return result

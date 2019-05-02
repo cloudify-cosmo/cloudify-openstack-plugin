@@ -24,7 +24,7 @@ inputs:
 
   name_prefix:
     type: string
-    default: 'windows-server-blueprint_'
+    default: 'windows-server-blueprint-'
     description: Prefix string for all resources
 
   external_network_id:

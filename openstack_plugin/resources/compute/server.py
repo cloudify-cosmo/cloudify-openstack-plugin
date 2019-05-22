@@ -569,7 +569,7 @@ def _update_flavor_and_image_config(openstack_resource):
         openstack_resource.config['image_id'] = image_id
 
 
-@with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_networks)
+@with_multiple_data_sources()
 def _update_ports_config(server_config, allow_multiple=False):
     """
     This method will try to update server config with port configurations
@@ -596,6 +596,12 @@ def _update_ports_config(server_config, allow_multiple=False):
         ctx, PORT_OPENSTACK_TYPE)
 
     ports_to_add = []
+
+    # Remove duplicates port uuids
+    for port_id in port_ids:
+        for server_port in server_ports:
+            if port_id == server_port:
+                server_ports.remove(server_port)
 
     # if both are empty then server is not providing ports connection
     # neither via node properties nor via relationships and this will be
@@ -723,7 +729,7 @@ def _update_keypair_config(server_config, allow_multiple=False):
         server_config['key_name'] = key_name
 
 
-@with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_networks)
+@with_multiple_data_sources()
 def _update_networks_config(server_config, allow_multiple=False):
     """
     This method will try to update server config with network configurations
@@ -764,6 +770,12 @@ def _update_networks_config(server_config, allow_multiple=False):
                                   '"networks" property and be '
                                   'connected to a network via a '
                                   'relationship at the same time')
+
+    # Remove duplicates network uuids
+    for network_id in network_ids:
+        for server_network in server_networks:
+            if network_id == server_network:
+                server_networks.remove(server_network)
 
     # Prepare the network uuids that should be added to the server networks
     for net_id in network_ids:
@@ -818,13 +830,13 @@ def _update_server_config(server_config):
     :param dict server_config: The server configuration required in order to
     create the server instance using Openstack API
     """
-    # Check if there are some ports configuration via relationships in order
-    # to update server config
-    _update_ports_config(server_config)
-
     # Check if there are some networks configuration in order to update
     # server config
     _update_networks_config(server_config)
+
+    # Check if there are some ports configuration via relationships in order
+    # to update server config
+    _update_ports_config(server_config)
 
     # Check if there are some bootable volumes via relationships in order
     # update server config

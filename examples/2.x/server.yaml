@@ -29,9 +29,6 @@ inputs:
     type: string
     description: The id of network in your Openstack account.
 
-  subnet_cidr:
-    default: '192.168.1.0/24'
-
   security_group_rules:
     default:
     - remote_ip_prefix: 0.0.0.0/0

@@ -837,6 +837,20 @@ class Compat(object):
                 # used and accepted by openstack 3.x
                 config['networks'] = networks
 
+    @staticmethod
+    def map_server_security_groups_config(config):
+        """
+        This method will do a mapping of security groups config for the
+        server using openstack plugin 2.x so that it can works under
+        openstack plugin 3.x
+        :param config: Resource configuration needed to create server
+        """
+        security_groups = config.get('security_groups')
+        if security_groups:
+            config['security_groups'] = [
+                {'name': sg} for sg in security_groups
+            ]
+
     def _map_server_flavor_and_image(self, config):
         """
         This method will map the flavor and image information to be
@@ -1031,6 +1045,8 @@ class Compat(object):
         for config in [server_config, args_config]:
             # Do a conversion for networks object
             Compat._map_server_networks_config(config)
+            # Do a conversion for security groups object
+            Compat.map_server_security_groups_config(config)
             # Do a conversion for flavor and image
             self._map_server_flavor_and_image(config)
 

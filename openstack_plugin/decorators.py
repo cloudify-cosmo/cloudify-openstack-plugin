@@ -31,9 +31,8 @@ from openstack_plugin.utils \
             prepare_resource_instance,
             use_external_resource,
             update_runtime_properties_for_operation_task,
+            update_runtime_properties_for_node_v2,
             is_compat_node)
-
-from openstack_plugin.constants import OPENSTACK_TYPE_PROPERTY
 
 EXCEPTIONS = (exceptions.SDKException,
               InvalidDomainException,
@@ -113,21 +112,8 @@ def with_compat_node(func):
         if not kwargs_config:
             kwargs_config = kwargs
         func(**kwargs_config)
-        # After this the resource should be created and we should have the
-        # "id" runtime property set correctly
-        # Get the "external_id" if it exists
-        external_id = ctx_node.instance.runtime_properties.get('external_id')
-        # This is the resource id for openstack 3.x nodes
-        resource_id = ctx_node.instance.runtime_properties.get('id')
-        if is_compat_node(ctx_node) and resource_id and not external_id:
-            ctx_node.instance.runtime_properties['external_id']\
-                = ctx_node.instance.runtime_properties['id']
 
-        # Check if the 'routes' exists in 'kwargs_config' and override the
-        # 'type' property to match 'routes'
-        if 'routes' in kwargs_config:
-            ctx_node.instance.runtime_properties[
-                OPENSTACK_TYPE_PROPERTY] = 'routes'
+        update_runtime_properties_for_node_v2(ctx_node, kwargs_config)
     return wrapper
 
 

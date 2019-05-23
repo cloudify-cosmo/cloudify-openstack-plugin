@@ -377,6 +377,7 @@ class Compat(object):
         self.context = context
         self.kwargs = kwargs
         self._type = self.context.node.type
+        self._type_hierarchy = self.context.node.type_hierarchy
         self._properties = dict(self.node_properties)
 
     @property
@@ -472,6 +473,23 @@ class Compat(object):
     def is_update_operation(self):
         return self.operation_name in [CLOUDIFY_UPDATE_OPERATION,
                                        CLOUDIFY_UPDATE_PROJECT_OPERATION]
+
+    def lookup_handler_for_openstack_node_v2(self):
+        """
+        This method will lookup the handler for openstack type v2 so that we
+        it is possible to continue transformation process to openstack
+        plugin v3
+        :return: Handler object in order to transform data to support
+        openstack version 3
+        """
+
+        for node_type in self._type_hierarchy:
+            handler_node = self.transformation_handler_map.get(node_type)
+            if handler_node:
+                return handler_node
+
+        raise NonRecoverableError(
+            'Invalid openstack node type {0}'.format(self._type))
 
     def get_openstack_resource_id(self,
                                   class_resource,
@@ -1150,7 +1168,8 @@ class Compat(object):
         openstack version 3 properties based on the current node type
         :return dict: Compatible openstack version 3 properties
         """
-        properties = self.transformation_handler_map[self._type]()
+        handler_v2 = self.lookup_handler_for_openstack_node_v2()
+        properties = handler_v2()
         for key, value in properties.items():
             self.kwargs[key] = value
         return self.kwargs

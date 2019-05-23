@@ -619,8 +619,8 @@ def use_external_resource(_ctx,
     # The cases when it is allowed to run operation tasks for resources
     # 1- When "use_external_resource=False"
     # 2- When "create_if_missing=True" and "use_external_resource=True"
-    # 3- When "use_external_resource=True" and the current operation name
-    # is not included in the following operation list
+    # 3- When "use_external_resource=True" and the current operations
+    # are not included in the following operation list
     #   - "cloudify.interfaces.lifecycle.create"
     #   - "cloudify.interfaces.lifecycle.configure"
     #   - "cloudify.interfaces.lifecycle.start"
@@ -649,7 +649,7 @@ def use_external_resource(_ctx,
     #   - "cloudify.interfaces.validation.creation"
 
     # 2- When "use_external_resource=True" for both source & target node on
-    # the for the following opertaions:
+    # the for the following operations:
     #   - "cloudify.interfaces.relationship_lifecycle.preconfigure"
     #   - "cloudify.interfaces.relationship_lifecycle.postconfigure"
     #   - "cloudify.interfaces.relationship_lifecycle.establish"
@@ -963,3 +963,39 @@ def get_target_node_from_capabilities(node_name):
             "Could not find node named '{0}' "
             "in capabilities".format(node_name))
     return result
+
+
+def update_runtime_properties_for_node_v2(ctx_node, kwargs):
+    """
+    This method will set basic runtime properties for node instance which
+    are external_id, external_name for the node instance
+    :param ctx_node: This could be RelationshipSubjectContext
+     or CloudifyContext instance depend if it is a normal relationship
+     operation or node operation
+    :param dict kwargs: kwargs config for openstack v2
+    """
+
+    # At this point, the resource should be created and we should have the
+    # "id" runtime property set correctly
+    # Get the "external_id" if it exists
+    external_id = ctx_node.instance.runtime_properties.get('external_id')
+    # Get the "external_name" if it exists
+    external_name = ctx_node.instance.runtime_properties.get('external_name')
+    # This is the resource id for openstack 3.x nodes
+    resource_id = ctx_node.instance.runtime_properties.get('id')
+    # This is the resource name for openstack 3.x nodes
+    resource_name = ctx_node.instance.runtime_properties.get('name')
+    if is_compat_node(ctx_node):
+        if resource_id and not external_id:
+            ctx_node.instance.runtime_properties['external_id'] \
+                = ctx_node.instance.runtime_properties['id']
+
+        if resource_name and not external_name:
+            ctx_node.instance.runtime_properties['external_name'] \
+                = ctx_node.instance.runtime_properties['name']
+
+    # Check if the 'routes' exists in 'kwargs_config' and override the
+    # 'type' property to match 'routes'
+    if 'routes' in kwargs:
+        ctx_node.instance.runtime_properties[
+            OPENSTACK_TYPE_PROPERTY] = 'routes'

@@ -509,6 +509,24 @@ def _get_flavor_or_image_from_server(class_name,
         return remote_instance.id
 
 
+def _get_port_networks(client_config, port_ids):
+    """
+    This method will return network associated with ports
+    :param dict client_config: Openstack configuration required to connect
+    to API
+    :param (List) port_ids: List of uuid ports
+    :return:
+    """
+    networks = []
+    for port_id in port_ids:
+        port = OpenstackPort(client_config=client_config, logger=ctx.logger)
+        port.resource_id = port_id
+        response = port.get()
+        networks.append(response.network_id)
+
+    return networks
+
+
 def _clean_duplicate_networks(server_config):
     """
     This method will clean all duplicates network items from server config
@@ -570,12 +588,14 @@ def _update_flavor_and_image_config(openstack_resource):
 
 
 @with_multiple_data_sources()
-def _update_ports_config(server_config, allow_multiple=False):
+def _update_ports_config(server_config, client_config, allow_multiple=False):
     """
     This method will try to update server config with port configurations
     using the relationships connected with server node
     :param dict server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param dict client_config: Openstack configuration required to connect
+    to API
     :param boolean allow_multiple: This flag to set if it is allowed to have
      networks configuration from multiple resources relationships + node
      properties
@@ -597,7 +617,8 @@ def _update_ports_config(server_config, allow_multiple=False):
 
     ports_to_add = []
 
-    # Remove duplicates port uuids
+    # Remove duplicate ports when port provided using relationship & node
+    # properties
     for port_id in port_ids:
         for server_port in server_ports:
             if port_id == server_port:
@@ -615,6 +636,14 @@ def _update_ports_config(server_config, allow_multiple=False):
                                   '"networks" property and be '
                                   'connected to a network via a '
                                   'relationship at the same time')
+
+    # Remove ports that have networks exist in "networks" object
+    for ports in [port_ids, server_ports]:
+        network_ids = _get_port_networks(client_config, ports)
+        for network_id in network_ids:
+            for network in networks:
+                if network.get(OPENSTACK_RESOURCE_UUID) == network_id:
+                    networks.remove(network)
 
     # Prepare the ports that should be added to the server networks
     for port_id in port_ids:
@@ -771,7 +800,8 @@ def _update_networks_config(server_config, allow_multiple=False):
                                   'connected to a network via a '
                                   'relationship at the same time')
 
-    # Remove duplicates network uuids
+    # Remove duplicate networks when network provided using relationship & node
+    # properties
     for network_id in network_ids:
         for server_network in server_networks:
             if network_id == server_network:
@@ -822,13 +852,15 @@ def _update_server_group_config(server_config, allow_multiple=False):
         server_config['scheduler_hints'] = scheduler_hints
 
 
-def _update_server_config(server_config):
+def _update_server_config(server_config, client_config):
     """
     This method will try to resolve if there are any nodes connected to the
     server node and try to use the configurations from nodes in order to
     help create server using these configurations
     :param dict server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param dict client_config: Openstack configuration required to connect
+    to API
     """
     # Check if there are some networks configuration in order to update
     # server config
@@ -836,7 +868,7 @@ def _update_server_config(server_config):
 
     # Check if there are some ports configuration via relationships in order
     # to update server config
-    _update_ports_config(server_config)
+    _update_ports_config(server_config, client_config=client_config)
 
     # Check if there are some bootable volumes via relationships in order
     # update server config
@@ -1277,7 +1309,8 @@ def create(openstack_resource):
         openstack_resource.config['user_data'] = user_data
 
     # Update server config by depending on relationships
-    _update_server_config(openstack_resource.config)
+    _update_server_config(openstack_resource.config,
+                          openstack_resource.client_config)
 
     # Update flavor and image for server
     _update_flavor_and_image_config(openstack_resource)

@@ -72,7 +72,7 @@ class TestServer(unittest.TestCase):
 
         with mock.patch('nova_plugin.server.get_server_by_context',
                         new=mock_get_server_by_context):
-                cfy_local.execute('install', task_retries=3)
+            cfy_local.execute('install', task_retries=3)
 
         self.assertEqual(2, test_vars['counter'])
         self.assertEqual(0, test_vars['server'].start.call_count)
@@ -1284,14 +1284,16 @@ class TestServerNetworkRuntimeProperties(unittest.TestCase):
         current_ctx.set(ctx=ctx)
         server = mock.MagicMock()
         network_id = 'management_network'
-        network_ips = ['good', 'bad1', 'bad2']
+        network_ips = ['fd5f:5d21:845:1480:f816:3eff:fe23:817a',
+                       '10.254.24.60', '10.254.24.61']
         setattr(server,
                 'networks',
                 {network_id: network_ips})
         nova_plugin.server._set_network_and_ip_runtime_properties(server)
         self.assertIn('networks', ctx.instance.runtime_properties.keys())
         self.assertIn('ip', ctx.instance.runtime_properties.keys())
-        self.assertEquals(ctx.instance.runtime_properties['ip'], 'good')
+        self.assertEquals(ctx.instance.runtime_properties['ip'],
+                          '10.254.24.60')
         self.assertEquals(ctx.instance.runtime_properties['networks'],
                           {network_id: network_ips})
         self.assertIn('ipv4_address', ctx.instance.runtime_properties)
@@ -1304,14 +1306,16 @@ class TestServerNetworkRuntimeProperties(unittest.TestCase):
         current_ctx.set(ctx=ctx)
         server = mock.MagicMock()
         network_id = None
-        network_ips = ['good', 'bad1', 'bad2']
+        network_ips = ['fd5f:5d21:845:1480:f816:3eff:fe23:817a',
+                       '10.254.24.60', '10.254.24.61']
         setattr(server,
                 'networks',
                 {network_id: network_ips})
         nova_plugin.server._set_network_and_ip_runtime_properties(server)
         self.assertIn('networks', ctx.instance.runtime_properties.keys())
         self.assertIn('ip', ctx.instance.runtime_properties.keys())
-        self.assertEquals(ctx.instance.runtime_properties['ip'], 'good')
+        self.assertEquals(ctx.instance.runtime_properties['ip'],
+                          '10.254.24.60')
         self.assertEquals(ctx.instance.runtime_properties['networks'],
                           {network_id: network_ips})
 

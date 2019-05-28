@@ -21,6 +21,7 @@ import copy
 import operator
 
 from novaclient import exceptions as nova_exceptions
+from IPy import IP
 
 from cloudify import ctx
 from cloudify.manager import get_rest_client
@@ -216,12 +217,22 @@ def _get_boot_volume_relationships(type_name, ctx):
     ctx.logger.debug('Instance relationship target instances: {0}'.format(str([
         rel.target.instance.runtime_properties
         for rel in ctx.instance.relationships])))
+
+    def _is_bootable_volume(boot_val):
+        # If the boot_value is boolean then return it as it is
+        if isinstance(boot_val, bool):
+            return boot_val
+        # boot_val is parsed as string 'false' or 'true'
+        return True if boot_val.capitalize() == 'True' else False
+
     targets = [
             rel.target.instance
             for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(
                 OPENSTACK_TYPE_PROPERTY) == type_name and
-            rel.target.instance.runtime_properties.get(VOLUME_BOOTABLE, False)]
+            _is_bootable_volume(
+                rel.target.instance.runtime_properties.get(
+                    VOLUME_BOOTABLE, False))]
 
     if not targets:
         return None
@@ -835,7 +846,28 @@ def _set_network_and_ip_runtime_properties(server):
         if (management_network_name and
                 network == management_network_name) or not \
                 manager_network_ip:
-            manager_network_ip = next(iter(network_ips or []), None)
+
+            def _get_mgmt_ip(net_ips):
+                net_ips = net_ips or []
+                ips_v4 = []
+                ips_v6 = []
+                for net_ip in net_ips:
+                    try:
+                        # Lookup all ipv4s so that we can use one of them and
+                        # set it as runtime property "ip"
+                        IP(net_ip, ipversion=4)
+                        ips_v4.append(net_ip)
+                    except ValueError:
+                        # If it is not an ipv4 then collect the ipv6
+                        IP(net_ip, ipversion=6)
+                        ips_v6.append(net_ip)
+
+                mgmt_ip = next(iter(ips_v4 or []), None)
+                # If there is only ipv6, then collect one of them and return it
+                if not mgmt_ip:
+                    mgmt_ip = next(iter(ips_v6 or []), None)
+                return mgmt_ip
+            manager_network_ip = _get_mgmt_ip(network_ips)
         ips[network] = network_ips
         ipv4_addrs = list(set(
             ipv4_addrs + [ip for ip in network_ips if netaddr.valid_ipv4(ip)]))

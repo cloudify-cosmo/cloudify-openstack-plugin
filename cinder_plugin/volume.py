@@ -61,14 +61,8 @@ def _set_volume_runtime_properties(volume):
     except AttributeError:
         ctx.logger.error('Volume availability_zone not found.')
 
-    try:
-        ctx.instance.runtime_properties[VOLUME_BOOTABLE] = \
-            volume.bootable
-    except AttributeError:
-        if ctx.node.properties.get('boot', False):
-            ctx.instance.runtime_properties[VOLUME_BOOTABLE] = True
-        else:
-            ctx.instance.runtime_properties[VOLUME_BOOTABLE] = False
+    ctx.instance.runtime_properties[VOLUME_BOOTABLE] = \
+        ctx.node.properties.get('boot', False)
 
 
 @operation

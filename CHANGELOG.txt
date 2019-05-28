@@ -1,3 +1,5 @@
+2.14.9:
+    - Fix issues with booting volumes and update expose "ip" as ipv4 always if ipv4 addresses exist
 2.14.7:
     - Revert upgrade to OpenStack python clients to the old version used before 2.13.0
 2.14.6:

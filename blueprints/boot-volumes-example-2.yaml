@@ -1,0 +1,463 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - plugin:cloudify-openstack-plugin?version=2.14.9
+
+
+inputs:
+
+  username:
+    description: OS_USERNAME as specified in Openstack RC file.
+
+  password:
+    description: Openstack user password.
+
+  tenant_name:
+    description: OS_TENANT_NAME as specified in Openstack RC file.
+
+  auth_url:
+    description: OS_AUTH_URL as specified in Openstack RC file.
+
+  region:
+    description: OS_REGION_NAME as specified in Openstack RC file.
+
+  router:
+    type: string
+    default: "test-router-1"
+
+  net_name:
+    type: string
+    default: "net12"
+
+  subnet_name:
+    type: string
+    default: "net12s"
+
+  subnet_cidr:
+    type: string
+    default: "10.1.2.0/24"
+
+  gateway_ip:
+    type: string
+    default: "10.1.2.1"
+
+  ip_version:
+    type: integer
+    default: 4
+
+  dns_nameservers:
+    default:
+      - 8.8.8.8
+
+  subnet_allocation_pools:
+    default:
+      - start: "10.1.2.20"
+        end: "10.1.2.100"
+
+  port_sec_group:
+    type: string
+    default: SSH-allowed-volume
+
+  security_group_rules:
+    default:
+    - remote_ip_prefix: 0.0.0.0/0
+      port: 22
+
+  image:
+    type: string
+    description: |
+      Openstack image ID
+
+  flavor:
+    description: >
+      An Openstack Flavor ID.
+    default: 2
+
+  availability_zone:
+    type: string
+    default: nova
+
+  key_name:
+    type: string
+    description: >
+      Openstack key name
+
+
+
+dsl_definitions:
+
+  openstack_config: &openstack_config
+    username: { get_input: username }
+    password: { get_input: password }
+    tenant_name: { get_input: tenant_name }
+    auth_url: { get_input: auth_url }
+    region: { get_input: region }
+
+node_templates:
+
+  router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+      use_external_resource: False
+      openstack_config: *openstack_config
+      resource_id: { get_input: router }
+
+  net:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      openstack_config: *openstack_config
+      use_external_resource: false
+      resource_id: { get_input: net_name }
+
+  subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      openstack_config: *openstack_config
+      use_external_resource: false
+      resource_id: { get_input: subnet_name }
+      subnet:
+        ip_version: 4
+        cidr: { get_input: subnet_cidr }
+        enable_dhcp: true
+        dns_nameservers: { get_input: dns_nameservers }
+        allocation_pools: { get_input: subnet_allocation_pools }
+    relationships:
+      - target: net
+        type: cloudify.relationships.contained_in
+      - target: router
+        type: cloudify.openstack.subnet_connected_to_router
+
+
+  sec_group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      openstack_config: *openstack_config
+      use_external_resource: false
+      security_group:
+        name: { get_input: port_sec_group }
+      rules: { get_input: security_group_rules }
+
+  keypair:
+    type: cloudify.openstack.nodes.KeyPair
+    properties:
+      openstack_config: *openstack_config
+      private_key_path: '~/.ssh/test-mohammed.pem'
+      use_external_resource: true
+      resource_id: { get_input: key_name }
+
+  port_a:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: net
+      - type: cloudify.relationships.depends_on
+        target: subnet
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: sec_group
+
+  port_b:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: net
+      - type: cloudify.relationships.depends_on
+        target: subnet
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: sec_group
+
+  port_c:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: net
+      - type: cloudify.relationships.depends_on
+        target: subnet
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: sec_group
+
+  port_d:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: net
+      - type: cloudify.relationships.depends_on
+        target: subnet
+      - type: cloudify.openstack.port_connected_to_security_group
+        target: sec_group
+
+
+  volume_a_0:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      openstack_config: *openstack_config
+      volume:
+        size: 20 # GB
+        imageRef: { get_input: image }
+      boot: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              size: { get_property: [ SELF, volume, size ] }
+              imageRef: { get_property: [ SELF, volume, imageRef ] }
+
+  volume_b_0:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      openstack_config: *openstack_config
+      volume:
+        size: 40 # GB
+        imageRef: '70de1e0f-2951-4eae-9a8f-05afd97cd036'
+      boot: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              size: { get_property: [ SELF, volume, size ] }
+              imageRef: '70de1e0f-2951-4eae-9a8f-05afd97cd036'
+
+  volume_b_1:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      openstack_config: *openstack_config
+      volume:
+        size: 20 # GB
+      boot: false
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              size: { get_property: [ SELF, volume, size ] }
+    relationships:
+      - target: vm_b
+        type: cloudify.openstack.volume_attached_to_server
+
+  volume_c_0:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      openstack_config: *openstack_config
+      volume:
+        size: 20 # GB
+      boot: false
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              size: { get_property: [ SELF, volume, size ] }
+    relationships:
+      - target: vm_c
+        type: cloudify.openstack.volume_attached_to_server
+
+  volume_c_1:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      openstack_config: *openstack_config
+      volume:
+        size: 20 # GB
+      boot: false
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              size: { get_property: [ SELF, volume, size ] }
+    relationships:
+      - target: vm_c
+        type: cloudify.openstack.volume_attached_to_server
+
+  volume_d_0:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      openstack_config: *openstack_config
+      volume:
+        size: 20 # GB
+      boot: false
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              size: { get_property: [ SELF, volume, size ] }
+
+  volume_d_1:
+    type: cloudify.openstack.nodes.Volume
+    properties:
+      openstack_config: *openstack_config
+      volume:
+        size: 20 # GB
+      boot: false
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              size: { get_property: [ SELF, volume, size ] }
+
+  vm_a:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *openstack_config
+      management_network_name: { get_property: [ net, resource_id ] }
+      agent_config:
+        user: centos
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              image: { get_input: image }
+              flavor: { get_input: flavor }
+              availability_zone: { get_input: availability_zone }
+              block_device_mapping_v2:
+                - boot_index: "0"
+                  # device_name: "/dev/vda"
+                  uuid: { get_attribute: [ volume_a_0, external_id ] }
+                  source_type: volume
+                  destination_type: volume
+                  volume_size: 20
+                  delete_on_termination: true
+    relationships:
+      - target: port_a
+        type: cloudify.openstack.server_connected_to_port
+      - target: keypair
+        type: cloudify.openstack.server_connected_to_keypair
+      - target: volume_a_0
+        type: cloudify.relationships.depends_on
+
+
+  vm_b:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *openstack_config
+      management_network_name: { get_property: [ net, resource_id ] }
+      agent_config:
+        user: centos
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              image: { get_input: image }
+              flavor: { get_input: flavor }
+              availability_zone: { get_input: availability_zone }
+              block_device_mapping_v2:
+                - boot_index: "0"
+                  uuid: { get_attribute: [ volume_b_0, external_id ] } # { get_input: image }
+                  source_type: volume
+                  destination_type: volume
+                  volume_size: 40
+                  delete_on_termination: true
+    relationships:
+      - target: port_b
+        type: cloudify.openstack.server_connected_to_port
+      - target: keypair
+        type: cloudify.openstack.server_connected_to_keypair
+      - target: volume_b_0
+        type: cloudify.relationships.depends_on
+
+  vm_c:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *openstack_config
+      management_network_name: { get_property: [ net, resource_id ] }
+      agent_config:
+        user: centos
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              image: { get_input: image }
+              flavor: { get_input: flavor }
+              availability_zone: { get_input: availability_zone }
+    relationships:
+      - target: port_c
+        type: cloudify.openstack.server_connected_to_port
+      - target: keypair
+        type: cloudify.openstack.server_connected_to_keypair
+
+  vm_d:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *openstack_config
+      management_network_name: { get_property: [ net, resource_id ] }
+      agent_config:
+        user: centos
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              image: { get_input: image }
+              flavor: { get_input: flavor }
+              availability_zone: { get_input: availability_zone }
+              block_device_mapping_v2:
+                - boot_index: "-1"
+                  device_name: "/dev/vdb"
+                  uuid: { get_attribute: [ volume_d_0, external_id ] }
+                  source_type: volume
+                  destination_type: volume
+                  volume_size: 20
+                  delete_on_termination: true
+                - boot_index: "-1"
+                  device_name: "/dev/vdc"
+                  uuid: { get_attribute: [ volume_d_1, external_id ] }
+                  source_type: volume
+                  destination_type: volume
+                  volume_size: 20
+                  delete_on_termination: true
+    relationships:
+      - target: port_d
+        type: cloudify.openstack.server_connected_to_port
+      - target: keypair
+        type: cloudify.openstack.server_connected_to_keypair
+      - target: volume_d_0
+        type: cloudify.relationships.depends_on
+      - target: volume_d_1
+        type: cloudify.relationships.depends_on
+
+groups:
+  A:
+    members:
+      - port_a
+      - volume_a_0
+      - vm_a
+
+  B:
+    members:
+      - port_b
+      - volume_b_0
+      - volume_b_1
+      - vm_b
+
+  C:
+    members:
+      - port_c
+      - volume_c_0
+      - volume_c_1
+      - vm_c
+
+
+  D:
+    members:
+      - port_d
+      - volume_d_0
+      - volume_d_1
+      - vm_d

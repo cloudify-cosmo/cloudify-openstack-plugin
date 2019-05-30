@@ -207,7 +207,7 @@ def create(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackRouter)
+@with_openstack_resource(OpenstackRouter, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack router
@@ -271,7 +271,8 @@ def add_interface_to_router(openstack_resource, **kwargs):
 @with_compat_node
 @with_openstack_resource(
     OpenstackRouter,
-    existing_resource_handler=_handle_disconnect_external_subnet_from_router)
+    existing_resource_handler=_handle_disconnect_external_subnet_from_router,
+    ignore_unexisted_resource=True)
 def remove_interface_from_router(openstack_resource, **kwargs):
     """
     Remove interface to router in order to unlink router with other services
@@ -301,7 +302,7 @@ def start(openstack_resource, **kwargs):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackRouter)
+@with_openstack_resource(OpenstackRouter, ignore_unexisted_resource=True)
 def stop(openstack_resource):
     """
     Remove static routes which added before for router

@@ -36,7 +36,8 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
-@with_openstack_resource(OpenstackSecurityGroupRule)
+@with_openstack_resource(OpenstackSecurityGroupRule,
+                         ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack security group rule instance

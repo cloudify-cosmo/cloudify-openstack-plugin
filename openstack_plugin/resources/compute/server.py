@@ -1349,7 +1349,7 @@ def configure(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackServer)
+@with_openstack_resource(OpenstackServer, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack server
@@ -1382,7 +1382,8 @@ def delete(openstack_resource):
 @with_compat_node
 @with_openstack_resource(
     OpenstackServer,
-    existing_resource_handler=_disconnect_resources_from_external_server)
+    existing_resource_handler=_disconnect_resources_from_external_server,
+    ignore_unexisted_resource=True)
 def stop(openstack_resource):
     """
     Stop current openstack server

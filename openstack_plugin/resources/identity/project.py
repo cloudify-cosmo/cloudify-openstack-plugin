@@ -162,7 +162,7 @@ def start(openstack_resource, quota_dict={}):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackProject)
+@with_openstack_resource(OpenstackProject, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack project

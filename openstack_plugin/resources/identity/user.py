@@ -39,7 +39,7 @@ def create(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackUser)
+@with_openstack_resource(OpenstackUser, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack user

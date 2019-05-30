@@ -98,7 +98,8 @@ def configure(openstack_resource, security_group_rules=None):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackSecurityGroup)
+@with_openstack_resource(OpenstackSecurityGroup,
+                         ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack security group instance

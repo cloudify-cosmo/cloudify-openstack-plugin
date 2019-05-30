@@ -482,7 +482,7 @@ def snapshot_delete(openstack_resource, **kwargs):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackVolume)
+@with_openstack_resource(OpenstackVolume, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack volume instance

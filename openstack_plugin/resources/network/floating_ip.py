@@ -235,7 +235,7 @@ def create(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackFloatingIP)
+@with_openstack_resource(OpenstackFloatingIP, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack floating ip

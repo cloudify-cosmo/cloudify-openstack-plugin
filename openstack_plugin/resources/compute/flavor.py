@@ -57,7 +57,7 @@ def list_flavors(openstack_resource, query={}, details=True):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackFlavor)
+@with_openstack_resource(OpenstackFlavor, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete flavor resource

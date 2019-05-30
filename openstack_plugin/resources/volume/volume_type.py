@@ -32,7 +32,7 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
-@with_openstack_resource(OpenstackVolumeType)
+@with_openstack_resource(OpenstackVolumeType, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack volume type

@@ -280,7 +280,7 @@ def create(openstack_resource, args={}):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackRBACPolicy)
+@with_openstack_resource(OpenstackRBACPolicy, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack rbac policy instance

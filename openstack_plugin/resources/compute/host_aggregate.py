@@ -146,7 +146,8 @@ def list_aggregates(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackHostAggregate)
+@with_openstack_resource(OpenstackHostAggregate,
+                         ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete host aggregate resource

@@ -45,7 +45,7 @@ def start(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackImage)
+@with_openstack_resource(OpenstackImage, ignore_unexisted_resource=True)
 def delete(openstack_resource):
     # Delete the image resource after lookup the resource_id values
     openstack_resource.delete()

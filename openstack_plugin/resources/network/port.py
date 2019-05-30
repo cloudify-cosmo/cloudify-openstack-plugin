@@ -273,7 +273,8 @@ def create(openstack_resource):
 @with_compat_node
 @with_openstack_resource(
     OpenstackPort,
-    existing_resource_handler=_clean_addresses_from_external_port)
+    existing_resource_handler=_clean_addresses_from_external_port,
+    ignore_unexisted_resource=True)
 def delete(openstack_resource):
     """
     Delete current openstack port

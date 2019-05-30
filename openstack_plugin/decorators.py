@@ -21,6 +21,7 @@ from openstack import exceptions
 from cloudify import ctx as CloudifyContext
 from cloudify.exceptions import NonRecoverableError
 from cloudify.utils import exception_to_error_cause
+from cloudify.decorators import operation
 
 # Local imports
 from openstack_plugin.compat import Compat
@@ -41,6 +42,7 @@ EXCEPTIONS = (exceptions.SDKException,
 
 def with_openstack_resource(class_decl,
                             existing_resource_handler=None,
+                            ignore_unexisted_resource=False,
                             **existing_resource_kwargs):
     """
     :param class_decl: This is a class for the openstack resource need to be
@@ -75,6 +77,15 @@ def with_openstack_resource(class_decl,
                                          **existing_resource_kwargs):
                     return
                 kwargs['openstack_resource'] = resource
+                if ignore_unexisted_resource:
+                    try:
+                        # check that we have resoure, otherwise ignore
+                        resource.get()
+                    except exceptions.ResourceNotFound as e:
+                        ctx.logger.info(
+                            "Ignore unexisted resource: {e}"
+                            .format(e=e))
+                        return
                 func(**kwargs)
                 update_runtime_properties_for_operation_task(operation_name,
                                                              ctx_node,
@@ -114,7 +125,7 @@ def with_compat_node(func):
         func(**kwargs_config)
 
         update_runtime_properties_for_node_v2(ctx_node, kwargs_config)
-    return wrapper
+    return operation(func=wrapper, resumable=True)
 
 
 def with_multiple_data_sources(clean_duplicates_handler=None):

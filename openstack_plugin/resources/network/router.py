@@ -322,6 +322,7 @@ def stop(openstack_resource):
         remote_routes = router['routes'] or {}
         for remote_route in remote_routes:
             if remote_route not in routes_to_delete:
+                # TODO: save after each delete
                 updated_routes.append(remote_route)
 
         routes = dict()

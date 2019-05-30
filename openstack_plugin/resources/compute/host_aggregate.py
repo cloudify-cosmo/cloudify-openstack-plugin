@@ -56,6 +56,7 @@ def _remove_hosts(openstack_resource, hosts):
     if isinstance(hosts, list):
         for host in hosts:
             # Add host to the target host aggregate
+            # TODO: save after each delete
             openstack_resource.remove_host(host)
     else:
         raise NonRecoverableError(

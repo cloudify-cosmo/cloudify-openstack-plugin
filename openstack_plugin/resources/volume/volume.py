@@ -181,6 +181,7 @@ def _create_volume_backup(volume_resource, backup_name):
         backup.resource_id = backup_id
         ctx.instance.runtime_properties[VOLUME_BACKUP_TASK] = True
         ctx.instance.runtime_properties[VOLUME_BACKUP_ID] = backup_id
+        ctx.instance.update()
 
     backup_resource, ready = \
         get_ready_resource_status(backup,
@@ -235,6 +236,7 @@ def _create_volume_snapshot(volume_resource, snapshot_name, snapshot_type):
         snapshot.resource_id = snapshot_id
         ctx.instance.runtime_properties[VOLUME_SNAPSHOT_TASK] = True
         ctx.instance.runtime_properties[VOLUME_SNAPSHOT_ID] = snapshot_id
+        ctx.instance.update()
 
     # Check the status of the snapshot process
     snapshot_resource, ready = \
@@ -501,6 +503,7 @@ def delete(openstack_resource):
         # Delete volume resource
         openstack_resource.delete()
         ctx.instance.runtime_properties[VOLUME_TASK_DELETE] = True
+        ctx.instance.update()
 
     # Make sure that volume are deleting
     try:

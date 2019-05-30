@@ -1,4 +1,5 @@
 version: 2
+
 checkout:
   post:
     - >
@@ -7,28 +8,139 @@ checkout:
         git fetch origin +refs/pull/$PR_ID/merge:
         git checkout -qf FETCH_HEAD
       fi
+
 jobs:
+
   unittests:
     docker:
       - image: circleci/python:2.7.15-stretch
     steps:
       - checkout
       - run:
-          name: Running Unit Tests
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env && source env/bin/activate
+      - run:
+          name: install tox
+          command: pip install --user tox
+      - run: /home/circleci/.local/bin/tox -e flake8
+      - run: /home/circleci/.local/bin/tox -e py27
+
+  wagon:
+    docker:
+      - image: amd64/centos:centos7.3.1611
+    steps:
+      - checkout
+      - run:
+          name: Install epel
+          command: yum install -y epel-release
+      - run:
+          name: Install python dependencies
+          command: yum -y install python-pip python-setuptools python-pip python-wheel python-setuptools python-virtualenv
+      - run:
+          name: Install devel dependencies
+          command: yum -y install python-devel gcc-c++ gcc zlib-devel libffi-devel openssl-devel
+      - run:
+          name: Upgrade pip
+          command: pip install --upgrade pip==9.0.1
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: Install wagon
+          command: pip install wagon==0.3.2
+      - run:
+          name: many_linux
+          command: echo "manylinux1_compatible = False" > "env/bin/_manylinux.py"
+      - run:
+          name: make workspace
+          command: mkdir -p workspace/build
+      - run:
+          name: Create wagon
+          command: source env/bin/activate && wagon create -s . -v -o workspace/build -f -a '--no-cache-dir -c constraints.txt'
+      - persist_to_workspace:
+          root: workspace
+          paths:
+            - build/*
+
+  cloudify-manager:
+    machine:
+      enabled: true
+      python:
+        version: pypy-2.2.1
+    environment:
+      CLOUDIFY_SSL_TRUST_ALL: true
+    steps:
+      - checkout
+      - run:
+          name: "Pull Submodules"
           command: |
-            curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-            sudo python get-pip.py
-            pip install --user virtualenv
-            virtualenv env
-            source env/bin/activate
-            pip install tox
-            tox -e flake8
-            tox -e py27
+            git submodule init
+            git submodule update --remote
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: install cloudify
+          command: pip install -U cloudify==4.3.2
+      - run:
+          name: install test requirements
+          command: pip install nose testtools https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/2.1.1.zip
+      - run:
+          name: download manager docker image
+          command: wget http://repository.cloudifysource.org/cloudify/4.5.5/ga-release/cloudify-docker-manager-4.5.5ga.tar
+      - run:
+          name: load docker image
+          command: docker load -i cloudify-docker-manager-4.5.5ga.tar
+      - run:
+          name: retain space by dumping the tar
+          command: rm cloudify-docker-manager-4.5.5ga.tar
+      - run:
+          name: start docker container
+          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host docker-cfy-manager:latest
+      - run:
+          name: init CLI profile
+          command: |
+            counter=0
+            until [ $counter -ge 10 ]
+            do
+                cfy profiles use localhost -u admin -p admin -t default_tenant && break
+                counter=$[$counter+1]
+                sleep 2
+            done
+      - run:
+          name: install plugins bundle
+          command: cfy plugins bundle-upload
+      - run:
+          name: wagon upload
+          command: cfy plugins upload workspace/build/cloudify_openstack_plugin-*-py27-none-linux_x86_64-centos-Core.wgn -y plugin.yaml || true
+      - run:
+          name: check manager blueprint
+          command: cfy blueprints upload examples/manager/blueprint.yaml -b manager-blueprint.yaml
+
 workflows:
   version: 2
   tests:
     jobs:
       - unittests
+      - wagon:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|dev)/
+      - cloudify-manager:
+          requires:
+            - unittests
+            - wagon
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|dev)/
   nightly:
     triggers:
     - schedule:

@@ -23,7 +23,8 @@ from openstack_sdk.resources.compute import OpenstackFlavor
 from openstack_plugin.decorators import (with_openstack_resource,
                                          with_compat_node)
 from openstack_plugin.constants import (RESOURCE_ID, FLAVOR_OPENSTACK_TYPE)
-from openstack_plugin.utils import add_resource_list_to_runtime_properties
+from openstack_plugin.utils import (add_resource_list_to_runtime_properties,
+                                    cleanup_runtime_properties)
 
 
 @with_compat_node
@@ -57,13 +58,20 @@ def list_flavors(openstack_resource, query={}, details=True):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackFlavor, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackFlavor)
 def delete(openstack_resource):
     """
     Delete flavor resource
     :param openstack_resource: Instance of openstack flavor resource.
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('Flavor is already uninitialized.')
+        return
     openstack_resource.delete()
+
+    cleanup_runtime_properties(ctx, [
+        RESOURCE_ID
+    ])
 
 
 @with_compat_node

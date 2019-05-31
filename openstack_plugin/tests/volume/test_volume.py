@@ -162,10 +162,8 @@ class VolumeTestCase(OpenStackTestBase):
         })
         # Mock get volume response
         mock_connection().block_storage.get_volume = \
-            mock.MagicMock(side_effect=[
-                volume_instance,  # checked first time in decorator
-                volume_instance,  # checked in delete
-                openstack.exceptions.ResourceNotFound])
+            mock.MagicMock(side_effect=[volume_instance,
+                                        openstack.exceptions.ResourceNotFound])
 
         # Mock delete volume response
         mock_connection().block_storage.delete_volume = \
@@ -210,10 +208,8 @@ class VolumeTestCase(OpenStackTestBase):
         })
         # Mock get volume response
         mock_connection().block_storage.get_volume = \
-            mock.MagicMock(side_effect=[
-                volume_instance,  # checked first time in decorator
-                volume_instance,  # used in delete action
-                volume_instance_deleting])
+            mock.MagicMock(side_effect=[volume_instance,
+                                        volume_instance_deleting])
 
         # Mock delete volume response
         mock_connection().block_storage.delete_volume = \

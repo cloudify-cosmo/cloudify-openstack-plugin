@@ -20,6 +20,7 @@ from cloudify import ctx
 from openstack_sdk.resources.volume import OpenstackVolumeType
 from openstack_plugin.decorators import with_openstack_resource
 from openstack_plugin.constants import RESOURCE_ID
+from openstack_plugin.utils import cleanup_runtime_properties
 
 
 @with_openstack_resource(OpenstackVolumeType)
@@ -32,10 +33,16 @@ def create(openstack_resource):
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
 
 
-@with_openstack_resource(OpenstackVolumeType, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackVolumeType)
 def delete(openstack_resource):
     """
     Delete current openstack volume type
     :param openstack_resource: instance of openstack volume type resource
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('VolumeType is already uninitialized.')
+        return
     openstack_resource.delete()
+    cleanup_runtime_properties(ctx, [
+        RESOURCE_ID
+    ])

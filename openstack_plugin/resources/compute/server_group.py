@@ -25,7 +25,8 @@ from openstack_plugin.constants import (RESOURCE_ID,
                                         SERVER_GROUP_OPENSTACK_TYPE)
 
 from openstack_plugin.utils import (validate_resource_quota,
-                                    add_resource_list_to_runtime_properties)
+                                    add_resource_list_to_runtime_properties,
+                                    cleanup_runtime_properties)
 
 
 @with_compat_node
@@ -40,14 +41,20 @@ def create(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackServerGroup, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackServerGroup)
 def delete(openstack_resource):
     """
     Delete current openstack server group
     :param openstack_resource: instance of openstack server group resource
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('ServerGroup is already uninitialized.')
+        return
     # Delete the server group resource after lookup the resource_id values
     openstack_resource.delete()
+    cleanup_runtime_properties(ctx, [
+        RESOURCE_ID
+    ])
 
 
 @with_compat_node

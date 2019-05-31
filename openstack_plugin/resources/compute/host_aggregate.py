@@ -153,13 +153,15 @@ def list_aggregates(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackHostAggregate,
-                         ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackHostAggregate)
 def delete(openstack_resource):
     """
     Delete host aggregate resource
     :param openstack_resource: Instance of openstack host aggregate resource.
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('HostAggregate is already uninitialized.')
+        return
     # Before delete the aggregate, check to see if there are hosts attached
     # to the aggregates first, checking runtime properties because use could
     # run "cloudify.interfaces.operations.remove_hosts" operation before

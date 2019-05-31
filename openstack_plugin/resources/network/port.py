@@ -33,8 +33,8 @@ from openstack_plugin.utils import (
     reset_dict_empty_keys,
     validate_resource_quota,
     add_resource_list_to_runtime_properties,
-    find_openstack_ids_of_connected_nodes_by_openstack_type
-)
+    find_openstack_ids_of_connected_nodes_by_openstack_type,
+    cleanup_runtime_properties)
 
 
 @with_multiple_data_sources()
@@ -273,14 +273,19 @@ def create(openstack_resource):
 @with_compat_node
 @with_openstack_resource(
     OpenstackPort,
-    existing_resource_handler=_clean_addresses_from_external_port,
-    ignore_unexisted_resource=True)
+    existing_resource_handler=_clean_addresses_from_external_port)
 def delete(openstack_resource):
     """
     Delete current openstack port
     :param openstack_resource: instance of openstack port resource
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('Port is already uninitialized.')
+        return
     openstack_resource.delete()
+    cleanup_runtime_properties(ctx, [
+        RESOURCE_ID, 'fixed_ips', 'mac_address', 'allowed_address_pairs'
+    ])
 
 
 @with_compat_node

@@ -31,7 +31,8 @@ from openstack_plugin.utils import (
     validate_resource_quota,
     add_resource_list_to_runtime_properties,
     find_openstack_ids_of_connected_nodes_by_openstack_type,
-    validate_ip_or_range_syntax)
+    validate_ip_or_range_syntax,
+    cleanup_runtime_properties)
 
 
 def _get_subnet_network_id_from_relationship():
@@ -110,13 +111,19 @@ def create(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackSubnet, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackSubnet)
 def delete(openstack_resource):
     """
     Delete current openstack subnet
     :param openstack_resource: instance of openstack subnet resource
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('Subnet is already uninitialized.')
+        return
     openstack_resource.delete()
+    cleanup_runtime_properties(ctx, [
+        RESOURCE_ID
+    ])
 
 
 @with_compat_node

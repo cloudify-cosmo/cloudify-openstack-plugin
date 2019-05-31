@@ -24,7 +24,8 @@ from openstack_plugin.decorators import (with_openstack_resource,
 
 from openstack_plugin.constants import (RESOURCE_ID, USER_OPENSTACK_TYPE)
 from openstack_plugin.utils import (reset_dict_empty_keys,
-                                    add_resource_list_to_runtime_properties)
+                                    add_resource_list_to_runtime_properties,
+                                    cleanup_runtime_properties)
 
 
 @with_compat_node
@@ -39,13 +40,19 @@ def create(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackUser, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackUser)
 def delete(openstack_resource):
     """
     Delete current openstack user
     :param openstack_resource: instance of openstack user resource
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('User is already uninitialized.')
+        return
     openstack_resource.delete()
+    cleanup_runtime_properties(ctx, [
+        RESOURCE_ID
+    ])
 
 
 @with_compat_node

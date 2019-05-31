@@ -1372,11 +1372,9 @@ def delete(openstack_resource):
     Delete current openstack server
     :param openstack_resource: instance of openstack server resource
     """
-
     if not ctx.instance.runtime_properties.get(RESOURCE_ID):
         ctx.logger.info('Server is already uninitialized.')
         return
-
     # Get the details for the created server instance
     try:
         server = openstack_resource.get()
@@ -1417,11 +1415,9 @@ def stop(openstack_resource):
     Stop current openstack server
     :param openstack_resource: instance of openstack server resource
     """
-
     if not ctx.instance.runtime_properties.get(RESOURCE_ID):
         ctx.logger.info('Server is already uninitialized.')
         return
-
     # Clean any interfaces connected to the server
     for interface in openstack_resource.server_interfaces():
         openstack_resource.delete_server_interface(interface.id)

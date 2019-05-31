@@ -34,7 +34,8 @@ from openstack_plugin.utils import (
     reset_dict_empty_keys,
     validate_resource_quota,
     add_resource_list_to_runtime_properties,
-    find_openstack_ids_of_connected_nodes_by_openstack_type)
+    find_openstack_ids_of_connected_nodes_by_openstack_type,
+    cleanup_runtime_properties)
 
 
 def use_external_floating_ip(openstack_resource):
@@ -235,13 +236,19 @@ def create(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackFloatingIP, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackFloatingIP)
 def delete(openstack_resource):
     """
     Delete current openstack floating ip
     :param openstack_resource: Instance of openstack floating ip resource
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('FloatingIP is already uninitialized.')
+        return
     openstack_resource.delete()
+    cleanup_runtime_properties(ctx, [
+        RESOURCE_ID, 'floating_ip_address'
+    ])
 
 
 @with_compat_node

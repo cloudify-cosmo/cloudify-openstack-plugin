@@ -32,7 +32,8 @@ from openstack_plugin.utils import (
     reset_dict_empty_keys,
     validate_resource_quota,
     add_resource_list_to_runtime_properties,
-    find_openstack_ids_of_connected_nodes_by_openstack_type)
+    find_openstack_ids_of_connected_nodes_by_openstack_type,
+    cleanup_runtime_properties)
 
 
 def _get_external_network_id(ext_gateway_info, network_key):
@@ -207,13 +208,19 @@ def create(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackRouter, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackRouter)
 def delete(openstack_resource):
     """
     Delete current openstack router
     :param openstack_resource: instance of openstack router resource
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('Router is already uninitialized.')
+        return
     openstack_resource.delete()
+    cleanup_runtime_properties(ctx, [
+        RESOURCE_ID, 'routes'
+    ])
 
 
 @with_compat_node
@@ -302,12 +309,15 @@ def start(openstack_resource, **kwargs):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackRouter, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackRouter)
 def stop(openstack_resource):
     """
     Remove static routes which added before for router
     :param openstack_resource: instance of openstack router resource
     """
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('Router is already uninitialized.')
+        return
     if 'routes' in ctx.instance.runtime_properties:
         # There are some routes need to be deleted since it is part of the
         # runtime properties

@@ -97,7 +97,8 @@ from openstack_plugin.utils import \
      get_snapshot_name,
      generate_attachment_volume_key,
      assign_resource_payload_as_runtime_properties,
-     remove_duplicates_items)
+     remove_duplicates_items,
+     cleanup_runtime_properties)
 
 
 def _stop_server(server):
@@ -1361,12 +1362,17 @@ def configure(openstack_resource):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackServer, ignore_unexisted_resource=True)
+@with_openstack_resource(OpenstackServer)
 def delete(openstack_resource):
     """
     Delete current openstack server
     :param openstack_resource: instance of openstack server resource
     """
+
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('Server is already uninitialized.')
+        return
+
     # Get the details for the created server instance
     try:
         server = openstack_resource.get()
@@ -1378,6 +1384,12 @@ def delete(openstack_resource):
 
         ctx.logger.info('Server {0} is deleted successfully'
                         .format(openstack_resource.resource_id))
+        # cleanup runtime
+        cleanup_runtime_properties(ctx, [
+            'public_ip_address', 'ip', 'stop_server_task', 'ipv4_addresses',
+            'server', 'ipv6_addresses', 'delete_server_task', 'type', 'id',
+            'name'
+        ])
         return
 
     # Check if delete operation triggered or not before
@@ -1395,13 +1407,16 @@ def delete(openstack_resource):
 @with_compat_node
 @with_openstack_resource(
     OpenstackServer,
-    existing_resource_handler=_disconnect_resources_from_external_server,
-    ignore_unexisted_resource=True)
+    existing_resource_handler=_disconnect_resources_from_external_server)
 def stop(openstack_resource):
     """
     Stop current openstack server
     :param openstack_resource: instance of openstack server resource
     """
+
+    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
+        ctx.logger.info('Server is already uninitialized.')
+        return
 
     # Clean any interfaces connected to the server
     for interface in openstack_resource.server_interfaces():

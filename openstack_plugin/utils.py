@@ -290,6 +290,16 @@ def reset_dict_empty_keys(dict_object):
     return dict_object
 
 
+def cleanup_runtime_properties(ctx, keys):
+    """
+    Cleanup runtime properties keys
+    """
+    for key in keys:
+        if key in ctx.instance.runtime_properties:
+            del ctx.instance.runtime_properties[key]
+    ctx.instance.update()
+
+
 def update_runtime_properties(properties=None):
     """
     Update runtime properties for node instance

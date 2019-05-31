@@ -2230,40 +2230,9 @@ class ServerTestCase(OpenStackTestBase):
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8'
             })
 
-        server_instance = openstack.compute.v2.server.Server(**{
-            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-            'name': 'test_server',
-            'access_ipv4': '1',
-            'access_ipv6': '2',
-            'addresses': {
-                'network-1': [
-                    {
-                        'OS-EXT-IPS:type': 'fixed',
-                        'addr': '10.1.0.1',
-                        'version': 4
-                    }
-                ]
-            },
-            'config_drive': True,
-            'created': '2015-03-09T12:14:57.233772',
-            'flavor_id': '2',
-            'image_id': '3',
-            'availability_zone': 'test_availability_zone',
-            'key_name': 'test-keypair',
-            'networks': [
-                {
-                    'port_id': 'b95b5509-c122-4c2f-823e-884bb559afe2'
-                },
-                {
-                    'uuid': 'e95b5509-c122-4c2f-823e-884bb559afe1'
-                }
-            ]
-        })
-
         # Mock find operation
         mock_connection().compute.find_server = \
             mock.MagicMock(side_effect=[
-                server_instance,  # checked first time in decorator
                 openstack.exceptions.ResourceNotFound])
 
         with self.assertRaises(NonRecoverableError):

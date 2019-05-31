@@ -28,8 +28,7 @@ from openstack_plugin.constants import (RESOURCE_ID,
 from openstack_plugin.utils import (reset_dict_empty_keys,
                                     validate_resource_quota,
                                     add_resource_list_to_runtime_properties,
-                                    validate_ip_or_range_syntax,
-                                    cleanup_runtime_properties)
+                                    validate_ip_or_range_syntax)
 
 
 def security_group_creation_validation(openstack_resource):
@@ -109,9 +108,6 @@ def delete(openstack_resource):
         ctx.logger.info('SecurityGroup is already uninitialized.')
         return
     openstack_resource.delete()
-    cleanup_runtime_properties(ctx, [
-        RESOURCE_ID
-    ])
 
 
 @with_compat_node

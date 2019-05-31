@@ -20,7 +20,6 @@ from cloudify import ctx
 from openstack_sdk.resources.volume import OpenstackVolumeType
 from openstack_plugin.decorators import with_openstack_resource
 from openstack_plugin.constants import RESOURCE_ID
-from openstack_plugin.utils import cleanup_runtime_properties
 
 
 @with_openstack_resource(OpenstackVolumeType)
@@ -43,6 +42,3 @@ def delete(openstack_resource):
         ctx.logger.info('VolumeType is already uninitialized.')
         return
     openstack_resource.delete()
-    cleanup_runtime_properties(ctx, [
-        RESOURCE_ID
-    ])

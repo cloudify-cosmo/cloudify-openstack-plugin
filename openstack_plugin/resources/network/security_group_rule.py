@@ -22,8 +22,7 @@ from openstack_plugin.decorators import with_openstack_resource
 from openstack_plugin.constants import (RESOURCE_ID,
                                         SECURITY_GROUP_RULE_OPENSTACK_TYPE)
 from openstack_plugin.utils import (validate_resource_quota,
-                                    add_resource_list_to_runtime_properties,
-                                    cleanup_runtime_properties)
+                                    add_resource_list_to_runtime_properties)
 
 
 @with_openstack_resource(OpenstackSecurityGroupRule)
@@ -48,9 +47,6 @@ def delete(openstack_resource):
         ctx.logger.info('SecurityGroupRule is already uninitialized.')
         return
     openstack_resource.delete()
-    cleanup_runtime_properties(ctx, [
-        RESOURCE_ID
-    ])
 
 
 @with_openstack_resource(OpenstackSecurityGroupRule)

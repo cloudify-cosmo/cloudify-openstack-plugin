@@ -37,8 +37,7 @@ from openstack_plugin.utils import (reset_dict_empty_keys,
                                     merge_resource_config,
                                     validate_resource_quota,
                                     add_resource_list_to_runtime_properties,
-                                    find_relationships_by_relationship_type,
-                                    cleanup_runtime_properties)
+                                    find_relationships_by_relationship_type)
 
 
 def _get_rbac_policy_target_from_relationship():
@@ -291,9 +290,6 @@ def delete(openstack_resource):
         ctx.logger.info('RBACPolicy is already uninitialized.')
         return
     openstack_resource.delete()
-    cleanup_runtime_properties(ctx, [
-        RESOURCE_ID
-    ])
 
 
 @with_compat_node

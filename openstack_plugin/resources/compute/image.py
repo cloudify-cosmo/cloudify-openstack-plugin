@@ -23,8 +23,7 @@ from openstack_plugin.decorators import (with_openstack_resource,
 from openstack_plugin.constants import (RESOURCE_ID, IMAGE_OPENSTACK_TYPE)
 from openstack_plugin.utils import (validate_resource_quota,
                                     reset_dict_empty_keys,
-                                    add_resource_list_to_runtime_properties,
-                                    cleanup_runtime_properties)
+                                    add_resource_list_to_runtime_properties)
 
 
 @with_compat_node
@@ -53,9 +52,6 @@ def delete(openstack_resource):
         return
     # Delete the image resource after lookup the resource_id values
     openstack_resource.delete()
-    cleanup_runtime_properties(ctx, [
-        RESOURCE_ID
-    ])
 
 
 @with_compat_node

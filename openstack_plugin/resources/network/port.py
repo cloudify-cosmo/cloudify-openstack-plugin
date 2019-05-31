@@ -33,8 +33,7 @@ from openstack_plugin.utils import (
     reset_dict_empty_keys,
     validate_resource_quota,
     add_resource_list_to_runtime_properties,
-    find_openstack_ids_of_connected_nodes_by_openstack_type,
-    cleanup_runtime_properties)
+    find_openstack_ids_of_connected_nodes_by_openstack_type)
 
 
 @with_multiple_data_sources()
@@ -283,9 +282,6 @@ def delete(openstack_resource):
         ctx.logger.info('Port is already uninitialized.')
         return
     openstack_resource.delete()
-    cleanup_runtime_properties(ctx, [
-        RESOURCE_ID, 'fixed_ips', 'mac_address', 'allowed_address_pairs'
-    ])
 
 
 @with_compat_node

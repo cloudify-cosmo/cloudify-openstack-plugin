@@ -50,8 +50,7 @@ from openstack_plugin.utils import (
     wait_until_status,
     get_snapshot_name,
     add_resource_list_to_runtime_properties,
-    find_openstack_ids_of_connected_nodes_by_openstack_type,
-    cleanup_runtime_properties)
+    find_openstack_ids_of_connected_nodes_by_openstack_type)
 
 
 def _is_volume_backup_matched(backup_instance, volume_id, name):
@@ -516,11 +515,6 @@ def delete(openstack_resource):
     except openstack.exceptions.ResourceNotFound:
         ctx.logger.info('Volume {0} is deleted successfully'.format(
             openstack_resource.resource_id))
-        cleanup_runtime_properties(ctx, [
-            RESOURCE_ID, VOLUME_TASK_DELETE, VOLUME_SNAPSHOT_ID,
-            VOLUME_SNAPSHOT_TASK, VOLUME_BACKUP_ID, VOLUME_BACKUP_TASK,
-            VOLUME_BOOTABLE, OPENSTACK_AZ_PROPERTY
-        ])
 
 
 @with_compat_node

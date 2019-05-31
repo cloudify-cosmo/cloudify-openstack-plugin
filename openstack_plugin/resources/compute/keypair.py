@@ -22,8 +22,7 @@ from openstack_plugin.decorators import (with_openstack_resource,
                                          with_compat_node)
 from openstack_plugin.constants import (RESOURCE_ID, KEYPAIR_OPENSTACK_TYPE)
 from openstack_plugin.utils import (validate_resource_quota,
-                                    add_resource_list_to_runtime_properties,
-                                    cleanup_runtime_properties)
+                                    add_resource_list_to_runtime_properties)
 
 
 @with_compat_node
@@ -53,9 +52,6 @@ def delete(openstack_resource):
         ctx.logger.info('KeyPair is already uninitialized.')
         return
     openstack_resource.delete()
-    cleanup_runtime_properties(ctx, [
-        RESOURCE_ID, 'private_key', 'public_key'
-    ])
 
 
 @with_compat_node

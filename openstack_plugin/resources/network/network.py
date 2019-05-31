@@ -25,8 +25,7 @@ from openstack_plugin.decorators import (with_openstack_resource,
 from openstack_plugin.constants import RESOURCE_ID
 from openstack_plugin.utils import (validate_resource_quota,
                                     reset_dict_empty_keys,
-                                    add_resource_list_to_runtime_properties,
-                                    cleanup_runtime_properties)
+                                    add_resource_list_to_runtime_properties)
 
 from openstack_plugin.constants import NETWORK_OPENSTACK_TYPE
 
@@ -68,9 +67,6 @@ def delete(openstack_resource):
         ctx.logger.info('Network is already uninitialized.')
         return
     openstack_resource.delete()
-    cleanup_runtime_properties(ctx, [
-        RESOURCE_ID
-    ])
 
 
 @with_compat_node

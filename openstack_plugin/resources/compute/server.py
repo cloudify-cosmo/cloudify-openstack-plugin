@@ -40,7 +40,6 @@ from openstack_plugin.decorators import (with_openstack_resource,
                                          with_multiple_data_sources)
 
 from openstack_plugin.constants import (RESOURCE_ID,
-                                        OPENSTACK_NAME_PROPERTY,
                                         OPENSTACK_RESOURCE_UUID,
                                         SERVER_STATUS_ACTIVE,
                                         SERVER_STATUS_SHUTOFF,
@@ -98,8 +97,7 @@ from openstack_plugin.utils import \
      get_snapshot_name,
      generate_attachment_volume_key,
      assign_resource_payload_as_runtime_properties,
-     remove_duplicates_items,
-     cleanup_runtime_properties)
+     remove_duplicates_items)
 
 
 def _stop_server(server):
@@ -1386,12 +1384,6 @@ def delete(openstack_resource):
 
         ctx.logger.info('Server {0} is deleted successfully'
                         .format(openstack_resource.resource_id))
-        # cleanup runtime
-        cleanup_runtime_properties(ctx, [
-            'public_ip_address', 'ip', 'ipv6_addresses', 'ipv4_addresses',
-            SERVER_OPENSTACK_TYPE, SERVER_TASK_STOP, SERVER_TASK_DELETE,
-            OPENSTACK_TYPE_PROPERTY, RESOURCE_ID, OPENSTACK_NAME_PROPERTY
-        ])
         return
 
     # Check if delete operation triggered or not before

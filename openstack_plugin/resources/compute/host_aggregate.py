@@ -23,7 +23,9 @@ from openstack_plugin.decorators import (with_openstack_resource,
                                          with_compat_node)
 from openstack_plugin.constants import (RESOURCE_ID,
                                         HOST_AGGREGATE_OPENSTACK_TYPE)
-from openstack_plugin.utils import add_resource_list_to_runtime_properties
+from openstack_plugin.utils import (
+    add_resource_list_to_runtime_properties,
+    cleanup_runtime_properties)
 
 
 def _add_hosts(openstack_resource, hosts):
@@ -47,17 +49,21 @@ def _add_hosts(openstack_resource, hosts):
     ctx.instance.runtime_properties['hosts'] = hosts
 
 
-def _remove_hosts(openstack_resource, hosts):
+def _remove_hosts(openstack_resource, hosts, update_on_remove=False):
     """
     This method is to remove list of hosts from aggregate openstack instance
     :param openstack_resource: Instance of openstack host aggregate resource
     :param hosts: List of hosts (strings) that should be remove form aggregate
     """
     if isinstance(hosts, list):
+        updated_hosts = [host for host in hosts]
         for host in hosts:
-            # Add host to the target host aggregate
-            # TODO: save after each delete
+            # remove host from the target host aggregate
             openstack_resource.remove_host(host)
+            if update_on_remove:
+                updated_hosts.remove(host)
+                ctx.instance.runtime_properties['hosts'] = updated_hosts
+                ctx.instance.update()
     else:
         raise NonRecoverableError(
             'invalid data type {0} for hosts'.format(type(hosts)))
@@ -160,8 +166,13 @@ def delete(openstack_resource):
     # run uninstall which helps to avoid run delete host multiple times
     if ctx.instance.runtime_properties.get('hosts'):
         _remove_hosts(openstack_resource,
-                      ctx.instance.runtime_properties['hosts'])
+                      ctx.instance.runtime_properties['hosts'],
+                      update_on_remove=True)
     openstack_resource.delete()
+    # cleanup runtime
+    cleanup_runtime_properties(ctx, [
+        'hosts', RESOURCE_ID
+    ])
 
 
 @with_compat_node

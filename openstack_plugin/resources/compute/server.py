@@ -40,6 +40,7 @@ from openstack_plugin.decorators import (with_openstack_resource,
                                          with_multiple_data_sources)
 
 from openstack_plugin.constants import (RESOURCE_ID,
+                                        OPENSTACK_NAME_PROPERTY,
                                         OPENSTACK_RESOURCE_UUID,
                                         SERVER_STATUS_ACTIVE,
                                         SERVER_STATUS_SHUTOFF,
@@ -1053,9 +1054,12 @@ def _disconnect_resources_from_external_server(openstack_resource):
     if SERVER_INTERFACE_IDS in ctx.instance.runtime_properties:
         interfaces = ctx.instance.runtime_properties.get(
             SERVER_INTERFACE_IDS, [])
-        # TODO: save after each delete
+        updated = [i for i in interfaces]
         for interface in interfaces:
             openstack_resource.delete_server_interface(interface)
+            updated.remove(interface)
+            ctx.instance.runtime_properties[SERVER_INTERFACE_IDS] = updated
+            ctx.instance.update()
             ctx.logger.info(
                 'Successfully detached network {0} to device (server) id {1}.'
                 .format(interface, openstack_resource.resource_id))
@@ -1386,9 +1390,9 @@ def delete(openstack_resource):
                         .format(openstack_resource.resource_id))
         # cleanup runtime
         cleanup_runtime_properties(ctx, [
-            'public_ip_address', 'ip', 'stop_server_task', 'ipv4_addresses',
-            'server', 'ipv6_addresses', 'delete_server_task', 'type', 'id',
-            'name'
+            'public_ip_address', 'ip', 'ipv6_addresses', 'ipv4_addresses',
+            SERVER_OPENSTACK_TYPE, SERVER_TASK_STOP, SERVER_TASK_DELETE,
+            OPENSTACK_TYPE_PROPERTY, RESOURCE_ID, OPENSTACK_NAME_PROPERTY
         ])
         return
 

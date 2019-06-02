@@ -377,6 +377,7 @@ class Compat(object):
         self.context = context
         self.kwargs = kwargs
         self._type = self.context.node.type
+        self._type_hierarchy = self.context.node.type_hierarchy
         self._properties = dict(self.node_properties)
 
     @property
@@ -472,6 +473,23 @@ class Compat(object):
     def is_update_operation(self):
         return self.operation_name in [CLOUDIFY_UPDATE_OPERATION,
                                        CLOUDIFY_UPDATE_PROJECT_OPERATION]
+
+    def lookup_handler_for_openstack_node_v2(self):
+        """
+        This method will lookup the handler for openstack type v2 so that we
+        it is possible to continue transformation process to openstack
+        plugin v3
+        :return: Handler object in order to transform data to support
+        openstack version 3
+        """
+
+        for node_type in self._type_hierarchy:
+            handler_node = self.transformation_handler_map.get(node_type)
+            if handler_node:
+                return handler_node
+
+        raise NonRecoverableError(
+            'Invalid openstack node type {0}'.format(self._type))
 
     def get_openstack_resource_id(self,
                                   class_resource,
@@ -686,6 +704,8 @@ class Compat(object):
         elif openstack_type == 'volume':
             Compat._clean_resource_config(resource_config,
                                           VOLUME_CREATE_PARAMS)
+            self.context.instance.runtime_properties['size'] = \
+                resource_config.get('size')
         elif openstack_type == 'keypair':
             self._clean_resource_config(resource_config,
                                         KEYPAIR_RESOURCE_CONFIG)
@@ -818,6 +838,20 @@ class Compat(object):
                 # update the networks object to match the networks object
                 # used and accepted by openstack 3.x
                 config['networks'] = networks
+
+    @staticmethod
+    def map_server_security_groups_config(config):
+        """
+        This method will do a mapping of security groups config for the
+        server using openstack plugin 2.x so that it can works under
+        openstack plugin 3.x
+        :param config: Resource configuration needed to create server
+        """
+        security_groups = config.get('security_groups')
+        if security_groups:
+            config['security_groups'] = [
+                {'name': sg} for sg in security_groups
+            ]
 
     def _map_server_flavor_and_image(self, config):
         """
@@ -1013,6 +1047,8 @@ class Compat(object):
         for config in [server_config, args_config]:
             # Do a conversion for networks object
             Compat._map_server_networks_config(config)
+            # Do a conversion for security groups object
+            Compat.map_server_security_groups_config(config)
             # Do a conversion for flavor and image
             self._map_server_flavor_and_image(config)
 
@@ -1150,7 +1186,8 @@ class Compat(object):
         openstack version 3 properties based on the current node type
         :return dict: Compatible openstack version 3 properties
         """
-        properties = self.transformation_handler_map[self._type]()
+        handler_v2 = self.lookup_handler_for_openstack_node_v2()
+        properties = handler_v2()
         for key, value in properties.items():
             self.kwargs[key] = value
         return self.kwargs

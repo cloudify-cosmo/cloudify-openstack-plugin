@@ -334,7 +334,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Flavor'
+            node_type='cloudify.openstack.nodes.Flavor',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Flavor']
         )
         current_ctx.set(context)
         kwargs = {
@@ -376,7 +378,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Flavor'
+            node_type='cloudify.openstack.nodes.Flavor',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Flavor']
         )
         current_ctx.set(context)
         kwargs = {
@@ -410,7 +414,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.HostAggregate'
+            node_type='cloudify.openstack.nodes.HostAggregate',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.HostAggregate']
         )
         current_ctx.set(context)
         kwargs = {
@@ -444,7 +450,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Image'
+            node_type='cloudify.openstack.nodes.Image',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Image']
         )
         current_ctx.set(context)
         kwargs = {
@@ -477,7 +485,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Image'
+            node_type='cloudify.openstack.nodes.Image',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Image']
         )
         current_ctx.set(context)
         kwargs = {
@@ -515,7 +525,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_UPDATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Image'
+            node_type='cloudify.openstack.nodes.Image',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Image']
         )
         current_ctx.set(context)
         kwargs = {
@@ -554,7 +566,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.KeyPair'
+            node_type='cloudify.openstack.nodes.KeyPair',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.KeyPair']
         )
         current_ctx.set(context)
         kwargs = {
@@ -581,7 +595,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.KeyPair'
+            node_type='cloudify.openstack.nodes.KeyPair',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.KeyPair']
         )
         current_ctx.set(context)
         kwargs = {
@@ -609,7 +625,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.ServerGroup'
+            node_type='cloudify.openstack.nodes.ServerGroup',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.ServerGroup']
         )
         current_ctx.set(context)
         kwargs = {
@@ -636,7 +654,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.ServerGroup'
+            node_type='cloudify.openstack.nodes.ServerGroup',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.ServerGroup']
         )
         current_ctx.set(context)
         kwargs = {
@@ -675,7 +695,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Server'
+            node_type='cloudify.openstack.nodes.Server',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Server']
         )
 
         flavor_instance = openstack.compute.v2.flavor.Flavor(**{
@@ -748,7 +770,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Server'
+            node_type='cloudify.openstack.nodes.Server',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Server']
         )
 
         flavor_instance = openstack.compute.v2.flavor.Flavor(**{
@@ -827,7 +851,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.User'
+            node_type='cloudify.openstack.nodes.User',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.User']
         )
         current_ctx.set(context)
         kwargs = {
@@ -899,7 +925,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_UPDATE_OPERATION,
-            node_type='cloudify.openstack.nodes.User'
+            node_type='cloudify.openstack.nodes.User',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.User']
         )
         current_ctx.set(context)
         kwargs = {
@@ -968,7 +996,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.User'
+            node_type='cloudify.openstack.nodes.User',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.User']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1020,7 +1050,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Project'
+            node_type='cloudify.openstack.nodes.Project',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Project']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1080,7 +1112,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_UPDATE_PROJECT_OPERATION,
-            node_type='cloudify.openstack.nodes.Project'
+            node_type='cloudify.openstack.nodes.Project',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Project']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1129,7 +1163,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Project'
+            node_type='cloudify.openstack.nodes.Project',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Project']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1176,7 +1212,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Volume'
+            node_type='cloudify.openstack.nodes.Volume',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Volume']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1218,7 +1256,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Volume'
+            node_type='cloudify.openstack.nodes.Volume',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Volume']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1252,7 +1292,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Network'
+            node_type='cloudify.openstack.nodes.Network',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Network']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1293,7 +1335,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Network'
+            node_type='cloudify.openstack.nodes.Network',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Network']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1331,7 +1375,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Subnet'
+            node_type='cloudify.openstack.nodes.Subnet',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Subnet']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1363,7 +1409,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Subnet'
+            node_type='cloudify.openstack.nodes.Subnet',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Subnet']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1400,7 +1448,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Port'
+            node_type='cloudify.openstack.nodes.Port',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Port']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1435,7 +1485,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Port'
+            node_type='cloudify.openstack.nodes.Port',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Port']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1472,7 +1524,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.FloatingIP'
+            node_type='cloudify.openstack.nodes.FloatingIP',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.FloatingIP']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1500,7 +1554,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.FloatingIP'
+            node_type='cloudify.openstack.nodes.FloatingIP',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.FloatingIP']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1535,7 +1591,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.Router'
+            node_type='cloudify.openstack.nodes.Router',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Router']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1573,7 +1631,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.Router'
+            node_type='cloudify.openstack.nodes.Router',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Router']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1634,7 +1694,9 @@ class CompatTestCase(OpenStackTestBase):
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
             test_relationships=routes_rel,
-            node_type='cloudify.openstack.nodes.Routes'
+            node_type='cloudify.openstack.nodes.Routes',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.Routes']
 
         )
         current_ctx.set(context)
@@ -1663,7 +1725,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.SecurityGroup'
+            node_type='cloudify.openstack.nodes.SecurityGroup',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.SecurityGroup']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1707,7 +1771,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.SecurityGroup'
+            node_type='cloudify.openstack.nodes.SecurityGroup',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.SecurityGroup']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1745,7 +1811,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_CREATE_OPERATION,
-            node_type='cloudify.openstack.nodes.RBACPolicy'
+            node_type='cloudify.openstack.nodes.RBACPolicy',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.RBACPolicy']
         )
         current_ctx.set(context)
         kwargs = {
@@ -1771,7 +1839,9 @@ class CompatTestCase(OpenStackTestBase):
             test_name='CompatTestCase',
             test_properties=node_properties,
             ctx_operation_name=CLOUDIFY_LIST_OPERATION,
-            node_type='cloudify.openstack.nodes.RBACPolicy'
+            node_type='cloudify.openstack.nodes.RBACPolicy',
+            type_hierarchy=['cloudify.nodes.Root',
+                            'cloudify.openstack.nodes.RBACPolicy']
         )
         current_ctx.set(context)
         kwargs = {

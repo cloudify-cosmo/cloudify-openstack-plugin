@@ -1,3 +1,10 @@
+3.1.1:
+    - Fix issue with order of attached ports to server for compat nodes
+    - Fix issue with type hierarchy for compat nodes
+    - Fix issue with providing security groups list for server compact node
+    - Fix issue with set ip runtime properties when only ipv6 is specified
+    - Fix issues with booting server form volumes
+    - Expose external_name property as runtime property for compat nodes
 3.1.0:
     - Fix bugs and add enchantments to Openstack plugin
     - Add backwards compatible support for openstack 2.x

@@ -178,15 +178,15 @@ def _set_server_ips_runtime_properties(server):
     for network, address_object in addresses.iteritems():
         for address in address_object:
             # ip config
-            ipv4 = dict()
-            ipv4['addr'] = address['addr']
-            ipv4['type'] = address['OS-EXT-IPS:type']
+            ip_config = dict()
+            ip_config['addr'] = address['addr']
+            ip_config['type'] = address['OS-EXT-IPS:type']
 
             # Check where `ip_config` should be added
             if address['version'] == 4:
-                ipv4_addresses.append(ipv4)
+                ipv4_addresses.append(ip_config)
             elif address['version'] == 6:
-                ipv6_addresses.append(address['addr'])
+                ipv6_addresses.append(ip_config)
 
     # Check if access_ipv4 is set or not
     if server.access_ipv4:
@@ -218,6 +218,10 @@ def _set_server_ips_runtime_properties(server):
         if ipv6['type'] == 'fixed' \
                 and 'ipv6' not in ctx.instance.runtime_properties:
             ctx.instance.runtime_properties['ipv6'] = ip_v6
+            # If "ip" is not set at this point, then the only address used
+            # is ipv4
+            if 'ip' not in ctx.instance.runtime_properties:
+                ctx.instance.runtime_properties['ip'] = ip_v6
 
         # Only set the first "public_ip6_address" as runtime property
         elif ipv6['type'] == 'floating'\
@@ -405,31 +409,6 @@ def _check_finished_server_task(server_resource, waiting_list):
                 ''.format(server.status, state), retry_after=30)
 
 
-def _get_bootable_indexed_volumes(mapping_devices):
-    """
-    This method will retrieve all bootable devices from mapping device list
-    in order to determine which device will be marked as bootable to the server
-    :param list mapping_devices: List of `block_device_mapping_v2` object
-    which is part of server config object
-    :return: List of bootable indexed volumes
-    """
-    bootable_devices = None
-    if mapping_devices:
-        # Get the bootable devices which have boot_index specified
-        bootable_devices = [
-            device for device in mapping_devices if device.get('boot_index')
-        ]
-        # Check if there are bootable indexed volumes
-        if bootable_devices:
-            # Sort them in descending order in order to track the last index
-            # of bootable device
-            bootable_devices = sorted(bootable_devices,
-                                      reverse=True,
-                                      key=lambda x: x.get('boot_index'))
-
-    return bootable_devices
-
-
 def _get_boot_volume_targets():
     """
     This method will lookup all volume bootable targets associated with
@@ -509,6 +488,24 @@ def _get_flavor_or_image_from_server(class_name,
         return remote_instance.id
 
 
+def _get_port_networks(client_config, port_ids):
+    """
+    This method will return network associated with ports
+    :param dict client_config: Openstack configuration required to connect
+    to API
+    :param (List) port_ids: List of uuid ports
+    :return:
+    """
+    networks = []
+    for port_id in port_ids:
+        port = OpenstackPort(client_config=client_config, logger=ctx.logger)
+        port.resource_id = port_id
+        response = port.get()
+        networks.append(response.network_id)
+
+    return networks
+
+
 def _clean_duplicate_networks(server_config):
     """
     This method will clean all duplicates network items from server config
@@ -539,13 +536,15 @@ def _update_flavor_and_image_config(openstack_resource):
     configuration provided via resource_config and node properties
     :param openstack_resource: An instance of OpenstackServer
     """
-    server_config = openstack_resource.config
-    if server_config.get('block_device_mapping_v2'):
+    image_id = None
+    bootable_volumes = _get_boot_volume_targets()
+    if not bootable_volumes:
         image_id = _get_flavor_or_image_from_server(OpenstackImage,
                                                     openstack_resource,
                                                     'image',
                                                     has_bdm=True)
-        if image_id:
+        bdm_config = openstack_resource.config.get('block_device_mapping_v2')
+        if bdm_config and image_id:
             bdm_dict = {
                 'uuid': image_id,
                 'source_type': 'image',
@@ -553,11 +552,7 @@ def _update_flavor_and_image_config(openstack_resource):
                 'boot_index': 0,
                 'delete_on_termination': True
             }
-            server_config['block_device_mapping_v2'].insert(0, bdm_dict)
-    else:
-        image_id = _get_flavor_or_image_from_server(OpenstackImage,
-                                                    openstack_resource,
-                                                    'image')
+            bdm_config.insert(0, bdm_dict)
 
     flavor_id = _get_flavor_or_image_from_server(OpenstackFlavor,
                                                  openstack_resource,
@@ -569,13 +564,15 @@ def _update_flavor_and_image_config(openstack_resource):
         openstack_resource.config['image_id'] = image_id
 
 
-@with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_networks)
-def _update_ports_config(server_config, allow_multiple=False):
+@with_multiple_data_sources()
+def _update_ports_config(server_config, client_config, allow_multiple=False):
     """
     This method will try to update server config with port configurations
     using the relationships connected with server node
     :param dict server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param dict client_config: Openstack configuration required to connect
+    to API
     :param boolean allow_multiple: This flag to set if it is allowed to have
      networks configuration from multiple resources relationships + node
      properties
@@ -597,6 +594,13 @@ def _update_ports_config(server_config, allow_multiple=False):
 
     ports_to_add = []
 
+    # Remove duplicate ports when port provided using relationship & node
+    # properties
+    for port_id in port_ids:
+        for server_port in server_ports:
+            if port_id == server_port:
+                server_ports.remove(server_port)
+
     # if both are empty then server is not providing ports connection
     # neither via node properties nor via relationships and this will be
     # valid only one network created for the current tenant, the server will
@@ -609,6 +613,14 @@ def _update_ports_config(server_config, allow_multiple=False):
                                   '"networks" property and be '
                                   'connected to a network via a '
                                   'relationship at the same time')
+
+    # Remove ports that have networks exist in "networks" object
+    for ports in [port_ids, server_ports]:
+        network_ids = _get_port_networks(client_config, ports)
+        for network_id in network_ids:
+            for network in networks:
+                if network.get(OPENSTACK_RESOURCE_UUID) == network_id:
+                    networks.remove(network)
 
     # Prepare the ports that should be added to the server networks
     for port_id in port_ids:
@@ -640,15 +652,10 @@ def _update_bootable_volume_config(server_config, allow_multiple=False):
     volume_uuids = [
         device['uuid'] for device in mapping_devices if device.get('uuid')
     ]
-    # Get the indexed bootable devices
-    bootable_devices = _get_bootable_indexed_volumes(mapping_devices)
-
-    # Get the highest index from bootable devices
-    boot_index = \
-        bootable_devices[0]['boot_index'] if bootable_devices else None
 
     bootable_rel_volumes = []
     bootable_rel_uuids = []
+    boot_index = None
     # Get the targets volume connected to the server
     volume_targets = _get_boot_volume_targets()
     for volume_target in volume_targets:
@@ -661,14 +668,25 @@ def _update_bootable_volume_config(server_config, allow_multiple=False):
             boot_index = 0
         else:
             boot_index += 1
+        # Populate volume size
+        volume_size = \
+            resource_config.get('size') or \
+            volume_target.instance.runtime_properties.get('size')
         volume_device = {
             'boot_index': boot_index,
             'uuid': volume_uuid,
-            'volume_size':  resource_config.get('size'),
-            'device_name': volume_target.node.properties.get('device_name'),
+            'volume_size':  volume_size,
             'source_type': 'volume',
-            'delete_on_termination': True,
+            'destination_type': 'volume',
+            'delete_on_termination': False,
         }
+
+        device_name = volume_target.node.properties.get('device_name')
+        device_name = device_name if device_name != 'auto' else None
+        # Update device volume with device name if it is provided
+        if device_name:
+            volume_device['device_name'] = device_name
+
         bootable_rel_volumes.append(volume_device)
         bootable_rel_uuids.append(volume_uuid)
 
@@ -682,6 +700,12 @@ def _update_bootable_volume_config(server_config, allow_multiple=False):
                                   '"block_device_mapping_v2" property and be '
                                   'connected to a volume via a '
                                   'relationship at the same time')
+
+    # Remove any duplicates for mapping devices
+    for bootable_rel_volume in bootable_rel_volumes:
+        for mapping_device in mapping_devices:
+            if bootable_rel_volume.get('uuid') == mapping_device.get('uuid'):
+                mapping_devices.remove(mapping_device)
 
     if not mapping_devices:
         server_config['block_device_mapping_v2'] = bootable_rel_volumes
@@ -723,7 +747,7 @@ def _update_keypair_config(server_config, allow_multiple=False):
         server_config['key_name'] = key_name
 
 
-@with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_networks)
+@with_multiple_data_sources()
 def _update_networks_config(server_config, allow_multiple=False):
     """
     This method will try to update server config with network configurations
@@ -764,6 +788,13 @@ def _update_networks_config(server_config, allow_multiple=False):
                                   '"networks" property and be '
                                   'connected to a network via a '
                                   'relationship at the same time')
+
+    # Remove duplicate networks when network provided using relationship & node
+    # properties
+    for network_id in network_ids:
+        for server_network in server_networks:
+            if network_id == server_network:
+                server_networks.remove(server_network)
 
     # Prepare the network uuids that should be added to the server networks
     for net_id in network_ids:
@@ -810,21 +841,23 @@ def _update_server_group_config(server_config, allow_multiple=False):
         server_config['scheduler_hints'] = scheduler_hints
 
 
-def _update_server_config(server_config):
+def _update_server_config(server_config, client_config):
     """
     This method will try to resolve if there are any nodes connected to the
     server node and try to use the configurations from nodes in order to
     help create server using these configurations
     :param dict server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param dict client_config: Openstack configuration required to connect
+    to API
     """
-    # Check if there are some ports configuration via relationships in order
-    # to update server config
-    _update_ports_config(server_config)
-
     # Check if there are some networks configuration in order to update
     # server config
     _update_networks_config(server_config)
+
+    # Check if there are some ports configuration via relationships in order
+    # to update server config
+    _update_ports_config(server_config, client_config=client_config)
 
     # Check if there are some bootable volumes via relationships in order
     # update server config
@@ -1265,7 +1298,8 @@ def create(openstack_resource):
         openstack_resource.config['user_data'] = user_data
 
     # Update server config by depending on relationships
-    _update_server_config(openstack_resource.config)
+    _update_server_config(openstack_resource.config,
+                          openstack_resource.client_config)
 
     # Update flavor and image for server
     _update_flavor_and_image_config(openstack_resource)

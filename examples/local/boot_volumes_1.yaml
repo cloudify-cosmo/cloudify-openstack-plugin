@@ -1,7 +1,7 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.5.5/types.yaml
   # For use with a manager use: plugin:cloudify-openstack-plugin
   - plugin.yaml
 
@@ -25,11 +25,20 @@ inputs:
   project_id:
     type: string
 
-  image:
+  image_1:
     type: string
+    description: >
+      An Openstack Image ID
+
+  image_2:
+    type: string
+    description: >
+      An Openstack Image ID.
 
   flavor:
     type: string
+    description: >
+      An Openstack Flavor ID.
 
   name_prefix:
     type: string
@@ -59,7 +68,16 @@ inputs:
     default: volume1_name
 
   volume1_size:
-    default: 10
+    default: 20
+
+  volume2_use_existing:
+    default: false
+
+  volume2_name:
+    default: volume2_name
+
+  volume2_size:
+    default: 20
 
   example_public_subnet_cidr:
     type: string
@@ -103,6 +121,8 @@ node_templates:
         target: example-public-port
       - type: cloudify.relationships.depends_on
         target: example-volume-1
+      - type: cloudify.relationships.depends_on
+        target: example-volume-2
       - type: cloudify.relationships.openstack.server_connected_to_port
         target: example-private-port
 
@@ -118,14 +138,28 @@ node_templates:
     properties:
       client_config: *client_config
       use_external_resource: { get_input: volume1_use_existing }
-      device_name: 'vda'
+      device_name: '/dev/vda'
       resource_config:
-        name: { concat: [ { get_input: name_prefix }, 'volume_1' ] }
+        name: { concat: [ { get_input: name_prefix }, { get_input: volume1_name } ] }
         availability_zone: 'nova'
         description: 'Example Volume Size 1'
         project_id: { get_input: project_id }
         size: { get_input: volume1_size }
-        imageRef: { get_input: image }
+        imageRef: { get_input: image_1 }
+
+  example-volume-2:
+    type: cloudify.nodes.openstack.Volume
+    properties:
+      client_config: *client_config
+      use_external_resource: { get_input: volume2_use_existing }
+      device_name: '/dev/vdb'
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, { get_input: volume2_name } ] }
+        availability_zone: 'nova'
+        description: 'Example Volume Size 2'
+        project_id: { get_input: project_id }
+        size: { get_input: volume2_size }
+        imageRef: { get_input: image_2 }
 
   example-public-port:
     type: cloudify.nodes.openstack.Port

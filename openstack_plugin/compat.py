@@ -704,6 +704,8 @@ class Compat(object):
         elif openstack_type == 'volume':
             Compat._clean_resource_config(resource_config,
                                           VOLUME_CREATE_PARAMS)
+            self.context.instance.runtime_properties['size'] = \
+                resource_config.get('size')
         elif openstack_type == 'keypair':
             self._clean_resource_config(resource_config,
                                         KEYPAIR_RESOURCE_CONFIG)

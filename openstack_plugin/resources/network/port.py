@@ -278,9 +278,6 @@ def delete(openstack_resource):
     Delete current openstack port
     :param openstack_resource: instance of openstack port resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Port is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

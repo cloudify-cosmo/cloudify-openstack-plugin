@@ -213,9 +213,6 @@ def delete(openstack_resource):
     Delete current openstack router
     :param openstack_resource: instance of openstack router resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Router is already uninitialized.')
-        return
     openstack_resource.delete()
 
 
@@ -274,8 +271,7 @@ def add_interface_to_router(openstack_resource, **kwargs):
 @with_compat_node
 @with_openstack_resource(
     OpenstackRouter,
-    existing_resource_handler=_handle_disconnect_external_subnet_from_router,
-    ignore_unexisted_resource=True)
+    existing_resource_handler=_handle_disconnect_external_subnet_from_router)
 def remove_interface_from_router(openstack_resource, **kwargs):
     """
     Remove interface to router in order to unlink router with other services
@@ -311,9 +307,6 @@ def stop(openstack_resource):
     Remove static routes which added before for router
     :param openstack_resource: instance of openstack router resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Router is already uninitialized.')
-        return
     if 'routes' in ctx.instance.runtime_properties:
         # There are some routes need to be deleted since it is part of the
         # runtime properties

@@ -27,12 +27,8 @@ from cloudify import compute
 from cloudify import ctx
 from cloudify.exceptions import (NonRecoverableError, OperationRetry)
 from cloudify.utils import exception_to_error_cause
+from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
 
-try:
-    from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
-except ImportError:
-    NODE_INSTANCE = 'node-instance'
-    RELATIONSHIP_INSTANCE = 'relationship-instance'
 
 # Local imports
 from openstack_plugin.constants import (PS_OPEN,

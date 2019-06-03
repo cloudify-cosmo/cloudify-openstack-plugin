@@ -63,9 +63,6 @@ def delete(openstack_resource):
     Delete flavor resource
     :param openstack_resource: Instance of openstack flavor resource.
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Flavor is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

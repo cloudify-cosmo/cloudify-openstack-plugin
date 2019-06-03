@@ -286,9 +286,6 @@ def delete(openstack_resource):
     Delete current openstack rbac policy instance
     :param openstack_resource: instance of openstack srbac policy resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('RBACPolicy is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

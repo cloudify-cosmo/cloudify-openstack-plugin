@@ -38,7 +38,4 @@ def delete(openstack_resource):
     Delete current openstack volume type
     :param openstack_resource: instance of openstack volume type resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('VolumeType is already uninitialized.')
-        return
     openstack_resource.delete()

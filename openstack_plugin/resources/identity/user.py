@@ -45,9 +45,6 @@ def delete(openstack_resource):
     Delete current openstack user
     :param openstack_resource: instance of openstack user resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('User is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

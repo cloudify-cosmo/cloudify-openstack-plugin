@@ -63,9 +63,6 @@ def delete(openstack_resource):
     Delete current openstack network
     :param openstack_resource: instance of openstack network resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Network is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

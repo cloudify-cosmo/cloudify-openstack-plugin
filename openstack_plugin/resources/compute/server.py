@@ -112,6 +112,7 @@ def _stop_server(server):
             server.stop()
             ctx.instance.runtime_properties[SERVER_TASK_STOP]\
                 = SERVER_ACTION_STATUS_PENDING
+            # save flag as current state before external call
             ctx.instance.update()
 
         # Get the server instance to check the status of the server
@@ -125,13 +126,11 @@ def _stop_server(server):
                             ''.format(server.resource_id))
             ctx.instance.runtime_properties[SERVER_TASK_STOP] \
                 = SERVER_ACTION_STATUS_DONE
-            ctx.instance.update()
     else:
         ctx.logger.info('Server {0} is already stopped'
                         ''.format(server.resource_id))
         ctx.instance.runtime_properties[SERVER_TASK_STOP]\
             = SERVER_ACTION_STATUS_DONE
-        ctx.instance.update()
 
 
 def _start_server(server):
@@ -146,6 +145,7 @@ def _start_server(server):
             server.start()
             ctx.instance.runtime_properties[SERVER_TASK_START]\
                 = SERVER_ACTION_STATUS_PENDING
+            # save flag as current state before external call
             ctx.instance.update()
 
         # Get the server instance to check the status of the server
@@ -158,13 +158,13 @@ def _start_server(server):
             ctx.logger.info('Server is already started')
             ctx.instance.runtime_properties[SERVER_TASK_START] \
                 = SERVER_ACTION_STATUS_DONE
-            ctx.instance.update()
 
     else:
         ctx.logger.info('Server is already started')
         ctx.instance.runtime_properties[SERVER_TASK_START]\
             = SERVER_ACTION_STATUS_DONE
-        ctx.instance.update()
+    # save flag as current state before external call
+    ctx.instance.update()
 
 
 def _set_server_ips_runtime_properties(server):
@@ -309,6 +309,7 @@ def _handle_generate_snapshot(server,
         # Set initial value for backup status
         ctx.instance.runtime_properties[SERVER_TASK_BACKUP_DONE] \
             = SERVER_ACTION_STATUS_PENDING
+        # save flag as current state before external call
         ctx.instance.update()
 
     # Wait for finish upload
@@ -320,6 +321,7 @@ def _handle_generate_snapshot(server,
     if is_finished:
         ctx.instance.runtime_properties[SERVER_TASK_BACKUP_DONE]\
             = SERVER_ACTION_STATUS_DONE
+        # save flag as current state before external call
         ctx.instance.update()
 
 
@@ -360,6 +362,7 @@ def _handle_snapshot_restore(server, image_id, snapshot_name):
             # Set the initial status of restore state
             ctx.instance.runtime_properties[SERVER_TASK_RESTORE_STATE] \
                 = SERVER_ACTION_STATUS_PENDING
+            # save flag as current state before external call
             ctx.instance.update()
 
     # Only check this logic if the server is already stopped
@@ -372,6 +375,7 @@ def _handle_snapshot_restore(server, image_id, snapshot_name):
         if is_finished:
             ctx.instance.runtime_properties[SERVER_TASK_RESTORE_STATE]\
                 = SERVER_REBUILD_STATUS
+            # save flag as current state before external call
             ctx.instance.update()
 
             # Try to start server to be available for usage
@@ -381,6 +385,7 @@ def _handle_snapshot_restore(server, image_id, snapshot_name):
             if server_status == SERVER_ACTION_STATUS_DONE:
                 ctx.instance.runtime_properties[SERVER_TASK_RESTORE_STATE]\
                     = SERVER_ACTION_STATUS_DONE
+                # save flag as current state before external call
                 ctx.instance.update()
 
 
@@ -1057,6 +1062,7 @@ def _disconnect_resources_from_external_server(openstack_resource):
             openstack_resource.delete_server_interface(interface)
             updated.remove(interface)
             ctx.instance.runtime_properties[SERVER_INTERFACE_IDS] = updated
+            # save flag as current state before external call
             ctx.instance.update()
             ctx.logger.info(
                 'Successfully detached network {0} to device (server) id {1}.'
@@ -1370,9 +1376,6 @@ def delete(openstack_resource):
     Delete current openstack server
     :param openstack_resource: instance of openstack server resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Server is already uninitialized.')
-        return
     # Get the details for the created server instance
     try:
         server = openstack_resource.get()
@@ -1390,7 +1393,6 @@ def delete(openstack_resource):
     if SERVER_TASK_DELETE not in ctx.instance.runtime_properties:
         openstack_resource.delete()
         ctx.instance.runtime_properties[SERVER_TASK_DELETE] = True
-        ctx.instance.update()
 
     ctx.logger.info('Waiting for server "{0}" to be deleted.'
                     ' current status: {1}'.format(server.id, server.status))
@@ -1407,9 +1409,6 @@ def stop(openstack_resource):
     Stop current openstack server
     :param openstack_resource: instance of openstack server resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Server is already uninitialized.')
-        return
     # Clean any interfaces connected to the server
     for interface in openstack_resource.server_interfaces():
         openstack_resource.delete_server_interface(interface.id)

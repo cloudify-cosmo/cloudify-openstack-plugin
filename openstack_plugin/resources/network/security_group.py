@@ -104,9 +104,6 @@ def delete(openstack_resource):
     Delete current openstack security group instance
     :param openstack_resource: instance of openstack security group  resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('SecurityGroup is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

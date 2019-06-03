@@ -46,9 +46,6 @@ def delete(openstack_resource):
     Delete current openstack server group
     :param openstack_resource: instance of openstack server group resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('ServerGroup is already uninitialized.')
-        return
     # Delete the server group resource after lookup the resource_id values
     openstack_resource.delete()
 

@@ -168,9 +168,6 @@ def delete(openstack_resource):
     Delete current openstack project
     :param openstack_resource: instance of openstack project resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Project is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

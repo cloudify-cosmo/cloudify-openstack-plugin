@@ -241,9 +241,6 @@ def delete(openstack_resource):
     Delete current openstack floating ip
     :param openstack_resource: Instance of openstack floating ip resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('FloatingIP is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

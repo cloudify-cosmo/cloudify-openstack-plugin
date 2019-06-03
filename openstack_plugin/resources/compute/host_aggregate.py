@@ -61,6 +61,7 @@ def _remove_hosts(openstack_resource, hosts, update_on_remove=False):
             if update_on_remove:
                 updated_hosts.remove(host)
                 ctx.instance.runtime_properties['hosts'] = updated_hosts
+                # save current state before remove next host
                 ctx.instance.update()
     else:
         raise NonRecoverableError(
@@ -157,9 +158,6 @@ def delete(openstack_resource):
     Delete host aggregate resource
     :param openstack_resource: Instance of openstack host aggregate resource.
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('HostAggregate is already uninitialized.')
-        return
     # Before delete the aggregate, check to see if there are hosts attached
     # to the aggregates first, checking runtime properties because use could
     # run "cloudify.interfaces.operations.remove_hosts" operation before

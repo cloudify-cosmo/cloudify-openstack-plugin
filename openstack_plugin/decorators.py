@@ -35,6 +35,12 @@ from openstack_plugin.utils \
             update_runtime_properties_for_node_v2,
             is_compat_node)
 
+from openstack_plugin.constants import (
+    CLOUDIFY_STOP_OPERATION,
+    CLOUDIFY_DELETE_OPERATION,
+    CLOUDIFY_UNLINK_OPERATION,
+    RESOURCE_ID
+)
 EXCEPTIONS = (exceptions.SDKException,
               InvalidDomainException,
               QuotaException)
@@ -42,7 +48,6 @@ EXCEPTIONS = (exceptions.SDKException,
 
 def with_openstack_resource(class_decl,
                             existing_resource_handler=None,
-                            ignore_unexisted_resource=False,
                             **existing_resource_kwargs):
     """
     :param class_decl: This is a class for the openstack resource need to be
@@ -76,16 +81,19 @@ def with_openstack_resource(class_decl,
                                          existing_resource_handler,
                                          **existing_resource_kwargs):
                     return
-                kwargs['openstack_resource'] = resource
-                if ignore_unexisted_resource:
-                    try:
-                        # check that we have resoure, otherwise ignore
-                        resource.get()
-                    except exceptions.ResourceNotFound as e:
+                # check resource_id before stop/delete for alredy cleaned up
+                if operation_name in (
+                    CLOUDIFY_STOP_OPERATION, CLOUDIFY_DELETE_OPERATION,
+                    CLOUDIFY_UNLINK_OPERATION
+                ):
+                    if not ctx_node.instance.runtime_properties.get(
+                        RESOURCE_ID
+                    ):
                         ctx.logger.info(
-                            "Ignore unexisted resource: {e}"
-                            .format(e=e))
+                            'Instance is already uninitialized.')
                         return
+                # run action
+                kwargs['openstack_resource'] = resource
                 func(**kwargs)
                 update_runtime_properties_for_operation_task(operation_name,
                                                              ctx_node,

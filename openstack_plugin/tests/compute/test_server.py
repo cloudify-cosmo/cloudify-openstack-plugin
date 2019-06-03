@@ -2232,8 +2232,7 @@ class ServerTestCase(OpenStackTestBase):
 
         # Mock find operation
         mock_connection().compute.find_server = \
-            mock.MagicMock(side_effect=[
-                openstack.exceptions.ResourceNotFound])
+            mock.MagicMock(side_effect=[openstack.exceptions.ResourceNotFound])
 
         with self.assertRaises(NonRecoverableError):
             server.delete()

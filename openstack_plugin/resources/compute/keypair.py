@@ -48,9 +48,6 @@ def delete(openstack_resource):
     Delete current openstack keypair
     :param openstack_resource: instance of openstack keypair resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('KeyPair is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

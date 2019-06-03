@@ -47,9 +47,6 @@ def start(openstack_resource):
 @with_compat_node
 @with_openstack_resource(OpenstackImage)
 def delete(openstack_resource):
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Image is already uninitialized.')
-        return
     # Delete the image resource after lookup the resource_id values
     openstack_resource.delete()
 

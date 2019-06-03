@@ -116,9 +116,6 @@ def delete(openstack_resource):
     Delete current openstack subnet
     :param openstack_resource: instance of openstack subnet resource
     """
-    if not ctx.instance.runtime_properties.get(RESOURCE_ID):
-        ctx.logger.info('Subnet is already uninitialized.')
-        return
     openstack_resource.delete()
 
 

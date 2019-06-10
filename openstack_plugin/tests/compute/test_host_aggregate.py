@@ -180,8 +180,9 @@ class HostAggregateTestCase(OpenStackTestBase):
 
         # Mock get aggregate response
         mock_connection().compute.get_aggregate = \
-            mock.MagicMock(side_effect=[old_aggregate_instance,
-                                        updated_aggregate_instance])
+            mock.MagicMock(side_effect=[
+                old_aggregate_instance,
+                updated_aggregate_instance])
 
         # Mock remove host aggregate response
         mock_connection().compute.remove_host_from_aggregate = \

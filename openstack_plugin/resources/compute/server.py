@@ -112,6 +112,8 @@ def _stop_server(server):
             server.stop()
             ctx.instance.runtime_properties[SERVER_TASK_STOP]\
                 = SERVER_ACTION_STATUS_PENDING
+            # save flag as current state before external call
+            ctx.instance.update()
 
         # Get the server instance to check the status of the server
         server_resource = server.get()
@@ -143,6 +145,8 @@ def _start_server(server):
             server.start()
             ctx.instance.runtime_properties[SERVER_TASK_START]\
                 = SERVER_ACTION_STATUS_PENDING
+            # save flag as current state before external call
+            ctx.instance.update()
 
         # Get the server instance to check the status of the server
         server = server.get()
@@ -159,6 +163,8 @@ def _start_server(server):
         ctx.logger.info('Server is already started')
         ctx.instance.runtime_properties[SERVER_TASK_START]\
             = SERVER_ACTION_STATUS_DONE
+    # save flag as current state before external call
+    ctx.instance.update()
 
 
 def _set_server_ips_runtime_properties(server):
@@ -288,7 +294,7 @@ def _handle_generate_snapshot(server,
      or full backup
     """
 
-    # # we save backupstate for get last state of creation
+    # we save backupstate for get last state of creation
     backup_done = ctx.instance.runtime_properties.get(SERVER_TASK_BACKUP_DONE)
     if not backup_done:
         if not snapshot_incremental:
@@ -303,6 +309,8 @@ def _handle_generate_snapshot(server,
         # Set initial value for backup status
         ctx.instance.runtime_properties[SERVER_TASK_BACKUP_DONE] \
             = SERVER_ACTION_STATUS_PENDING
+        # save flag as current state before external call
+        ctx.instance.update()
 
     # Wait for finish upload
     is_finished = \
@@ -313,6 +321,8 @@ def _handle_generate_snapshot(server,
     if is_finished:
         ctx.instance.runtime_properties[SERVER_TASK_BACKUP_DONE]\
             = SERVER_ACTION_STATUS_DONE
+        # save flag as current state before external call
+        ctx.instance.update()
 
 
 def _handle_snapshot_restore(server, image_id, snapshot_name):
@@ -352,6 +362,8 @@ def _handle_snapshot_restore(server, image_id, snapshot_name):
             # Set the initial status of restore state
             ctx.instance.runtime_properties[SERVER_TASK_RESTORE_STATE] \
                 = SERVER_ACTION_STATUS_PENDING
+            # save flag as current state before external call
+            ctx.instance.update()
 
     # Only check this logic if the server is already stopped
     if server_status == SERVER_ACTION_STATUS_DONE:
@@ -363,6 +375,8 @@ def _handle_snapshot_restore(server, image_id, snapshot_name):
         if is_finished:
             ctx.instance.runtime_properties[SERVER_TASK_RESTORE_STATE]\
                 = SERVER_REBUILD_STATUS
+            # save flag as current state before external call
+            ctx.instance.update()
 
             # Try to start server to be available for usage
             _start_server(server)
@@ -371,6 +385,8 @@ def _handle_snapshot_restore(server, image_id, snapshot_name):
             if server_status == SERVER_ACTION_STATUS_DONE:
                 ctx.instance.runtime_properties[SERVER_TASK_RESTORE_STATE]\
                     = SERVER_ACTION_STATUS_DONE
+                # save flag as current state before external call
+                ctx.instance.update()
 
 
 def _get_image(image_resource, snapshot_name):
@@ -1041,8 +1057,13 @@ def _disconnect_resources_from_external_server(openstack_resource):
     if SERVER_INTERFACE_IDS in ctx.instance.runtime_properties:
         interfaces = ctx.instance.runtime_properties.get(
             SERVER_INTERFACE_IDS, [])
+        updated = [i for i in interfaces]
         for interface in interfaces:
             openstack_resource.delete_server_interface(interface)
+            updated.remove(interface)
+            ctx.instance.runtime_properties[SERVER_INTERFACE_IDS] = updated
+            # save flag as current state before external call
+            ctx.instance.update()
             ctx.logger.info(
                 'Successfully detached network {0} to device (server) id {1}.'
                 .format(interface, openstack_resource.resource_id))
@@ -1388,7 +1409,6 @@ def stop(openstack_resource):
     Stop current openstack server
     :param openstack_resource: instance of openstack server resource
     """
-
     # Clean any interfaces connected to the server
     for interface in openstack_resource.server_interfaces():
         openstack_resource.delete_server_interface(interface.id)

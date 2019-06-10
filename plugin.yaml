@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.1.1.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.0.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.1.1'
+    package_version: '3.2.0'
 
 dsl_definitions:
 
@@ -376,7 +376,7 @@ data_types:
           the server attaches to the only network created for the current tenant.
         required: false
         default: []
-      key_name: 
+      key_name:
         description: >
           Key pair name.
         required: false
@@ -449,7 +449,7 @@ data_types:
               The amount of RAM a flavor has, in MiB
         required: false
         type: integer
-      disk: 
+      disk:
         description: >
           The size of the root disk that will be created in GiB.
           If 0 the root disk will be set to exactly the size of the image used
@@ -458,7 +458,7 @@ data_types:
           Therefore, 0 should only be used for volume booted instances or for testing purposes.
         required: false
         type: integer
-      vcpus: 
+      vcpus:
         description: >
           The number of virtual CPUs that will be allocated to the server.
         required: false

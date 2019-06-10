@@ -43,14 +43,14 @@ from openstack_plugin.constants import (RESOURCE_ID,
                                         VOLUME_BOOTABLE,
                                         VOLUME_BACKUP_OPENSTACK_TYPE,
                                         VOLUME_SNAPSHOT_OPENSTACK_TYPE)
-from openstack_plugin.utils import\
-    (validate_resource_quota,
-     merge_resource_config,
-     get_ready_resource_status,
-     wait_until_status,
-     get_snapshot_name,
-     add_resource_list_to_runtime_properties,
-     find_openstack_ids_of_connected_nodes_by_openstack_type)
+from openstack_plugin.utils import (
+    validate_resource_quota,
+    merge_resource_config,
+    get_ready_resource_status,
+    wait_until_status,
+    get_snapshot_name,
+    add_resource_list_to_runtime_properties,
+    find_openstack_ids_of_connected_nodes_by_openstack_type)
 
 
 def _is_volume_backup_matched(backup_instance, volume_id, name):
@@ -181,6 +181,8 @@ def _create_volume_backup(volume_resource, backup_name):
         backup.resource_id = backup_id
         ctx.instance.runtime_properties[VOLUME_BACKUP_TASK] = True
         ctx.instance.runtime_properties[VOLUME_BACKUP_ID] = backup_id
+        # save flag as current state before external call
+        ctx.instance.update()
 
     backup_resource, ready = \
         get_ready_resource_status(backup,
@@ -235,6 +237,8 @@ def _create_volume_snapshot(volume_resource, snapshot_name, snapshot_type):
         snapshot.resource_id = snapshot_id
         ctx.instance.runtime_properties[VOLUME_SNAPSHOT_TASK] = True
         ctx.instance.runtime_properties[VOLUME_SNAPSHOT_ID] = snapshot_id
+        # save flag as current state before external call
+        ctx.instance.update()
 
     # Check the status of the snapshot process
     snapshot_resource, ready = \
@@ -488,7 +492,6 @@ def delete(openstack_resource):
     Delete current openstack volume instance
     :param openstack_resource: instance of openstack volume resource
     """
-
     # Before delete the volume we should check if volume has associated
     # snapshots that must be cleaned
     search_opts = {'volume_id': openstack_resource.resource_id, }
@@ -498,9 +501,12 @@ def delete(openstack_resource):
     # otherwise we should check the if the volume is really deleted or not
     # by keep calling get volume api
     if VOLUME_TASK_DELETE not in ctx.instance.runtime_properties:
+        # we should be never be here twise if we correctly removed instance
         # Delete volume resource
         openstack_resource.delete()
         ctx.instance.runtime_properties[VOLUME_TASK_DELETE] = True
+        # save flag as current state before external call
+        ctx.instance.update()
 
     # Make sure that volume are deleting
     try:

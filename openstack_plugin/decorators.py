@@ -21,6 +21,7 @@ from openstack import exceptions
 from cloudify import ctx as CloudifyContext
 from cloudify.exceptions import NonRecoverableError
 from cloudify.utils import exception_to_error_cause
+from cloudify.decorators import operation
 
 # Local imports
 from openstack_plugin.compat import Compat
@@ -34,6 +35,12 @@ from openstack_plugin.utils \
             update_runtime_properties_for_node_v2,
             is_compat_node)
 
+from openstack_plugin.constants import (
+    CLOUDIFY_STOP_OPERATION,
+    CLOUDIFY_DELETE_OPERATION,
+    CLOUDIFY_UNLINK_OPERATION,
+    RESOURCE_ID
+)
 EXCEPTIONS = (exceptions.SDKException,
               InvalidDomainException,
               QuotaException)
@@ -74,6 +81,18 @@ def with_openstack_resource(class_decl,
                                          existing_resource_handler,
                                          **existing_resource_kwargs):
                     return
+                # check resource_id before stop/delete for alredy cleaned up
+                if operation_name in (
+                    CLOUDIFY_STOP_OPERATION, CLOUDIFY_DELETE_OPERATION,
+                    CLOUDIFY_UNLINK_OPERATION
+                ):
+                    if not ctx_node.instance.runtime_properties.get(
+                        RESOURCE_ID
+                    ):
+                        ctx.logger.info(
+                            'Instance is already uninitialized.')
+                        return
+                # run action
                 kwargs['openstack_resource'] = resource
                 func(**kwargs)
                 update_runtime_properties_for_operation_task(operation_name,
@@ -114,7 +133,7 @@ def with_compat_node(func):
         func(**kwargs_config)
 
         update_runtime_properties_for_node_v2(ctx_node, kwargs_config)
-    return wrapper
+    return operation(func=wrapper, resumable=True)
 
 
 def with_multiple_data_sources(clean_duplicates_handler=None):

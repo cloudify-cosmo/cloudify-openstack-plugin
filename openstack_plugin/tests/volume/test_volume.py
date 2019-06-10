@@ -149,6 +149,7 @@ class VolumeTestCase(OpenStackTestBase):
         # Prepare the context for start operation
         self._prepare_context_for_operation(
             test_name='VolumeTestCase',
+            test_runtime_properties={'id': '1'},
             ctx_operation_name='cloudify.interfaces.lifecycle.delete')
 
         volume_instance = openstack.block_storage.v2.volume.Volume(**{
@@ -185,6 +186,7 @@ class VolumeTestCase(OpenStackTestBase):
         # Prepare the context for delete operation
         self._prepare_context_for_operation(
             test_name='VolumeTestCase',
+            test_runtime_properties={'id': '1'},
             ctx_operation_name='cloudify.interfaces.lifecycle.delete')
 
         volume_instance = openstack.block_storage.v2.volume.Volume(**{

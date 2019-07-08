@@ -48,6 +48,9 @@ def create(nova_client, args, **kwargs):
     private_key_path = _get_private_key_path()
     pk_exists = _check_private_key_exists(private_key_path)
 
+    keypair = create_object_dict(ctx, KEYPAIR_OPENSTACK_TYPE, args, {})
+    public_key = keypair.get('public_key')
+
     if use_external_resource(ctx, nova_client, KEYPAIR_OPENSTACK_TYPE):
         if not pk_exists:
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
@@ -59,29 +62,28 @@ def create(nova_client, args, **kwargs):
                                       private_key_path))
         return
 
-    if pk_exists:
+    # Raise error if the file existed and the public key is not provided
+    if pk_exists and not public_key:
         raise NonRecoverableError(
             "Can't create keypair - private key path already exists: {0}"
             .format(private_key_path))
 
-    keypair = create_object_dict(ctx, KEYPAIR_OPENSTACK_TYPE, args, {})
-
-    keypair = nova_client.keypairs.create(keypair['name'],
-                                          keypair.get('public_key'))
+    keypair = nova_client.keypairs.create(keypair['name'], public_key)
 
     set_openstack_runtime_properties(ctx, keypair, KEYPAIR_OPENSTACK_TYPE)
-
-    try:
-        # write private key file
-        _mkdir_p(os.path.dirname(private_key_path))
-        with open(private_key_path, 'w') as f:
-            f.write(keypair.private_key)
-        os.chmod(private_key_path, 0600)
-    except Exception:
-        _delete_private_key_file()
-        delete_resource_and_runtime_properties(ctx, nova_client,
-                                               RUNTIME_PROPERTIES_KEYS)
-        raise
+    # Write to private key if we do not provide public key
+    if not public_key:
+        try:
+            # write private key file
+            _mkdir_p(os.path.dirname(private_key_path))
+            with open(private_key_path, 'w') as f:
+                f.write(keypair.private_key)
+            os.chmod(private_key_path, 0600)
+        except Exception:
+            _delete_private_key_file()
+            delete_resource_and_runtime_properties(ctx, nova_client,
+                                                   RUNTIME_PROPERTIES_KEYS)
+            raise
 
 
 @operation

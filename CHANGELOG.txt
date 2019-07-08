@@ -1,3 +1,5 @@
+2.14.10:
+    - Fix issue with create keypair resource when public key is provided.
 2.14.9:
     - Fix issues with booting volumes and update expose "ip" as ipv4 always if ipv4 addresses exist
 2.14.7:

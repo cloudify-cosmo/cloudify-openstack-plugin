@@ -1,3 +1,9 @@
+3.2.1:
+    - Expose external resource property as runtime property for external resource
+    - Update compat module for external resources
+    - Update all compat blueprints to use the latest compat file version
+3.2.0:
+    - Add support for resumable actions
 3.1.1:
     - Fix issue with order of attached ports to server for compat nodes
     - Fix issue with type hierarchy for compat nodes

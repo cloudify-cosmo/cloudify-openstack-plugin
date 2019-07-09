@@ -457,8 +457,10 @@ class ServerTestCase(OpenStackTestBase):
         # First one will be when get the server for the first time
         # Second one will be when we update the server with all interfaces
         # Third one will be when set the runtime properties
+        # Fourth one will be when set the external resource property
         mock_connection().compute.find_server = \
             mock.MagicMock(side_effect=[old_server_instance,
+                                        updated_server_instance,
                                         updated_server_instance,
                                         updated_server_instance])
 

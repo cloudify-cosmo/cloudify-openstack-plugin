@@ -25,7 +25,6 @@ inputs:
   user_config:
     default:
       name: 'test-user'
-      description: 'Test User'
       default_project_id: { get_input: project_name }
       enabled: True
       password: 'test1234567890'

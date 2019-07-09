@@ -17,6 +17,7 @@
 RESOURCE_ID = 'id'
 OPENSTACK_TYPE_PROPERTY = 'type'
 OPENSTACK_NAME_PROPERTY = 'name'
+OPENSTACK_EXTERNAL_RESOURCE = 'external_resource'
 OPENSTACK_AZ_PROPERTY = 'availability_zone'
 USE_EXTERNAL_RESOURCE_PROPERTY = 'use_external_resource'
 CREATE_IF_MISSING_PROPERTY = 'create_if_missing'

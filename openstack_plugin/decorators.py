@@ -33,7 +33,8 @@ from openstack_plugin.utils \
             use_external_resource,
             update_runtime_properties_for_operation_task,
             update_runtime_properties_for_node_v2,
-            is_compat_node)
+            is_compat_node,
+            set_external_resource)
 
 from openstack_plugin.constants import (
     CLOUDIFY_STOP_OPERATION,
@@ -80,8 +81,11 @@ def with_openstack_resource(class_decl,
                 if use_external_resource(ctx_node, resource,
                                          existing_resource_handler,
                                          **existing_resource_kwargs):
+
+                    # Set external resource as runtime property
+                    set_external_resource(ctx_node, resource)
                     return
-                # check resource_id before stop/delete for alredy cleaned up
+                # check resource_id before stop/delete for already cleaned up
                 if operation_name in (
                     CLOUDIFY_STOP_OPERATION, CLOUDIFY_DELETE_OPERATION,
                     CLOUDIFY_UNLINK_OPERATION

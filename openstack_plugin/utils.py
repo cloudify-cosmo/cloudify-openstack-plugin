@@ -42,6 +42,7 @@ from openstack_plugin.constants import (PS_OPEN,
                                         CREATE_IF_MISSING_PROPERTY,
                                         OPENSTACK_TYPE_PROPERTY,
                                         OPENSTACK_NAME_PROPERTY,
+                                        OPENSTACK_EXTERNAL_RESOURCE,
                                         CLOUDIFY_NEW_NODE_OPERATIONS,
                                         CLOUDIFY_CREATE_OPERATION,
                                         CLOUDIFY_DELETE_OPERATION,
@@ -977,21 +978,55 @@ def update_runtime_properties_for_node_v2(ctx_node, kwargs):
     external_id = ctx_node.instance.runtime_properties.get('external_id')
     # Get the "external_name" if it exists
     external_name = ctx_node.instance.runtime_properties.get('external_name')
+    # Get the "external_type" if it exists
+    external_type = ctx_node.instance.runtime_properties.get('external_type')
     # This is the resource id for openstack 3.x nodes
     resource_id = ctx_node.instance.runtime_properties.get('id')
     # This is the resource name for openstack 3.x nodes
     resource_name = ctx_node.instance.runtime_properties.get('name')
-    if is_compat_node(ctx_node):
+    # This is the resource type for openstack 3.x nodes
+    resource_type = ctx_node.instance.runtime_properties.get('type')
+    # Only apply this of the current node is compat node and it is marked as
+    # external resource and it is not conditionally created
+    is_created = \
+        ctx_node.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+
+    if is_compat_node(ctx_node) and\
+            is_external_resource(ctx_node) and not is_created:
+
         if resource_id and not external_id:
-            ctx_node.instance.runtime_properties['external_id'] \
-                = ctx_node.instance.runtime_properties['id']
+            ctx_node.instance.runtime_properties['external_id'] = resource_id
 
         if resource_name and not external_name:
-            ctx_node.instance.runtime_properties['external_name'] \
-                = ctx_node.instance.runtime_properties['name']
+            ctx_node.instance.runtime_properties['external_name'] = \
+                resource_name
+
+        if resource_type and not external_type:
+            ctx_node.instance.runtime_properties['external_type'] = \
+                resource_type
 
     # Check if the 'routes' exists in 'kwargs_config' and override the
     # 'type' property to match 'routes'
     if 'routes' in kwargs:
         ctx_node.instance.runtime_properties[
             OPENSTACK_TYPE_PROPERTY] = 'routes'
+
+
+def set_external_resource(ctx_node, resource):
+    """
+    This method will set external resource as runtime property for node
+    instance
+    :param ctx_node: This could be RelationshipSubjectContext
+     or CloudifyContext instance depend if it is a normal relationship
+     operation or node operation
+    :param resource: Instance of openstack resource
+    """
+    # Save the external resource as runtime property if it
+    # does not exist and only when the operation is create
+    operation_name = get_current_operation()
+    if operation_name == CLOUDIFY_CREATE_OPERATION:
+        if OPENSTACK_EXTERNAL_RESOURCE\
+                not in ctx_node.instance.runtime_properties:
+            remote_resource = resource.get()
+            ctx_node.instance.runtime_properties[OPENSTACK_EXTERNAL_RESOURCE]\
+                = remote_resource

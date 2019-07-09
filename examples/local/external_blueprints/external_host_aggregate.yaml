@@ -24,7 +24,7 @@ inputs:
 
   aggregate_resource_name:
     type: string
-    default: '12'
+    default: 'default12'
 
 dsl_definitions:
 

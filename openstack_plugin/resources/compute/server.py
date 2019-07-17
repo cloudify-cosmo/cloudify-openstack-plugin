@@ -33,6 +33,7 @@ from openstack_sdk.resources.compute import (OpenstackServer,
 from openstack_sdk.resources.images import OpenstackImage
 from openstack_sdk.resources.volume import OpenstackVolume
 from openstack_sdk.resources.networks import (OpenstackPort,
+                                              OpenstackNetwork,
                                               OpenstackFloatingIP)
 
 from openstack_plugin.decorators import (with_openstack_resource,
@@ -40,7 +41,6 @@ from openstack_plugin.decorators import (with_openstack_resource,
                                          with_multiple_data_sources)
 
 from openstack_plugin.constants import (RESOURCE_ID,
-                                        OPENSTACK_RESOURCE_UUID,
                                         SERVER_STATUS_ACTIVE,
                                         SERVER_STATUS_SHUTOFF,
                                         SERVER_STATUS_REBOOT,
@@ -97,7 +97,8 @@ from openstack_plugin.utils import \
      get_snapshot_name,
      generate_attachment_volume_key,
      assign_resource_payload_as_runtime_properties,
-     remove_duplicates_items)
+     remove_duplicates_items,
+     get_networks_from_relationships)
 
 
 def _stop_server(server):
@@ -177,11 +178,16 @@ def _set_server_ips_runtime_properties(server):
     addresses = server.addresses
     if not addresses:
         return None
-
     ipv4_addresses = []
     ipv6_addresses = []
+    # This is set as part of create operation to make sure that networks are
+    # listed in the same order defined in the blueprint
+    networks = ctx.instance.runtime_properties.get('networks')
+    if not networks:
+        return
 
-    for network, address_object in addresses.iteritems():
+    for network in networks:
+        address_object = addresses.get(network, [])
         for address in address_object:
             # ip config
             ip_config = dict()
@@ -225,7 +231,7 @@ def _set_server_ips_runtime_properties(server):
                 and 'ipv6' not in ctx.instance.runtime_properties:
             ctx.instance.runtime_properties['ipv6'] = ip_v6
             # If "ip" is not set at this point, then the only address used
-            # is ipv4
+            # is ipv6
             if 'ip' not in ctx.instance.runtime_properties:
                 ctx.instance.runtime_properties['ip'] = ip_v6
 
@@ -510,28 +516,88 @@ def _get_port_networks(client_config, port_ids):
     :param dict client_config: Openstack configuration required to connect
     to API
     :param (List) port_ids: List of uuid ports
-    :return:
+    :return: Dict networks: contains map between port_id & network_id
     """
-    networks = []
-    for port_id in port_ids:
+    def _get_network(port_id):
         port = OpenstackPort(client_config=client_config, logger=ctx.logger)
         port.resource_id = port_id
         response = port.get()
-        networks.append(response.network_id)
+        return {
+            'uuid': response.network_id,
+            'port': port_id
+        }
+    return map(_get_network, port_ids)
 
-    return networks
+
+def _remove_duplicated_nics_from_relationships(nics_from_rels, client_config):
+
+    # Get the ports from relationships if they are existed
+    port_ids = find_openstack_ids_of_connected_nodes_by_openstack_type(
+        ctx, PORT_OPENSTACK_TYPE)
+
+    # Need to check if nics relationships contains ports that connect to the
+    # networks which are part of the networks associated with the current
+    # relationship, so basically it is not allowed to have ports connected
+    # to networks already exist in the server relationships
+
+    # In order to solve this issue, the following actions are required:
+    # 1. Get the associated network for port and update "nics_from_rels" list
+    # 2. Clean the "nics_from_rels" to remove any duplicates entries that
+    # have the same network object (maintains orders)
+    port_networks = _get_port_networks(client_config, port_ids)
+    port_nic = {}
+    inverted_port_nic = {}
+    # Convert port related to networks
+    for port_network in port_networks:
+        for network in nics_from_rels:
+            if network.get('uuid') == port_network.get('uuid'):
+                # Replace the port id with network id so that we can remove
+                # the duplicates and maintain the orders
+                port_nic[port_network['uuid']] = port_network['port']
+    if port_nic:
+        inverted_port_nic = dict(map(reversed, port_nic.items()))
+
+    unique_set = set()
+    ordered_list = []
+    if port_nic:
+        for item in nics_from_rels:
+            data = tuple(sorted(item.items()))
+            if data[0][1] in port_nic.keys():
+                data = data + (('port', port_nic[data[0][1]]),)
+            elif data[0][1] in port_nic.values():
+                data = (('uuid', inverted_port_nic[data[0][1]]),) + data
+            if data not in unique_set:
+                unique_set.add(data)
+                ordered_list.append(dict(data))
+
+    return ordered_list or nics_from_rels
 
 
-def _clean_duplicate_networks(server_config):
+def _clean_duplicate_networks(nics_from_rels, nics_from_node, client_config):
     """
-    This method will clean all duplicates network items from server config
-    :param dict server_config: The server configuration required in order to
-    create the server instance using Openstack API
+    This method will clean all duplicates network items before send the
+    final request to the server when creating server instance
+    :param List nics_from_rels: Network configurations provided via
+    relationships
+    :param List nics_from_node: Network configurations provided via node
+    properties
+    :param dict client_config: Openstack configuration required to connect
+    to API
     """
-    networks = server_config.get('networks')
-    if networks:
-        networks = remove_duplicates_items(networks)
-        server_config['networks'] = networks
+    for node_nic in nics_from_node:
+        node_port_id = node_nic.get('port')
+        node_nic_id = node_nic.get('uuid')
+        for rel_nic in nics_from_rels:
+            rel_port_id = rel_nic.get('port')
+            rel_nic_id = rel_nic.get('uuid')
+            if (rel_nic_id and node_nic_id)\
+                    and (rel_nic_id == node_nic_id) \
+                    or (rel_port_id and node_port_id)\
+                    and (rel_port_id == node_port_id):
+                nics_from_rels.remove(node_nic)
+
+    return _remove_duplicated_nics_from_relationships(nics_from_rels,
+                                                      client_config)
 
 
 def _clean_duplicate_volumes(server_config):
@@ -580,76 +646,27 @@ def _update_flavor_and_image_config(openstack_resource):
         openstack_resource.config['image_id'] = image_id
 
 
-@with_multiple_data_sources()
-def _update_ports_config(server_config, client_config, allow_multiple=False):
-    """
-    This method will try to update server config with port configurations
-    using the relationships connected with server node
-    :param dict server_config: The server configuration required in order to
-    create the server instance using Openstack API
-    :param dict client_config: Openstack configuration required to connect
-    to API
-    :param boolean allow_multiple: This flag to set if it is allowed to have
-     networks configuration from multiple resources relationships + node
-     properties
-    """
-    # Check to see if the network dict is provided on the server config
-    # properties
-    networks = server_config.get('networks', [])
-    # Check if the server has already ports associated with its config so
-    # that we can merge the different ports together
-    server_ports = \
-        [
-            network[PORT_OPENSTACK_TYPE]
-            for network in networks if network.get(PORT_OPENSTACK_TYPE)
-        ]
+def _get_network_name(nic_object, client_config):
+    # Set first network to connect to
+    net_name = ''
+    if nic_object.get('uuid'):
+        net = OpenstackNetwork(client_config=client_config, logger=ctx.logger)
+        net.resource_id = nic_object['uuid']
+        response = net.get()
+        net_name = response.name
+    elif nic_object.get('port'):
+        # Get the current network connected to the current port
+        port = OpenstackPort(client_config=client_config, logger=ctx.logger)
+        port.resource_id = nic_object['port']
+        response = port.get()
+        net_id = response.network_id
 
-    # Get the ports from relationships if they are existed
-    port_ids = find_openstack_ids_of_connected_nodes_by_openstack_type(
-        ctx, PORT_OPENSTACK_TYPE)
-
-    ports_to_add = []
-
-    # Remove duplicate ports when port provided using relationship & node
-    # properties
-    for port_id in port_ids:
-        for server_port in server_ports:
-            if port_id == server_port:
-                server_ports.remove(server_port)
-
-    # if both are empty then server is not providing ports connection
-    # neither via node properties nor via relationships and this will be
-    # valid only one network created for the current tenant, the server will
-    # attach automatically to that network
-    if not (server_ports or port_ids):
-        return
-    # Try to merge them
-    elif port_ids and server_ports and not allow_multiple:
-        raise NonRecoverableError('Server can\'t both have the '
-                                  '"networks" property and be '
-                                  'connected to a network via a '
-                                  'relationship at the same time')
-
-    # Remove ports that have networks exist in "networks" object
-    for ports in [port_ids, server_ports]:
-        network_ids = _get_port_networks(client_config, ports)
-        for network_id in network_ids:
-            for network in networks:
-                if network.get(OPENSTACK_RESOURCE_UUID) == network_id:
-                    networks.remove(network)
-
-    # Prepare the ports that should be added to the server networks
-    for port_id in port_ids:
-        ports_to_add.append({'port': port_id})
-
-    # If server is not associated with any networks then we need to create
-    # new networks object and attach port to it
-    if not networks:
-        server_config['networks'] = ports_to_add
-    # If server already has networks object then we should update it with
-    # the new ports that should be added to the server
-    elif networks and isinstance(networks, list) and ports_to_add:
-        server_config['networks'].extend(ports_to_add)
+        # Lookup the name of the network using the net_id provided above
+        net = OpenstackNetwork(client_config=client_config, logger=ctx.logger)
+        net.resource_id = net_id
+        response = net.get()
+        net_name = response.name
+    return net_name
 
 
 @with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_volumes)
@@ -764,66 +781,62 @@ def _update_keypair_config(server_config, allow_multiple=False):
 
 
 @with_multiple_data_sources()
-def _update_networks_config(server_config, allow_multiple=False):
+def _update_nics_config(server_config, client_config, allow_multiple=False):
     """
-    This method will try to update server config with network configurations
-    using the relationships connected with server node
-    :param dict server_config: The server configuration required in order to
+    This method will handle all the combinations for networks provided from
+    relationships & networks config for server instance
+    :param server_config: The server configuration required in order to
     create the server instance using Openstack API
-    :param boolean allow_multiple: A flag to indicate that it is allowed to
-    update server_config with network from multiple sources (node properties
-    + relationships)
+    :param dict client_config: Openstack configuration required to connect
+    to API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    network configuration from multiple resources relationships + node
+    properties
     """
-
     # Check to see if the network dict is provided on the server config
     # properties
-    networks = server_config.get('networks', [])
-    # Check if the server has already networks associated with its config so
-    # that we can merge the different networks together
-    server_networks = \
-        [
-            network[OPENSTACK_RESOURCE_UUID]
-            for network in networks if network.get(OPENSTACK_RESOURCE_UUID)
-        ]
+    nics_from_node = server_config.get('networks', [])
 
-    # Get the networks from relationships if they are existed
-    network_ids = find_openstack_ids_of_connected_nodes_by_openstack_type(
-        ctx, NETWORK_OPENSTACK_TYPE)
+    # Get the networks/ports from relationships if they are existed
+    nics_from_rels = get_networks_from_relationships(ctx)
 
-    networks_to_add = []
-
-    # if both are empty then server is not providing ports connection
+    # if both are empty then server is not providing ports/networks connection
     # neither via node properties nor via relationships and this will be
-    # valid only one network created for the current tenant, the server will
-    # attach automatically to that network
-    if not (server_networks or network_ids):
+    # valid only when one network created for the current tenant, the server
+    # will attach automatically to that network
+    if not (nics_from_node or nics_from_rels):
         return
     # Try to merge them
-    elif server_networks and network_ids and not allow_multiple:
+    elif nics_from_node and nics_from_rels and not allow_multiple:
         raise NonRecoverableError('Server can\'t both have the '
                                   '"networks" property and be '
-                                  'connected to a network via a '
+                                  'connected to a network/port via a '
                                   'relationship at the same time')
 
-    # Remove duplicate networks when network provided using relationship & node
-    # properties
-    for network_id in network_ids:
-        for server_network in server_networks:
-            if network_id == server_network:
-                server_networks.remove(server_network)
-
-    # Prepare the network uuids that should be added to the server networks
-    for net_id in network_ids:
-        networks_to_add.append({OPENSTACK_RESOURCE_UUID: net_id})
+    # Clean duplicated nics before send the request to the API server
+    nics_from_rels = _clean_duplicate_networks(nics_from_rels,
+                                               nics_from_node,
+                                               client_config)
 
     # If server is not associated with any networks then we need to create
     # new networks object and attach network to it
-    if not networks:
-        server_config['networks'] = networks_to_add
+    if not nics_from_node:
+        server_config['networks'] = nics_from_rels
     # If server already has networks object then we should update it with
     # the new networks that should be added to the server
-    elif networks and isinstance(networks, list) and networks_to_add:
-        server_config['networks'].extend(networks_to_add)
+    elif nics_from_node and isinstance(nics_from_node, list)\
+            and nics_from_rels:
+        server_config['networks'].extend(nics_from_rels)
+
+    # Set the nics configuration in the same order defined inside the
+    # blueprint as runtime proprety so that we can select ip address from the
+    # first network from the list
+    network_names = []
+    for network in server_config['networks']:
+        net_name = _get_network_name(network, client_config)
+        network_names.append(net_name)
+    if network_names:
+        ctx.instance.runtime_properties['networks'] = network_names
 
 
 @with_multiple_data_sources()
@@ -867,13 +880,8 @@ def _update_server_config(server_config, client_config):
     :param dict client_config: Openstack configuration required to connect
     to API
     """
-    # Check if there are some networks configuration in order to update
-    # server config
-    _update_networks_config(server_config)
-
-    # Check if there are some ports configuration via relationships in order
-    # to update server config
-    _update_ports_config(server_config, client_config=client_config)
+    # Check if there are networks configuration found under "resource_config"
+    _update_nics_config(server_config, client_config=client_config)
 
     # Check if there are some bootable volumes via relationships in order
     # update server config
@@ -962,6 +970,7 @@ def _connect_networks_to_external_server(openstack_resource):
     :param openstack_resource: Instance Of OpenstackServer in order to
     use it
     """
+    client_config = openstack_resource.client_config
     # Prepare two lists for connected ports/networks in order to save them
     # as runtime properties so that we can remove them from server when run
     # stop operation
@@ -980,41 +989,52 @@ def _connect_networks_to_external_server(openstack_resource):
     # Validate if we can connect external server to the "ports" & "networks"
     _validate_external_server_networks(openstack_resource, ports, networks)
 
-    # If we reach here that means we can connect ports & networks to the
-    # external server and the validation passed successfully
-    for port_id in ports:
-        ctx.logger.info('Attaching port {0}...'.format(port_id))
-        interface = \
-            openstack_resource.create_server_interface({'port_id': port_id})
-        ctx.logger.info(
-            'Successfully attached port {0} to device (server) id {1}.'
-            .format(port_id, openstack_resource.resource_id))
-        added_interfaces.append(interface.id)
+    # Get the networks/ports from relationships if they are existed
+    nics_from_rels = get_networks_from_relationships(ctx)
+    nics_from_rels =  \
+        _remove_duplicated_nics_from_relationships(
+            nics_from_rels,
+            client_config
+        )
 
-    # Check again the server after attaching the ports so that we can do
-    # another check if already checked networks
+    # List networks associated with the current node
+    network_names = []
+    for network in nics_from_rels:
+        net_name = _get_network_name(network, client_config)
+        if net_name:
+            network_names.append(net_name)
+
+    # Check if there are some attached network to the current server
     interfaces = openstack_resource.server_interfaces()
-    attached_networks = \
-        [
-            network[OPENSTACK_NETWORK_ID]
-            for network in interfaces if network.get(OPENSTACK_NETWORK_ID)
-        ]
+    for interface in interfaces:
+        net_name = _get_network_name({'uuid': interface.net_id}, client_config)
+        if net_name:
+            network_names.append(net_name)
 
-    for net_id in networks:
-        if net_id not in attached_networks:
-            ctx.logger.info('Attaching network {0}...'.format(net_id))
-            interface = \
-                openstack_resource.create_server_interface({'net_id': net_id})
-            ctx.logger.info(
-                'Successfully attached network {0} to device (server) id {1}.'
-                .format(net_id, openstack_resource.resource_id))
-            added_interfaces.append(interface.id)
-        else:
-            ctx.logger.info(
-                'Skipping network {0} attachment, because it is already '
-                'attached to device (server) id {1}.'
-                .format(net_id, openstack_resource.resource_id))
+    if network_names:
+        ctx.instance.runtime_properties['networks'] = network_names
 
+    for nic in nics_from_rels:
+        nic_config = {}
+        resource_id = None
+        resource_name = ''
+        if nic.get('port'):
+            ctx.logger.info('Attaching port {0}...'.format(nic['port']))
+            nic_config['port_id'] = nic['port']
+            resource_name = 'port'
+            resource_id = nic['port']
+        elif nic.get('uuid'):
+            ctx.logger.info('Attaching network {0}...'.format(nic['uuid']))
+            nic_config['net_id'] = nic['uuid']
+            resource_name = 'network'
+            resource_id = nic['uuid']
+        interface = openstack_resource.create_server_interface(nic_config)
+        ctx.logger.info(
+            'Successfully attached {0} {1} to device (server) id {2}.'
+            .format(resource_name, resource_id,
+                    openstack_resource.resource_id)
+        )
+        added_interfaces.append(interface.id)
     # Check if there are interfaces added to the external server and add
     # them as runtime properties
     if added_interfaces:

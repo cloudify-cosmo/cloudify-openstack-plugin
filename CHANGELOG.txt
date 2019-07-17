@@ -1,3 +1,5 @@
+3.2.2:
+    - Fix major issue with ports/network ordering connected server instance
 3.2.1:
     - Expose external resource property as runtime property for external resource
     - Update compat module for external resources

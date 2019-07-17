@@ -561,14 +561,15 @@ def _remove_duplicated_nics_from_relationships(nics_from_rels, client_config):
     ordered_list = []
     if port_nic:
         for item in nics_from_rels:
-            data = tuple(sorted(item.items()))
-            if data[0][1] in port_nic.keys():
-                data = data + (('port', port_nic[data[0][1]]),)
-            elif data[0][1] in port_nic.values():
-                data = (('uuid', inverted_port_nic[data[0][1]]),) + data
-            if data not in unique_set:
-                unique_set.add(data)
-                ordered_list.append(dict(data))
+            nic_conf = tuple(sorted(item.items()))
+            if nic_conf[0][1] in port_nic.keys():
+                nic_conf = nic_conf + (('port', port_nic[nic_conf[0][1]]),)
+            elif nic_conf[0][1] in port_nic.values():
+                nic_conf = \
+                    (('uuid', inverted_port_nic[nic_conf[0][1]]),) + nic_conf
+            if nic_conf not in unique_set:
+                unique_set.add(nic_conf)
+                ordered_list.append(dict(nic_conf))
 
     return ordered_list or nics_from_rels
 
@@ -585,8 +586,17 @@ def _clean_duplicate_networks(nics_from_rels, nics_from_node, client_config):
     to API
     """
     for node_nic in nics_from_node:
+        # Get the network/port config defined at node property level to be
+        # used later on for comparison to remove the duplicates
         node_port_id = node_nic.get('port')
         node_nic_id = node_nic.get('uuid')
+        # Iterate over networks/ports from associated with server node using
+        # relationships and try to find if these networks/ports are match
+        # with any networks configuration found under "networks" object
+        # defined under "resource_config" node property for the server node.
+        # The main goal is to make sure no duplicate configuration for
+        # networks and mainly useful for node support 2.x under the usage of
+        # compact module
         for rel_nic in nics_from_rels:
             rel_port_id = rel_nic.get('port')
             rel_nic_id = rel_nic.get('uuid')

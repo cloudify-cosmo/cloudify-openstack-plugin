@@ -256,7 +256,11 @@ class ServerTestCase(OpenStackTestBase):
             SERVER_OPENSTACK_TYPE,
             self._ctx.instance.runtime_properties)
 
-    def test_create_external_resource(self, mock_connection):
+    @mock.patch(
+        'openstack_plugin.resources.compute.server._get_network_name')
+    def test_create_external_resource(self,
+                                      mock_network_name,
+                                      mock_connection):
         properties = dict()
         # Enable external resource
         properties['use_external_resource'] = True
@@ -273,43 +277,43 @@ class ServerTestCase(OpenStackTestBase):
         rel_specs = [
             {
                 'node': {
-                    'id': 'network-1',
+                    'id': 'network-2',
                     'properties': {
                         'client_config': self.client_config,
                         'resource_config': {
-                            'name': 'test-network',
+                            'name': 'test-network-2',
                         }
                     }
                 },
                 'instance': {
-                    'id': 'network-1-efrgsd',
+                    'id': 'network-2-efrgsd',
                     'runtime_properties': {
                         RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe4',
                         OPENSTACK_TYPE_PROPERTY: NETWORK_OPENSTACK_TYPE,
-                        OPENSTACK_NAME_PROPERTY: 'test-network'
+                        OPENSTACK_NAME_PROPERTY: 'test-network-2'
                     }
                 },
                 'type': NETWORK_NODE_TYPE,
             },
             {
                 'node': {
-                    'id': 'port-1',
+                    'id': 'network-3',
                     'properties': {
                         'client_config': self.client_config,
                         'resource_config': {
-                            'name': 'test-port',
+                            'name': 'test-network-3',
                         }
                     }
                 },
                 'instance': {
-                    'id': 'port-1-efrgsd',
+                    'id': 'network-3-efrgsd',
                     'runtime_properties': {
-                        RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe2',
-                        OPENSTACK_TYPE_PROPERTY: PORT_OPENSTACK_TYPE,
-                        OPENSTACK_NAME_PROPERTY: 'test-port'
+                        RESOURCE_ID: 'a85b5509-c122-4c2f-823e-884bb559afe4',
+                        OPENSTACK_TYPE_PROPERTY: NETWORK_OPENSTACK_TYPE,
+                        OPENSTACK_NAME_PROPERTY: 'test-network-3'
                     }
                 },
-                'type': PORT_NODE_TYPE,
+                'type': NETWORK_NODE_TYPE,
             },
             {
                 'node': {
@@ -367,10 +371,8 @@ class ServerTestCase(OpenStackTestBase):
             'key_name': 'test-keypair',
             'networks': [
                 {
-                    'port_id': 'b95b5509-c122-4c2f-823e-884bb559afe2'
-                },
-                {
-                    'uuid': 'e95b5509-c122-4c2f-823e-884bb559afe1'
+                    'uuid': 'a75b5509-c122-4c2f-823e-884bb559afe4',
+                    'port_id': 'b95b5509-c122-4c2f-823e-884bb559afe4'
                 }
             ]
         })
@@ -387,58 +389,65 @@ class ServerTestCase(OpenStackTestBase):
             'availability_zone': 'test_availability_zone',
             'key_name': 'test-keypair',
             'addresses': {
-                'network-1': [
+                'network-2': [
                     {
                         'OS-EXT-IPS:type': 'fixed',
                         'addr': '10.1.0.1',
                         'version': 4
                     }
                 ],
-                'network-2': [
+                'network-3': [
                     {
                         'OS-EXT-IPS:type': 'fixed',
                         'addr': '10.2.0.1',
+                        'version': 4
+                    }
+                ],
+                'network-1': [
+                    {
+                        'OS-EXT-IPS:type': 'fixed',
+                        'addr': '10.3.0.1',
                         'version': 4
                     }
                 ]
             },
             'networks': [
                 {
-                    'port_id': 'b95b5509-c122-4c2f-823e-884bb559afe2'
+                    'uuid': 'a95b5509-c122-4c2f-823e-884bb559afe4',
+                    'port_id': 'b75b5509-c122-4c2f-823e-884bb559afe4'
                 },
                 {
-                    'port_id': 'a95b5509-c122-4c2f-823e-884bb559afe2'
+                    'uuid': 'a85b5509-c122-4c2f-823e-884bb559afe4',
+                    'port_id': 'b85b5509-c122-4c2f-823e-884bb559afe4'
                 },
                 {
-                    'uuid': 'e95b5509-c122-4c2f-823e-884bb559afe1'
-                },
-                {
-                    'uuid': 'a95b5509-c122-4c2f-823e-884bb559afe4'
+                    'uuid': 'a75b5509-c122-4c2f-823e-884bb559afe4',
+                    'port_id': 'b95b5509-c122-4c2f-823e-884bb559afe4'
                 }
             ]
         })
 
-        server_interface = \
+        net_1_interface = \
             openstack.compute.v2.server_interface.ServerInterface(**{
-                'id': 'a95b5509-c122-4c2f-823e-884bb559afb1',
-                'net_id': 'a95b5509-c122-4c2f-823e-884bb559cfb2',
-                'port_id': 'a95b5509-c122-4c2f-823e-884bb559afb3',
+                'id': 'a75b5509-c122-4c2f-823e-884bb559afb1',
+                'net_id': 'a75b5509-c122-4c2f-823e-884bb559afe4',
+                'port_id': 'b95b5509-c122-4c2f-823e-884bb559afe4',
                 'server_id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
             })
 
-        port_interface = \
+        net_2_interface = \
             openstack.compute.v2.server_interface.ServerInterface(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afa5',
-                'net_id': 'a95b5509-c122-4c2f-823e-884bb559cfs3',
-                'port_id': 'a95b5509-c122-4c2f-823e-884bb559afe2',
+                'net_id': 'a95b5509-c122-4c2f-823e-884bb559afe4',
+                'port_id': 'b75b5509-c122-4c2f-823e-884bb559afe4',
                 'server_id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
             })
 
-        network_interface = \
+        net_3_interface = \
             openstack.compute.v2.server_interface.ServerInterface(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afa7',
-                'net_id': 'a95b5509-c122-4c2f-823e-884bb559afe4',
-                'port_id': 'a95b5509-c122-4c2f-823e-884bb559eae3',
+                'net_id': 'a85b5509-c122-4c2f-823e-884bb559afe4',
+                'port_id': 'b85b5509-c122-4c2f-823e-884bb559afe4',
                 'server_id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
             })
 
@@ -464,20 +473,17 @@ class ServerTestCase(OpenStackTestBase):
                                         updated_server_instance,
                                         updated_server_instance])
 
+        # Mock list server interface for already created/attached nics to
+        # the server node
+        mock_connection().compute.server_interfaces = \
+            mock.MagicMock(return_value=[net_1_interface])
+
         # Mock create server interface operation
         # Create server interface will be called in multiple places
-        # The first one when adding interface from port node
-        # The second one will be when adding interface from network node
         mock_connection().compute.create_server_interface = \
-            mock.MagicMock(side_effect=[port_interface, network_interface])
+            mock.MagicMock(side_effect=[net_2_interface, net_3_interface])
 
-        # Mock list server interface operation
-        # The first one is when check the attached interface to external server
-        # The second one will contains the attached interface + the port
-        # interface added
-        mock_connection().compute.server_interfaces = \
-            mock.MagicMock(side_effect=[[server_interface],
-                                        [server_interface, port_interface]])
+        mock_network_name.side_effect = ['network-2', 'network-3', 'network-1']
 
         server.create()
 
@@ -501,11 +507,11 @@ class ServerTestCase(OpenStackTestBase):
             '10.1.0.1',
             self._ctx.instance.runtime_properties['access_ipv4'])
 
-        self.assertTrue(self._ctx.instance.runtime_properties['ip']
-                        in ['10.1.0.1', '10.2.0.1'])
+        self.assertTrue(self._ctx.instance.runtime_properties['ip'],
+                        '10.1.0.1')
 
         self.assertEqual(
-            2,
+            3,
             len(self._ctx.instance.runtime_properties['ipv4_addresses']))
 
     @mock.patch('openstack_plugin.resources.compute.server'

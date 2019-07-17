@@ -47,7 +47,9 @@ from openstack_plugin.constants import (PS_OPEN,
                                         CLOUDIFY_CREATE_OPERATION,
                                         CLOUDIFY_DELETE_OPERATION,
                                         USE_COMPACT_NODE,
-                                        RBAC_POLICY_OPENSTACK_TYPE)
+                                        RBAC_POLICY_OPENSTACK_TYPE,
+                                        NETWORK_OPENSTACK_TYPE,
+                                        PORT_OPENSTACK_TYPE)
 
 
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
@@ -1030,3 +1032,25 @@ def set_external_resource(ctx_node, resource):
             remote_resource = resource.get()
             ctx_node.instance.runtime_properties[OPENSTACK_EXTERNAL_RESOURCE]\
                 = remote_resource
+
+
+def get_networks_from_relationships(_ctx):
+    """
+    This method will return list of openstack ids for connected nodes
+    associated with the current node instance
+    :param _ctx: Cloudify context instance cloudify.context.CloudifyContext
+    :return: List of networks objects
+    """
+    networks = []
+    for rel in _ctx.instance.relationships:
+        network = {}
+        type_name = rel.target.instance.runtime_properties.get(
+                OPENSTACK_TYPE_PROPERTY)
+        resource_id = rel.target.instance.runtime_properties.get(RESOURCE_ID)
+        if type_name == NETWORK_OPENSTACK_TYPE:
+            network['uuid'] = resource_id
+            networks.append(network)
+        elif type_name == PORT_OPENSTACK_TYPE:
+            network[PORT_OPENSTACK_TYPE] = resource_id
+            networks.append(network)
+    return networks

@@ -1,3 +1,5 @@
+2.14.11:
+    - Fix issue with re-attach port to server on deployment update.
 2.14.10:
     - Fix issue with create keypair resource when public key is provided.
 2.14.9:

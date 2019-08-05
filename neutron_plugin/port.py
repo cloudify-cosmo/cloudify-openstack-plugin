@@ -36,7 +36,6 @@ from openstack_plugin_common import (
     set_neutron_runtime_properties,
     create_object_dict,
     COMMON_RUNTIME_PROPERTIES_KEYS,
-    OPENSTACK_ID_PROPERTY,
     is_external_relationship_not_conditionally_created)
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
@@ -137,7 +136,6 @@ def create(neutron_client, args, **kwargs):
 @with_nova_client
 @with_neutron_client
 def attach(nova_client, neutron_client, **kwargs):
-
     if is_external_relationship(ctx):
         ctx.logger.info('Not attaching port from server since '
                         'external port and server are being used')
@@ -146,33 +144,13 @@ def attach(nova_client, neutron_client, **kwargs):
     server_id = get_openstack_id(ctx.source)
     port_id = get_openstack_id(ctx.target)
     port = neutron_client.show_port(port_id)
-    server = nova_client.servers.get(server_id)
-    network = neutron_client.show_network(port['port']['network_id'])
-    network_name = network['network']['name']
 
-    floating_ip_address = None
-    for target in ctx.target.instance.relationships:
-        if target.type == PORT_ADDRESS_REL_TYPE:
-            target_instance = target.target.instance
-            floatingip_id = \
-                target_instance.runtime_properties[OPENSTACK_ID_PROPERTY]
-            floating_ip = neutron_client.show_floatingip(floatingip_id)
-            floating_ip_address = \
-                floating_ip['floatingip']['floating_ip_address']
-
-    server_addresses = \
-        [addr['addr'] for addr in server.addresses[network_name]]
-
-    if floating_ip_address and floating_ip_address not in server_addresses:
-        ctx.logger.info('We will attach floating ip {0} to server {1}'
-                        .format(floating_ip_address, server_id))
-        server.add_floating_ip(floating_ip_address)
-        return ctx.operation.retry(
-            message='Waiting for the floating ip {0} to '
-                    'attach to server {1}..'
-                    .format(floating_ip_address,
-                            server_id),
-            retry_after=10)
+    # If port is attached to floating ip then once the port is attached to
+    # the server, the floating ip will be assigned to the server directly,
+    # in case of healing/deployment update it is not necessary to attach
+    # floating ip associated with assigned port to server and will raise
+    # error in since the port is not yet attached the server in case of
+    # healing/deployment update the port
     change = {
         PORT_OPENSTACK_TYPE: {
             'device_id': server_id,
@@ -240,7 +218,6 @@ def delete(neutron_client, **kwargs):
 @with_nova_client
 @with_neutron_client
 def detach(nova_client, neutron_client, **kwargs):
-
     if is_external_relationship(ctx):
         ctx.logger.info('Not detaching port from server since '
                         'external port and server are being used')

@@ -22,6 +22,7 @@ import openstack.compute.v2.volume_attachment
 import openstack.compute.v2.keypair
 import openstack.image.v2.image
 import openstack.network.v2.floating_ip
+import openstack.network.v2.port
 import openstack.exceptions
 from cloudify.exceptions import (OperationRetry, NonRecoverableError)
 from cloudify.mocks import (
@@ -34,6 +35,7 @@ from cloudify.mocks import (
 # Local imports
 from openstack_plugin.tests.base import OpenStackTestBase
 from openstack_plugin.resources.compute import server
+from openstack_plugin.resources.network import port
 from openstack_plugin.utils import (get_snapshot_name,
                                     generate_attachment_volume_key)
 from openstack_plugin.constants import (RESOURCE_ID,
@@ -2170,6 +2172,272 @@ class ServerTestCase(OpenStackTestBase):
         server.disconnect_security_group(
             security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7')
         mock_clean_ports.assert_not_called()
+
+    def test_attach_port(self, mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='port-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a75b5509-c122-4c2f-823e-884bb559afe2',
+                    OPENSTACK_TYPE_PROPERTY: PORT_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-port',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='server-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-server',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'server-1',
+            'access_ipv4': '1',
+            'access_ipv6': '2',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        old_port_instance = openstack.network.v2.port.Port(**{
+            'id': 'a75b5509-c122-4c2f-823e-884bb559afe2',
+            'name': 'a75b5509-c122-4c2f-823e-884bb559afe2',
+            'admin_state_up': True,
+            'binding_host_id': '3',
+            'binding_profile': {'4': 4},
+            'binding_vif_details': {'5': 5},
+            'binding_vif_type': '6',
+            'binding_vnic_type': '7',
+            'created_at': '2016-03-09T12:14:57.233772',
+            'data_plane_status': '32',
+            'description': 'port_description',
+            'device_id': None,
+            'device_owner': '10',
+            'dns_assignment': [{'11': 11}],
+            'dns_domain': 'a11',
+            'dns_name': '12',
+            'extra_dhcp_opts': [{'13': 13}],
+            'mac_address': '00-14-22-01-23-45',
+            'network_id': '18',
+            'port_security_enabled': True,
+            'qos_policy_id': '21',
+            'revision_number': 22,
+            'security_groups': ['23'],
+            'status': '25',
+            'tenant_id': '26',
+            'updated_at': '2016-07-09T12:14:57.233772',
+        })
+
+        new_port_instance = openstack.network.v2.port.Port(**{
+            'id': 'a75b5509-c122-4c2f-823e-884bb559afe2',
+            'name': 'a75b5509-c122-4c2f-823e-884bb559afe2',
+            'admin_state_up': True,
+            'binding_host_id': '3',
+            'binding_profile': {'4': 4},
+            'binding_vif_details': {'5': 5},
+            'binding_vif_type': '6',
+            'binding_vnic_type': '7',
+            'created_at': '2016-03-09T12:14:57.233772',
+            'data_plane_status': '32',
+            'description': 'port_description',
+            'device_id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'device_owner': '10',
+            'dns_assignment': [{'11': 11}],
+            'dns_domain': 'a11',
+            'dns_name': '12',
+            'extra_dhcp_opts': [{'13': 13}],
+            'mac_address': '00-14-22-01-23-45',
+            'network_id': '18',
+            'port_security_enabled': True,
+            'qos_policy_id': '21',
+            'revision_number': 22,
+            'security_groups': ['23'],
+            'status': '25',
+            'tenant_id': '26',
+            'updated_at': '2016-07-09T12:14:57.233772',
+        })
+
+        # Mock get port response
+        mock_connection().network.get_port = \
+            mock.MagicMock(return_value=old_port_instance)
+
+        # Mock update port response
+        mock_connection().network.update_port = \
+            mock.MagicMock(return_value=new_port_instance)
+
+        # Mock get server response
+        mock_connection().compute.find_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='ServerTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.establish', node_id='1')
+
+        # Call attach port to server
+        port.attach(port_id='a95b5509-c122-4c2f-823e-884bb559afe2')
+
+    def test_detach_port(self, mock_connection):
+        target = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='port-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a75b5509-c122-4c2f-823e-884bb559afe2',
+                    OPENSTACK_TYPE_PROPERTY: PORT_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-port',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        source = MockContext({
+            'instance': MockNodeInstanceContext(
+                id='server-1',
+                runtime_properties={
+                    RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
+                    OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
+                    OPENSTACK_NAME_PROPERTY: 'node-server',
+                }),
+            'node': MockNodeContext(
+                id='1',
+                properties={
+                    'client_config': self.client_config,
+                    'resource_config': self.resource_config
+                }
+            ), '_context': {
+                'node_id': '1'
+            }})
+
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'server-1',
+            'access_ipv4': '1',
+            'access_ipv6': '2',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+
+        })
+
+        old_port_instance = openstack.network.v2.port.Port(**{
+            'id': 'a75b5509-c122-4c2f-823e-884bb559afe2',
+            'name': 'a75b5509-c122-4c2f-823e-884bb559afe2',
+            'admin_state_up': True,
+            'binding_host_id': '3',
+            'binding_profile': {'4': 4},
+            'binding_vif_details': {'5': 5},
+            'binding_vif_type': '6',
+            'binding_vnic_type': '7',
+            'created_at': '2016-03-09T12:14:57.233772',
+            'data_plane_status': '32',
+            'description': 'port_description',
+            'device_id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'device_owner': '10',
+            'dns_assignment': [{'11': 11}],
+            'dns_domain': 'a11',
+            'dns_name': '12',
+            'extra_dhcp_opts': [{'13': 13}],
+            'mac_address': '00-14-22-01-23-45',
+            'network_id': '18',
+            'port_security_enabled': True,
+            'qos_policy_id': '21',
+            'revision_number': 22,
+            'security_groups': ['23'],
+            'status': '25',
+            'tenant_id': '26',
+            'updated_at': '2016-07-09T12:14:57.233772',
+        })
+
+        new_port_instance = openstack.network.v2.port.Port(**{
+            'id': 'a75b5509-c122-4c2f-823e-884bb559afe2',
+            'name': 'a75b5509-c122-4c2f-823e-884bb559afe2',
+            'admin_state_up': True,
+            'binding_host_id': '3',
+            'binding_profile': {'4': 4},
+            'binding_vif_details': {'5': 5},
+            'binding_vif_type': '6',
+            'binding_vnic_type': '7',
+            'created_at': '2016-03-09T12:14:57.233772',
+            'data_plane_status': '32',
+            'description': 'port_description',
+            'device_id': None,
+            'device_owner': '10',
+            'dns_assignment': [{'11': 11}],
+            'dns_domain': 'a11',
+            'dns_name': '12',
+            'extra_dhcp_opts': [{'13': 13}],
+            'mac_address': '00-14-22-01-23-45',
+            'network_id': '18',
+            'port_security_enabled': True,
+            'qos_policy_id': '21',
+            'revision_number': 22,
+            'security_groups': ['23'],
+            'status': '25',
+            'tenant_id': '26',
+            'updated_at': '2016-07-09T12:14:57.233772',
+        })
+
+        # Mock get port response
+        mock_connection().network.get_port = \
+            mock.MagicMock(return_value=old_port_instance)
+
+        # Mock update port response
+        mock_connection().network.update_port = \
+            mock.MagicMock(return_value=new_port_instance)
+
+        # Mock get server response
+        mock_connection().compute.find_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        self._pepare_relationship_context_for_operation(
+            deployment_id='ServerTest',
+            source=source,
+            target=target,
+            ctx_operation_name='cloudify.interfaces.'
+                               'relationship_lifecycle.unlink', node_id='1')
+
+        # Call detach port
+        port.detach(port_id='a95b5509-c122-4c2f-823e-884bb559afe2')
 
     def test_delete_with_retry(self, mock_connection):
         # Prepare the context for delete operation

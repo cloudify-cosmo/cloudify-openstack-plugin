@@ -2,7 +2,7 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/CYBL-873-add-support-for-attaching-server-to-port-via-relationship.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.3.zip
     package_name: cloudify-openstack-plugin
     package_version: '3.2.3'
 
@@ -1372,14 +1372,14 @@ relationships:
     source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
         establish:
-          implementation: openstack.openstack_plugin.resources.port.attach
+          implementation: openstack.openstack_plugin.resources.network.port.attach
           inputs:
-            device_id:
+            port_id:
               default: { get_attribute: [ TARGET, id ] }
         unlink:
-          implementation: openstack.openstack_plugin.resources.port.detach
+          implementation: openstack.openstack_plugin.resources.network.port.detach
           inputs:
-            device_id:
+            port_id:
               default: { get_attribute: [ TARGET, id ] }
 
   # The API used in order to connect server to floating IP is deprecated

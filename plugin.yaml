@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.2.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/CYBL-873-add-support-for-attaching-server-to-port-via-relationship.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.2.2'
+    package_version: '3.2.3'
 
 dsl_definitions:
 
@@ -1369,6 +1369,18 @@ relationships:
   # We get the source ID (the server) to set the device_id on the port.
   cloudify.relationships.openstack.server_connected_to_port:
     derived_from: cloudify.relationships.connected_to
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        establish:
+          implementation: openstack.openstack_plugin.resources.port.attach
+          inputs:
+            device_id:
+              default: { get_attribute: [ TARGET, id ] }
+        unlink:
+          implementation: openstack.openstack_plugin.resources.port.detach
+          inputs:
+            device_id:
+              default: { get_attribute: [ TARGET, id ] }
 
   # The API used in order to connect server to floating IP is deprecated
   # The API is deprecated and will fail with a 404 starting from microversion 2.44. This is replaced with using the Neutron networking service API.

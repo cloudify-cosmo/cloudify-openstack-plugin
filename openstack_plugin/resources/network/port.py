@@ -296,6 +296,46 @@ def update(openstack_resource, args):
 
 @with_compat_node
 @with_openstack_resource(OpenstackPort)
+def attach(openstack_resource, device_id):
+    """
+    This method will attach port to device (server)
+    :param openstack_resource: instance of openstack port resource
+    :param device_id: Server uuid
+    """
+    # Check the device id before attach it to port
+    if not device_id:
+        port_id = openstack_resource.resource_id
+        raise NonRecoverableError(
+            'Invalid `device_id` provided,'
+            'cannot attach port {0} to '
+            'empty device id'.format(port_id))
+
+    openstack_resource.update({'device_id': device_id})
+
+
+@with_compat_node
+@with_openstack_resource(OpenstackPort)
+def detach(openstack_resource, device_id):
+    """
+    This method will detach port from device (server)
+    :param openstack_resource: instance of openstack port resource
+    :param device_id: Server uuid
+    """
+    # Check the device id before attach it to port
+    if not device_id:
+        port_id = openstack_resource.resource_id
+        raise NonRecoverableError(
+            'Invalid `device_id` provided,'
+            'cannot attach port {0} to '
+            'empty device id'.format(port_id))
+    # Before detach the port from the server we need to check if the port
+    # has a floating ip attached to the server so that we can remove it
+    # before detach port from server
+    openstack_resource.update({'device_id': ''})
+
+
+@with_compat_node
+@with_openstack_resource(OpenstackPort)
 def list_ports(openstack_resource, query=None):
     """
     List openstack ports based on filters applied

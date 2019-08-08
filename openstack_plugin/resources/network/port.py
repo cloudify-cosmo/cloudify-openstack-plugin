@@ -19,11 +19,10 @@ from cloudify.exceptions import NonRecoverableError
 
 # Local imports
 from openstack_sdk.resources.networks import OpenstackPort
-
+from openstack_sdk.resources.compute import OpenstackServer
 from openstack_plugin.decorators import (with_openstack_resource,
                                          with_compat_node,
                                          with_multiple_data_sources)
-
 from openstack_plugin.constants import (RESOURCE_ID,
                                         PORT_OPENSTACK_TYPE,
                                         NETWORK_OPENSTACK_TYPE,
@@ -243,6 +242,32 @@ def _clean_addresses_from_external_port(openstack_resource):
         openstack_resource.update({'allowed_address_pairs':  updated_pairs})
 
 
+def _update_port_association(client_config, port_id, device_id=''):
+    """
+     This method will handle linking & un-linking port to server
+    :param client_config: Client configuration in order to call OS API
+    :param port_id: Port Id to link/un-link with
+    :param device_id: Server Id to attach/detach port from/to
+    """
+    # Check if the port is provided or not
+    if not port_id:
+        raise NonRecoverableError(
+            'Unable to attach port to device {0},'
+            ' `port_id` is missing'.format(
+                device_id)
+        )
+    # Prepare the port instance to attach/detach server from/to the current
+    # port
+    port_resource = OpenstackPort(client_config=client_config,
+                                  logger=ctx.logger)
+
+    # Set port id
+    port_resource.resource_id = port_id
+
+    # Update port
+    port_resource.update({'device_id': device_id})
+
+
 @with_compat_node
 @with_openstack_resource(
     OpenstackPort,
@@ -292,6 +317,53 @@ def update(openstack_resource, args):
     """
     args = reset_dict_empty_keys(args)
     openstack_resource.update(args)
+
+
+@with_compat_node
+# The attach relationship is linked from source (server) ---> target (port)
+# So that the resource being evaluated is OpenstackServer
+@with_openstack_resource(OpenstackServer)
+def attach(openstack_resource, port_id):
+    """
+    This method will attach port to device (server)
+    :param openstack_resource: Instance of openstack server resource
+    :param port_id: Port id to attach device to
+    """
+    device_id = openstack_resource.resource_id
+    # Check if the port is provided or not
+    if not port_id:
+        raise NonRecoverableError(
+            'Unable to attach port to device {0},'
+            ' `port_id` is missing'.format(
+                device_id)
+        )
+    # Attach port to server
+    _update_port_association(openstack_resource.client_config,
+                             port_id,
+                             device_id)
+
+
+@with_compat_node
+@with_openstack_resource(OpenstackServer)
+def detach(openstack_resource, port_id):
+    """
+    This method will detach port from device (server)
+    :param openstack_resource: Instance of openstack server resource
+    :param port_id: Port id to detach device from
+    """
+    device_id = openstack_resource.resource_id
+    # Check if the port is provided or not
+    if not port_id:
+        raise NonRecoverableError(
+            'Unable to attach port to device {0},'
+            ' `port_id` is missing'.format(
+                device_id)
+        )
+    # Unlink port connection from server
+    # No need to detach floating ip from the port because when delete port
+    # with floating ip assigned to port it can removed without any issue
+    _update_port_association(openstack_resource.client_config,
+                             port_id)
 
 
 @with_compat_node

@@ -663,15 +663,6 @@ def use_external_resource(_ctx,
     # Get the current operation name
     operation_name = get_current_operation()
 
-    # Validate if the "is_external" is set and the resource
-    # identifier (id|name) for the Openstack is invalid raise error and
-    # abort the operation
-    error_message = openstack_resource.validate_resource_identifier()
-
-    # Raise error when validation failed
-    if error_message:
-        raise NonRecoverableError(error_message)
-
     # Try to lookup remote resource
     remote_resource = lookup_remote_resource(_ctx, openstack_resource)
     # Check if the current node instance is conditional created or not

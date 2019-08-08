@@ -261,9 +261,6 @@ class OpenstackHostAggregate(ResourceMixin, OpenstackResource):
     service_type = 'compute'
     resource_type = 'aggregate'
 
-    def validate_resource_identifier(self):
-        return None
-
     def list(self):
         self.logger.debug('Attempting to list aggregates')
         return self.list_resources()
@@ -396,9 +393,6 @@ class OpenstackKeyPair(OpenstackResource):
     service_type = 'compute'
     resource_type = 'key_pair'
 
-    def validate_resource_identifier(self):
-        return None
-
     def list(self):
         return self.connection.compute.keypairs()
 
@@ -440,9 +434,6 @@ class OpenstackKeyPair(OpenstackResource):
 class OpenstackFlavor(ResourceMixin, OpenstackResource):
     service_type = 'compute'
     resource_type = 'flavor'
-
-    def validate_resource_identifier(self):
-        return None
 
     def list(self, query=None):
         return self.list_resources(query)

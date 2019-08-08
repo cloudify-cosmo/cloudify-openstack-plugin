@@ -130,19 +130,78 @@ class HostAggregateTestCase(OpenStackTestBase):
         self.assertEqual(
             len(self._ctx.instance.runtime_properties['hosts']), 2)
 
-    def test_update(self, _):
+    def test_update(self, mock_connection):
         # Prepare the context for update operation
         self._prepare_context_for_operation(
-            test_name='FlavorTestCase',
+            test_name='HostAggregateTestCase',
             ctx_operation_name='cloudify.interfaces.lifecycle.update')
 
+        old_aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_host_aggregate',
+            'availability_zone': 'test_availability_zone',
+        })
+
+        new_aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'update_test_host_aggregate',
+            'availability_zone': 'test_availability_zone',
+        })
+
         updated_config = {
-            'name': 'Updated Name'
+            'name': 'update_test_host_aggregate'
         }
 
-        with self.assertRaises(NonRecoverableError):
-            # Call update aggregate
-            host_aggregate.update(args=updated_config)
+        # Mock get aggregate response
+        mock_connection().compute.get_aggregate = \
+            mock.MagicMock(return_value=old_aggregate_instance)
+
+        # Mock add host aggregate response
+        mock_connection().compute.update = \
+            mock.MagicMock(return_value=new_aggregate_instance)
+
+        host_aggregate.update(args=updated_config)
+
+    def test_update_metadata(self, mock_connection):
+        # Prepare the context for update operation
+        self._prepare_context_for_operation(
+            test_name='HostAggregateTestCase',
+            ctx_operation_name='cloudify.interfaces.lifecycle.update')
+
+        old_aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_host_aggregate',
+            'availability_zone': 'test_availability_zone',
+        })
+
+        new_aggregate_instance = openstack.compute.v2.aggregate.Aggregate(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'update_test_host_aggregate',
+            'availability_zone': 'test_availability_zone',
+            'properties': {
+                'key-1': 'value-1',
+                'key-2': 'value-2'
+            }
+        })
+
+        updated_config = {
+            'metadata': {
+                'key-1': 'value-1',
+                'key-2': 'value-2'
+            }
+        }
+
+        # Mock get aggregate response
+        mock_connection().compute.get_aggregate = \
+            mock.MagicMock(return_value=old_aggregate_instance)
+
+        # Mock add host aggregate response
+        mock_connection().compute.set_metadata = \
+            mock.MagicMock(return_value=new_aggregate_instance)
+
+        host_aggregate.update(args=updated_config)
+        # Update method is not going to be called since we set metadata
+        mock_connection().compute.update.assert_not_called()
 
     def test_delete(self, mock_connection):
         # Prepare the context for configure operation

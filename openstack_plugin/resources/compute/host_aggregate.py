@@ -23,7 +23,10 @@ from openstack_plugin.decorators import (with_openstack_resource,
                                          with_compat_node)
 from openstack_plugin.constants import (RESOURCE_ID,
                                         HOST_AGGREGATE_OPENSTACK_TYPE)
-from openstack_plugin.utils import add_resource_list_to_runtime_properties
+from openstack_plugin.utils import (
+    add_resource_list_to_runtime_properties,
+    reset_dict_empty_keys
+)
 
 
 def _add_hosts(openstack_resource, hosts):
@@ -130,13 +133,20 @@ def update(openstack_resource, args):
     :param openstack_resource: Instance of openstack host aggregate resource
     :param dict args: dict of information need to be updated
     """
-    # TODO This need to be uncomment whenever openstack allow for update
-    #  operation since the following actions are only supported
-    #  https://git.io/fhSFH
-    # args = reset_dict_empty_keys(args)
-    # openstack_resource.update(args)
-    raise NonRecoverableError(
-        'Openstack SDK does not support host aggregate  update operation')
+    args = reset_dict_empty_keys(args)
+    if not args:
+        raise NonRecoverableError(
+            'Unable to update aggregate {0}, '
+            'args cannot be empty'.format(openstack_resource.resource_id))
+
+    # Check if metadata is exist so that we can update it if needed
+    if 'metadata' in args:
+        metadata = args.pop('metadata')
+        openstack_resource.set_metadata(metadata)
+
+    # Update only if args has value like (name | availability_zone)
+    if args:
+        openstack_resource.update(args)
 
 
 @with_compat_node

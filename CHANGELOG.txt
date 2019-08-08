@@ -1,5 +1,6 @@
 3.2.3:
     - Fix bug with re-attaching port to server when run update deployment workflow
+    - Fix bug for update aggregate and set metadata
 3.2.2:
     - Fix major issue with ports/network ordering connected server instance
 3.2.1:

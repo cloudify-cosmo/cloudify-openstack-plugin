@@ -1,3 +1,5 @@
+3.2.4:
+    - Fix bug when update external resource for "external_resource" runtime property
 3.2.3:
     - Fix bug with re-attaching port to server when run update deployment workflow
     - Fix bug for update aggregate and set metadata

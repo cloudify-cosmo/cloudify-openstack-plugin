@@ -26,20 +26,23 @@ from cloudify.decorators import operation
 # Local imports
 from openstack_plugin.compat import Compat
 from openstack_sdk.common import (InvalidDomainException, QuotaException)
-from openstack_plugin.utils \
-    import (resolve_ctx,
-            get_current_operation,
-            prepare_resource_instance,
-            use_external_resource,
-            update_runtime_properties_for_operation_task,
-            update_runtime_properties_for_node_v2,
-            is_compat_node,
-            set_external_resource)
-
+from openstack_plugin.utils import (
+    resolve_ctx,
+    get_current_operation,
+    prepare_resource_instance,
+    use_external_resource,
+    update_runtime_properties_for_operation_task,
+    update_runtime_properties_for_node_v2,
+    is_compat_node,
+    set_external_resource
+)
+# Local imports
 from openstack_plugin.constants import (
     CLOUDIFY_STOP_OPERATION,
     CLOUDIFY_DELETE_OPERATION,
     CLOUDIFY_UNLINK_OPERATION,
+    CLOUDIFY_UPDATE_OPERATION,
+    CLOUDIFY_UPDATE_PROJECT_OPERATION,
     RESOURCE_ID
 )
 EXCEPTIONS = (exceptions.SDKException,
@@ -81,9 +84,6 @@ def with_openstack_resource(class_decl,
                 if use_external_resource(ctx_node, resource,
                                          existing_resource_handler,
                                          **existing_resource_kwargs):
-
-                    # Set external resource as runtime property
-                    set_external_resource(ctx_node, resource)
                     return
                 # check resource_id before stop/delete for already cleaned up
                 if operation_name in (
@@ -102,6 +102,13 @@ def with_openstack_resource(class_decl,
                 update_runtime_properties_for_operation_task(operation_name,
                                                              ctx_node,
                                                              resource)
+                # Update "external_resource" runtime property when running
+                # any update operation or update project for external resource
+                set_external_resource(ctx_node, resource, [
+                    CLOUDIFY_UPDATE_PROJECT_OPERATION,
+                    CLOUDIFY_UPDATE_OPERATION
+                ])
+
             except EXCEPTIONS as errors:
                 _, _, tb = sys.exc_info()
                 raise NonRecoverableError(

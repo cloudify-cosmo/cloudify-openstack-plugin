@@ -31,25 +31,27 @@ from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
 
 
 # Local imports
-from openstack_plugin.constants import (PS_OPEN,
-                                        PS_CLOSE,
-                                        QUOTA_VALID_MSG,
-                                        QUOTA_INVALID_MSG,
-                                        INFINITE_RESOURCE_QUOTA,
-                                        RESOURCE_ID,
-                                        CONDITIONALLY_CREATED,
-                                        USE_EXTERNAL_RESOURCE_PROPERTY,
-                                        CREATE_IF_MISSING_PROPERTY,
-                                        OPENSTACK_TYPE_PROPERTY,
-                                        OPENSTACK_NAME_PROPERTY,
-                                        OPENSTACK_EXTERNAL_RESOURCE,
-                                        CLOUDIFY_NEW_NODE_OPERATIONS,
-                                        CLOUDIFY_CREATE_OPERATION,
-                                        CLOUDIFY_DELETE_OPERATION,
-                                        USE_COMPACT_NODE,
-                                        RBAC_POLICY_OPENSTACK_TYPE,
-                                        NETWORK_OPENSTACK_TYPE,
-                                        PORT_OPENSTACK_TYPE)
+from openstack_plugin.constants import (
+    PS_OPEN,
+    PS_CLOSE,
+    QUOTA_VALID_MSG,
+    QUOTA_INVALID_MSG,
+    INFINITE_RESOURCE_QUOTA,
+    RESOURCE_ID,
+    CONDITIONALLY_CREATED,
+    USE_EXTERNAL_RESOURCE_PROPERTY,
+    CREATE_IF_MISSING_PROPERTY,
+    OPENSTACK_TYPE_PROPERTY,
+    OPENSTACK_NAME_PROPERTY,
+    OPENSTACK_EXTERNAL_RESOURCE,
+    CLOUDIFY_NEW_NODE_OPERATIONS,
+    CLOUDIFY_CREATE_OPERATION,
+    CLOUDIFY_DELETE_OPERATION,
+    USE_COMPACT_NODE,
+    RBAC_POLICY_OPENSTACK_TYPE,
+    NETWORK_OPENSTACK_TYPE,
+    PORT_OPENSTACK_TYPE
+)
 
 
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
@@ -665,6 +667,12 @@ def use_external_resource(_ctx,
 
     # Try to lookup remote resource
     remote_resource = lookup_remote_resource(_ctx, openstack_resource)
+    if remote_resource:
+        # Set external resource as runtime property for create operation
+        set_external_resource(
+            _ctx, openstack_resource, [CLOUDIFY_CREATE_OPERATION]
+        )
+
     # Check if the current node instance is conditional created or not
     is_create = _ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
     # Check if context type is "relationship-instance" and to check if both
@@ -1005,22 +1013,26 @@ def update_runtime_properties_for_node_v2(ctx_node, kwargs):
             OPENSTACK_TYPE_PROPERTY] = 'routes'
 
 
-def set_external_resource(ctx_node, resource):
+def set_external_resource(ctx_node, resource, target_operations):
     """
     This method will set external resource as runtime property for node
     instance
     :param ctx_node: This could be RelationshipSubjectContext
      or CloudifyContext instance depend if it is a normal relationship
      operation or node operation
-    :param resource: Instance of openstack resource
+    :param resource:  Instance of openstack resource
+    :param target_operations: Operations allowed to set "external_resource"
+    runtime property
     """
-    # Save the external resource as runtime property if it
-    # does not exist and only when the operation is create
-    operation_name = get_current_operation()
-    if operation_name == CLOUDIFY_CREATE_OPERATION:
-        if OPENSTACK_EXTERNAL_RESOURCE\
-                not in ctx_node.instance.runtime_properties:
-            remote_resource = resource.get()
+    # Save the external resource as runtime property in the following
+    # operations:
+    # 1. cloudify.interfaces.lifecycle.create
+    # 2. cloudify.interfaces.operations.update
+    # 3. cloudify.interfaces.operations.update_project
+    if is_external_resource(ctx_node):
+        operation_name = get_current_operation()
+        remote_resource = resource.get()
+        if operation_name in target_operations:
             ctx_node.instance.runtime_properties[OPENSTACK_EXTERNAL_RESOURCE]\
                 = remote_resource
 

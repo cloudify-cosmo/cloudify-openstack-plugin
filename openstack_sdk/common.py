@@ -15,10 +15,36 @@
 
 # Standard imports
 import uuid
+import logging
+import copy
 
 # Third party imports
 import openstack
 import openstack.exceptions
+from openstack._log import setup_logging
+
+KEY_USE_CFY_LOGGER = 'use_cfy_logger'
+KEY_GROUPS = 'groups'
+KEY_LOGGERS = 'loggers'
+
+DEFAULT_LOGGING_CONFIG = {
+    KEY_USE_CFY_LOGGER: True,
+    KEY_GROUPS: {
+        'openstack': logging.DEBUG,
+        'keystoneauth': logging.DEBUG,
+    },
+    KEY_LOGGERS: {}
+}
+
+LOGGING_GROUPS = {
+    'openstack': ['openstack'],
+    'keystoneauth': [
+        'keystoneauth',
+        'keystoneauth.discovery',
+        'keystoneauth.identity.base',
+        'keystoneauth.identity.generic.base'
+    ]
+}
 
 
 class QuotaException(Exception):
@@ -35,16 +61,55 @@ class OpenstackResource(object):
 
     def __init__(self, client_config, resource_config=None, logger=None):
         self.client_config = client_config
+        self.logger = logger
+        self.setup_openstack_logging()
         self.connection = openstack.connect(**client_config)
         self.config = resource_config or {}
         self.name = self.config.get('name')
         self.resource_id =\
             None if 'id' not in self.config else self.config['id']
-        self.logger = logger
         self.validate_keystone_v3()
 
     def __str__(self):
         return self.name if not self.resource_id else self.resource_id
+
+    def setup_openstack_logging(self):
+        # Get the logging object
+        logging_config = self.config.pop('logging', dict())
+        # Get a flag in order to check if we should redirect all the logs to
+        # the cloudify logs
+        use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
+        # Get group of logging we want to configure them and update their
+        # handler as cloudify handler
+        groups_config = logging_config.get(KEY_GROUPS, {})
+        # Get any custom logger that want also to configure them
+        loggers_config = logging_config.get(KEY_LOGGERS, {})
+
+        # Get a copy of the default configuration for the logging of openstack
+        final_logging_cfg = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
+
+        if use_cfy_logger:
+            final_logging_cfg[KEY_USE_CFY_LOGGER] = use_cfy_logger
+        else:
+            use_cfy_logger = final_logging_cfg[KEY_USE_CFY_LOGGER]
+        final_logging_cfg[KEY_GROUPS].update(groups_config)
+        final_logging_cfg[KEY_LOGGERS].update(loggers_config)
+
+        # Prepare mapping between logger names and logging levels.
+        configured_loggers = {
+            v: final_logging_cfg[KEY_GROUPS][k] for
+            k, values in LOGGING_GROUPS.items() for v in values
+        }
+        # Update the final configuration logging for openstack
+        configured_loggers.update(final_logging_cfg[KEY_LOGGERS])
+        # Check if it is allowed to redirect openstack logs to cloudify
+        ctx_log_handler = \
+            CloudifyLogHandler(self.logger) if use_cfy_logger else None
+
+        # Check each logger with is logging level so that we can add for
+        # each logger the cloudify handler to log all events there
+        for logger_name, logger_level in configured_loggers.items():
+            setup_logging(logger_name, [ctx_log_handler], logger_level)
 
     def validate_keystone_v3(self):
         if self.auth_url and 'v3' in self.auth_url:
@@ -230,3 +295,27 @@ class ResourceMixin(object):
             pass
 
         return self.get_one_match(name_or_id, self.list())
+
+
+class CloudifyLogHandler(logging.Handler):
+    """
+    A logging handler for Cloudify.
+    A logger attached to this handler will result in logging being passed
+    through to the Cloudify logger.
+    """
+    def __init__(self, cfy_logger):
+        """
+        Constructor.
+        :param cfy_logger: current Cloudify logger
+        """
+        logging.Handler.__init__(self)
+        self.cfy_logger = cfy_logger
+
+    def emit(self, record):
+        """
+        Callback to emit a log record.
+        :param record: log record to write
+        :type record: logging.LogRecord
+        """
+        message = self.format(record)
+        self.cfy_logger.log(record.levelno, message)

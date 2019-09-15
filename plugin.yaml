@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.4.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.5.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.2.4'
+    package_version: '3.2.5'
 
 dsl_definitions:
 
@@ -53,6 +53,35 @@ dsl_definitions:
 
 data_types:
 
+  cloudify.types.openstack.logging.Groups:
+    description: >
+      For logging groups' configuration. Each level can be one of the following values:
+      critical/error/warning/info/debug/notset
+    properties:
+      openstack:
+        description: Default logging level for openstack component.
+        type: string
+        required: false
+      keystoneauth:
+        description: Default logging level for keystoneauth component.
+        type: string
+        required: false
+
+  cloudify.types.openstack.Logging:
+    description: Logging configuration for OpenStack communication.
+    properties:
+      use_cfy_logger:
+        description: If true, a logging handler is added, which emits logs to the Cloudify logger.
+        type: boolean
+        default: true
+      groups:
+        description: Assigns logging level to logger groups.
+        type: cloudify.types.openstack.logging.Groups
+        required: false
+      loggers:
+        description: Assigns logging level to custom loggers (dictionary of string -> logging level).
+        required: false
+
   cloudify.types.openstack.ClientConfig:
     # See: https://docs.openstack.org/python-openstackclient/pike/cli/man/openstack.html.
     properties:
@@ -95,6 +124,10 @@ data_types:
       project_domain_name:
         description: Project domain name to operate on.
         type: string
+        required: false
+      logging:
+        description: Logging configuration.
+        type: cloudify.types.openstack.Logging
         required: false
       kwargs:
         description: >

@@ -62,8 +62,24 @@ data_types:
         description: Default logging level for openstack component.
         type: string
         required: false
-      keystoneauth:
-        description: Default logging level for keystoneauth component.
+      compute:
+        description: Default logging level for openstack compute component.
+        type: string
+        required: false
+      network:
+        description: Default logging level for openstack network component.
+        type: string
+        required: false
+      image:
+        description: Default logging level for openstack image component.
+        type: string
+        required: false
+      block_storage:
+        description: Default logging level for openstack block storage component.
+        type: string
+        required: false
+      identity:
+        description: Default logging level for openstack identity & keystoneauth components.
         type: string
         required: false
 

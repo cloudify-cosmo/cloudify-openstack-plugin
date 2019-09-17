@@ -31,14 +31,36 @@ DEFAULT_LOGGING_CONFIG = {
     KEY_USE_CFY_LOGGER: True,
     KEY_GROUPS: {
         'openstack': logging.DEBUG,
+        'compute': logging.DEBUG,
+        'network': logging.DEBUG,
+        'image': logging.DEBUG,
+        'block_storage': logging.DEBUG,
         'keystoneauth': logging.DEBUG,
     },
     KEY_LOGGERS: {}
 }
 
 LOGGING_GROUPS = {
-    'openstack': ['openstack'],
-    'keystoneauth': [
+    'openstack': [
+        'openstack',
+        'openstack.config',
+        'openstack.proxy',
+        'openstack.resource',
+    ],
+    'compute': [
+        'openstack.compute_service'
+    ],
+    'network': [
+        'openstack.network_service'
+    ],
+    'image': [
+        'openstack.image_service'
+    ],
+    'block_storage': [
+        'openstack.block_storage_service'
+    ],
+    'identity': [
+        'openstack.identity_service',
         'keystoneauth',
         'keystoneauth.discovery',
         'keystoneauth.identity.base',
@@ -75,7 +97,7 @@ class OpenstackResource(object):
 
     def setup_openstack_logging(self):
         # Get the logging object
-        logging_config = self.config.pop('logging', dict())
+        logging_config = self.client_config.pop('logging', dict())
         # Get a flag in order to check if we should redirect all the logs to
         # the cloudify logs
         use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
@@ -109,6 +131,11 @@ class OpenstackResource(object):
         # Check each logger with is logging level so that we can add for
         # each logger the cloudify handler to log all events there
         for logger_name, logger_level in configured_loggers.items():
+            # Before set the log make sure to convert it to upper case
+            is_str = isinstance(logger_level, str)\
+                     or isinstance(logger_level, unicode)
+            if is_str:
+                logger_level = logger_level.upper()
             setup_logging(logger_name, [ctx_log_handler], logger_level)
 
     def validate_keystone_v3(self):

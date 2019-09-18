@@ -31,36 +31,20 @@ DEFAULT_LOGGING_CONFIG = {
     KEY_USE_CFY_LOGGER: True,
     KEY_GROUPS: {
         'openstack': logging.DEBUG,
-        'compute': logging.DEBUG,
-        'network': logging.DEBUG,
-        'image': logging.DEBUG,
-        'block_storage': logging.DEBUG,
-        'keystoneauth': logging.DEBUG,
     },
-    KEY_LOGGERS: {}
+    KEY_LOGGERS: {
+        'keystoneauth': logging.DEBUG
+    }
 }
 
 LOGGING_GROUPS = {
     'openstack': [
         'openstack',
         'openstack.config',
-        'openstack.proxy',
-        'openstack.resource',
+        'openstack.iterate_timeout',
+        'openstack.fnmatch',
     ],
-    'compute': [
-        'openstack.compute_service'
-    ],
-    'network': [
-        'openstack.network_service'
-    ],
-    'image': [
-        'openstack.image_service'
-    ],
-    'block_storage': [
-        'openstack.block_storage_service'
-    ],
-    'identity': [
-        'openstack.identity_service',
+    'keystoneauth': [
         'keystoneauth',
         'keystoneauth.discovery',
         'keystoneauth.identity.base',

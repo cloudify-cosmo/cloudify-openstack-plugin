@@ -1491,6 +1491,40 @@ relationships:
             port_id:
               default: { get_attribute: [ SOURCE, id ] }
 
+  cloudify.relationships.openstack.port_connected_to_floating_ip:
+    derived_from: cloudify.relationships.connected_to
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        postconfigure:
+          implementation: openstack.openstack_plugin.resources.network.floating_ip.update
+          inputs:
+            args:
+              default:
+                port_id: { get_attribute: [ SOURCE, id ] }
+        unlink:
+          implementation: openstack.openstack_plugin.resources.network.floating_ip.update
+          inputs:
+            args:
+              default:
+                port_id: ''
+
+  # This relationship will help to connect port node to server node once the
+  # server is created, usually used if the server need to attached to multiple ports
+  cloudify.relationships.openstack.port_connected_to_server:
+    derived_from: cloudify.relationships.connected_to
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        establish:
+          implementation: openstack.openstack_plugin.resources.network.port.attach_to_server
+          inputs:
+            device_id:
+              default: { get_attribute: [ TARGET, id ] }
+        unlink:
+          implementation: openstack.openstack_plugin.resources.network.port.detach_from_server
+          inputs:
+            device_id:
+              default: { get_attribute: [ TARGET, id ] }
+
   cloudify.relationships.openstack.port_connected_to_security_group:
     derived_from: cloudify.relationships.connected_to
 
@@ -1514,20 +1548,3 @@ relationships:
           inputs:
             subnet_id:
               default: { get_attribute: [ SOURCE, id ] }
-
-  cloudify.relationships.openstack.port_connected_to_floating_ip:
-    derived_from: cloudify.relationships.connected_to
-    target_interfaces:
-      cloudify.interfaces.relationship_lifecycle:
-        postconfigure:
-          implementation: openstack.openstack_plugin.resources.network.floating_ip.update
-          inputs:
-            args:
-              default:
-                port_id: { get_attribute: [ SOURCE, id ] }
-        unlink:
-          implementation: openstack.openstack_plugin.resources.network.floating_ip.update
-          inputs:
-            args:
-              default:
-                port_id: ''

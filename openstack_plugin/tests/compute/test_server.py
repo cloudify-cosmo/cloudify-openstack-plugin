@@ -663,21 +663,6 @@ class ServerTestCase(OpenStackTestBase):
             'status': 'SHUTOFF',
 
         })
-        server_interfaces = [
-            openstack.compute.v2.server_interface.ServerInterface(**{
-                'id': 'a95b5509-c122-4c2f-823e-884bb559afa8',
-                'net_id': 'a95b5509-c122-4c2f-823e-884bb559cfe8',
-                'port_id': 'a95b5509-c122-4c2f-823e-884bb559efe8',
-                'server_id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-            }),
-            openstack.compute.v2.server_interface.ServerInterface(**{
-                'id': 'a95b5509-c122-4c2f-823e-884bb559afa7',
-                'net_id': 'a95b5509-c122-4c2f-823e-884bb559cae8',
-                'port_id': 'a95b5509-c122-4c2f-823e-884bb559eae8',
-                'server_id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-            })
-        ]
-
         # Mock stop operation
         mock_connection().compute.stop_server = \
             mock.MagicMock(return_value=None)
@@ -687,14 +672,6 @@ class ServerTestCase(OpenStackTestBase):
             mock.MagicMock(side_effect=[server_instance,
                                         stopped_server_instance,
                                         stopped_server_instance])
-
-        # Mock get server interfaces operation
-        mock_connection().compute.server_interfaces = \
-            mock.MagicMock(return_value=server_interfaces)
-
-        # Mock get server interfaces operation
-        mock_connection().compute.delete_server_interface = \
-            mock.MagicMock(return_value=None)
 
         # Stop the server
         server.stop()

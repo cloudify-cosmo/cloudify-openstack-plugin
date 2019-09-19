@@ -83,8 +83,6 @@ node_templates:
     relationships:
       - type: cloudify.relationships.openstack.server_connected_to_port
         target: example-port
-      - type: cloudify.relationships.connected_to
-        target: example-network-2
       - type: cloudify.relationships.openstack.server_connected_to_keypair
         target: example-keypair
     # This is only run on local mode. For use with a manager, it can be commented out.
@@ -217,6 +215,36 @@ node_templates:
         create:
           inputs:
             resource_config: { get_property: [ SELF, resource_config ] }
+
+  example-port-2:
+    type: cloudify.nodes.openstack.Port
+    properties:
+      client_config: *client_config
+      resource_config:
+        name: { concat: [ { get_input: name_prefix }, 'port-2' ] }
+        fixed_ips:
+          - subnet_id: { get_attribute: [ example-subnet-2, id ] }
+    relationships:
+       - type: cloudify.relationships.connected_to
+         target: example-security-group
+       - type: cloudify.relationships.connected_to
+         target: example-network-2
+       - type: cloudify.relationships.connected_to
+         target: example-subnet-2
+       - type: cloudify.relationships.openstack.port_connected_to_server
+         target: example-server
+    # This is only run on local mode. For use with a manager, it can be commented out.
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config ] }
+      cloudify.interfaces.operations:
+        list:
+          inputs:
+            query:
+              all_tenants: false
+
 
   example-network-2:
     type: cloudify.nodes.openstack.Network

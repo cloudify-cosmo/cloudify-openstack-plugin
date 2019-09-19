@@ -33,22 +33,16 @@ DEFAULT_LOGGING_CONFIG = {
         'openstack': logging.DEBUG,
     },
     KEY_LOGGERS: {
-        'keystoneauth': logging.DEBUG
     }
 }
-
+# Openstack doc https://docs.openstack.org/openstacksdk/
+# latest/user/guides/logging.html#python-logging
 LOGGING_GROUPS = {
     'openstack': [
         'openstack',
         'openstack.config',
         'openstack.iterate_timeout',
         'openstack.fnmatch',
-    ],
-    'keystoneauth': [
-        'keystoneauth',
-        'keystoneauth.discovery',
-        'keystoneauth.identity.base',
-        'keystoneauth.identity.generic.base'
     ]
 }
 
@@ -100,7 +94,6 @@ class OpenstackResource(object):
             use_cfy_logger = final_logging_cfg[KEY_USE_CFY_LOGGER]
         final_logging_cfg[KEY_GROUPS].update(groups_config)
         final_logging_cfg[KEY_LOGGERS].update(loggers_config)
-
         # Prepare mapping between logger names and logging levels.
         configured_loggers = {
             v: final_logging_cfg[KEY_GROUPS][k] for
@@ -108,6 +101,20 @@ class OpenstackResource(object):
         }
         # Update the final configuration logging for openstack
         configured_loggers.update(final_logging_cfg[KEY_LOGGERS])
+
+        # After checking how openstack sdk handle logging it seems that
+        # openstack & keystoneauth have the same level passed when setup the
+        # logging, more info can be checked
+        # 1. https://github.com/openstack/openstacksdk/blob/master/openstack/_log.py#L106 # NOQA
+        # 2. https://github.com/openstack/openstacksdk/blob/master/openstack/_log.py#L107 # NOQA
+        # 3. https://docs.openstack.org/openstacksdk/latest/user/guides/logging.html#python-logging # NOQA
+        os_level = final_logging_cfg[KEY_GROUPS]['openstack']
+        configured_loggers.update({
+            'keystoneauth': os_level,
+            'keystoneauth.discovery': logging.WARNING,
+            'keystoneauth.identity.base': logging.WARNING,
+            'keystoneauth.identity.generic.base': logging.WARNING,
+        })
         # Check if it is allowed to redirect openstack logs to cloudify
         ctx_log_handler = \
             CloudifyLogHandler(self.logger) if use_cfy_logger else None

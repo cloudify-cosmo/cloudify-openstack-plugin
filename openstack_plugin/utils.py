@@ -15,6 +15,8 @@
 
 # Standard imports
 import sys
+import copy
+import logging
 import base64
 import inspect
 import re
@@ -22,6 +24,7 @@ import re
 
 # Third part imports
 import openstack.exceptions
+from openstack._log import setup_logging
 from IPy import IP
 from cloudify import compute
 from cloudify import ctx
@@ -50,11 +53,40 @@ from openstack_plugin.constants import (
     USE_COMPACT_NODE,
     RBAC_POLICY_OPENSTACK_TYPE,
     NETWORK_OPENSTACK_TYPE,
-    PORT_OPENSTACK_TYPE
+    PORT_OPENSTACK_TYPE,
+    KEY_USE_CFY_LOGGER,
+    KEY_GROUPS,
+    KEY_LOGGERS,
+    DEFAULT_LOGGING_CONFIG,
+    LOGGING_GROUPS
 )
 
 
 NODE_NAME_RE = re.compile('^(.*)_.*$')  # Anything before last underscore
+
+
+class CloudifyLogHandler(logging.Handler):
+    """
+    A logging handler for Cloudify.
+    A logger attached to this handler will result in logging being passed
+    through to the Cloudify logger.
+    """
+    def __init__(self, cfy_logger):
+        """
+        Constructor.
+        :param cfy_logger: current Cloudify logger
+        """
+        logging.Handler.__init__(self)
+        self.cfy_logger = cfy_logger
+
+    def emit(self, record):
+        """
+        Callback to emit a log record.
+        :param record: log record to write
+        :type record: logging.LogRecord
+        """
+        message = self.format(record)
+        self.cfy_logger.log(record.levelno, message)
 
 
 def find_relationships_by_node_type_hierarchy(ctx_node_instance, node_type):
@@ -469,6 +501,8 @@ def prepare_resource_instance(class_decl, _ctx, kwargs):
         resource_config['id'] = \
             _ctx.instance.runtime_properties[RESOURCE_ID]
 
+    # Setup logging before init the Cloud resource
+    setup_openstack_logging(client_config, ctx.logger)
     resource = class_decl(client_config=client_config,
                           resource_config=resource_config,
                           logger=ctx.logger)
@@ -1057,3 +1091,59 @@ def get_networks_from_relationships(_ctx):
             network[PORT_OPENSTACK_TYPE] = resource_id
             networks.append(network)
     return networks
+
+
+def setup_openstack_logging(client_config, logger):
+    # Get the logging object
+    logging_config = client_config.pop('logging', dict())
+    # Get a flag in order to check if we should redirect all the logs to
+    # the cloudify logs
+    use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
+    # Get group of logging we want to configure them and update their
+    # handler as cloudify handler
+    groups_config = logging_config.get(KEY_GROUPS, {})
+    # Get any custom logger that want also to configure them
+    loggers_config = logging_config.get(KEY_LOGGERS, {})
+
+    # Get a copy of the default configuration for the logging of openstack
+    final_logging_cfg = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
+
+    if use_cfy_logger:
+        final_logging_cfg[KEY_USE_CFY_LOGGER] = use_cfy_logger
+    else:
+        use_cfy_logger = final_logging_cfg[KEY_USE_CFY_LOGGER]
+    final_logging_cfg[KEY_GROUPS].update(groups_config)
+    final_logging_cfg[KEY_LOGGERS].update(loggers_config)
+    # Prepare mapping between logger names and logging levels.
+    configured_loggers = {
+        v: final_logging_cfg[KEY_GROUPS][k] for
+        k, values in LOGGING_GROUPS.items() for v in values
+    }
+    # Update the final configuration logging for openstack
+    configured_loggers.update(final_logging_cfg[KEY_LOGGERS])
+
+    # After checking how openstack sdk handle logging it seems that
+    # openstack & keystoneauth have the same level passed when setup the
+    # logging, more info can be checked
+    # 1. https://github.com/openstack/openstacksdk/blob/master/openstack/_log.py#L106 # NOQA
+    # 2. https://github.com/openstack/openstacksdk/blob/master/openstack/_log.py#L107 # NOQA
+    # 3. https://docs.openstack.org/openstacksdk/latest/user/guides/logging.html#python-logging # NOQA
+    os_level = final_logging_cfg[KEY_GROUPS]['openstack']
+    configured_loggers.update({
+        'keystoneauth': os_level,
+        'keystoneauth.discovery': logging.WARNING,
+        'keystoneauth.identity.base': logging.WARNING,
+        'keystoneauth.identity.generic.base': logging.WARNING,
+    })
+    # Check if it is allowed to redirect openstack logs to cloudify
+    ctx_log_handler = CloudifyLogHandler(logger) if use_cfy_logger else None
+
+    # Check each logger with is logging level so that we can add for
+    # each logger the cloudify handler to log all events there
+    for logger_name, logger_level in configured_loggers.items():
+        # Before set the log make sure to convert it to upper case
+        is_str = isinstance(logger_level, str)\
+                 or isinstance(logger_level, unicode)
+        if is_str:
+            logger_level = logger_level.upper()
+        setup_logging(logger_name, [ctx_log_handler], logger_level)

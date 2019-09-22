@@ -35,12 +35,12 @@ class OpenstackResource(object):
 
     def __init__(self, client_config, resource_config=None, logger=None):
         self.client_config = client_config
+        self.logger = logger
         self.connection = openstack.connect(**client_config)
         self.config = resource_config or {}
         self.name = self.config.get('name')
         self.resource_id =\
             None if 'id' not in self.config else self.config['id']
-        self.logger = logger
         self.validate_keystone_v3()
 
     def __str__(self):

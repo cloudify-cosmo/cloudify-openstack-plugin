@@ -337,7 +337,7 @@ def attach(openstack_resource, port_id):
             ' `port_id` is missing'.format(
                 device_id)
         )
-    # Attach port to server
+    # Attach server to server
     _update_port_association(openstack_resource.client_config,
                              port_id,
                              device_id)
@@ -357,6 +357,51 @@ def detach(openstack_resource, port_id):
         raise NonRecoverableError(
             'Unable to attach port to device {0},'
             ' `port_id` is missing'.format(
+                device_id)
+        )
+    # Unlink port connection from server
+    # No need to detach floating ip from the port because when delete port
+    # with floating ip assigned to port it can removed without any issue
+    _update_port_association(openstack_resource.client_config,
+                             port_id)
+
+
+@with_compat_node
+@with_openstack_resource(OpenstackPort)
+def attach_to_server(openstack_resource, device_id):
+    """
+    This method will attach port to device (server)
+    :param openstack_resource: Instance of openstack server resource
+    :param device_id: Device id to attach port to
+    """
+    port_id = openstack_resource.resource_id
+    # Check if the port is provided or not
+    if not device_id:
+        raise NonRecoverableError(
+            'Unable to attach port to device {0},'
+            ' `device_id` is missing'.format(
+                device_id)
+        )
+    # Attach port to server
+    _update_port_association(openstack_resource.client_config,
+                             port_id,
+                             device_id)
+
+
+@with_compat_node
+@with_openstack_resource(OpenstackPort)
+def detach_from_server(openstack_resource, device_id):
+    """
+    This method will detach port from device (server)
+    :param openstack_resource: Instance of openstack server resource
+    :param device_id: Device id to detach port from
+    """
+    port_id = openstack_resource.resource_id
+    # Check if the port is provided or not
+    if not device_id:
+        raise NonRecoverableError(
+            'Unable to attach port to device {0},'
+            ' `device_id` is missing'.format(
                 device_id)
         )
     # Unlink port connection from server

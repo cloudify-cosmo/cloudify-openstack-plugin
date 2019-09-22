@@ -1439,13 +1439,6 @@ def stop(openstack_resource):
     Stop current openstack server
     :param openstack_resource: instance of openstack server resource
     """
-    # Clean any interfaces connected to the server
-    for interface in openstack_resource.server_interfaces():
-        openstack_resource.delete_server_interface(interface.id)
-        ctx.logger.info('Successfully detached network'
-                        ' {0} to device (server) id {1}.'
-                        .format(interface, openstack_resource.resource_id))
-
     # Stop server instance
     _stop_server(openstack_resource)
 

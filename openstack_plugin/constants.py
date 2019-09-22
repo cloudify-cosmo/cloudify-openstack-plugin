@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 # Runtime properties keys
 RESOURCE_ID = 'id'
 OPENSTACK_TYPE_PROPERTY = 'type'
@@ -150,3 +152,26 @@ CLOUDIFY_NEW_NODE_OPERATIONS = [CLOUDIFY_CREATE_OPERATION,
                                 CLOUDIFY_STOP_OPERATION,
                                 CLOUDIFY_DELETE_OPERATION,
                                 CLOUDIFY_CREATE_VALIDATION]
+
+KEY_USE_CFY_LOGGER = 'use_cfy_logger'
+KEY_GROUPS = 'groups'
+KEY_LOGGERS = 'loggers'
+
+DEFAULT_LOGGING_CONFIG = {
+    KEY_USE_CFY_LOGGER: True,
+    KEY_GROUPS: {
+        'openstack': logging.DEBUG,
+    },
+    KEY_LOGGERS: {
+    }
+}
+# Openstack doc https://docs.openstack.org/openstacksdk/
+# latest/user/guides/logging.html#python-logging
+LOGGING_GROUPS = {
+    'openstack': [
+        'openstack',
+        'openstack.config',
+        'openstack.iterate_timeout',
+        'openstack.fnmatch',
+    ]
+}

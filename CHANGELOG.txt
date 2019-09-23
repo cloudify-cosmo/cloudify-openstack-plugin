@@ -1,3 +1,5 @@
+3.2.7
+   - Fix issue with OpenstackSDK for connecting server to security group
 3.2.6:
     - Changed minimum supported Cloudify version to 4.3.3
 3.2.5:

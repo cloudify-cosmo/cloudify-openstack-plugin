@@ -1098,7 +1098,10 @@ def setup_openstack_logging(client_config, logger):
     logging_config = client_config.pop('logging', dict())
     # Get a flag in order to check if we should redirect all the logs to
     # the cloudify logs
-    use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
+    if KEY_USE_CFY_LOGGER not in logging_config:
+        use_cfy_logger = True
+    else:
+        use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
     # Get group of logging we want to configure them and update their
     # handler as cloudify handler
     groups_config = logging_config.get(KEY_GROUPS, {})

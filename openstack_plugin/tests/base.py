@@ -127,11 +127,12 @@ class OpenStackTestBase(unittest.TestCase):
             'retry_number': 0, 'name': ctx_operation_name
         }
 
+        prop = copy.deepcopy(test_properties or self.node_properties)
         ctx = MockCloudifyContext(
             node_id=test_name,
             node_name=test_name,
             deployment_id=test_name,
-            properties=copy.deepcopy(test_properties or self.node_properties),
+            properties=prop,
             runtime_properties=self._to_DirtyTrackingDict(
                 test_runtime_properties or self.runtime_properties
             ),
@@ -141,11 +142,11 @@ class OpenStackTestBase(unittest.TestCase):
             operation=operation_ctx
         )
 
-        ctx.node.type_hierarchy = type_hierarchy
+        ctx._node = CustomMockNodeContext(test_name, prop)
         # In order to set type for the node, we need to set it using _node
         # instance
         ctx._node._type = node_type
-
+        ctx._node._type_hierarchy = type_hierarchy
         return ctx
 
     def _prepare_context_for_operation(self,

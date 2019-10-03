@@ -4,7 +4,7 @@ nose-cov>=1.3
 mock>=1.0
 flake8
 tox
-cloudify>=4.0
+cloudify==4.3.3
 openstacksdk
 sh
 IPy==0.81

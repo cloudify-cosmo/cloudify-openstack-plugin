@@ -1,3 +1,5 @@
+3.2.6:
+    - Changed minimum supported Cloudify version to 4.3.3
 3.2.5:
     - Add support for redirecting openstack logs to cloudify
     - Add new relationship type to connect port to server in order to force connect created port to created server

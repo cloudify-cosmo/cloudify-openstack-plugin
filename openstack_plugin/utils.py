@@ -1093,6 +1093,22 @@ def get_networks_from_relationships(_ctx):
     return networks
 
 
+def get_security_groups_from_relationships(_ctx):
+    """
+    This method will return list of openstack security groups for connected
+    nodes associated with the current node instance
+    :param _ctx: Cloudify context instance cloudify.context.CloudifyContext
+    :return: List of security groups objects
+    """
+    security_groups = []
+    for rel in find_relationships_by_openstack_type(_ctx, 'security_group'):
+        resource_id = rel.target.instance.runtime_properties.get(RESOURCE_ID)
+        security_groups.append({
+            'name': resource_id
+        })
+    return security_groups
+
+
 def setup_openstack_logging(client_config, logger):
     # Get the logging object
     logging_config = client_config.pop('logging', dict())

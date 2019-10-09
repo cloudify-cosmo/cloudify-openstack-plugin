@@ -98,7 +98,8 @@ from openstack_plugin.utils import \
      generate_attachment_volume_key,
      assign_resource_payload_as_runtime_properties,
      remove_duplicates_items,
-     get_networks_from_relationships)
+     get_networks_from_relationships,
+     get_security_groups_from_relationships)
 
 
 def _stop_server(server):
@@ -622,6 +623,19 @@ def _clean_duplicate_volumes(server_config):
         server_config['block_device_mapping_v2'] = volumes
 
 
+def _clean_duplicate_security_groups(server_config):
+    """
+    This method will clean all duplicates security groups items from server
+    config
+    :param dict server_config: The server configuration required in order to
+    create the server instance using Openstack API
+    """
+    security_groups = server_config.get('security_groups')
+    if security_groups:
+        security_groups = remove_duplicates_items(security_groups)
+        server_config['security_groups'] = security_groups
+
+
 def _update_flavor_and_image_config(openstack_resource):
     """
     This method will update flavor & image config for server based on the
@@ -878,6 +892,38 @@ def _update_server_group_config(server_config, allow_multiple=False):
 
         scheduler_hints['group'] = server_group_id
         server_config['scheduler_hints'] = scheduler_hints
+
+
+@with_multiple_data_sources(
+    clean_duplicates_handler=_clean_duplicate_security_groups)
+def _get_security_groups_config(server_config, allow_multiple=False):
+    """
+    This method will try to get security groups info connected with server
+    node if there is any relationships or from the node properties under
+    resource_config
+    :param server_config: The server configuration required in order to
+    create the server instance using Openstack API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    security groups configuration from multiple resources relationships + node
+    properties
+    """
+    # Check to see if the security_groups dict is provided on the server config
+    # properties
+    sgs_from_node = server_config.pop('security_groups', [])
+    sgs_from_rel = get_security_groups_from_relationships(ctx)
+
+    # if both are empty then server is not providing security groups neither
+    # via node properties nor via relationships
+    if not (sgs_from_node or sgs_from_rel):
+        return
+    # Try to merge them
+    elif sgs_from_node and sgs_from_rel and not allow_multiple:
+        raise NonRecoverableError('Server can\'t both have the '
+                                  '"security_groups" property and be '
+                                  'connected to a security groups via a '
+                                  'relationship at the same time')
+
+    return sgs_from_node + sgs_from_rel
 
 
 def _update_server_config(server_config, client_config):
@@ -1252,6 +1298,21 @@ def _handle_detach_external_volume_from_server():
                     'external volume and server are being used')
 
 
+def _handle_attach_security_group_to_server(openstack_resource,
+                                            security_groups):
+    """
+    This method will connect all security groups configured to server using
+    relationships or node properties to attach them to
+    :param openstack_resource: instance of openstack server resource
+    :param security_groups: List of security groups which should be
+    added to the server
+    """
+    for security_group in security_groups or []:
+        openstack_resource.add_security_group_to_server(
+            security_group.get('name')
+        )
+
+
 def _validate_external_server_status(openstack_resource):
     """
     This method will validate the external server status and raise error if
@@ -1343,6 +1404,9 @@ def create(openstack_resource):
     """
     blueprint_user_data = openstack_resource.config.get('user_data')
     user_data = handle_userdata(blueprint_user_data)
+    # Need to be used later on to connect to server since connection it as
+    # part of the server creation has issue
+    security_groups = _get_security_groups_config(openstack_resource.config)
 
     # Handle user data
     if user_data:
@@ -1364,7 +1428,16 @@ def create(openstack_resource):
     # Update the resource_id with the new "id" returned from API
     openstack_resource.resource_id = created_resource.id
 
-    # Assign runtime properties for server
+    # Since there is an issue with attaching security groups to server in
+    # creation, we added this method to use another api call to add each
+    # provided security groups one by one to the server
+    _handle_attach_security_group_to_server(
+        openstack_resource, security_groups
+    )
+
+    # Update the security_groups attribute for created_resource so that it
+    # can be assigned correctly as part of server runtime properties
+    setattr(created_resource, 'security_groups', security_groups)
     assign_resource_payload_as_runtime_properties(ctx,
                                                   created_resource,
                                                   SERVER_OPENSTACK_TYPE)

@@ -34,7 +34,8 @@ from openstack_sdk.resources.images import OpenstackImage
 from openstack_sdk.resources.volume import OpenstackVolume
 from openstack_sdk.resources.networks import (OpenstackPort,
                                               OpenstackNetwork,
-                                              OpenstackFloatingIP)
+                                              OpenstackFloatingIP,
+                                              OpenstackSecurityGroup)
 
 from openstack_plugin.decorators import (with_openstack_resource,
                                          with_compat_node,
@@ -201,14 +202,6 @@ def _set_server_ips_runtime_properties(server):
             elif address['version'] == 6:
                 ipv6_addresses.append(ip_config)
 
-    # Check if access_ipv4 is set or not
-    if server.access_ipv4:
-        ctx.instance.runtime_properties['access_ipv4'] = server.access_ipv4
-
-    # Check if access_ipv6 is set or not
-    if server.access_ipv6:
-        ctx.instance.runtime_properties['access_ipv6'] = server.access_ipv6
-
     # If "ipv4_addresses" is only contains one item, them we need to check
     # both private/public ip in order to set them as part of runtime_properties
     for ipv4 in ipv4_addresses:
@@ -261,6 +254,29 @@ def _set_server_ips_runtime_properties(server):
 
     ctx.instance.runtime_properties['ipv4_addresses'] = ipv4_list
     ctx.instance.runtime_properties['ipv6_addresses'] = ipv6_list
+
+    # Set "ipv4_address" for server as runtime property
+    if server.access_ipv4:
+        # Maintain "access_ipv4" for backward compatibility
+        ctx.instance.runtime_properties['access_ipv4'] = server.access_ipv4
+        ctx.instance.runtime_properties['ipv4_address'] = server.access_ipv4
+
+    elif len(ipv4_list) == 1:
+        ctx.instance.runtime_properties['ipv4_address'] = ipv4_list[0]
+    else:
+        ctx.instance.runtime_properties['ipv4_address'] = None
+
+    # Set "ipv6_address" for server as runtime property
+    if server.access_ipv6:
+        # Maintain "access_ipv6" for backward compatibility
+        ctx.instance.runtime_properties['access_ipv6'] = server.access_ipv6
+        ctx.instance.runtime_properties['ipv6_address'] = server.access_ipv6
+
+    elif len(ipv6_list) == 1:
+        ctx.instance.runtime_properties['ipv6_address'] = ipv6_list[0]
+
+    else:
+        ctx.instance.runtime_properties['ipv6_address'] = None
 
 
 def _log_snapshot_message(action,
@@ -693,6 +709,43 @@ def _get_network_name(nic_object, client_config):
     return net_name
 
 
+def _get_security_groups_ids(security_groups, client_config):
+    """
+    This method will return all security groups ids so they can be used
+    later on for attaching to servers and the reason for getting the ids
+    instead of names because there is an issue with openstacksdk
+    :param security_groups: List of security groups
+            [
+                {
+                'name': 'security-group-name-1'
+                },
+                {
+                'name': 'security-group-name-1'
+                }
+            ]
+    :param dict client_config: Openstack configuration required to connect
+    to API
+    :return: List of security groups
+    [
+        {
+        'name': '2830b6f1-801c-4973-84e2-7772f7e20e2a'
+        },
+        {
+        'name': '8347a687352e37767f93305cca090357'
+        }
+    ]
+    """
+    sg_list = []
+    security_group = OpenstackSecurityGroup(client_config=client_config,
+                                            logger=ctx.logger)
+    for sg in security_groups:
+        remote_sg = security_group.find_security_group(sg.get('name'))
+        sg_list.append({
+            'name': remote_sg.id
+        })
+    return sg_list
+
+
 @with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_volumes)
 def _update_bootable_volume_config(server_config, allow_multiple=False):
     """
@@ -896,13 +949,17 @@ def _update_server_group_config(server_config, allow_multiple=False):
 
 @with_multiple_data_sources(
     clean_duplicates_handler=_clean_duplicate_security_groups)
-def _get_security_groups_config(server_config, allow_multiple=False):
+def _get_security_groups_config(server_config,
+                                client_config,
+                                allow_multiple=False):
     """
     This method will try to get security groups info connected with server
     node if there is any relationships or from the node properties under
     resource_config
     :param server_config: The server configuration required in order to
     create the server instance using Openstack API
+    :param dict client_config: Openstack configuration required to connect
+    to API
     :param boolean allow_multiple: This flag to set if it is allowed to have
     security groups configuration from multiple resources relationships + node
     properties
@@ -910,6 +967,8 @@ def _get_security_groups_config(server_config, allow_multiple=False):
     # Check to see if the security_groups dict is provided on the server config
     # properties
     sgs_from_node = server_config.pop('security_groups', [])
+    if sgs_from_node:
+        sgs_from_node = _get_security_groups_ids(sgs_from_node, client_config)
     sgs_from_rel = get_security_groups_from_relationships(ctx)
 
     # if both are empty then server is not providing security groups neither
@@ -1404,9 +1463,13 @@ def create(openstack_resource):
     """
     blueprint_user_data = openstack_resource.config.get('user_data')
     user_data = handle_userdata(blueprint_user_data)
+
     # Need to be used later on to connect to server since connection it as
     # part of the server creation has issue
-    security_groups = _get_security_groups_config(openstack_resource.config)
+    security_groups = _get_security_groups_config(
+        openstack_resource.config,
+        client_config=openstack_resource.client_config
+    )
 
     # Handle user data
     if user_data:
@@ -1910,7 +1973,24 @@ def connect_security_group(openstack_resource, security_group_id):
                                   'connect security group to server {0}'
                                   ''.format(openstack_resource.resource_id))
 
-    openstack_resource.add_security_group_to_server(security_group_id)
+    security_group = OpenstackSecurityGroup(
+        client_config=openstack_resource.client_config,
+        logger=ctx.logger)
+    security_group.resource_id = security_group_id
+
+    # Security group name which need to be connected to the server
+    security_group_name = security_group.get().name
+    # The security groups already attached to server
+    security_groups = openstack_resource.get().security_groups
+
+    def _match_security_group(_security_group):
+        return security_group_name == _security_group.get('name')
+
+    # Since some security groups are already attached in
+    # create this will ensure that they are not attached twice.
+    present = any(map(_match_security_group, security_groups))
+    if not present:
+        openstack_resource.add_security_group_to_server(security_group_id)
 
 
 @with_compat_node

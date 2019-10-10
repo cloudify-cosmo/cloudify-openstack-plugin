@@ -153,8 +153,9 @@ def with_multiple_data_sources(clean_duplicates_handler=None):
             # Check if the current node has "use_compact_node"
             if is_compat_node(CloudifyContext):
                 kwargs['allow_multiple'] = True
-            func(config, **kwargs)
+            res = func(config, **kwargs)
             if kwargs.get('allow_multiple') and clean_duplicates_handler:
                 clean_duplicates_handler(config)
+            return res
         return wrapper_inner
     return wrapper_outer

@@ -53,6 +53,7 @@ from openstack_plugin.constants import (RESOURCE_ID,
                                         PORT_NODE_TYPE,
                                         KEYPAIR_NODE_TYPE,
                                         VOLUME_NODE_TYPE,
+                                        SECURITY_GROUP_NODE_TYPE,
                                         SERVER_GROUP_NODE_TYPE,
                                         SERVER_TASK_DELETE,
                                         SERVER_TASK_START,
@@ -192,6 +193,28 @@ class ServerTestCase(OpenStackTestBase):
                 'type': SERVER_GROUP_NODE_TYPE,
                 'type_hierarchy': [SERVER_GROUP_NODE_TYPE,
                                    'cloudify.nodes.Root']
+            },
+            {
+                'node': {
+                    'id': 'security-group-1',
+                    'properties': {
+                        'client_config': self.client_config,
+                        'resource_config': {
+                            'name': 'test-security-group',
+                        }
+                    }
+                },
+                'instance': {
+                    'id': 'security-group-1-efrgs1d',
+                    'runtime_properties': {
+                        RESOURCE_ID: 'a16b5203-b122-4c2f-823e-884bb559afe9',
+                        OPENSTACK_TYPE_PROPERTY: SECURITY_GROUP_OPENSTACK_TYPE,
+                        OPENSTACK_NAME_PROPERTY: 'test-security-group'
+                    }
+                },
+                'type': SECURITY_GROUP_NODE_TYPE,
+                'type_hierarchy': [SECURITY_GROUP_NODE_TYPE,
+                                   'cloudify.nodes.Root']
             }
         ]
         server_rels = self.get_mock_relationship_ctx_for_node(rel_specs)
@@ -257,6 +280,102 @@ class ServerTestCase(OpenStackTestBase):
         self.assertIn(
             SERVER_OPENSTACK_TYPE,
             self._ctx.instance.runtime_properties)
+
+        # Check to see if there is a "security_groups" runtime property
+        self.assertIn(
+            'security_groups',
+            self._ctx.instance.runtime_properties)
+
+        # Check to see if there is a "security_groups" lenght is 1
+        self.assertEqual(
+            len(self._ctx.instance.runtime_properties['security_groups']), 1)
+
+        # Check to see if there is a "security_groups" lenght is 1
+        self.assertEqual(
+            self._ctx.instance.runtime_properties['security_groups'][0]['id'],
+            'a16b5203-b122-4c2f-823e-884bb559afe9')
+
+    @mock.patch(
+        'openstack_plugin.resources.compute.server'
+        '.get_security_groups_from_relationships')
+    @mock.patch(
+        'openstack_plugin.resources.compute.server._get_security_groups_ids')
+    def test_get_security_groups_for_server(self,
+                                            mock_get_sg_ids,
+                                            mock_get_sgs_from_rel,
+                                            _):
+
+        self._prepare_context_for_operation(
+            test_name='ServerTestCase',
+            test_properties={},
+            ctx_operation_name='cloudify.interfaces.lifecycle.create',
+            type_hierarchy=self.type_hierarchy)
+
+        mock_get_sg_ids.return_value = [
+            {
+                'id': 'a95b5509-c143-3d3g-642k-543cc448sdt7'
+            },
+        ]
+
+        mock_get_sgs_from_rel.return_value = [
+            {
+                'id': 'b84b5509-c143-3d3g-642k-632hh557feg6'
+            },
+        ]
+
+        with self.assertRaises(NonRecoverableError):
+            server._get_security_groups_config(
+                {
+                    'security_groups':
+                        [
+                            {
+                                'id': 'a95b5509-c143-3d3g-642k-543cc448sdt7'
+                            },
+                        ],
+                },
+                client_config={'foo': 'boo'}
+            )
+
+    @mock.patch(
+        'openstack_plugin.resources.compute.server'
+        '.get_security_groups_from_relationships')
+    @mock.patch(
+        'openstack_plugin.resources.compute.server._get_security_groups_ids')
+    def test_get_security_groups_for_server_with_compat(self,
+                                                        mock_get_sg_ids,
+                                                        mock_get_sgs_from_rel,
+                                                        _):
+
+        self._prepare_context_for_operation(
+            test_name='ServerTestCase',
+            test_properties={'use_compact_node': True},
+            ctx_operation_name='cloudify.interfaces.lifecycle.create',
+            type_hierarchy=self.type_hierarchy)
+
+        mock_get_sg_ids.return_value = [
+            {
+                'id': 'a95b5509-c143-3d3g-642k-543cc448sdt7'
+            },
+        ]
+
+        mock_get_sgs_from_rel.return_value = [
+            {
+                'id': 'b84b5509-c143-3d3g-642k-632hh557feg6'
+            },
+        ]
+
+        security_groups = server._get_security_groups_config(
+            {
+                'security_groups':
+                    [
+                        {
+                            'id': 'a95b5509-c143-3d3g-642k-543cc448sdt7'
+                        },
+                    ],
+            },
+            client_config={'foo': 'boo'}
+        )
+        self.assertEqual(len(security_groups), 2)
 
     @mock.patch(
         'openstack_plugin.resources.compute.server._get_network_name')
@@ -520,13 +639,21 @@ class ServerTestCase(OpenStackTestBase):
                 '._get_user_password')
     @mock.patch('openstack_plugin.resources.compute.server'
                 '._set_server_ips_runtime_properties')
+    @mock.patch('openstack_plugin.resources.compute.server'
+                '._handle_connect_security_groups_to_server')
     def test_configure(self,
+                       mock_handle_security_groups_connection,
                        mock_ips_runtime_properties,
                        mock_user_password,
                        mock_connection):
         # Prepare the context for configure operation
         self._prepare_context_for_operation(
             test_name='ServerTestCase',
+            test_runtime_properties={
+                'security_groups': [{
+                    'id': 'a95b5509-c143-3d3g-642k-543cc448sdt7'
+                }]
+            },
             ctx_operation_name='cloudify.interfaces.lifecycle.configure',
             type_hierarchy=self.type_hierarchy)
         server_instance = openstack.compute.v2.server.Server(**{
@@ -550,6 +677,7 @@ class ServerTestCase(OpenStackTestBase):
         server.configure()
         mock_ips_runtime_properties.assert_called()
         mock_user_password.assert_called()
+        mock_handle_security_groups_connection.assert_called()
 
     @mock.patch('openstack_plugin.resources.compute.server'
                 '._get_user_password')
@@ -1877,6 +2005,11 @@ class ServerTestCase(OpenStackTestBase):
             'availability_zone': 'test_availability_zone',
             'key_name': 'test_key_name',
             'status': 'ACTIVE',
+            'security_groups': [
+                {
+                    'name': 'node-security-group'
+                }
+            ]
 
         })
 

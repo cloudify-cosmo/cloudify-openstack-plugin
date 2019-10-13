@@ -1104,7 +1104,7 @@ def get_security_groups_from_relationships(_ctx):
     for rel in find_relationships_by_openstack_type(_ctx, 'security_group'):
         resource_id = rel.target.instance.runtime_properties.get(RESOURCE_ID)
         security_groups.append({
-            'name': resource_id
+            'id': resource_id
         })
     return security_groups
 

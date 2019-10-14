@@ -23,6 +23,7 @@ import openstack.compute.v2.keypair
 import openstack.image.v2.image
 import openstack.network.v2.floating_ip
 import openstack.network.v2.port
+import openstack.network.v2.security_group
 import openstack.exceptions
 from cloudify.exceptions import (OperationRetry, NonRecoverableError)
 from cloudify.mocks import (
@@ -668,7 +669,8 @@ class ServerTestCase(OpenStackTestBase):
             'image_id': '3',
             'availability_zone': 'test_availability_zone',
             'key_name': 'test_key_name',
-            'status': 'ACTIVE'
+            'status': 'ACTIVE',
+            'security_groups': [],
 
         })
         mock_connection().compute.find_server = \
@@ -683,7 +685,77 @@ class ServerTestCase(OpenStackTestBase):
                 '._get_user_password')
     @mock.patch('openstack_plugin.resources.compute.server'
                 '._set_server_ips_runtime_properties')
+    @mock.patch('openstack_sdk.resources.compute.OpenstackServer'
+                '.remove_security_group_from_server')
+    @mock.patch('openstack_plugin.resources.compute.server'
+                '._attach_security_groups_to_server')
+    def test_configure_with_attach_security_groups(
+            self,
+            mock_attach_security_groups_to_server,
+            mock_remove_sg_from_server,
+            mock_ips_runtime_properties,
+            mock_user_password,
+            mock_connection
+    ):
+        # Prepare the context for configure operation
+        self._prepare_context_for_operation(
+            test_name='ServerTestCase',
+            test_runtime_properties={
+                'security_groups': [{
+                    'id': 'a95b5509-c143-3d3g-642k-543cc448sdt7'
+                }],
+                'server': {
+                    'foo': 'foo',
+                    'bar': 'bar'
+                }
+            },
+            ctx_operation_name='cloudify.interfaces.lifecycle.configure',
+            type_hierarchy=self.type_hierarchy)
+        server_instance = openstack.compute.v2.server.Server(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_server',
+            'access_ipv4': '1',
+            'access_ipv6': '2',
+            'addresses': {},
+            'config_drive': True,
+            'created': '2015-03-09T12:14:57.233772',
+            'flavor_id': '2',
+            'image_id': '3',
+            'availability_zone': 'test_availability_zone',
+            'key_name': 'test_key_name',
+            'status': 'ACTIVE',
+            'security_groups': []
+
+        })
+
+        mock_connection().compute.find_server = \
+            mock.MagicMock(return_value=server_instance)
+
+        server.configure()
+        mock_ips_runtime_properties.assert_called()
+        mock_user_password.assert_called()
+        mock_remove_sg_from_server.assert_not_called()
+        mock_attach_security_groups_to_server.assert_called()
+
+        self.assertIn('security_groups',
+                      self._ctx.instance.runtime_properties['server'])
+        self.assertEqual(
+            self._ctx.instance.runtime_properties['server']['security_groups'],
+            [
+                {
+                    'id': 'a95b5509-c143-3d3g-642k-543cc448sdt7'
+                }
+            ]
+        )
+
+    @mock.patch('openstack_plugin.resources.compute.server'
+                '._get_user_password')
+    @mock.patch('openstack_plugin.resources.compute.server'
+                '._set_server_ips_runtime_properties')
+    @mock.patch('openstack_plugin.resources.compute.server'
+                '._handle_connect_security_groups_to_server')
     def test_configure_with_retry(self,
+                                  mock_handle_security_groups_connection,
                                   mock_ips_runtime_properties,
                                   mock_user_password,
                                   mock_connection):
@@ -714,12 +786,16 @@ class ServerTestCase(OpenStackTestBase):
             server.configure()
             mock_ips_runtime_properties.assert_not_called()
             mock_user_password.assert_not_called()
+            mock_handle_security_groups_connection.assert_not_called()
 
     @mock.patch('openstack_plugin.resources.compute.server'
                 '._get_user_password')
     @mock.patch('openstack_plugin.resources.compute.server'
                 '._set_server_ips_runtime_properties')
+    @mock.patch('openstack_plugin.resources.compute.server'
+                '._handle_connect_security_groups_to_server')
     def test_configure_with_error(self,
+                                  mock_handle_security_groups_connection,
                                   mock_ips_runtime_properties,
                                   mock_user_password,
                                   mock_connection):
@@ -750,6 +826,7 @@ class ServerTestCase(OpenStackTestBase):
             server.configure()
             mock_ips_runtime_properties.assert_not_called()
             mock_user_password.assert_not_called()
+            mock_handle_security_groups_connection.assert_not_called()
 
     def test_stop(self, mock_connection):
         # Prepare the context for stop operation
@@ -1955,7 +2032,11 @@ class ServerTestCase(OpenStackTestBase):
         # Call disconnect floating ip
         server.disconnect_floating_ip(floating_ip='10.2.3.4')
 
-    def test_connect_security_group(self, mock_connection):
+    @mock.patch('openstack_sdk.resources.compute.OpenstackServer'
+                '.add_security_group_to_server')
+    def test_connect_security_group(self,
+                                    mock_add_security_group_to_server,
+                                    mock_connection):
         target = MockContext({
             'instance': MockNodeInstanceContext(
                 id='security-group-1',
@@ -2010,16 +2091,25 @@ class ServerTestCase(OpenStackTestBase):
                     'name': 'node-security-group'
                 }
             ]
-
         })
+        security_group_instance = \
+            openstack.network.v2.security_group.SecurityGroup(**{
+                'id': 'a95b5509-c122-4c2f-823e-884bb559afe7',
+                'name': 'node-security-group',
+                'created_at': '2016-10-04T12:14:57.233772',
+                'description': '1',
+                'revision_number': 3,
+                'tenant_id': '4',
+                'updated_at': '2016-10-14T12:16:57.233772',
+            })
 
         # Mock find server operation
         mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
-        # Mock add security group to server operation
-        mock_connection().compute.add_security_group_to_server = \
-            mock.MagicMock(return_value=None)
+        # Mock security group instance
+        mock_connection().network.get_security_group = \
+            mock.MagicMock(return_value=security_group_instance)
 
         self._pepare_relationship_context_for_operation(
             deployment_id='ServerTest',
@@ -2029,7 +2119,10 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.establish', node_id='1')
 
         # Call connect security group
-        server.connect_security_group(security_group_id='1')
+        server.connect_security_group(
+            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7'
+        )
+        mock_add_security_group_to_server.assert_not_called()
 
     @mock.patch(
         'openstack_sdk.resources.compute'
@@ -2104,13 +2197,19 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.establish', node_id='1')
 
         # Call connect security group
-        server.connect_security_group(security_group_id='1')
+        server.connect_security_group(
+            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7'
+        )
         mock_add_sg.assert_not_called()
 
     @mock.patch(
         'openstack_plugin.resources.compute.'
         'server._disconnect_security_group_from_server_ports')
+    @mock.patch(
+        'openstack_sdk.resources.compute.'
+        'OpenstackServer.remove_security_group_from_server')
     def test_disconnect_security_group(self,
+                                       mock_remove_security_group,
                                        mock_clean_ports,
                                        mock_connection):
         target = MockContext({
@@ -2173,16 +2272,52 @@ class ServerTestCase(OpenStackTestBase):
             'availability_zone': 'test_availability_zone',
             'key_name': 'test_key_name',
             'status': 'ACTIVE',
-
+            'security_groups': [
+                {
+                    'name': 'sg-1'
+                },
+                {
+                    'name': 'sg-2'
+                }
+            ]
         })
+        ports = [
+            openstack.network.v2.port.Port(**{
+                'id': 'a95b5509-c122-4c2f-823e-884bb559afe1',
+                'name': 'test_port_1',
+                'admin_state_up': True,
+                'device_id': '9',
+                'security_groups': [
+                    {
+                        'id': 'a95b5509-c122-4c2f-823e-884bb559afe5'
+                    },
+                    {
+                        'id': 'a95b5509-c122-4c2f-823e-884bb559afe4'
+                    }
+                ]
+            }),
+            openstack.network.v2.port.Port(**{
+                'id': 'a95b5509-c122-4c2f-823e-884bb559afe2',
+                'name': 'test_port_2',
+                'admin_state_up': True,
+                'device_id': '9',
+                'security_groups': [
+                    {
+                        'id': 'a95b5509-c122-4c2f-823e-884bb559afe5'
+                    },
+                    {
+                        'id': 'a95b5509-c122-4c2f-823e-884bb559afe4'
+                    }
+                ]
+            }),
+        ]
+
+        # Mock list port response
+        mock_connection().network.ports = mock.MagicMock(return_value=ports)
 
         # Mock find server operation
         mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
-
-        # Mock remove security group from server operation
-        mock_connection().compute.remove_security_group_from_server = \
-            mock.MagicMock(return_value=None)
 
         self._pepare_relationship_context_for_operation(
             deployment_id='ServerTest',
@@ -2195,6 +2330,7 @@ class ServerTestCase(OpenStackTestBase):
         server.disconnect_security_group(
             security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7')
         mock_clean_ports.assert_called()
+        mock_remove_security_group.assert_called()
 
     @mock.patch(
         'openstack_plugin.resources.compute.'

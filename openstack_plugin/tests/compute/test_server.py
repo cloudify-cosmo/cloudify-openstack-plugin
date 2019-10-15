@@ -90,7 +90,12 @@ class ServerTestCase(OpenStackTestBase):
         config['image_id'] = 'a95b5509-c122-4c2f-823e-884bb559da12'
         return config
 
-    def test_create(self, mock_connection):
+    @mock.patch(
+        'openstack_plugin.resources.compute'
+        '.server._validate_security_groups_on_ports')
+    def test_create(self,
+                    mock_validate_security_groups_on_ports,
+                    mock_connection):
         # Prepare the context for create operation
         rel_specs = [
             {
@@ -260,6 +265,8 @@ class ServerTestCase(OpenStackTestBase):
             'size': 258540032
 
         })
+
+        mock_validate_security_groups_on_ports.return_value = True
         # Mock get flavor response
         mock_connection().compute.find_flavor = \
             mock.MagicMock(return_value=flavor_instance)
@@ -287,11 +294,21 @@ class ServerTestCase(OpenStackTestBase):
             'security_groups',
             self._ctx.instance.runtime_properties)
 
-        # Check to see if there is a "security_groups" lenght is 1
+        self.assertIn(
+            '__security_groups_link_to_port',
+            self._ctx.instance.runtime_properties)
+
+        # Check to see if there is a "security_groups" length is 1
         self.assertEqual(
             len(self._ctx.instance.runtime_properties['security_groups']), 1)
 
-        # Check to see if there is a "security_groups" lenght is 1
+        # Check to see if "__security_groups_link_to_port" is True
+        self.assertTrue(
+            self._ctx.instance.runtime_properties[
+                '__security_groups_link_to_port'
+            ])
+
+        # Check to see if there is a "security_groups" length is 1
         self.assertEqual(
             self._ctx.instance.runtime_properties['security_groups'][0]['id'],
             'a16b5203-b122-4c2f-823e-884bb559afe9')
@@ -704,6 +721,7 @@ class ServerTestCase(OpenStackTestBase):
                 'security_groups': [{
                     'id': 'a95b5509-c143-3d3g-642k-543cc448sdt7'
                 }],
+                '__security_groups_link_to_port': True,
                 'server': {
                     'foo': 'foo',
                     'bar': 'bar'

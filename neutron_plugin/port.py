@@ -19,8 +19,9 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 
-import neutronclient.common.exceptions as neutron_exceptions
+from IPy import IP
 
+import neutronclient.common.exceptions as neutron_exceptions
 from openstack_plugin_common import (
     with_neutron_client,
     with_nova_client,
@@ -50,9 +51,16 @@ PORT_ADDRESS_REL_TYPE = 'cloudify.openstack.port_connected_to_floating_ip'
 # Runtime properties
 FIXED_IP_ADDRESS_PROPERTY = 'fixed_ip_address'  # the fixed ip address
 MAC_ADDRESS_PROPERTY = 'mac_address'  # the mac address
-RUNTIME_PROPERTIES_KEYS = \
-    COMMON_RUNTIME_PROPERTIES_KEYS + [FIXED_IP_ADDRESS_PROPERTY,
-                                      MAC_ADDRESS_PROPERTY]
+# List of all ip addresses exported as runtime properties for port instance
+IPS_ADDRESS_PROPERTIES = [
+    'ipv4_addresses',
+    'ipv6_addresses',
+    'ipv4_address',
+    'ipv6_address'
+]
+PORT_IPS_PROPERTIES = [FIXED_IP_ADDRESS_PROPERTY, MAC_ADDRESS_PROPERTY]\
+                      + IPS_ADDRESS_PROPERTIES
+RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + PORT_IPS_PROPERTIES
 
 NO_SG_PORT_CONNECTION_RETRY_INTERVAL = 3
 
@@ -95,6 +103,52 @@ def _port_update(neutron_client, port_id, args, ext_port):
     runtime_properties[MAC_ADDRESS_PROPERTY] = ext_port['mac_address']
 
 
+def _get_ips_from_port(port):
+    """
+    This method will extract ipv4 & ipv6 for from port object
+    :param port:
+    :return:
+    """
+    net_ips = port['fixed_ips'] if port.get('fixed_ips') else []
+    ips_v4 = []
+    ips_v6 = []
+    for net_ip in net_ips:
+        if net_ip.get('ip_address'):
+            ip_address = net_ip['ip_address']
+            try:
+                # Lookup all ipv4s
+                IP(ip_address, ipversion=4)
+                ips_v4.append(ip_address)
+            except ValueError:
+                # If it is not an ipv4 then collect the ipv6
+                IP(ip_address, ipversion=6)
+                ips_v6.append(ip_address)
+    return ips_v4, ips_v6
+
+
+def _export_ips_to_port_instance(port):
+    """
+    This method will export ips of the current port as runtime properties
+    for port node instance to be access later on
+    :param port:
+    """
+    ips_v4, ips_v6 = _get_ips_from_port(port)
+    # Set list of ipv4 for the current nod as runtime properties
+    ctx.instance.runtime_properties['ipv4_addresses'] = ips_v4
+    # # Set list of ipv6 for the current nod as runtime properties
+    ctx.instance.runtime_properties['ipv6_addresses'] = ips_v6
+
+    if len(ips_v4) == 1:
+        ctx.instance.runtime_properties['ipv4_address'] = ips_v4[0]
+    else:
+        ctx.instance.runtime_properties['ipv4_address'] = ''
+
+    if len(ips_v6) == 1:
+        ctx.instance.runtime_properties['ipv6_address'] = ips_v6[0]
+    else:
+        ctx.instance.runtime_properties['ipv6_address'] = ''
+
+
 @operation
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
@@ -130,6 +184,8 @@ def create(neutron_client, args, **kwargs):
     ctx.instance.runtime_properties[FIXED_IP_ADDRESS_PROPERTY] = \
         _get_fixed_ip(p)
     ctx.instance.runtime_properties[MAC_ADDRESS_PROPERTY] = p['mac_address']
+    # Export ip addresses attached to port as runtime properties
+    _export_ips_to_port_instance(p)
 
 
 @operation

@@ -1,3 +1,5 @@
+2.14.12:
+    - expose ipv4 and ipv6 addresses as runtime properties for port.
 2.14.11:
     - Fix issue with re-attach port to server on deployment update.
 2.14.10:

@@ -275,8 +275,11 @@ jobs:
           name: check backward/server_group
           command: cfy blueprints upload examples/2.x/server_group.yaml -b backward-server_group
       - run:
-          name: check backward/server_security_group_connection
-          command: cfy blueprints upload examples/2.x/server_security_group_connection.yaml -b backward-server_security_group_connection
+          name: check backward/server_security_group_connection_1
+          command: cfy blueprints upload examples/2.x/server_security_group_connection_1.yaml -b backward-server_security_group_connection_1
+      - run:
+          name: check backward/server_security_group_connection_2
+          command: cfy blueprints upload examples/2.x/server_security_group_connection_2.yaml -b backward-server_security_group_connection_2
       - run:
           name: check backward/server
           command: cfy blueprints upload examples/2.x/server.yaml -b backward-server

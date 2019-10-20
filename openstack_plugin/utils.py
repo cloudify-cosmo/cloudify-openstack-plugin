@@ -1093,12 +1093,31 @@ def get_networks_from_relationships(_ctx):
     return networks
 
 
+def get_security_groups_from_relationships(_ctx):
+    """
+    This method will return list of openstack security groups for connected
+    nodes associated with the current node instance
+    :param _ctx: Cloudify context instance cloudify.context.CloudifyContext
+    :return: List of security groups objects
+    """
+    security_groups = []
+    for rel in find_relationships_by_openstack_type(_ctx, 'security_group'):
+        resource_id = rel.target.instance.runtime_properties.get(RESOURCE_ID)
+        security_groups.append({
+            'id': resource_id
+        })
+    return security_groups
+
+
 def setup_openstack_logging(client_config, logger):
     # Get the logging object
     logging_config = client_config.pop('logging', dict())
     # Get a flag in order to check if we should redirect all the logs to
     # the cloudify logs
-    use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
+    if KEY_USE_CFY_LOGGER not in logging_config:
+        use_cfy_logger = True
+    else:
+        use_cfy_logger = logging_config.get(KEY_USE_CFY_LOGGER)
     # Get group of logging we want to configure them and update their
     # handler as cloudify handler
     groups_config = logging_config.get(KEY_GROUPS, {})

@@ -34,7 +34,8 @@ from openstack_sdk.resources.images import OpenstackImage
 from openstack_sdk.resources.volume import OpenstackVolume
 from openstack_sdk.resources.networks import (OpenstackPort,
                                               OpenstackNetwork,
-                                              OpenstackFloatingIP)
+                                              OpenstackFloatingIP,
+                                              OpenstackSecurityGroup)
 
 from openstack_plugin.decorators import (with_openstack_resource,
                                          with_compat_node,
@@ -98,7 +99,8 @@ from openstack_plugin.utils import \
      generate_attachment_volume_key,
      assign_resource_payload_as_runtime_properties,
      remove_duplicates_items,
-     get_networks_from_relationships)
+     get_networks_from_relationships,
+     get_security_groups_from_relationships)
 
 
 def _stop_server(server):
@@ -200,14 +202,6 @@ def _set_server_ips_runtime_properties(server):
             elif address['version'] == 6:
                 ipv6_addresses.append(ip_config)
 
-    # Check if access_ipv4 is set or not
-    if server.access_ipv4:
-        ctx.instance.runtime_properties['access_ipv4'] = server.access_ipv4
-
-    # Check if access_ipv6 is set or not
-    if server.access_ipv6:
-        ctx.instance.runtime_properties['access_ipv6'] = server.access_ipv6
-
     # If "ipv4_addresses" is only contains one item, them we need to check
     # both private/public ip in order to set them as part of runtime_properties
     for ipv4 in ipv4_addresses:
@@ -260,6 +254,29 @@ def _set_server_ips_runtime_properties(server):
 
     ctx.instance.runtime_properties['ipv4_addresses'] = ipv4_list
     ctx.instance.runtime_properties['ipv6_addresses'] = ipv6_list
+
+    # Set "ipv4_address" for server as runtime property
+    if server.access_ipv4:
+        # Maintain "access_ipv4" for backward compatibility
+        ctx.instance.runtime_properties['access_ipv4'] = server.access_ipv4
+        ctx.instance.runtime_properties['ipv4_address'] = server.access_ipv4
+
+    elif len(ipv4_list) == 1:
+        ctx.instance.runtime_properties['ipv4_address'] = ipv4_list[0]
+    else:
+        ctx.instance.runtime_properties['ipv4_address'] = ''
+
+    # Set "ipv6_address" for server as runtime property
+    if server.access_ipv6:
+        # Maintain "access_ipv6" for backward compatibility
+        ctx.instance.runtime_properties['access_ipv6'] = server.access_ipv6
+        ctx.instance.runtime_properties['ipv6_address'] = server.access_ipv6
+
+    elif len(ipv6_list) == 1:
+        ctx.instance.runtime_properties['ipv6_address'] = ipv6_list[0]
+
+    else:
+        ctx.instance.runtime_properties['ipv6_address'] = ''
 
 
 def _log_snapshot_message(action,
@@ -679,6 +696,43 @@ def _get_network_name(nic_object, client_config):
     return net_name
 
 
+def _get_security_groups_ids(security_groups, client_config):
+    """
+    This method will return all security groups ids so they can be used
+    later on for attaching to servers and the reason for getting the ids
+    instead of names because there is an issue with openstacksdk
+    :param security_groups: List of security groups
+            [
+                {
+                'name': 'security-group-name-1'
+                },
+                {
+                'name': 'security-group-name-1'
+                }
+            ]
+    :param dict client_config: Openstack configuration required to connect
+    to API
+    :return: List of security groups
+    [
+        {
+        'id': '2830b6f1-801c-4973-84e2-7772f7e20e2a'
+        },
+        {
+        'id': '8347a687352e37767f93305cca090357'
+        }
+    ]
+    """
+    sg_list = []
+    security_group = OpenstackSecurityGroup(client_config=client_config,
+                                            logger=ctx.logger)
+    for sg in security_groups:
+        remote_sg = security_group.find_security_group(sg.get('name'))
+        sg_list.append({
+            'id': remote_sg.id
+        })
+    return sg_list
+
+
 @with_multiple_data_sources(clean_duplicates_handler=_clean_duplicate_volumes)
 def _update_bootable_volume_config(server_config, allow_multiple=False):
     """
@@ -878,6 +932,46 @@ def _update_server_group_config(server_config, allow_multiple=False):
 
         scheduler_hints['group'] = server_group_id
         server_config['scheduler_hints'] = scheduler_hints
+
+
+@with_multiple_data_sources()
+def _get_security_groups_config(server_config,
+                                client_config,
+                                allow_multiple=False):
+    """
+    This method will try to get security groups info connected with server
+    node if there is any relationships or from the node properties under
+    resource_config
+    :param server_config: The server configuration required in order to
+    create the server instance using Openstack API
+    :param dict client_config: Openstack configuration required to connect
+    to API
+    :param boolean allow_multiple: This flag to set if it is allowed to have
+    security groups configuration from multiple resources relationships + node
+    properties
+    """
+    # Check to see if the security_groups dict is provided on the server config
+    # properties
+    sgs_from_node = server_config.pop('security_groups', [])
+    if sgs_from_node:
+        sgs_from_node = _get_security_groups_ids(sgs_from_node, client_config)
+    sgs_from_rel = get_security_groups_from_relationships(ctx)
+
+    # if both are empty then server is not providing security groups neither
+    # via node properties nor via relationships
+    if not (sgs_from_node or sgs_from_rel):
+        return
+    # Try to merge them
+    elif sgs_from_node and sgs_from_rel and not allow_multiple:
+        raise NonRecoverableError('Server can\'t both have the '
+                                  '"security_groups" property and be '
+                                  'connected to a security groups via a '
+                                  'relationship at the same time')
+
+    security_groups = sgs_from_node + sgs_from_rel
+    security_groups = remove_duplicates_items(security_groups)
+
+    return security_groups
 
 
 def _update_server_config(server_config, client_config):
@@ -1205,7 +1299,7 @@ def _disconnect_security_group_from_server_ports(client_config,
     if not server_payload:
         return
 
-    networks = server_payload.get('networks', [])
+    networks = server_payload.get('networks') or []
     server_ports = \
         [
             network[PORT_OPENSTACK_TYPE]
@@ -1223,6 +1317,21 @@ def _disconnect_security_group_from_server_ports(client_config,
         port.update({
             'security_groups': port_security_groups
         })
+
+
+def _attach_security_groups_to_server(openstack_resource,
+                                      security_groups):
+    """
+    This method will connect all security groups configured to server using
+    relationships or node properties to attach them to
+    :param openstack_resource: instance of openstack server resource
+    :param security_groups: List of security groups which should be
+    added to the server
+    """
+    for security_group in security_groups or []:
+        openstack_resource.add_security_group_to_server(
+            security_group.get('id')
+        )
 
 
 def _handle_disconnect_external_ip_from_server():
@@ -1250,6 +1359,47 @@ def _handle_detach_external_volume_from_server():
     """
     ctx.logger.info('Not detaching volume from server since '
                     'external volume and server are being used')
+
+
+def _handle_connect_security_groups_to_server(openstack_resource):
+    """
+    This method will connect all security groups configured to server using
+    relationships or node properties to attach them to
+    :param openstack_resource: Instance Of OpenstackServer in order to
+    use it
+    """
+    # Get the security groups for the server so that we can attach them
+    security_groups = ctx.instance.runtime_properties.get('security_groups')
+    has_sg = ctx.instance.runtime_properties.get(
+        '__security_groups_link_to_port')
+
+    if security_groups:
+        # Security group is not passed during server creation and this is
+        # because a bug in OpenstackSDK. However, Openstack API by default
+        # assign "default" security group to server if server is not
+        # attached to anything and this undesired behaviour need to avoid
+        # and we need to make sure that we are not removing a security
+        # groups attached to port which already link to server.
+        # "has_sg" give an indication if we should remove the "Default"
+        # security group or not which will be attached in index "0"
+        remote_server = openstack_resource.get()
+        if not has_sg and remote_server.security_groups:
+            sg_name = remote_server.security_groups[0].get('name')
+            if sg_name:
+                openstack_resource.remove_security_group_from_server(sg_name)
+
+        # Since there is an issue with attaching security groups to server in
+        # creation, we added this method to use another api call to add each
+        # provided security groups one by one to the server
+        _attach_security_groups_to_server(
+            openstack_resource, security_groups
+        )
+        # Update the server object with the attached security groups.
+        ctx.instance.runtime_properties['server']['security_groups'] = \
+            security_groups
+
+        # Flag to indicate that security groups are attach to server
+        ctx.instance.runtime_properties['__security_groups_attached'] = True
 
 
 def _validate_external_server_status(openstack_resource):
@@ -1332,6 +1482,19 @@ def _validate_external_volume_connection(openstack_resource):
         'connected'.format(openstack_resource.resource_id, volume_id))
 
 
+def _validate_security_groups_on_ports(server_networks, client_config):
+    for net in server_networks:
+        if net.get('port'):
+            port = OpenstackPort(client_config=client_config,
+                                 logger=ctx.logger)
+            port.resource_id = net['port']
+            response = port.get()
+            # If at least on port has security group return
+            if response.security_group_ids:
+                return True
+    return False
+
+
 @with_compat_node
 @with_openstack_resource(
     OpenstackServer,
@@ -1344,6 +1507,11 @@ def create(openstack_resource):
     blueprint_user_data = openstack_resource.config.get('user_data')
     user_data = handle_userdata(blueprint_user_data)
 
+    # Openstack Client Config
+    client_config = openstack_resource.client_config
+    # Openstack Server Resource Config
+    config = openstack_resource.config
+
     # Handle user data
     if user_data:
         openstack_resource.config['user_data'] = user_data
@@ -1355,7 +1523,34 @@ def create(openstack_resource):
     # Update flavor and image for server
     _update_flavor_and_image_config(openstack_resource)
 
-    # Create resource
+    # Grab all the security groups to attach them to server in configure
+    # operation because create server has issue and cannot attached security
+    # groups to server when creating server
+    security_groups = _get_security_groups_config(
+        config,
+        client_config=client_config
+    )
+    # Check to see if ports already atatched to server assoicated with
+    # security groups or not. Will be useful to determine if its needed to
+    # remove the "Default" security groups
+    server_networks = config.get('networks') or []
+    has_sg = _validate_security_groups_on_ports(
+        server_networks, client_config
+    )
+    ctx.instance.runtime_properties['__security_groups_link_to_port'] = has_sg
+
+    # Update instance runtime properties to be added later on on start server
+    if security_groups:
+        ctx.instance.runtime_properties['security_groups'] = security_groups
+
+    # Create resource, At server creation we are not going to attach any
+    # security groups here since Adding security groups within create server
+    # API will not attach any security groups to server. So based on that
+    # Server creation could be attached to security groups using one of the
+    # following option at create API:
+    # 1. Default security group when there is no security group attached to
+    # server, Openstack will attach this to server
+    # 2. Server attach to ports which already attached to security groups
     created_resource = openstack_resource.create()
 
     # Set the "id" as a runtime property for the created server
@@ -1364,7 +1559,6 @@ def create(openstack_resource):
     # Update the resource_id with the new "id" returned from API
     openstack_resource.resource_id = created_resource.id
 
-    # Assign runtime properties for server
     assign_resource_payload_as_runtime_properties(ctx,
                                                   created_resource,
                                                   SERVER_OPENSTACK_TYPE)
@@ -1386,8 +1580,16 @@ def configure(openstack_resource):
     status = server.status
     if status == SERVER_STATUS_ACTIVE:
         ctx.logger.info('Server {0} is already started'.format(server.id))
+        # Set ips for server as runtime properties
         _set_server_ips_runtime_properties(server)
+
+        # Get user password for server
         _get_user_password(openstack_resource)
+
+        # Handle actual connection of security groups to server
+        if '__security_groups_attached' not in \
+                ctx.instance.runtime_properties:
+            _handle_connect_security_groups_to_server(openstack_resource)
         return
     elif status == SERVER_STATUS_ERROR:
         raise NonRecoverableError(
@@ -1837,7 +2039,24 @@ def connect_security_group(openstack_resource, security_group_id):
                                   'connect security group to server {0}'
                                   ''.format(openstack_resource.resource_id))
 
-    openstack_resource.add_security_group_to_server(security_group_id)
+    security_group = OpenstackSecurityGroup(
+        client_config=openstack_resource.client_config,
+        logger=ctx.logger)
+    security_group.resource_id = security_group_id
+
+    # Security group name which need to be connected to the server
+    security_group_name = security_group.get().name
+    # The security groups already attached to server
+    security_groups = openstack_resource.get().security_groups
+
+    def _match_security_group(_security_group):
+        return security_group_name == _security_group.get('name')
+
+    # Since some security groups are already attached in
+    # create this will ensure that they are not attached twice.
+    present = any(map(_match_security_group, security_groups))
+    if not present:
+        openstack_resource.add_security_group_to_server(security_group_id)
 
 
 @with_compat_node
@@ -1855,7 +2074,26 @@ def disconnect_security_group(openstack_resource, security_group_id):
                                   'disconnect security group from server {0}'
                                   ''.format(openstack_resource.resource_id))
 
-    openstack_resource.remove_security_group_from_server(security_group_id)
+    # Before removing security group from server we need to make sure that
+    # server has already attached to ports, because "removeSecurityGroup" API
+    # before remove any security groups from server, it should has port
+    # attached to it, since security group get removed from the ports
+    # attached to the server
+    # https://github.com/openstack/nova/blob/master/nova/network/security_group/neutron_driver.py#L517 # NOQA
+    # Before removing the security from server we need to check if they have
+    # attached ports or not, if not then we should not call removeSecurityGroup
+    # and it will be enough to just remove security group from server ports
+    # If server has ports then we should remove security group from server
+    # and then remove security group from ports
+    port_resource = OpenstackPort(
+        client_config=openstack_resource.client_config,
+        logger=ctx.logger
+    )
+    server_ports = list(port_resource.list(
+        query={'device_id': openstack_resource.resource_id})
+    )
+    if server_ports:
+        openstack_resource.remove_security_group_from_server(security_group_id)
 
     # Get the payload for server from runtime properties in order to get the
     # ports information attached to the server which will automatically

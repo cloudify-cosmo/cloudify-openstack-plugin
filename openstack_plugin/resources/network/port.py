@@ -17,6 +17,8 @@
 from cloudify import ctx
 from cloudify.exceptions import NonRecoverableError
 
+from IPy import IP
+
 # Local imports
 from openstack_sdk.resources.networks import OpenstackPort
 from openstack_sdk.resources.compute import OpenstackServer
@@ -268,6 +270,52 @@ def _update_port_association(client_config, port_id, device_id=''):
     port_resource.update({'device_id': device_id})
 
 
+def _get_fixed_ips_from_port(port):
+    """
+    This method will extract ipv4 & ipv6 for from port object
+    :param port: Port instance of type `~openstack.network.v2.port.Port`
+    :return: Tuple of list contains lists for ipv4 & ipv6
+    """
+    net_ips = port['fixed_ips'] if port.get('fixed_ips') else []
+    ips_v4 = []
+    ips_v6 = []
+    for net_ip in net_ips:
+        if net_ip.get('ip_address'):
+            ip_address = net_ip['ip_address']
+            try:
+                # Lookup all ipv4s
+                IP(ip_address, ipversion=4)
+                ips_v4.append(ip_address)
+            except ValueError:
+                # If it is not an ipv4 then collect the ipv6
+                IP(ip_address, ipversion=6)
+                ips_v6.append(ip_address)
+    return ips_v4, ips_v6
+
+
+def _export_ips_to_port_instance(ips_v4, ips_v6):
+    """
+    This method will export ips of the current port as runtime properties
+    for port node instance to be access later on
+    :param ips_v4: List of ip version 4
+    :param ips_v6: List of ip version 6
+    """
+    # Set list of ipv4 for the current nod as runtime properties
+    ctx.instance.runtime_properties['ipv4_addresses'] = ips_v4
+    # # Set list of ipv6 for the current nod as runtime properties
+    ctx.instance.runtime_properties['ipv6_addresses'] = ips_v6
+
+    if len(ips_v4) == 1:
+        ctx.instance.runtime_properties['ipv4_address'] = ips_v4[0]
+    else:
+        ctx.instance.runtime_properties['ipv4_address'] = ''
+
+    if len(ips_v6) == 1:
+        ctx.instance.runtime_properties['ipv6_address'] = ips_v6[0]
+    else:
+        ctx.instance.runtime_properties['ipv6_address'] = ''
+
+
 @with_compat_node
 @with_openstack_resource(
     OpenstackPort,
@@ -282,12 +330,15 @@ def create(openstack_resource):
 
     # Create port
     created_resource = openstack_resource.create()
+    ipv4_list, ipv6_list = _get_fixed_ips_from_port(created_resource)
+    fixed_ips = ipv4_list + ipv6_list
+    _export_ips_to_port_instance(ipv4_list, ipv6_list)
 
     # Handle runtime properties
     update_runtime_properties(
         {
             RESOURCE_ID: created_resource.id,
-            'fixed_ips': created_resource.fixed_ips,
+            'fixed_ips': fixed_ips,
             'mac_address': created_resource.mac_address,
             'allowed_address_pairs': created_resource.allowed_address_pairs,
         }

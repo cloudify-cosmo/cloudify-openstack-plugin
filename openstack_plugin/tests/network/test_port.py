@@ -112,7 +112,14 @@ class PortTestCase(OpenStackTestBase):
             'dns_domain': 'a11',
             'dns_name': '12',
             'extra_dhcp_opts': [{'13': 13}],
-            'fixed_ips': [{'10.0.0.1': '10.0.0.2'}],
+            'fixed_ips': [
+                {
+                    'ip_address': '10.0.0.1'
+                },
+                {
+                    'ip_address': '10.0.0.2'
+                }
+            ],
             'allowed_address_pairs':
                 [
                     {
@@ -152,7 +159,20 @@ class PortTestCase(OpenStackTestBase):
 
         self.assertEqual(
             self._ctx.instance.runtime_properties['fixed_ips'],
-            [{'10.0.0.1': '10.0.0.2'}])
+            ['10.0.0.1', '10.0.0.2'])
+
+        self.assertEqual(
+            self._ctx.instance.runtime_properties['ipv4_addresses'],
+            ['10.0.0.1', '10.0.0.2'])
+
+        self.assertEqual(
+            self._ctx.instance.runtime_properties['ipv4_address'], '')
+
+        self.assertEqual(
+            self._ctx.instance.runtime_properties['ipv6_addresses'], [])
+
+        self.assertEqual(
+            self._ctx.instance.runtime_properties['ipv6_address'], '')
 
         self.assertEqual(
             self._ctx.instance.runtime_properties['mac_address'],

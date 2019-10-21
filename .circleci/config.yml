@@ -161,6 +161,9 @@ jobs:
           name: check local/image
           command: cfy blueprints upload examples/local/image.yaml -b local-image
       - run:
+          name: check local/ipv6-dual-port
+          command: cfy blueprints upload examples/local/ipv6_dual.yaml -b ipv6-dual-port
+      - run:
           name: check local/keypair
           command: cfy blueprints upload examples/local/keypair.yaml -b local-keypair
       - run:
@@ -226,6 +229,9 @@ jobs:
       - run:
           name: check backward/image
           command: cfy blueprints upload examples/2.x/image.yaml -b backward-image
+      - run:
+          name: check backward/ipv6-dual-port
+          command: cfy blueprints upload examples/2.x/ipv6_dual.yaml -b backward-ipv6-dual-port
       - run:
           name: check backward/keypair
           command: cfy blueprints upload examples/2.x/keypair.yaml -b backward-keypair

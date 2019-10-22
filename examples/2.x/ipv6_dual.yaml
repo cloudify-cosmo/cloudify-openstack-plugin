@@ -1,0 +1,244 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5.5/types.yaml
+  - plugin:cloudify-openstack-plugin
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-openstack-plugin/3.2.7/compat.yaml
+
+inputs:
+
+  username:
+    description: OS_USERNAME as specified in Openstack RC file.
+
+  password:
+    description: Openstack user password.
+
+  tenant_name:
+    description: OS_TENANT_NAME as specified in Openstack RC file.
+
+  auth_url:
+    description: OS_AUTH_URL as specified in Openstack RC file.
+
+  region:
+    description: OS_REGION_NAME as specified in Openstack RC file.
+
+  user_domain_name:
+    default: Default
+
+  project_domain_name:
+    default: Default
+
+  key_name:
+    description: Openstack key name
+
+  ipv4_nameservers:
+    default:
+    - 8.8.4.4
+    - 8.8.8.8
+
+  ipv4_subnet_cidr:
+    default: 10.10.4.0/24
+
+  ipv4_allocation_pools:
+    default:
+    - start: 10.10.4.2
+      end: 10.10.4.254
+
+  ipv6_nameservers:
+    default:
+    - 2001:4860:4860::8888
+    - 2001:4860:4860::8844
+
+  ipv6_subnet_cidr:
+    default: 2605:1c00:50f2:2207::/64
+
+  ipv6_allocation_pools:
+    default:
+    - start: 2605:1c00:50f2:2207::64
+      end: 2605:1c00:50f2:2207:ffff:ffff:ffff:ff
+
+  # More info can be found https://docs.openstack.org/mitaka/networking-guide/config-ipv6.html
+  ipv6_address_mode:
+    default: 'slaac'
+    description: Determines how instances obtain IPv6 address, default gateway, or optional information.
+
+  # More info can be found https://docs.openstack.org/mitaka/networking-guide/config-ipv6.html
+  ipv6_ra_mode:
+    default: 'slaac'
+    description: Determines who sends RA (Router Advertisement)
+
+  centos_image:
+    description: Centos Image name/id
+
+  flavor:
+    description: Flavor name/id
+
+  dual_network_name:
+    default: dual-network
+
+  router_name:
+    description: Name of exisiting router
+
+
+dsl_definitions:
+
+  client_config: &client_config
+    username: { get_input: username }
+    password: { get_input: password }
+    project_name: { get_input: tenant_name }
+    region: { get_input: region }
+    auth_url: { get_input: auth_url }
+    # user_domain_name & project_domain_name only required when auth_url is "v3"
+    user_domain_name: { get_input: user_domain_name }
+    project_domain_name: { get_input: project_domain_name }
+
+node_templates:
+
+  router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+      openstack_config: *client_config
+      use_external_resource: true
+      resource_id: { get_input: router_name }
+
+  network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      openstack_config: *client_config
+      network:
+        name: { get_input: dual_network_name }
+
+  ipv4_subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      openstack_config: *client_config
+      subnet:
+        ip_version: 4
+        cidr: { get_input: ipv4_subnet_cidr }
+        dns_nameservers: { get_input: ipv4_nameservers }
+        allocation_pools: { get_input: ipv4_allocation_pools }
+    relationships:
+    - type: cloudify.relationships.contained_in
+      target: network
+    - type: cloudify.openstack.subnet_connected_to_router
+      target: router
+
+  ipv6_subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      openstack_config: *client_config
+      subnet:
+        ip_version: 6
+        cidr: { get_input: ipv6_subnet_cidr }
+        dns_nameservers: { get_input: ipv6_nameservers }
+        allocation_pools: { get_input: ipv6_allocation_pools }
+        ipv6_address_mode: { get_input: ipv6_address_mode }
+        ipv6_ra_mode: { get_input: ipv6_ra_mode }
+    relationships:
+    - type: cloudify.openstack.subnet_connected_to_router
+      target: router
+    - type: cloudify.relationships.contained_in
+      target: network
+
+  cloudify_security_group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      openstack_config: *client_config
+      rules:
+      - remote_ip_prefix: 0.0.0.0/0
+        port_range_min: null
+        port_range_max: null
+        protocol: icmp
+      - remote_ip_prefix: ::/0
+        port_range_min: null
+        port_range_max: null
+        ethertype: IPv6
+        protocol: icmp
+      - remote_ip_prefix: 0.0.0.0/0
+        port_range_min: 22
+        port_range_max: 22
+        protocol: tcp
+      - remote_ip_prefix: ::/0
+        port_range_min: 22
+        port_range_max: 22
+        ethertype: IPv6
+        protocol: tcp
+
+  dual_port:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *client_config
+    relationships:
+    - type: cloudify.relationships.contained_in
+      target: network
+    - type: cloudify.relationships.depends_on
+      target: ipv4_subnet
+    - type: cloudify.relationships.depends_on
+      target: ipv6_subnet
+    - type: cloudify.openstack.port_connected_to_security_group
+      target: cloudify_security_group
+
+  dual_port2:
+    type: cloudify.openstack.nodes.Port
+    properties:
+      openstack_config: *client_config
+    relationships:
+    - type: cloudify.relationships.contained_in
+      target: network
+    - type: cloudify.relationships.depends_on
+      target: ipv4_subnet
+    - type: cloudify.relationships.depends_on
+      target: ipv6_subnet
+    - type: cloudify.openstack.port_connected_to_security_group
+      target: cloudify_security_group
+
+  host:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *client_config
+      agent_config:
+        install_method: none
+      server:
+        name: host_1
+        key_name: { get_input: key_name }
+        image: { get_input: centos_image }
+        flavor: { get_input: flavor }
+    relationships:
+    - type: cloudify.openstack.server_connected_to_port
+      target: dual_port
+
+  host_2:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *client_config
+      agent_config:
+        install_method: none
+      server:
+        name: host_2
+        key_name: { get_input: key_name }
+        image: { get_input: centos_image }
+        flavor: { get_input: flavor }
+    relationships:
+    - type: cloudify.openstack.server_connected_to_port
+      target: dual_port2
+
+outputs:
+  # Ipv4 & ipv6 also available from server instance
+  ipv4-from-server-1:
+    value: { get_attribute: [ host, ipv4_address ] }
+  ipv6-from-server-1:
+    value: { get_attribute: [ host, ipv6_address ] }
+  ipv4-from-server-2:
+    value: { get_attribute: [ host_2, ipv4_address ] }
+  ipv6-from-server-2:
+    value: { get_attribute: [ host_2, ipv6_address ] }
+
+  # Ipv4 & ipv6 also available from port instance
+  ipv4-from-dual-port:
+    value: { get_attribute: [ dual_port, ipv4_address ] }
+  ipv6-from-dual-port:
+    value: { get_attribute: [ dual_port, ipv6_address ] }
+  ipv4-from-dual-port-2:
+    value: { get_attribute: [ dual_port2, ipv4_address ] }
+  ipv6-from-dual-port-2:
+    value: { get_attribute: [ dual_port2, ipv6_address ] }

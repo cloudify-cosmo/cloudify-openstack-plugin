@@ -49,7 +49,7 @@ DEFAULT_RULE_VALUES = {
 SG_OPENSTACK_TYPE = 'security_group'
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def create(
     neutron_client, args,
@@ -111,7 +111,7 @@ def create(
         raise
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_sg(neutron_client)
@@ -125,7 +125,7 @@ def list_security_groups(neutron_client, args, **kwargs):
                                    sg_list.get('security_groups', []))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     sg_creation_validation(neutron_client, 'remote_ip_prefix')

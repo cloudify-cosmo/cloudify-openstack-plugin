@@ -41,7 +41,7 @@ KEYPAIR_OPENSTACK_TYPE = 'keypair'
 PRIVATE_KEY_PATH_PROP = 'private_key_path'
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def create(nova_client, args, **kwargs):
 
@@ -86,7 +86,7 @@ def create(nova_client, args, **kwargs):
             raise
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
@@ -108,7 +108,7 @@ def list_keypairs(nova_client, args, **kwargs):
     add_list_to_runtime_properties(ctx, KEYPAIR_OPENSTACK_TYPE, keypair_list)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def creation_validation(nova_client, **kwargs):
 

@@ -149,7 +149,7 @@ def _export_ips_to_port_instance(port):
         ctx.instance.runtime_properties['ipv6_address'] = ''
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
 
@@ -188,7 +188,7 @@ def create(neutron_client, args, **kwargs):
     _export_ips_to_port_instance(p)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_neutron_client
 def attach(nova_client, neutron_client, **kwargs):
@@ -249,7 +249,7 @@ def _port_delete(neutron_client, port_id, ext_port):
             ctx.logger.info("Applied on remove: {}".format(repr(change)))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     try:
@@ -270,7 +270,7 @@ def delete(neutron_client, **kwargs):
             raise
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_neutron_client
 def detach(nova_client, neutron_client, **kwargs):
@@ -311,7 +311,7 @@ def detach(nova_client, neutron_client, **kwargs):
     ctx.logger.info('Successfully detached port {0}'.format(port_id))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def connect_security_group(neutron_client, **kwargs):
     port_id = get_openstack_id(ctx.source)
@@ -355,7 +355,7 @@ def connect_security_group(neutron_client, **kwargs):
         )
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def disconnect_security_group(neutron_client, **kwargs):
     port_id = get_openstack_id(ctx.source)
@@ -393,7 +393,7 @@ def list_ports(neutron_client, args, **kwargs):
                                    port_list.get('ports', []))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, PORT_OPENSTACK_TYPE)

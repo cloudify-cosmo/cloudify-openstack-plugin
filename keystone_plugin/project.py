@@ -46,7 +46,7 @@ USERS = 'users'
 ROLES = 'roles'
 
 
-@operation
+@operation(resumable=True)
 @with_keystone_client
 def create(keystone_client, args, **kwargs):
     if use_external_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE):
@@ -61,7 +61,7 @@ def create(keystone_client, args, **kwargs):
     set_openstack_runtime_properties(ctx, project, PROJECT_OPENSTACK_TYPE)
 
 
-@operation
+@operation(resumable=True)
 def start(quota_dict, **kwargs):
     users = ctx.node.properties[USERS]
     validate_users(users, **kwargs)
@@ -71,7 +71,7 @@ def start(quota_dict, **kwargs):
     update_project_quota(quota=quota, **kwargs)
 
 
-@operation
+@operation(resumable=True)
 @with_keystone_client
 @with_nova_client
 @with_cinder_client
@@ -87,7 +87,7 @@ def delete(keystone_client, nova_client, cinder_client,
                                            RUNTIME_PROPERTIES_KEYS)
 
 
-@operation
+@operation(resumable=True)
 @with_keystone_client
 def creation_validation(keystone_client, **kwargs):
     validate_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE)

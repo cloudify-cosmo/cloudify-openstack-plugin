@@ -31,7 +31,7 @@ from openstack_plugin_common.security_group import (
 )
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def create(nova_client, args, **kwargs):
 
@@ -69,13 +69,13 @@ def create(nova_client, args, **kwargs):
         raise
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def delete(nova_client, **kwargs):
     delete_sg(nova_client)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def creation_validation(nova_client, **kwargs):
     sg_creation_validation(nova_client, 'cidr')

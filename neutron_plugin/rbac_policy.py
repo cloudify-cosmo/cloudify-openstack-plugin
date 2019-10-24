@@ -121,7 +121,7 @@ def create_rbac_policy_object_dict(ctx, args):
     return rbac_policy
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
     if use_external_resource(ctx, neutron_client, RBAC_POLICY_OPENSTACK_TYPE):
@@ -141,7 +141,7 @@ def create(neutron_client, args, **kwargs):
     set_neutron_runtime_properties(ctx, rp, RBAC_POLICY_OPENSTACK_TYPE)
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(
@@ -151,7 +151,7 @@ def delete(neutron_client, **kwargs):
     )
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def list_rbac_policies(neutron_client, args, **kwargs):
     rbac_policies = neutron_client.list_rbac_policies(**args)
@@ -162,7 +162,7 @@ def list_rbac_policies(neutron_client, args, **kwargs):
     )
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def find_and_delete(neutron_client, args, **kwargs):
     reference_rbac_policy = create_rbac_policy_object_dict(ctx, args)

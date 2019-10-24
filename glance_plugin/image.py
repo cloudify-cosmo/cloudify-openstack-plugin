@@ -39,7 +39,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 REQUIRED_PROPERTIES = ['container_format', 'disk_format']
 
 
-@operation
+@operation(resumable=True)
 @with_glance_client
 def create(glance_client, args, **kwargs):
     if use_external_resource(ctx, glance_client, IMAGE_OPENSTACK_TYPE):
@@ -72,7 +72,7 @@ def _get_image_by_ctx(glance_client, ctx):
         image_id=get_openstack_id(ctx))
 
 
-@operation
+@operation(resumable=True)
 @with_glance_client
 def start(glance_client, start_retry_interval, **kwargs):
     img = _get_image_by_ctx(glance_client, ctx)
@@ -82,7 +82,7 @@ def start(glance_client, start_retry_interval, **kwargs):
             retry_after=start_retry_interval)
 
 
-@operation
+@operation(resumable=True)
 @with_glance_client
 def delete(glance_client, **kwargs):
     _remove_protected(glance_client)
@@ -107,7 +107,7 @@ def update(glance_client, args, **kwargs):
     set_openstack_runtime_properties(ctx, image, IMAGE_OPENSTACK_TYPE)
 
 
-@operation
+@operation(resumable=True)
 @with_glance_client
 def creation_validation(glance_client, **kwargs):
     validate_resource(ctx, glance_client, IMAGE_OPENSTACK_TYPE)

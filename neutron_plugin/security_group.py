@@ -117,6 +117,7 @@ def delete(neutron_client, **kwargs):
     delete_sg(neutron_client)
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_security_groups(neutron_client, args, **kwargs):
     sg_list = neutron_client.list_security_groups(**args)

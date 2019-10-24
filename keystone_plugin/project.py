@@ -87,7 +87,6 @@ def delete(keystone_client, nova_client, cinder_client,
                                            RUNTIME_PROPERTIES_KEYS)
 
 
-@operation(resumable=True)
 @with_keystone_client
 def creation_validation(keystone_client, **kwargs):
     validate_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE)
@@ -163,6 +162,7 @@ def delete_quota(project_id, quota, client, what_quota):
             'Deleted {0} quota'.format(what_quota))
 
 
+@operation(resumable=True)
 @with_nova_client
 @with_neutron_client
 @with_cinder_client
@@ -177,12 +177,14 @@ def update_project_quota(nova_client,
     update_quota(project_id, quota, cinder_client, CINDER)
 
 
+@operation(resumable=True)
 @with_keystone_client
 def list_projects(keystone_client, args, **kwargs):
     projects_list = keystone_client.projects.list(**args)
     add_list_to_runtime_properties(ctx, PROJECT_OPENSTACK_TYPE, projects_list)
 
 
+@operation(resumable=True)
 @with_nova_client
 @with_neutron_client
 @with_cinder_client
@@ -198,6 +200,7 @@ def get_project_quota(nova_client,
     ctx.instance.runtime_properties[QUOTA] = quota
 
 
+@operation(resumable=True)
 @with_keystone_client
 def update_project(keystone_client, args, **kwargs):
 

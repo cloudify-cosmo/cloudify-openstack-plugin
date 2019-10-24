@@ -204,6 +204,7 @@ def _get_snapshot_name(ctx, kwargs):
     return "vol-{}-{}".format(get_openstack_id(ctx), kwargs["snapshot_name"])
 
 
+@operation(resumable=True)
 @with_cinder_client
 def snapshot_create(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)
@@ -224,6 +225,7 @@ def snapshot_create(cinder_client, **kwargs):
                                               metadata=None)
 
 
+@operation(resumable=True)
 @with_cinder_client
 def snapshot_apply(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)
@@ -254,6 +256,7 @@ def snapshot_apply(cinder_client, **kwargs):
         ctx.logger.error("Apply snapshot is unsuported")
 
 
+@operation(resumable=True)
 @with_cinder_client
 def snapshot_delete(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)

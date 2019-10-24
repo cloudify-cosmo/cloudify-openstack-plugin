@@ -97,6 +97,7 @@ def delete(neutron_client, **kwargs):
                                            RUNTIME_PROPERTIES_KEYS)
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_networks(neutron_client, args, **kwargs):
     net_list = neutron_client.list_networks(**args)

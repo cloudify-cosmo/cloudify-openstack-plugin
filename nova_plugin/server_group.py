@@ -64,6 +64,7 @@ def delete(nova_client, **kwargs):
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
 
 
+@operation(resumable=True)
 @with_nova_client
 def list_servergroups(nova_client, args, **kwargs):
     server_group_list = nova_client.server_groups.list(**args)

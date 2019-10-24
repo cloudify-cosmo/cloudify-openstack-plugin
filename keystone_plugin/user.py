@@ -57,7 +57,7 @@ def update(keystone_client, args, **kwargs):
     user = keystone_client.users.update(**user_dict)
     set_openstack_runtime_properties(ctx, user, USER_OPENSTACK_TYPE)
 
-
+@operation(resumable=True)
 @with_keystone_client
 def list_users(keystone_client, args, **kwargs):
     users_list = keystone_client.users.list(**args)

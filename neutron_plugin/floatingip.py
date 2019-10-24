@@ -102,6 +102,7 @@ def delete(neutron_client, **kwargs):
     delete_floatingip(neutron_client)
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_floatingips(neutron_client, args, **kwargs):
     fip_list = neutron_client.list_floatingips(**args)

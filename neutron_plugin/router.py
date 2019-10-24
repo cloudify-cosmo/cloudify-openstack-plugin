@@ -271,6 +271,7 @@ def delete_routes(neutron_client, **kwargs):
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_routers(neutron_client, args, **kwargs):
     router_list = neutron_client.list_routers(**args)

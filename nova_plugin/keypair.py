@@ -102,6 +102,7 @@ def delete(nova_client, **kwargs):
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
 
 
+@operation(resumable=True)
 @with_nova_client
 def list_keypairs(nova_client, args, **kwargs):
     keypair_list = nova_client.keypairs.list(**args)

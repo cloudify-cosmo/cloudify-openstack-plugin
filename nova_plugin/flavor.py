@@ -91,6 +91,7 @@ def delete(nova_client, **kwargs):
     delete_runtime_properties(ctx, [EXTRA_SPECS_PROPERTY, TENANTS_PROPERTY])
 
 
+@operation(resumable=True)
 @with_nova_client
 def list_flavors(nova_client, args, **kwargs):
     flavor_list = nova_client.flavors.list(**args)

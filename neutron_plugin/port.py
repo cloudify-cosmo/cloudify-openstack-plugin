@@ -385,6 +385,7 @@ def disconnect_security_group(neutron_client, **kwargs):
         )
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_ports(neutron_client, args, **kwargs):
     port_list = neutron_client.list_ports(**args)

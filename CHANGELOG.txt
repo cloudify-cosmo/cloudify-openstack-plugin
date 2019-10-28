@@ -1,5 +1,7 @@
+3.2.9
+   - Expose insecure & ca_cert to client config
 3.2.8
-   - expose ipv4 and ipv6 addresses as runtime properties for port node instance for openstack plugin 3.x
+   - Expose ipv4 and ipv6 addresses as runtime properties for port node instance for openstack plugin 3.x
 3.2.7
    - Fix issue with OpenstackSDK for connecting server to security group
 3.2.6:

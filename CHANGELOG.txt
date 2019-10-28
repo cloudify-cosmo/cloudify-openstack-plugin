@@ -1,5 +1,5 @@
 2.14.13:
-    - add resumable on operations.
+    - Add support for resumable actions.
 2.14.12:
     - expose ipv4 and ipv6 addresses as runtime properties for port.
 2.14.11:

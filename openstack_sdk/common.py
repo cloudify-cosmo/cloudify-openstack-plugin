@@ -35,6 +35,7 @@ class OpenstackResource(object):
 
     def __init__(self, client_config, resource_config=None, logger=None):
         self.client_config = client_config
+        self.configure_ca_cert()
         self.logger = logger
         self.connection = openstack.connect(**client_config)
         self.config = resource_config or {}
@@ -61,6 +62,10 @@ class OpenstackResource(object):
                     item = list(item)
                     pattern = pattern + '({0}, {1}),'.format(item[0], item[1])
                 raise InvalidDomainException(message.format(pattern))
+
+    def configure_ca_cert(self):
+        if self.client_config.get('ca_cert'):
+            self.client_config['cacert'] = self.client_config.pop('ca_cert')
 
     def get_project_id_by_name(self, project_name=None):
         project_name = project_name or self.project_name

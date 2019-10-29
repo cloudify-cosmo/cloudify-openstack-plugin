@@ -52,7 +52,7 @@ OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name
 OPENSTACK_RESOURCE_PROPERTY = 'external_resource'  # resource's parameters
 CONDITIONALLY_CREATED = 'conditionally_created'  # resource was
 # conditionally created
-CONFIG_RUNTIME_PROPERTY = CONFIG_PROPERTY   # openstack configuration
+CONFIG_RUNTIME_PROPERTY = CONFIG_PROPERTY  # openstack configuration
 
 # operation inputs
 CONFIG_INPUT = CONFIG_PROPERTY
@@ -99,6 +99,13 @@ LOGGING_GROUPS = {
                'glanceclient.v2.client']
 }
 
+CLOUDIFY_CREATE_OPERATION = 'cloudify.interfaces.lifecycle.create'
+CLOUDIFY_CONFIGURE_OPERATION = 'cloudify.interfaces.lifecycle.configure'
+CLOUDIFY_START_OPERATION = 'cloudify.interfaces.lifecycle.start'
+CLOUDIFY_STOP_OPERATION = 'cloudify.interfaces.lifecycle.stop'
+CLOUDIFY_DELETE_OPERATION = 'cloudify.interfaces.lifecycle.delete'
+CLOUDIFY_UNLINK_OPERATION = 'cloudify.interfaces.relationship_lifecycle.unlink'
+
 
 # TODO: Move this to cloudify-plugins-common (code freeze currently
 # in effect).
@@ -108,6 +115,7 @@ class CloudifyCtxLogHandler(logging.Handler):
     A logger attached to this handler will result in logging being passed
     through to the Cloudify logger.
     """
+
     def __init__(self, ctx):
         """
         Constructor.
@@ -242,7 +250,7 @@ def get_attribute_of_connected_nodes_by_relationship_type(ctx,
 def get_relationships_by_openstack_type(ctx, type_name):
     return [rel for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(
-                OPENSTACK_TYPE_PROPERTY) == type_name]
+            OPENSTACK_TYPE_PROPERTY) == type_name]
 
 
 def get_connected_nodes_by_openstack_type(ctx, type_name):
@@ -299,7 +307,6 @@ def get_property(ctx, property_name, kwargs={}, default=None):
 
 
 def transform_resource_name(ctx, res):
-
     if isinstance(res, basestring):
         res = {'name': res}
 
@@ -320,7 +327,7 @@ def transform_resource_name(ctx, res):
                         "already has this prefix".format(name, pfx))
     else:
         ctx.logger.info("Transformed resource name '{0}' to '{1}'".format(
-                        name, res['name']))
+            name, res['name']))
 
     return res['name']
 
@@ -341,7 +348,6 @@ def _get_resource_by_name_or_id_from_ctx(ctx, name_field_name, openstack_type,
 def get_resource_by_name_or_id(
         resource_id, openstack_type, sugared_client,
         raise_if_not_found=True, name_field_name='name'):
-
     # search for resource by name (or name-equivalent field)
     search_param = {name_field_name: resource_id}
     resource = sugared_client.cosmo_get_if_exists(openstack_type,
@@ -438,8 +444,8 @@ def validate_resource(ctx, sugared_client, openstack_type,
             ctx.logger.debug(
                 'OK: {0} (node {1}) can be created. provisioned {2}: {3}, '
                 'quota: {4}'
-                .format(openstack_type, ctx.node.id, openstack_type_plural,
-                        resource_amount, resource_quota))
+                    .format(openstack_type, ctx.node.id, openstack_type_plural,
+                            resource_amount, resource_quota))
         else:
             err = ('{0} (node {1}) cannot be created due to quota limitations.'
                    ' provisioned {2}: {3}, quota: {4}'
@@ -473,15 +479,15 @@ def is_external_resource(ctx):
 
 def is_external_resource_not_conditionally_created(ctx):
     return is_external_resource_by_properties(ctx.node.properties) and \
-        not ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+           not ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
 
 
 def is_external_relationship_not_conditionally_created(ctx):
     return is_external_resource_by_properties(ctx.source.node.properties) and \
-        is_external_resource_by_properties(ctx.target.node.properties) and \
-        not ctx.source.instance.runtime_properties.get(
-            CONDITIONALLY_CREATED) and not \
-        ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+           is_external_resource_by_properties(ctx.target.node.properties) and \
+           not ctx.source.instance.runtime_properties.get(
+               CONDITIONALLY_CREATED) and not \
+               ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
 
 
 def is_create_if_missing(ctx):
@@ -490,17 +496,17 @@ def is_create_if_missing(ctx):
 
 def is_external_relationship(ctx):
     return is_external_resource_by_properties(ctx.source.node.properties) and \
-        is_external_resource_by_properties(ctx.target.node.properties)
+           is_external_resource_by_properties(ctx.target.node.properties)
 
 
 def is_external_resource_by_properties(properties):
     return USE_EXTERNAL_RESOURCE_PROPERTY in properties and \
-        properties[USE_EXTERNAL_RESOURCE_PROPERTY]
+           properties[USE_EXTERNAL_RESOURCE_PROPERTY]
 
 
 def is_create_if_missing_by_properties(properties):
     return CREATE_IF_MISSING_PROPERTY in properties and \
-        properties[CREATE_IF_MISSING_PROPERTY]
+           properties[CREATE_IF_MISSING_PROPERTY]
 
 
 def delete_runtime_properties(ctx, runtime_properties_keys):
@@ -542,7 +548,6 @@ def create_object_dict(ctx, object_name, args, object_dict=None):
 
 
 def add_list_to_runtime_properties(ctx, openstack_type_name, object_list):
-
     objects = []
 
     for obj in object_list:
@@ -574,7 +579,6 @@ def set_neutron_runtime_properties(ctx, openstack_object, openstack_type):
 
 
 class Config(object):
-
     OPENSTACK_CONFIG_PATH_ENV_VAR = 'OPENSTACK_CONFIG_PATH'
     OPENSTACK_CONFIG_PATH_DEFAULT_PATH = '~/openstack_config.json'
     OPENSTACK_ENV_VAR_PREFIX = 'OS_'
@@ -613,7 +617,6 @@ class Config(object):
 
 
 class OpenStackClient(object):
-
     COMMON = {'username', 'password', 'auth_url'}
     AUTH_SETS = [
         COMMON | {'tenant_name'},
@@ -635,7 +638,7 @@ class OpenStackClient(object):
 
             # This check to make sure that blueprint openstack config
             # contains all the required auth params + any non-auth param
-            if set(config.keys())\
+            if set(config.keys()) \
                     in self.AUTH_SETS and config.keys() in self.NON_AUTH_ITEMS:
 
                 # Check if there is any value exists on ``cfg``
@@ -718,11 +721,11 @@ class OpenStackClient(object):
             "path which is set under the environment variable {} or at the "
             "default location {}), or as nested properties under an "
             "'{}' property. Valid auth param sets are: {}."
-            .format(received_params,
-                    Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
-                    Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH,
-                    CONFIG_PROPERTY,
-                    ', '.join(valid_auth_sets)))
+                .format(received_params,
+                        Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
+                        Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH,
+                        CONFIG_PROPERTY,
+                        ', '.join(valid_auth_sets)))
 
     @staticmethod
     def _merge_custom_configuration(cfg, client_name):
@@ -837,7 +840,6 @@ class OpenStackClient(object):
 
 
 class GlanceClient(OpenStackClient):
-
     # Can't glance_url be figured out from keystone
     REQUIRED_CONFIG_PARAMS = \
         ['username', 'password', 'tenant_name', 'auth_url']
@@ -880,6 +882,9 @@ def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('neutron_client', NeutronClientWithSugar, kw)
+        valid = _check_valid_resource_id_with_operation(kw)
+        if not valid:
+            return
 
         try:
             return f(*args, **kw)
@@ -888,6 +893,7 @@ def with_neutron_client(f):
                 _re_raise(e, recoverable=False, status_code=e.status_code)
             else:
                 raise
+
     return wrapper
 
 
@@ -895,6 +901,9 @@ def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('nova_client', NovaClientWithSugar, kw)
+        valid = _check_valid_resource_id_with_operation(kw)
+        if not valid:
+            return
 
         try:
             return f(*args, **kw)
@@ -905,6 +914,7 @@ def with_nova_client(f):
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
+
     return wrapper
 
 
@@ -912,6 +922,9 @@ def with_cinder_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('cinder_client', CinderClientWithSugar, kw)
+        valid = _check_valid_resource_id_with_operation(kw)
+        if not valid:
+            return
 
         try:
             return f(*args, **kw)
@@ -920,6 +933,7 @@ def with_cinder_client(f):
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
+
     return wrapper
 
 
@@ -927,6 +941,9 @@ def with_glance_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('glance_client', GlanceClientWithSugar, kw)
+        valid = _check_valid_resource_id_with_operation(kw)
+        if not valid:
+            return
 
         try:
             return f(*args, **kw)
@@ -935,6 +952,7 @@ def with_glance_client(f):
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
+
     return wrapper
 
 
@@ -942,6 +960,9 @@ def with_keystone_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('keystone_client', KeystoneClientWithSugar, kw)
+        valid = _check_valid_resource_id_with_operation(kw)
+        if not valid:
+            return
 
         try:
             return f(*args, **kw)
@@ -952,11 +973,67 @@ def with_keystone_client(f):
                 raise
         except keystone_exceptions.ClientException as e:
             _re_raise(e, recoverable=False)
+
     return wrapper
 
 
-def _handle_kw(client_name, client_class, kw):
+def _check_valid_resource_id_with_operation(kw):
+    """
+    function used to check if we should do the requested operation from workflow or not ;given runtime properties
+    :param kw:
+    :return:
+    """
 
+    _ctx = _find_context_in_kw(kw) or ctx
+    resource_id = None
+    node_instance_created = False
+    relation_instance_created = False
+
+    # get resource id and operation_name
+    if _ctx.type == context.NODE_INSTANCE:
+        resource_id = _ctx.instance.runtime_properties.get(OPENSTACK_ID_PROPERTY)
+        node_instance_created = _ctx.instance.runtime_properties.get('created')
+    elif _ctx.type == context.RELATIONSHIP_INSTANCE:
+        resource_id = _ctx.source.instance.runtime_properties.get(OPENSTACK_ID_PROPERTY)
+        relation_instance_created = _ctx.source.instance.runtime_properties.get('created')
+    operation_name = _ctx.operation.name
+
+    # check resource_id
+    if resource_id:
+        # if create and resource_id provided with external resource return True otherwise False and assign created
+        if operation_name == CLOUDIFY_CREATE_OPERATION:
+            if is_external_resource(_ctx):
+                return True
+            _ctx.logger.info("resource is already created")
+            if _ctx.type == context.NODE_INSTANCE:
+                _ctx.instance.runtime_properties['created'] = True
+            elif _ctx.type == context.RELATIONSHIP_INSTANCE:
+                _ctx.source.instance.runtime_properties['created'] = True
+            return False
+        # if operation not create remove the created flag from runtime properties and return True to do the operation
+        elif operation_name in [CLOUDIFY_STOP_OPERATION, CLOUDIFY_DELETE_OPERATION, CLOUDIFY_UNLINK_OPERATION]:
+            if node_instance_created:
+                del _ctx.instance.runtime_properties['created']
+            elif relation_instance_created:
+                del _ctx.source.instance.runtime_properties['created']
+            return True
+        # any other operation skip since it is already created
+        if node_instance_created:
+            return False
+        elif relation_instance_created:
+            return False
+
+    else:
+        # skip operations since resource_id is not assigned to take action
+        if operation_name in [CLOUDIFY_CONFIGURE_OPERATION, CLOUDIFY_START_OPERATION, CLOUDIFY_STOP_OPERATION,
+                              CLOUDIFY_DELETE_OPERATION, CLOUDIFY_UNLINK_OPERATION]:
+            _ctx.logger.info("ignoring action since resource_id is not set")
+            return False
+
+    return True
+
+
+def _handle_kw(client_name, client_class, kw):
     _ctx = _find_context_in_kw(kw) or ctx
     if _ctx.type == context.NODE_INSTANCE:
         config = _ctx.node.properties.get(CONFIG_PROPERTY)
@@ -1100,7 +1177,7 @@ class NeutronClientWithSugar(OpenStackClient):
         """ Sugar for list_XXXs()['XXXs'] """
         obj_type_plural = self.cosmo_plural(obj_type_single)
         for obj in getattr(self, 'list_' + obj_type_plural)(**kw)[
-                obj_type_plural]:
+            obj_type_plural]:
             yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
@@ -1125,7 +1202,7 @@ class NeutronClientWithSugar(OpenStackClient):
     def cosmo_delete_prefixed(self, name_prefix):
         # Cleanup all neutron.list_XXX() objects with names starting
         #  with self.name_prefix
-        for obj_type_single in 'port', 'router', 'network', 'subnet',\
+        for obj_type_single in 'port', 'router', 'network', 'subnet', \
                                'security_group':
             for obj in self.cosmo_list_prefixed(obj_type_single, name_prefix):
                 if obj_type_single == 'router':
@@ -1185,7 +1262,7 @@ class CinderClientWithSugar(OpenStackClient):
 
 class KeystoneClientWithSugar(OpenStackClient):
     # keystone does not have resource quota
-    KEYSTONE_INFINITE_RESOURCE_QUOTA = 10**9
+    KEYSTONE_INFINITE_RESOURCE_QUOTA = 10 ** 9
 
     def __init__(self, *args, **kw):
         super(KeystoneClientWithSugar, self).__init__(
@@ -1211,7 +1288,7 @@ class KeystoneClientWithSugar(OpenStackClient):
 
 
 class GlanceClientWithSugar(OpenStackClient):
-    GLANCE_INIFINITE_RESOURCE_QUOTA = 10**9
+    GLANCE_INIFINITE_RESOURCE_QUOTA = 10 ** 9
 
     def __init__(self, *args, **kw):
         super(GlanceClientWithSugar, self).__init__(

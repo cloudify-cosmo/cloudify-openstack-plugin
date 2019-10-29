@@ -250,7 +250,7 @@ def get_attribute_of_connected_nodes_by_relationship_type(ctx,
 def get_relationships_by_openstack_type(ctx, type_name):
     return [rel for rel in ctx.instance.relationships
             if rel.target.instance.runtime_properties.get(
-            OPENSTACK_TYPE_PROPERTY) == type_name]
+                OPENSTACK_TYPE_PROPERTY) == type_name]
 
 
 def get_connected_nodes_by_openstack_type(ctx, type_name):
@@ -443,9 +443,9 @@ def validate_resource(ctx, sugared_client, openstack_type,
                 or resource_quota == INFINITE_RESOURCE_QUOTA:
             ctx.logger.debug(
                 'OK: {0} (node {1}) can be created. provisioned {2}: {3}, '
-                'quota: {4}'
-                    .format(openstack_type, ctx.node.id, openstack_type_plural,
-                            resource_amount, resource_quota))
+                'quota: {4}'.format(openstack_type, ctx.node.id,
+                                    openstack_type_plural,
+                                    resource_amount, resource_quota))
         else:
             err = ('{0} (node {1}) cannot be created due to quota limitations.'
                    ' provisioned {2}: {3}, quota: {4}'
@@ -487,7 +487,7 @@ def is_external_relationship_not_conditionally_created(ctx):
            is_external_resource_by_properties(ctx.target.node.properties) and \
            not ctx.source.instance.runtime_properties.get(
                CONDITIONALLY_CREATED) and not \
-               ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+           ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
 
 
 def is_create_if_missing(ctx):
@@ -721,11 +721,11 @@ class OpenStackClient(object):
             "path which is set under the environment variable {} or at the "
             "default location {}), or as nested properties under an "
             "'{}' property. Valid auth param sets are: {}."
-                .format(received_params,
-                        Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
-                        Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH,
-                        CONFIG_PROPERTY,
-                        ', '.join(valid_auth_sets)))
+            .format(received_params,
+                    Config.OPENSTACK_CONFIG_PATH_ENV_VAR,
+                    Config.OPENSTACK_CONFIG_PATH_DEFAULT_PATH,
+                    CONFIG_PROPERTY,
+                    ', '.join(valid_auth_sets)))
 
     @staticmethod
     def _merge_custom_configuration(cfg, client_name):
@@ -974,7 +974,8 @@ def with_keystone_client(f):
 
 def _check_valid_resource_id_with_operation(kw):
     """
-    function used to check if we should do the requested operation from workflow or not ;given runtime properties
+    function used to check if we should do the requested operation from
+    workflow or not ;given runtime properties
     :param kw:
     :return:
     """
@@ -986,16 +987,20 @@ def _check_valid_resource_id_with_operation(kw):
 
     # get resource id and operation_name
     if _ctx.type == context.NODE_INSTANCE:
-        resource_id = _ctx.instance.runtime_properties.get(OPENSTACK_ID_PROPERTY)
+        resource_id = _ctx.instance.runtime_properties.get(
+            OPENSTACK_ID_PROPERTY)
         node_instance_created = _ctx.instance.runtime_properties.get('created')
     elif _ctx.type == context.RELATIONSHIP_INSTANCE:
-        resource_id = _ctx.source.instance.runtime_properties.get(OPENSTACK_ID_PROPERTY)
-        relation_instance_created = _ctx.source.instance.runtime_properties.get('created')
+        resource_id = _ctx.source.instance.runtime_properties.get(
+            OPENSTACK_ID_PROPERTY)
+        relation_instance_created = _ctx.source.instance.runtime_properties. \
+            get('created')
     operation_name = _ctx.operation.name
 
     # check resource_id
     if resource_id:
-        # if create and resource_id provided with external resource return True otherwise False and assign created
+        # if create and resource_id provided with external resource
+        # return True otherwise False and assign created
         if operation_name == CLOUDIFY_CREATE_OPERATION:
             if is_external_resource(_ctx):
                 return True
@@ -1005,8 +1010,11 @@ def _check_valid_resource_id_with_operation(kw):
             elif _ctx.type == context.RELATIONSHIP_INSTANCE:
                 _ctx.source.instance.runtime_properties['created'] = True
             return False
-        # if operation not create remove the created flag from runtime properties and return True to do the operation
-        elif operation_name in [CLOUDIFY_STOP_OPERATION, CLOUDIFY_DELETE_OPERATION, CLOUDIFY_UNLINK_OPERATION]:
+        # if operation not create remove the created flag from runtime
+        # properties and return True to do the operation
+        elif operation_name in [CLOUDIFY_STOP_OPERATION,
+                                CLOUDIFY_DELETE_OPERATION,
+                                CLOUDIFY_UNLINK_OPERATION]:
             if node_instance_created:
                 del _ctx.instance.runtime_properties['created']
             elif relation_instance_created:
@@ -1020,8 +1028,11 @@ def _check_valid_resource_id_with_operation(kw):
 
     else:
         # skip operations since resource_id is not assigned to take action
-        if operation_name in [CLOUDIFY_CONFIGURE_OPERATION, CLOUDIFY_START_OPERATION, CLOUDIFY_STOP_OPERATION,
-                              CLOUDIFY_DELETE_OPERATION, CLOUDIFY_UNLINK_OPERATION]:
+        if operation_name in [CLOUDIFY_CONFIGURE_OPERATION,
+                              CLOUDIFY_START_OPERATION,
+                              CLOUDIFY_STOP_OPERATION,
+                              CLOUDIFY_DELETE_OPERATION,
+                              CLOUDIFY_UNLINK_OPERATION]:
             _ctx.logger.info("ignoring action since resource_id is not set")
             return False
 
@@ -1172,7 +1183,7 @@ class NeutronClientWithSugar(OpenStackClient):
         """ Sugar for list_XXXs()['XXXs'] """
         obj_type_plural = self.cosmo_plural(obj_type_single)
         for obj in getattr(self, 'list_' + obj_type_plural)(**kw)[
-            obj_type_plural]:
+                            obj_type_plural]:
             yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):

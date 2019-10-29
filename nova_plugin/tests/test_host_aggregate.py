@@ -101,6 +101,9 @@ class TestHostAggregate(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_add_hosts(self, *_):
         # given
         test_vars_host1 = 'cf4301'
@@ -158,6 +161,9 @@ class TestHostAggregate(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_remove_hosts(self, *_):
         # given
         test_vars_host1 = 'cf4301'
@@ -214,6 +220,9 @@ class TestHostAggregate(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_create_and_delete(self, *_):
         # given
         test_vars_host1 = 'cf4301'
@@ -309,6 +318,9 @@ class TestHostAggregate(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     @mock.patch(
         'openstack_plugin_common.get_resource_by_name_or_id',
         autospec=True,
@@ -377,6 +389,9 @@ class TestHostAggregate(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_update(self, *_):
         # given
         test_vars_hosts = ['cf4301', 'openstack-kilo-t2.novalocal']
@@ -455,6 +470,9 @@ class TestHostAggregate(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_list(self, *_):
         # given
         test_vars_host1 = 'cf4301'

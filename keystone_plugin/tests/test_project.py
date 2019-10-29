@@ -85,6 +85,9 @@ class TestProject(unittest.TestCase):
 
     @mock.patch('openstack_plugin_common._handle_kw',
                 autospec=True, return_value=None)
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_keystone_project_create_and_delete(self, *_):
         quota = {'nova': {'cpu': 120},
                  'neutron': {'networks': 100}}
@@ -122,6 +125,9 @@ class TestProject(unittest.TestCase):
         self.assertNotIn(OPENSTACK_TYPE_PROPERTY,
                          ctx.instance.runtime_properties)
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_assign_user(self, *_):
         test_vars = {
             'project': {},
@@ -146,6 +152,9 @@ class TestProject(unittest.TestCase):
         self.assertEqual({self.test_user: self.test_role},
                          mock_project._users)
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_assign_users_not_unique(self, *_):
         test_vars = {
             'project': {},
@@ -171,6 +180,9 @@ class TestProject(unittest.TestCase):
                 cinder_client=mock.MagicMock(),  # cinder_client
                 neutron_client=mock.MagicMock())  # neutron_client
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_assign_user_roles_not_unique(self, *_):
         test_vars = {
             'project': {},
@@ -194,6 +206,9 @@ class TestProject(unittest.TestCase):
                 cinder_client=mock.MagicMock(),  # cinder_client
                 neutron_client=mock.MagicMock())  # neutron_client
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_update_project(self, *_):
         test_vars = {
             'project': {},
@@ -215,6 +230,9 @@ class TestProject(unittest.TestCase):
                          ctx.instance.runtime_properties[
                              OPENSTACK_NAME_PROPERTY])
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_list_projects(self, *_):
         test_vars = {
             'project': {},
@@ -237,6 +255,9 @@ class TestProject(unittest.TestCase):
         self.assertEqual(1,
                          len(ctx.instance.runtime_properties[project_list]))
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_get_quota(self, *_):
         nova_quota = {'cpu': 120}
         cinder_quota = {'volumes': 30}

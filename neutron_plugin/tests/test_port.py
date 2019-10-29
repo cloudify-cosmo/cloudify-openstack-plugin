@@ -57,6 +57,9 @@ class TestPort(unittest.TestCase):
                 mock_neutron.body)
 
     @mock.patch('openstack_plugin_common._handle_kw')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_delete(self, *_):
         node_props = {
             'fixed_ip': '',
@@ -116,6 +119,9 @@ class TestPort(unittest.TestCase):
                                                  {}, port)
 
     @mock.patch('openstack_plugin_common._handle_kw')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_create(self, *_):
         node_props = {
             'fixed_ip': '',
@@ -263,6 +269,9 @@ class MockNeutronClient(NeutronClientWithSugar):
 
 class TestPortSG(unittest.TestCase):
     @mock.patch('openstack_plugin_common._handle_kw')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_connect_sg_to_port(self, *_):
         mock_neutron = MockNeutronClient(update=True)
         ctx = MockCloudifyContext(
@@ -280,6 +289,9 @@ class TestPortSG(unittest.TestCase):
             self.assertIsNone(ctx.operation._operation_retry)
 
     @mock.patch('openstack_plugin_common._handle_kw')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_connect_sg_to_port_race_condition(self, *_):
         mock_neutron = MockNeutronClient(update=False)
 
@@ -298,6 +310,9 @@ class TestPortSG(unittest.TestCase):
                                   OperationRetry)
 
     @mock.patch('openstack_plugin_common._handle_kw')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_disconnect_sg_to_port(self, *_):
         mock_neutron = MockNeutronClient(update=True)
         ctx = MockCloudifyContext(

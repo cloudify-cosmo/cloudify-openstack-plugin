@@ -71,6 +71,9 @@ class TestUser(unittest.TestCase):
 
     @mock.patch('openstack_plugin_common._handle_kw',
                 autospec=True, return_value=None)
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_keystone_user_create_and_delete(self, *_):
         test_vars = {
             'user': {},
@@ -100,6 +103,9 @@ class TestUser(unittest.TestCase):
         self.assertNotIn(OPENSTACK_TYPE_PROPERTY,
                          ctx.instance.runtime_properties)
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_update_user(self, *_):
         test_vars = {
             'user': {},
@@ -117,6 +123,9 @@ class TestUser(unittest.TestCase):
                          ctx.instance.runtime_properties[
                              OPENSTACK_NAME_PROPERTY])
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_list_users(self, *_):
         test_vars = {
             'user': {},

@@ -123,6 +123,9 @@ class TestStartImage(unittest.TestCase):
                                   'test-image-start.yaml')
 
     @mock.patch('glance_plugin.image.create')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     @workflow_test(blueprint_path, copy_plugin_yaml=True)
     def test_image_lifecycle_start(self, cfy_local, *_):
         test_vars = {

@@ -180,6 +180,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_create_and_delete(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all()
@@ -229,6 +232,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_create_and_delete_external_resource(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all(use_external_resource=True)
@@ -276,6 +282,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_create_and_delete_using_relationship(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all(
@@ -338,6 +347,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_fail_create_using_multiple_relationships(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all(
@@ -362,6 +374,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_fail_create_using_relationship_with_missing_data(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all(
@@ -387,6 +402,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_fail_create_using_relationship_and_properties(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all(
@@ -409,6 +427,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_create_and_delete_using_args(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all(
@@ -463,6 +484,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_fail_create_using_relationship_and_args(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all(
@@ -489,6 +513,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_list(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all()
@@ -515,6 +542,9 @@ class TestRBACPolicy(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_find_and_delete(self, *_):
         # given
         ctx, neutron_client, _ = self.mock_all()

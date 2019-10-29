@@ -882,8 +882,7 @@ def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('neutron_client', NeutronClientWithSugar, kw)
-        valid = _check_valid_resource_id_with_operation(kw)
-        if not valid:
+        if not _check_valid_resource_id_with_operation(kw):
             return
 
         try:
@@ -901,8 +900,7 @@ def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('nova_client', NovaClientWithSugar, kw)
-        valid = _check_valid_resource_id_with_operation(kw)
-        if not valid:
+        if not _check_valid_resource_id_with_operation(kw):
             return
 
         try:
@@ -922,8 +920,7 @@ def with_cinder_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('cinder_client', CinderClientWithSugar, kw)
-        valid = _check_valid_resource_id_with_operation(kw)
-        if not valid:
+        if not _check_valid_resource_id_with_operation(kw):
             return
 
         try:
@@ -941,8 +938,7 @@ def with_glance_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('glance_client', GlanceClientWithSugar, kw)
-        valid = _check_valid_resource_id_with_operation(kw)
-        if not valid:
+        if not _check_valid_resource_id_with_operation(kw):
             return
 
         try:
@@ -960,8 +956,7 @@ def with_keystone_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('keystone_client', KeystoneClientWithSugar, kw)
-        valid = _check_valid_resource_id_with_operation(kw)
-        if not valid:
+        if not _check_valid_resource_id_with_operation(kw):
             return
 
         try:

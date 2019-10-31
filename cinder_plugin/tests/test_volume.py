@@ -154,10 +154,13 @@ class TestCinderVolume(unittest.TestCase):
         self.assertTrue(OPENSTACK_NAME_PROPERTY
                         not in ctx_m.instance.runtime_properties)
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     @mock.patch('openstack_plugin_common.NovaClientWithSugar')
     @mock.patch('openstack_plugin_common.CinderClientWithSugar')
     @mock.patch.object(volume, 'wait_until_status', return_value=(None, True))
-    def test_attach(self, wait_until_status_m, cinder_m, nova_m):
+    def test_attach(self, wait_until_status_m, cinder_m, nova_m, *_):
         volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
         device_name = '/dev/fake'
@@ -273,13 +276,20 @@ class TestCinderVolume(unittest.TestCase):
                 num_tries=10,
                 timeout=2)
 
-    def test_cleanup_after_waituntilstatus_throws_recoverable_error(self):
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
+    def test_cleanup_after_waituntilstatus_throws_recoverable_error(self, *_):
         err = cfy_exc.RecoverableError('Some recoverable error')
         with mock.patch.object(volume, 'wait_until_status',
                                side_effect=[err, (None, True)]) as wait_mock:
             self._test_cleanup__after_attach_fails(type(err), True, wait_mock)
 
-    def test_cleanup_after_waituntilstatus_throws_any_not_nonrecov_error(self):
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
+    def test_cleanup_after_waituntilstatus_throws_any_not_nonrecov_error(self,
+                                                                         *_):
         class ArbitraryNonRecoverableException(Exception):
             pass
         err = ArbitraryNonRecoverableException('An exception')
@@ -287,21 +297,30 @@ class TestCinderVolume(unittest.TestCase):
                                side_effect=[err, (None, True)]) as wait_mock:
             self._test_cleanup__after_attach_fails(type(err), True, wait_mock)
 
-    def test_cleanup_after_waituntilstatus_lets_nonrecov_errors_pass(self):
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
+    def test_cleanup_after_waituntilstatus_lets_nonrecov_errors_pass(self, *_):
         err = cfy_exc.NonRecoverableError('Some non recoverable error')
         with mock.patch.object(volume, 'wait_until_status',
                                side_effect=[err, (None, True)]) as wait_mock:
             self._test_cleanup__after_attach_fails(type(err), False, wait_mock)
 
     @mock.patch.object(volume, 'wait_until_status', return_value=(None, False))
-    def test_cleanup_after_waituntilstatus_times_out(self, wait_mock):
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
+    def test_cleanup_after_waituntilstatus_times_out(self, wait_mock, *_):
         self._test_cleanup__after_attach_fails(cfy_exc.RecoverableError, True,
                                                wait_mock)
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     @mock.patch('openstack_plugin_common.NovaClientWithSugar')
     @mock.patch('openstack_plugin_common.CinderClientWithSugar')
     @mock.patch.object(volume, 'wait_until_status', return_value=(None, True))
-    def test_detach(self, wait_until_status_m, cinder_m, nova_m):
+    def test_detach(self, wait_until_status_m, cinder_m, nova_m, *_):
         volume_id = '00000000-0000-0000-0000-000000000000'
         server_id = '11111111-1111-1111-1111-111111111111'
         attachment_id = '22222222-2222-2222-2222-222222222222'

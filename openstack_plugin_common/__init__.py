@@ -100,11 +100,16 @@ LOGGING_GROUPS = {
 }
 
 CLOUDIFY_CREATE_OPERATION = 'cloudify.interfaces.lifecycle.create'
+CLOUDIFY_PRE_CONFIGURE_OPERATION = 'cloudify.interfaces.lifecycle.preconfigure'
 CLOUDIFY_CONFIGURE_OPERATION = 'cloudify.interfaces.lifecycle.configure'
+CLOUDIFY_POST_CONFIGURE_OPERATION = 'cloudify.interfaces.lifecycle.' \
+                                    'postconfigure'
 CLOUDIFY_START_OPERATION = 'cloudify.interfaces.lifecycle.start'
 CLOUDIFY_STOP_OPERATION = 'cloudify.interfaces.lifecycle.stop'
 CLOUDIFY_DELETE_OPERATION = 'cloudify.interfaces.lifecycle.delete'
 CLOUDIFY_UNLINK_OPERATION = 'cloudify.interfaces.relationship_lifecycle.unlink'
+CLOUDIFY_ESTABLISH_OPERATION = 'cloudify.interfaces.relationship_lifecycle.' \
+                               'establish'
 
 
 # TODO: Move this to cloudify-plugins-common (code freeze currently
@@ -888,6 +893,7 @@ def with_neutron_client(f):
         try:
             return f(*args, **kw)
         except neutron_exceptions.NeutronClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.status_code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.status_code)
             else:
@@ -906,8 +912,10 @@ def with_nova_client(f):
         try:
             return f(*args, **kw)
         except nova_exceptions.OverLimit as e:
+            _check_valid_resource_id_with_operation(kw, True)
             _re_raise(e, recoverable=True, retry_after=e.retry_after)
         except nova_exceptions.ClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -926,6 +934,7 @@ def with_cinder_client(f):
         try:
             return f(*args, **kw)
         except cinder_exceptions.ClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -944,6 +953,7 @@ def with_glance_client(f):
         try:
             return f(*args, **kw)
         except glance_exceptions.ClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -962,6 +972,7 @@ def with_keystone_client(f):
         try:
             return f(*args, **kw)
         except keystone_exceptions.HTTPError as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.http_status in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.http_status)
             else:
@@ -972,7 +983,7 @@ def with_keystone_client(f):
     return wrapper
 
 
-def _check_valid_resource_id_with_operation(kw):
+def _check_valid_resource_id_with_operation(kw, exception=False):
     """
     function used to check if we should do the requested operation from
     workflow or not ;given runtime properties
@@ -982,57 +993,159 @@ def _check_valid_resource_id_with_operation(kw):
 
     _ctx = _find_context_in_kw(kw) or ctx
     resource_id = None
-    node_instance_created = False
-    relation_instance_created = False
-
     # get resource id and operation_name
+    operation_name = _ctx.operation.name
     if _ctx.type == context.NODE_INSTANCE:
         resource_id = _ctx.instance.runtime_properties.get(
             OPENSTACK_ID_PROPERTY)
-        node_instance_created = _ctx.instance.runtime_properties.get('created')
     elif _ctx.type == context.RELATIONSHIP_INSTANCE:
         resource_id = _ctx.source.instance.runtime_properties.get(
             OPENSTACK_ID_PROPERTY)
-        relation_instance_created = _ctx.source.instance.runtime_properties. \
-            get('created')
-    operation_name = _ctx.operation.name
 
     # check resource_id
     if resource_id:
-        # if create and resource_id provided with external resource
-        # return True otherwise False and assign created
+        instance_id = _ctx.source.instance.id \
+                    if _ctx.type == context.RELATIONSHIP_INSTANCE \
+                    else _ctx.instance.id
         if operation_name == CLOUDIFY_CREATE_OPERATION:
-            if is_external_resource(_ctx):
-                return True
-            _ctx.logger.info("resource is already created")
-            if _ctx.type == context.NODE_INSTANCE:
-                _ctx.instance.runtime_properties['created'] = True
-            elif _ctx.type == context.RELATIONSHIP_INSTANCE:
-                _ctx.source.instance.runtime_properties['created'] = True
-            return False
-        # if operation not create remove the created flag from runtime
-        # properties and return True to do the operation
-        elif operation_name in [CLOUDIFY_STOP_OPERATION,
-                                CLOUDIFY_DELETE_OPERATION,
-                                CLOUDIFY_UNLINK_OPERATION]:
-            if node_instance_created:
-                del _ctx.instance.runtime_properties['created']
-            elif relation_instance_created:
-                del _ctx.source.instance.runtime_properties['created']
-            return True
-        # any other operation skip since it is already created
-        if node_instance_created:
-            return False
-        elif relation_instance_created:
-            return False
-
+            if not is_external_resource(_ctx):
+                _ctx.logger.info("resource is already created")
+                return False
+            else:
+                if not exception:
+                    if _ctx.instance.runtime_properties.get(
+                            'create_' + instance_id):
+                        _ctx.logger.info("resource is already created")
+                        return False
+                    else:
+                        _ctx.instance.runtime_properties['create_' +
+                                                         instance_id] = True
+                else:
+                    del _ctx.instance.runtime_properties['create_' +
+                                                         instance_id]
+        elif operation_name == CLOUDIFY_CONFIGURE_OPERATION:
+            if not exception:
+                if _ctx.instance.runtime_properties.get('conf_'+instance_id):
+                    _ctx.logger.info("resource is already configured")
+                    return False
+                else:
+                    _ctx.instance.runtime_properties['conf_' +
+                                                     instance_id] = True
+            else:
+                del _ctx.instance.runtime_properties['conf_' +
+                                                     instance_id]
+        elif operation_name == CLOUDIFY_START_OPERATION:
+            if not exception:
+                if _ctx.instance.runtime_properties.get('start_'+instance_id):
+                    _ctx.logger.info("resource is already started")
+                    return False
+                else:
+                    if _ctx.instance.runtime_properties. \
+                            get('stop_' + instance_id):
+                        del _ctx.instance.runtime_properties['stop_' +
+                                                             instance_id]
+                    _ctx.instance.runtime_properties['start_' +
+                                                     instance_id] = True
+            else:
+                _ctx.instance.runtime_properties['stop_' +
+                                                 instance_id] = True
+                del _ctx.instance.runtime_properties['start_' +
+                                                     instance_id]
+        elif operation_name == CLOUDIFY_STOP_OPERATION:
+            if not exception:
+                if _ctx.instance.runtime_properties.get('stop_'+instance_id):
+                    _ctx.logger.info("resource is already stopped")
+                    return False
+                else:
+                    if _ctx.instance.runtime_properties. \
+                            get('start_' + instance_id):
+                        del _ctx.instance.runtime_properties['start_' +
+                                                             instance_id]
+                        _ctx.instance.runtime_properties['stop_' +
+                                                         instance_id] = True
+            else:
+                _ctx.instance.runtime_properties['start_' +
+                                                 instance_id] = True
+                del _ctx.instance.runtime_properties['stop_' +
+                                                     instance_id]
+        elif operation_name == CLOUDIFY_DELETE_OPERATION:
+            if not exception:
+                if _ctx.instance.runtime_properties. \
+                        get('conf_' + instance_id):
+                    del _ctx.instance.runtime_properties['conf_' +
+                                                         instance_id]
+                if is_external_resource(_ctx):
+                    if _ctx.instance.runtime_properties. \
+                            get('create_' + instance_id):
+                        del _ctx.instance.runtime_properties['create_' +
+                                                             instance_id]
+            else:
+                _ctx.instance.runtime_properties['conf_' +
+                                                 instance_id] = True
+                if is_external_resource(_ctx):
+                    _ctx.instance.runtime_properties['create_' +
+                                                     instance_id] = True
+        if _ctx.type == context.RELATIONSHIP_INSTANCE:
+            target_id = _ctx.target.instance.id
+            if operation_name == CLOUDIFY_ESTABLISH_OPERATION:
+                if not exception:
+                    if _ctx.source.instance.runtime_properties. \
+                            get('rel_' + target_id):
+                        _ctx.logger.info("resource relation to {} already "
+                                         "established".format(target_id))
+                        return False
+                    else:
+                        _ctx.source.instance.runtime_properties['rel_' +
+                                                                target_id] \
+                            = True
+                else:
+                    del _ctx.source.instance.runtime_properties['rel_' +
+                                                                target_id]
+            elif operation_name == CLOUDIFY_UNLINK_OPERATION:
+                if not exception:
+                    if _ctx.source.instance.runtime_properties. \
+                            get('rel_' + target_id):
+                        del _ctx.source.instance.runtime_properties['rel_' +
+                                                                    target_id]
+                else:
+                    _ctx.source.instance.runtime_properties['rel_' +
+                                                            target_id] = True
+            elif operation_name == CLOUDIFY_PRE_CONFIGURE_OPERATION:
+                if not exception:
+                    if _ctx.source.instance.runtime_properties. \
+                            get('pre_rel_' + target_id):
+                        _ctx.logger.info("resource pre-conf relation "
+                                         "to {} already "
+                                         "established".format(target_id))
+                        return False
+                    _ctx.source.instance.runtime_properties['pre_rel_' +
+                                                            target_id] = True
+                else:
+                    del _ctx.source.instance.runtime_properties['pre_rel_' +
+                                                                target_id]
+            elif operation_name == CLOUDIFY_POST_CONFIGURE_OPERATION:
+                if not exception:
+                    if _ctx.source.instance.runtime_properties. \
+                            get('post_rel_' + target_id):
+                        _ctx.logger.info("resource post-conf relation "
+                                         "to {} already "
+                                         "established".format(target_id))
+                        return False
+                    _ctx.source.instance.runtime_properties['post_rel_' +
+                                                            target_id] = True
+                else:
+                    del _ctx.source.instance.runtime_properties['post_rel_' +
+                                                                target_id]
     else:
         # skip operations since resource_id is not assigned to take action
-        if operation_name in [CLOUDIFY_CONFIGURE_OPERATION,
+        if operation_name in [CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                              CLOUDIFY_CONFIGURE_OPERATION,
+                              CLOUDIFY_POST_CONFIGURE_OPERATION,
                               CLOUDIFY_START_OPERATION,
                               CLOUDIFY_STOP_OPERATION,
                               CLOUDIFY_DELETE_OPERATION,
-                              CLOUDIFY_UNLINK_OPERATION]:
+                              CLOUDIFY_UNLINK_OPERATION,
+                              CLOUDIFY_ESTABLISH_OPERATION]:
             _ctx.logger.info("ignoring action since resource_id is not set")
             return False
 

@@ -95,6 +95,9 @@ class TestFlavor(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_flavor_create_and_delete(self, *_):
         # given
         test_vars = {
@@ -146,6 +149,9 @@ class TestFlavor(unittest.TestCase):
         autospec=True,
         return_value=None
     )
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_flavor_create_and_delete_with_extra_specs_and_tenants(self, *_):
         # given
         test_vars_tenant_id = 'some_tenant_id'
@@ -222,6 +228,9 @@ class TestFlavor(unittest.TestCase):
             ctx.instance.runtime_properties
         )
 
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_list_flavors(self, *_):
         # given
         test_vars = {

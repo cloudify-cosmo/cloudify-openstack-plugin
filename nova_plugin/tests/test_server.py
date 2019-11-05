@@ -53,6 +53,9 @@ class TestServer(unittest.TestCase):
 
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     @workflow_test(blueprint_path, copy_plugin_yaml=True)
     def test_nova_server_lifecycle_start(self, cfy_local, *_):
 
@@ -80,6 +83,9 @@ class TestServer(unittest.TestCase):
     @workflow_test(blueprint_path, copy_plugin_yaml=True)
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_nova_server_lifecycle_start_after_stop(self, cfy_local, *_):
 
         test_vars = {
@@ -111,6 +117,9 @@ class TestServer(unittest.TestCase):
     @workflow_test(blueprint_path, copy_plugin_yaml=True)
     @mock.patch('nova_plugin.server.create')
     @mock.patch('nova_plugin.server._set_network_and_ip_runtime_properties')
+    @mock.patch('openstack_plugin_common'
+                '._check_valid_resource_id_with_operation',
+                autospec=True, return_value=True)
     def test_nova_server_lifecycle_start_unknown_status(self, cfy_local, *_):
         test_vars = {
             'counter': 0,

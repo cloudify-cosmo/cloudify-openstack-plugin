@@ -41,7 +41,7 @@ CIDR = 'cidr'
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
 
@@ -77,13 +77,14 @@ def create(neutron_client, args, **kwargs):
     set_neutron_runtime_properties(ctx, s, SUBNET_OPENSTACK_TYPE)
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_subnets(neutron_client, args, **kwargs):
     subnet_list = neutron_client.list_subnets(**args)
@@ -92,7 +93,7 @@ def list_subnets(neutron_client, args, **kwargs):
                                    subnet_list.get('subnets', []))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def creation_validation(neutron_client, args, **kwargs):
     validate_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE)

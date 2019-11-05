@@ -97,7 +97,7 @@ def _update_router_routes(neutron_client, args, **kwargs):
     return neutron_client.update_router(router_id, new_router)
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
 
@@ -133,7 +133,7 @@ def create(neutron_client, args, **kwargs):
     set_neutron_runtime_properties(ctx, r, ROUTER_OPENSTACK_TYPE)
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def update(neutron_client, args, **kwargs):
     if not args:
@@ -151,7 +151,7 @@ def update(neutron_client, args, **kwargs):
     return neutron_client.update_router(router_id, args)
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def update_routes(neutron_client, args, **kwargs):
     routes = args.get(ROUTES_OPENSTACK_TYPE)
@@ -179,7 +179,7 @@ def update_routes(neutron_client, args, **kwargs):
             'Failed while trying to retrieve router instance')
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def add_routes(neutron_client, args, **kwargs):
 
@@ -216,7 +216,7 @@ def add_routes(neutron_client, args, **kwargs):
             'Failed while trying to retrieve router instance')
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def connect_subnet(neutron_client, **kwargs):
     router_id = get_openstack_id(ctx.target)
@@ -236,7 +236,7 @@ def connect_subnet(neutron_client, **kwargs):
     neutron_client.add_interface_router(router_id, {'subnet_id': subnet_id})
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def disconnect_subnet(neutron_client, **kwargs):
     if is_external_relationship(ctx):
@@ -256,14 +256,14 @@ def disconnect_subnet(neutron_client, **kwargs):
     )
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def delete_routes(neutron_client, **kwargs):
 
@@ -271,6 +271,7 @@ def delete_routes(neutron_client, **kwargs):
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_routers(neutron_client, args, **kwargs):
     router_list = neutron_client.list_routers(**args)
@@ -279,7 +280,7 @@ def list_routers(neutron_client, args, **kwargs):
                                    router_list.get('routers', []))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, ROUTER_OPENSTACK_TYPE)

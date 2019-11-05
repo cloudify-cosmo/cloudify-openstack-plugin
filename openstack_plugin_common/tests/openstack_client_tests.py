@@ -20,9 +20,13 @@ import json
 import __builtin__ as builtins
 
 import mock
+from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
 from cloudify.exceptions import NonRecoverableError
 
-from cloudify.mocks import MockCloudifyContext
+from cloudify.mocks import MockCloudifyContext, MockNodeInstanceContext, \
+    MockContext, MockNodeContext
+from cloudify.state import current_ctx
+
 import openstack_plugin_common as common
 
 
@@ -316,16 +320,16 @@ class OpenstackClientTests(unittest.TestCase):
         }
 
         with mock.patch.object(
-            builtins, 'open',
-            mock.mock_open(
-                read_data="""
+                builtins, 'open',
+                mock.mock_open(
+                    read_data="""
                 {
                     "region": "region from file",
                     "other": "this one should get through"
                 }
                 """
-            ),
-            create=True,
+                ),
+                create=True,
         ):
             common.OpenStackClient('fred', mock_client_class, cfg)
 
@@ -333,7 +337,7 @@ class OpenstackClientTests(unittest.TestCase):
             region_name='test-region',
             other='this one should get through',
             session=m_session.return_value,
-            )
+        )
 
     def test__validate_auth_params_missing(self):
         with self.assertRaises(NonRecoverableError):
@@ -739,10 +743,12 @@ class ResourceQuotaTests(unittest.TestCase):
 
         def mock_cosmo_list(_):
             return [x for x in range(0, amount)]
+
         client.cosmo_list = mock_cosmo_list
 
         def mock_get_quota(_):
             return quota
+
         client.get_quota = mock_get_quota
 
         if failure_expected:
@@ -837,6 +843,7 @@ class ValidateResourceTests(unittest.TestCase):
 
         def _return_something(*_):
             return mock.MagicMock()
+
         return_value = _return_something if exists else _raise_error
         if exists:
             properties.update({'resource_id': 'rid'})
@@ -879,3 +886,501 @@ class ValidateResourceTests(unittest.TestCase):
                           create_if_missing=True,
                           exists=False,
                           client_mock_provided=client_mock)
+
+
+class ValidateResourceIdTests(unittest.TestCase):
+
+    def mock_ctx(self,
+                 ctx_type,
+                 test_vars,
+                 test_id,
+                 test_deployment_id,
+                 test_operation_name,
+                 runtime_properties=None):
+        ctx = MockContext()
+
+        ctx.node = MockNodeContext(properties=test_vars)
+        ctx.instance = \
+            MockNodeInstanceContext(id=test_id,
+                                    runtime_properties=runtime_properties)
+        ctx.deployment = mock.Mock()
+        ctx.deployment.id = test_deployment_id
+        ctx.operation = mock.Mock()
+        ctx.operation.name = test_operation_name
+        ctx.type = ctx_type
+        if ctx_type == RELATIONSHIP_INSTANCE:
+            ctx.instance = None
+            ctx.source = MockNodeContext(properties=test_vars)
+            ctx.source.instance = \
+                MockNodeInstanceContext(id=test_id,
+                                        runtime_properties=runtime_properties)
+            ctx.target = MockNodeContext(properties={})
+            ctx.target.instance = \
+                MockNodeInstanceContext(id='port_12c45', runtime_properties={})
+        ctx.logger = mock.Mock()
+
+        current_ctx.set(ctx)
+        return ctx
+
+    def _test_validate_resource_id(self,
+                                   ctx_type,
+                                   instance_id,
+                                   operation_name,
+                                   runtime_properties=None,
+                                   exception=False):
+        node_context = self.mock_ctx(ctx_type,
+                                     test_vars={},
+                                     test_id=instance_id,
+                                     test_deployment_id='1-sdtw2',
+                                     test_operation_name=operation_name,
+                                     runtime_properties=runtime_properties)
+
+        kwargs = {
+            'ctx': node_context
+        }
+
+        result = common._check_valid_resource_id_with_operation(kwargs,
+                                                                exception)
+
+        return node_context, result
+
+    def test_create_with_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_CREATE_OPERATION, {},
+                                            False)
+        runtime_prop = 'create_xyz1'
+        self.assertTrue(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_create_with_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_CREATE_OPERATION,
+                                            {'create_xyz1': True},
+                                            True)
+        runtime_prop = 'create_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_create_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_CREATE_OPERATION,
+                                            {'external_id': '123-43-312'},
+                                            False)
+        runtime_prop = 'create_xyz1'
+        self.assertTrue(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_create_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_CREATE_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True},
+                                            True)
+        runtime_prop = 'create_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_configure_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_CONFIGURE_OPERATION,
+                                            {'external_id': '123-43-312'},
+                                            False)
+        runtime_prop = 'configure_xyz1'
+        self.assertTrue(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_configure_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_CONFIGURE_OPERATION,
+                                            {'configure_xyz1': True,
+                                             'external_id': '123-43-312'},
+                                            True)
+        runtime_prop = 'configure_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_configure_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_CONFIGURE_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'configure_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_configure_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_CONFIGURE_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'configure_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_start_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_START_OPERATION,
+                                            {'external_id': '123-43-312'},
+                                            False)
+        runtime_prop = 'start_xyz1'
+        self.assertTrue(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_start_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_START_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'start_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_start_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_START_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'start_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_start_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_START_OPERATION,
+                                            {'start_xyz1': True,
+                                             'external_id': '123-43-312'},
+                                            True)
+        runtime_prop = 'start_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_stop_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_STOP_OPERATION,
+                                            {'external_id': '123-43-312'},
+                                            False)
+        runtime_prop = 'stop_xyz1'
+        self.assertTrue(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_stop_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_STOP_OPERATION,
+                                            {'stop_xyz1': True,
+                                             'external_id': '123-43-312'},
+                                            True)
+        runtime_prop = 'stop_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_stop_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_STOP_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'stop_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_stop_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_STOP_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'stop_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_delete_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_DELETE_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True},
+                                            False)
+        runtime_prop = 'create_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        runtime_prop = 'configure_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_delete_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_DELETE_OPERATION,
+                                            {'external_id': '123-43-312'},
+                                            True)
+        runtime_prop = 'create_xyz1'
+        self.assertTrue(result.instance.runtime_properties.get(runtime_prop))
+        runtime_prop = 'configure_xyz1'
+        self.assertTrue(result.instance.runtime_properties.get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_delete_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_DELETE_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'create_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_delete_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_DELETE_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'create_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_pre_conf_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True},
+                                            False)
+        runtime_prop = 'preconfigure_port_12c45'
+        self.assertTrue(result.source.instance.runtime_properties.
+                        get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_pre_conf_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True,
+                                             'preconfigure_port_12c45': True},
+                                            True)
+        runtime_prop = 'preconfigure_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_pre_conf_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'preconfigure_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_pre_conf_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'preconfigure_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_post_conf_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_POST_CONFIGURE_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True},
+                                            False)
+        runtime_prop = 'postconfigure_port_12c45'
+        self.assertTrue(result.source.instance.runtime_properties.
+                        get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_post_conf_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_POST_CONFIGURE_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True,
+                                             'postconfigure_port_12c45': True},
+                                            True)
+        runtime_prop = 'postconfigure_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_post_conf_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_POST_CONFIGURE_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'postconfigure_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_post_conf_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_POST_CONFIGURE_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'postconfigure_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_establish_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_ESTABLISH_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True},
+                                            False)
+        runtime_prop = 'establish_port_12c45'
+        self.assertTrue(result.source.instance.runtime_properties.
+                        get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_establish_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_ESTABLISH_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True,
+                                             'establish_port_12c45': True},
+                                            True)
+        runtime_prop = 'establish_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_establish_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_ESTABLISH_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'establish_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_establish_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_ESTABLISH_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'establish_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_unlink_with_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_UNLINK_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True,
+                                             'establish_port_12c45': True},
+                                            False)
+        runtime_prop = 'establish_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_unlink_with_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_UNLINK_OPERATION,
+                                            {'external_id': '123-43-312',
+                                             'create_xyz1': True,
+                                             'configure_xyz1': True},
+                                            True)
+        runtime_prop = 'establish_port_12c45'
+        self.assertTrue(result.source.instance.runtime_properties.
+                        get(runtime_prop))
+        self.assertTrue(validate_res)
+
+    def test_unlink_no_resource_id_no_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_UNLINK_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'establish_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)
+
+    def test_unlink_no_resource_id_with_exception(self):
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_UNLINK_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'establish_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)

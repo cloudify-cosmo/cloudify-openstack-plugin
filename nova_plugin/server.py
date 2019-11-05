@@ -257,7 +257,7 @@ def _handle_boot_volume(server, ctx):
                 boot_volume.runtime_properties[OPENSTACK_AZ_PROPERTY]
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_neutron_client
 def create(nova_client, neutron_client, args, **kwargs):
@@ -412,7 +412,7 @@ def get_port_networks(neutron_client, port_ids):
     return map(get_network, port_ids)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def start(nova_client,
           start_retry_interval=30,
@@ -479,7 +479,7 @@ def start(nova_client,
             server_state_fault))
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def stop(nova_client, **kwargs):
     """
@@ -536,7 +536,7 @@ def _server_start(nova_client, server):
         ctx.logger.info('Server is already started?')
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def reboot(nova_client, reboot_type='soft', **kwargs):
 
@@ -612,7 +612,7 @@ def _check_finished_upload(nova_client, server, waiting_list):
             retry_after=30)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def freeze_suspend(nova_client, **kwargs):
     """
@@ -623,7 +623,7 @@ def freeze_suspend(nova_client, **kwargs):
     _server_suspend(nova_client, server)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def freeze_resume(nova_client, **kwargs):
     """
@@ -634,7 +634,7 @@ def freeze_resume(nova_client, **kwargs):
     _server_resume(nova_client, server)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_glance_client
 def snapshot_create(nova_client, glance_client, **kwargs):
@@ -692,7 +692,7 @@ def _get_image(glance_client, snapshot_name, snapshot_incremental):
     return None, None
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_glance_client
 def snapshot_apply(nova_client, glance_client, **kwargs):
@@ -759,7 +759,7 @@ def _image_delete(glance_client, snapshot_name, snapshot_incremental):
                                    retry_after=30)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_glance_client
 def snapshot_delete(nova_client, glance_client, **kwargs):
@@ -781,7 +781,7 @@ def snapshot_delete(nova_client, glance_client, **kwargs):
     return _image_delete(glance_client, snapshot_name, snapshot_incremental)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
@@ -796,7 +796,7 @@ def delete(nova_client, **kwargs):
     delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def list_servers(nova_client, args, **kwargs):
     server_list = nova_client.servers.list(**args)
@@ -896,7 +896,7 @@ def _set_network_and_ip_runtime_properties(server):
         ctx.instance.runtime_properties[IPV6_PROPERTY] = ''
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def connect_floatingip(nova_client, fixed_ip='', **kwargs):
     server_id = get_openstack_id(ctx.source)
@@ -925,7 +925,7 @@ def connect_floatingip(nova_client, fixed_ip='', **kwargs):
                                    .format(floating_ip_address, server_id))
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_neutron_client
 def disconnect_floatingip(nova_client, neutron_client, **kwargs):
@@ -945,7 +945,7 @@ def disconnect_floatingip(nova_client, neutron_client, **kwargs):
                         .format(server_floating_ip['floating_ip_address']))
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def connect_security_group(nova_client, **kwargs):
     server_id = get_openstack_id(ctx.source)
@@ -987,7 +987,7 @@ def connect_security_group(nova_client, **kwargs):
                                                           is_connected=True)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def disconnect_security_group(nova_client, **kwargs):
     if is_external_relationship(ctx):
@@ -1015,7 +1015,7 @@ def disconnect_security_group(nova_client, **kwargs):
             is_connected=False)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_cinder_client
 def attach_volume(nova_client,
@@ -1110,7 +1110,7 @@ def _detach_volume(nova_client, cinder_client, server_id, volume_id,
                                  timeout=status_timeout)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 @with_cinder_client
 def detach_volume(nova_client,
@@ -1227,7 +1227,7 @@ def _get_properties_by_node_instance_id(node_instance_id):
         return node.properties
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def creation_validation(nova_client, args, **kwargs):
 

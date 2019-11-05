@@ -63,7 +63,7 @@ def _set_tenants_access(ctx, nova_client, flavor):
     ctx.instance.runtime_properties[TENANTS_PROPERTY] = tenants
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def create(nova_client, args, **kwargs):
     if use_external_resource(ctx, nova_client, FLAVOR_OPENSTACK_TYPE):
@@ -79,7 +79,7 @@ def create(nova_client, args, **kwargs):
     _set_tenants_access(ctx, nova_client, flavor)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def delete(nova_client, **kwargs):
     delete_resource_and_runtime_properties(
@@ -91,6 +91,7 @@ def delete(nova_client, **kwargs):
     delete_runtime_properties(ctx, [EXTRA_SPECS_PROPERTY, TENANTS_PROPERTY])
 
 
+@operation(resumable=True)
 @with_nova_client
 def list_flavors(nova_client, args, **kwargs):
     flavor_list = nova_client.flavors.list(**args)

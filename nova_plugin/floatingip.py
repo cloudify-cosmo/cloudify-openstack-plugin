@@ -31,7 +31,7 @@ from openstack_plugin_common.floatingip import (
 # nova.<type>.findall) and lists, which won't return such unallocated
 # resources.
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def create(nova_client, args, **kwargs):
 
@@ -48,13 +48,13 @@ def create(nova_client, args, **kwargs):
     set_floatingip_runtime_properties(fip.id, fip.ip)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def delete(nova_client, **kwargs):
     delete_floatingip(nova_client)
 
 
-@operation
+@operation(resumable=True)
 @with_nova_client
 def creation_validation(nova_client, **kwargs):
     floatingip_creation_validation(nova_client, 'ip')

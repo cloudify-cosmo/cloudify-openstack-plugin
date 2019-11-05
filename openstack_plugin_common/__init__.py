@@ -52,7 +52,7 @@ OPENSTACK_NAME_PROPERTY = 'external_name'  # resource's openstack name
 OPENSTACK_RESOURCE_PROPERTY = 'external_resource'  # resource's parameters
 CONDITIONALLY_CREATED = 'conditionally_created'  # resource was
 # conditionally created
-CONFIG_RUNTIME_PROPERTY = CONFIG_PROPERTY   # openstack configuration
+CONFIG_RUNTIME_PROPERTY = CONFIG_PROPERTY  # openstack configuration
 
 # operation inputs
 CONFIG_INPUT = CONFIG_PROPERTY
@@ -99,6 +99,36 @@ LOGGING_GROUPS = {
                'glanceclient.v2.client']
 }
 
+CLOUDIFY_CREATE_OPERATION = 'cloudify.interfaces.lifecycle.create'
+CLOUDIFY_PRE_CONFIGURE_OPERATION = 'cloudify.interfaces.lifecycle.preconfigure'
+CLOUDIFY_CONFIGURE_OPERATION = 'cloudify.interfaces.lifecycle.configure'
+CLOUDIFY_POST_CONFIGURE_OPERATION = 'cloudify.interfaces.lifecycle.' \
+                                    'postconfigure'
+CLOUDIFY_START_OPERATION = 'cloudify.interfaces.lifecycle.start'
+CLOUDIFY_STOP_OPERATION = 'cloudify.interfaces.lifecycle.stop'
+CLOUDIFY_DELETE_OPERATION = 'cloudify.interfaces.lifecycle.delete'
+CLOUDIFY_UNLINK_OPERATION = 'cloudify.interfaces.relationship_lifecycle.unlink'
+CLOUDIFY_ESTABLISH_OPERATION = 'cloudify.interfaces.relationship_lifecycle.' \
+                               'establish'
+
+CLOUDIFY_CONF_CYCLE_OPERATION = (CLOUDIFY_CREATE_OPERATION,
+                                 CLOUDIFY_CONFIGURE_OPERATION,
+                                 CLOUDIFY_START_OPERATION,
+                                 CLOUDIFY_STOP_OPERATION)
+
+CLOUDIFY_RELATION_CYCLE_OPERATION = (CLOUDIFY_ESTABLISH_OPERATION,
+                                     CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                                     CLOUDIFY_POST_CONFIGURE_OPERATION)
+
+CLOUDIFY_OPERATIONS_WITHOUT_CREATE = (CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                                      CLOUDIFY_CONFIGURE_OPERATION,
+                                      CLOUDIFY_POST_CONFIGURE_OPERATION,
+                                      CLOUDIFY_START_OPERATION,
+                                      CLOUDIFY_STOP_OPERATION,
+                                      CLOUDIFY_DELETE_OPERATION,
+                                      CLOUDIFY_UNLINK_OPERATION,
+                                      CLOUDIFY_ESTABLISH_OPERATION)
+
 
 # TODO: Move this to cloudify-plugins-common (code freeze currently
 # in effect).
@@ -108,6 +138,7 @@ class CloudifyCtxLogHandler(logging.Handler):
     A logger attached to this handler will result in logging being passed
     through to the Cloudify logger.
     """
+
     def __init__(self, ctx):
         """
         Constructor.
@@ -299,7 +330,6 @@ def get_property(ctx, property_name, kwargs={}, default=None):
 
 
 def transform_resource_name(ctx, res):
-
     if isinstance(res, basestring):
         res = {'name': res}
 
@@ -320,7 +350,7 @@ def transform_resource_name(ctx, res):
                         "already has this prefix".format(name, pfx))
     else:
         ctx.logger.info("Transformed resource name '{0}' to '{1}'".format(
-                        name, res['name']))
+            name, res['name']))
 
     return res['name']
 
@@ -341,7 +371,6 @@ def _get_resource_by_name_or_id_from_ctx(ctx, name_field_name, openstack_type,
 def get_resource_by_name_or_id(
         resource_id, openstack_type, sugared_client,
         raise_if_not_found=True, name_field_name='name'):
-
     # search for resource by name (or name-equivalent field)
     search_param = {name_field_name: resource_id}
     resource = sugared_client.cosmo_get_if_exists(openstack_type,
@@ -437,9 +466,9 @@ def validate_resource(ctx, sugared_client, openstack_type,
                 or resource_quota == INFINITE_RESOURCE_QUOTA:
             ctx.logger.debug(
                 'OK: {0} (node {1}) can be created. provisioned {2}: {3}, '
-                'quota: {4}'
-                .format(openstack_type, ctx.node.id, openstack_type_plural,
-                        resource_amount, resource_quota))
+                'quota: {4}'.format(openstack_type, ctx.node.id,
+                                    openstack_type_plural,
+                                    resource_amount, resource_quota))
         else:
             err = ('{0} (node {1}) cannot be created due to quota limitations.'
                    ' provisioned {2}: {3}, quota: {4}'
@@ -473,15 +502,15 @@ def is_external_resource(ctx):
 
 def is_external_resource_not_conditionally_created(ctx):
     return is_external_resource_by_properties(ctx.node.properties) and \
-        not ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+           not ctx.instance.runtime_properties.get(CONDITIONALLY_CREATED)
 
 
 def is_external_relationship_not_conditionally_created(ctx):
     return is_external_resource_by_properties(ctx.source.node.properties) and \
-        is_external_resource_by_properties(ctx.target.node.properties) and \
-        not ctx.source.instance.runtime_properties.get(
-            CONDITIONALLY_CREATED) and not \
-        ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
+           is_external_resource_by_properties(ctx.target.node.properties) and \
+           not ctx.source.instance.runtime_properties.get(
+               CONDITIONALLY_CREATED) and not \
+           ctx.target.instance.runtime_properties.get(CONDITIONALLY_CREATED)
 
 
 def is_create_if_missing(ctx):
@@ -490,17 +519,17 @@ def is_create_if_missing(ctx):
 
 def is_external_relationship(ctx):
     return is_external_resource_by_properties(ctx.source.node.properties) and \
-        is_external_resource_by_properties(ctx.target.node.properties)
+           is_external_resource_by_properties(ctx.target.node.properties)
 
 
 def is_external_resource_by_properties(properties):
     return USE_EXTERNAL_RESOURCE_PROPERTY in properties and \
-        properties[USE_EXTERNAL_RESOURCE_PROPERTY]
+           properties[USE_EXTERNAL_RESOURCE_PROPERTY]
 
 
 def is_create_if_missing_by_properties(properties):
     return CREATE_IF_MISSING_PROPERTY in properties and \
-        properties[CREATE_IF_MISSING_PROPERTY]
+           properties[CREATE_IF_MISSING_PROPERTY]
 
 
 def delete_runtime_properties(ctx, runtime_properties_keys):
@@ -542,7 +571,6 @@ def create_object_dict(ctx, object_name, args, object_dict=None):
 
 
 def add_list_to_runtime_properties(ctx, openstack_type_name, object_list):
-
     objects = []
 
     for obj in object_list:
@@ -574,7 +602,6 @@ def set_neutron_runtime_properties(ctx, openstack_object, openstack_type):
 
 
 class Config(object):
-
     OPENSTACK_CONFIG_PATH_ENV_VAR = 'OPENSTACK_CONFIG_PATH'
     OPENSTACK_CONFIG_PATH_DEFAULT_PATH = '~/openstack_config.json'
     OPENSTACK_ENV_VAR_PREFIX = 'OS_'
@@ -613,7 +640,6 @@ class Config(object):
 
 
 class OpenStackClient(object):
-
     COMMON = {'username', 'password', 'auth_url'}
     AUTH_SETS = [
         COMMON | {'tenant_name'},
@@ -635,7 +661,7 @@ class OpenStackClient(object):
 
             # This check to make sure that blueprint openstack config
             # contains all the required auth params + any non-auth param
-            if set(config.keys())\
+            if set(config.keys()) \
                     in self.AUTH_SETS and config.keys() in self.NON_AUTH_ITEMS:
 
                 # Check if there is any value exists on ``cfg``
@@ -837,7 +863,6 @@ class OpenStackClient(object):
 
 
 class GlanceClient(OpenStackClient):
-
     # Can't glance_url be figured out from keystone
     REQUIRED_CONFIG_PARAMS = \
         ['username', 'password', 'tenant_name', 'auth_url']
@@ -880,14 +905,18 @@ def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('neutron_client', NeutronClientWithSugar, kw)
+        if not _check_valid_resource_id_with_operation(kw):
+            return
 
         try:
             return f(*args, **kw)
         except neutron_exceptions.NeutronClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.status_code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.status_code)
             else:
                 raise
+
     return wrapper
 
 
@@ -895,16 +924,21 @@ def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('nova_client', NovaClientWithSugar, kw)
+        if not _check_valid_resource_id_with_operation(kw):
+            return
 
         try:
             return f(*args, **kw)
         except nova_exceptions.OverLimit as e:
+            _check_valid_resource_id_with_operation(kw, True)
             _re_raise(e, recoverable=True, retry_after=e.retry_after)
         except nova_exceptions.ClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
+
     return wrapper
 
 
@@ -912,14 +946,18 @@ def with_cinder_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('cinder_client', CinderClientWithSugar, kw)
+        if not _check_valid_resource_id_with_operation(kw):
+            return
 
         try:
             return f(*args, **kw)
         except cinder_exceptions.ClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
+
     return wrapper
 
 
@@ -927,14 +965,18 @@ def with_glance_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('glance_client', GlanceClientWithSugar, kw)
+        if not _check_valid_resource_id_with_operation(kw):
+            return
 
         try:
             return f(*args, **kw)
         except glance_exceptions.ClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
                 raise
+
     return wrapper
 
 
@@ -942,21 +984,227 @@ def with_keystone_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('keystone_client', KeystoneClientWithSugar, kw)
+        if not _check_valid_resource_id_with_operation(kw):
+            return
 
         try:
             return f(*args, **kw)
         except keystone_exceptions.HTTPError as e:
+            _check_valid_resource_id_with_operation(kw, True)
             if e.http_status in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.http_status)
             else:
                 raise
         except keystone_exceptions.ClientException as e:
+            _check_valid_resource_id_with_operation(kw, True)
             _re_raise(e, recoverable=False)
+
     return wrapper
 
 
-def _handle_kw(client_name, client_class, kw):
+def handle_conf_cycle_operations(_ctx, operation_name, instance_id, exception):
+    """
+    function to handle CLOUDIFY_CONF_CYCLE_OPERATION given exception
+    if no exception the function add runtime property for that operation
+    if exception remove the runtime property, handle start/stop operations flag
+    :param _ctx:
+    :param operation_name:
+    :param instance_id:
+    :param exception:
+    :return:
+    """
+    op_prefix = operation_name.split(".")[-1]
+    runtime_prop = op_prefix + '_' + instance_id
 
+    if not exception:
+        # if runtime for this operation already set return false
+        if _ctx.instance.runtime_properties.get(runtime_prop):
+            _ctx.logger.info(op_prefix + ' already done')
+            return False
+        else:
+            # set runtime property of the operation and return true
+            _ctx.instance.runtime_properties[runtime_prop] = True
+
+            # if operation start , delete stop property if exists
+            if operation_name == CLOUDIFY_START_OPERATION and \
+                    _ctx.instance.runtime_properties.get(
+                        'stop_' + instance_id):
+                del _ctx.instance.runtime_properties['stop_' +
+                                                     instance_id]
+
+            # if operation stop , delete start property if exists
+            elif operation_name == CLOUDIFY_STOP_OPERATION and \
+                    _ctx.instance.runtime_properties.get(
+                        'start_' + instance_id):
+                del _ctx.instance.runtime_properties['start_' +
+                                                     instance_id]
+    else:  # in exception
+        # remove the runtime for the operation
+        del _ctx.instance.runtime_properties[runtime_prop]
+
+        # if operation start , add stop property
+        if operation_name == CLOUDIFY_START_OPERATION:
+            _ctx.instance.runtime_properties[
+                'stop_' + instance_id] = True
+
+        # if operation stop , add start property
+        elif operation_name == CLOUDIFY_STOP_OPERATION:
+            _ctx.instance.runtime_properties[
+                'start_' + instance_id] = True
+    return True
+
+
+def handle_delete_operations(_ctx, instance_id, exception):
+    """
+    function to handle delete operation given exception
+    affected flags are for : configure,create and stop operations
+    if exception set the affected flags to True
+    if no exception delete the affected flags
+    :param _ctx:
+    :param instance_id:
+    :param exception:
+    :return:
+    """
+    # in case no exception delete configure, create and stop properties
+    # in case of exception add configure, create and stop properties
+    for op in (CLOUDIFY_CREATE_OPERATION,
+               CLOUDIFY_CONFIGURE_OPERATION,
+               CLOUDIFY_STOP_OPERATION):
+        runtime_prop = op.split(".")[-1] + '_' + instance_id
+        if not exception:
+            if _ctx.instance.runtime_properties.get(runtime_prop):
+                del _ctx.instance.runtime_properties[runtime_prop]
+        else:
+            _ctx.instance.runtime_properties[runtime_prop] = True
+    return True
+
+
+def handle_rel_cycle_operations(_ctx, operation_name, exception):
+    """
+    function to handle CLOUDIFY_RELATION_CYCLE_OPERATION given exception
+    if no exception add the runtime flags for the operations
+    if exception delete the runtime flags
+    :param _ctx:
+    :param operation_name:
+    :param exception:
+    :return:
+    """
+    # rely on target since relation could be to more than one instance
+    op_prefix = operation_name.split(".")[-1]
+    target_id = _ctx.target.instance.id
+    runtime_prop = op_prefix + '_' + target_id
+    if not exception:
+        if _ctx.source.instance.runtime_properties.get(
+                runtime_prop):
+            _ctx.logger.info(op_prefix + ' already done')
+            return False
+        else:
+            _ctx.source.instance.runtime_properties[runtime_prop] \
+                = True
+    else:
+        del _ctx.source.instance.runtime_properties[runtime_prop]
+    return True
+
+
+def handle_unlink_operations(_ctx, exception):
+    """
+    function to handle unlink operation given exception
+    if no exception we remove establish runtime flag
+    if exception we set establish runtime flag to True
+    :param _ctx:
+    :param exception:
+    :return:
+    """
+    # in case of unlink operation we remove establish in case of
+    # no exception otherwise we return the establish property
+    target_id = _ctx.target.instance.id
+    runtime_prop = CLOUDIFY_ESTABLISH_OPERATION.split(".")[-1] + '_' + \
+        target_id
+    if not exception:
+        if _ctx.source.instance.runtime_properties.get(
+                runtime_prop):
+            del _ctx.source.instance.runtime_properties[
+                runtime_prop]
+    else:
+        _ctx.source.instance.runtime_properties[runtime_prop] \
+            = True
+    return True
+
+
+def handle_no_resource_id_operations(_ctx, operation_name, instance_id,
+                                     exception):
+    """
+    function to handle instance operations with no resource_id given exception
+    if no exception and create_operation set create runtime flag to true ,
+    skip any other since we don't have resource_id to take action
+    if exception and create_operation delete create runtime flag
+    :param _ctx:
+    :param operation_name:
+    :param instance_id:
+    :param exception:
+    :return:
+    """
+    op_prefix = operation_name.split(".")[-1]
+    runtime_prop = op_prefix + '_' + instance_id
+
+    if operation_name == CLOUDIFY_CREATE_OPERATION:
+        if not exception:
+            _ctx.instance.runtime_properties[runtime_prop] = True
+        else:
+            del _ctx.instance.runtime_properties[runtime_prop]
+    # skip operations since resource_id is not assigned to take action
+    elif operation_name in CLOUDIFY_OPERATIONS_WITHOUT_CREATE:
+        _ctx.logger.info("ignoring action since resource_id is not set")
+        return False
+    return True
+
+
+def _check_valid_resource_id_with_operation(kw, exception=False):
+    """
+    function used to check if we should do the requested operation from
+    workflow or not ;given runtime properties
+    :param kw:
+    :return:
+    """
+
+    _ctx = _find_context_in_kw(kw) or ctx
+    resource_id = None
+    instance_id = None
+
+    operation_name = _ctx.operation.name or ""
+
+    if _ctx.type == context.NODE_INSTANCE:
+        resource_id = _ctx.instance.runtime_properties.get(
+            OPENSTACK_ID_PROPERTY)
+        instance_id = _ctx.instance.id
+    elif _ctx.type == context.RELATIONSHIP_INSTANCE:
+        resource_id = _ctx.source.instance.runtime_properties.get(
+            OPENSTACK_ID_PROPERTY)
+        instance_id = _ctx.source.instance.id
+
+    # check resource_id
+    if resource_id:
+        if operation_name in CLOUDIFY_CONF_CYCLE_OPERATION:
+            return handle_conf_cycle_operations(_ctx, operation_name,
+                                                instance_id, exception)
+
+        elif operation_name == CLOUDIFY_DELETE_OPERATION:
+            return handle_delete_operations(_ctx, instance_id, exception)
+
+        elif operation_name in CLOUDIFY_RELATION_CYCLE_OPERATION:
+            return handle_rel_cycle_operations(_ctx, operation_name, exception)
+
+        elif operation_name == CLOUDIFY_UNLINK_OPERATION:
+            return handle_unlink_operations(_ctx, exception)
+
+    else:
+        return handle_no_resource_id_operations(_ctx, operation_name,
+                                                instance_id, exception)
+
+    return True
+
+
+def _handle_kw(client_name, client_class, kw):
     _ctx = _find_context_in_kw(kw) or ctx
     if _ctx.type == context.NODE_INSTANCE:
         config = _ctx.node.properties.get(CONFIG_PROPERTY)
@@ -1100,7 +1348,7 @@ class NeutronClientWithSugar(OpenStackClient):
         """ Sugar for list_XXXs()['XXXs'] """
         obj_type_plural = self.cosmo_plural(obj_type_single)
         for obj in getattr(self, 'list_' + obj_type_plural)(**kw)[
-                obj_type_plural]:
+                            obj_type_plural]:
             yield obj
 
     def cosmo_delete_resource(self, obj_type_single, obj_id):
@@ -1125,7 +1373,7 @@ class NeutronClientWithSugar(OpenStackClient):
     def cosmo_delete_prefixed(self, name_prefix):
         # Cleanup all neutron.list_XXX() objects with names starting
         #  with self.name_prefix
-        for obj_type_single in 'port', 'router', 'network', 'subnet',\
+        for obj_type_single in 'port', 'router', 'network', 'subnet', \
                                'security_group':
             for obj in self.cosmo_list_prefixed(obj_type_single, name_prefix):
                 if obj_type_single == 'router':
@@ -1185,7 +1433,7 @@ class CinderClientWithSugar(OpenStackClient):
 
 class KeystoneClientWithSugar(OpenStackClient):
     # keystone does not have resource quota
-    KEYSTONE_INFINITE_RESOURCE_QUOTA = 10**9
+    KEYSTONE_INFINITE_RESOURCE_QUOTA = 10 ** 9
 
     def __init__(self, *args, **kw):
         super(KeystoneClientWithSugar, self).__init__(
@@ -1211,7 +1459,7 @@ class KeystoneClientWithSugar(OpenStackClient):
 
 
 class GlanceClientWithSugar(OpenStackClient):
-    GLANCE_INIFINITE_RESOURCE_QUOTA = 10**9
+    GLANCE_INIFINITE_RESOURCE_QUOTA = 10 ** 9
 
     def __init__(self, *args, **kw):
         super(GlanceClientWithSugar, self).__init__(

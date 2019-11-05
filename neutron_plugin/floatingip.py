@@ -43,7 +43,7 @@ FLOATING_NETWORK_ERROR_MSG = FLOATING_NETWORK_ERROR_PREFIX +\
                              FLOATING_NETWORK_ERROR_SUFFIX
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
 
@@ -96,12 +96,13 @@ def create(neutron_client, args, **kwargs):
     ctx.logger.info('Floating IP creation response: {0}'.format(fip))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_floatingip(neutron_client)
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_floatingips(neutron_client, args, **kwargs):
     fip_list = neutron_client.list_floatingips(**args)
@@ -110,13 +111,13 @@ def list_floatingips(neutron_client, args, **kwargs):
                                    fip_list.get('floatingips', []))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     floatingip_creation_validation(neutron_client, 'floating_ip_address')
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def connect_port(neutron_client, **kwargs):
     if is_external_relationship_not_conditionally_created(ctx):
@@ -129,7 +130,7 @@ def connect_port(neutron_client, **kwargs):
         floating_ip_id, {FLOATINGIP_OPENSTACK_TYPE: fip})
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def disconnect_port(neutron_client, **kwargs):
     if is_external_relationship(ctx):

@@ -65,7 +65,7 @@ def _set_volume_runtime_properties(volume):
         ctx.node.properties.get('boot', False)
 
 
-@operation
+@operation(resumable=True)
 @with_cinder_client
 def create(cinder_client,
            args={},
@@ -158,7 +158,7 @@ def _delete_backup(cinder_client, search_opts):
                     retry_after=30)
 
 
-@operation
+@operation(resumable=True)
 @with_cinder_client
 def delete(cinder_client, **kwargs):
     # seach snapshots for volume
@@ -204,6 +204,7 @@ def _get_snapshot_name(ctx, kwargs):
     return "vol-{}-{}".format(get_openstack_id(ctx), kwargs["snapshot_name"])
 
 
+@operation(resumable=True)
 @with_cinder_client
 def snapshot_create(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)
@@ -224,6 +225,7 @@ def snapshot_create(cinder_client, **kwargs):
                                               metadata=None)
 
 
+@operation(resumable=True)
 @with_cinder_client
 def snapshot_apply(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)
@@ -254,6 +256,7 @@ def snapshot_apply(cinder_client, **kwargs):
         ctx.logger.error("Apply snapshot is unsuported")
 
 
+@operation(resumable=True)
 @with_cinder_client
 def snapshot_delete(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)
@@ -279,14 +282,14 @@ def snapshot_delete(cinder_client, **kwargs):
         _delete_snapshot(cinder_client, search_opts)
 
 
-@operation
+@operation(resumable=True)
 @with_cinder_client
 def creation_validation(cinder_client, **kwargs):
     validate_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
                       VOLUME_OPENSTACK_ID_KEY)
 
 
-@operation
+@operation(resumable=True)
 @with_cinder_client
 def list_volumes(cinder_client, args, **kwargs):
     volume_list = cinder_client.volumes.list(**args)

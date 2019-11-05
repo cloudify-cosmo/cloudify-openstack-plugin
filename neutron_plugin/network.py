@@ -37,7 +37,7 @@ ADMIN_STATE_UP = 'admin_state_up'
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
 
@@ -53,7 +53,7 @@ def create(neutron_client, args, **kwargs):
     set_neutron_runtime_properties(ctx, net, NETWORK_OPENSTACK_TYPE)
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def start(neutron_client, **kwargs):
     network_id = get_openstack_id(ctx)
@@ -75,7 +75,7 @@ def start(neutron_client, **kwargs):
         })
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def stop(neutron_client, **kwargs):
     if is_external_resource(ctx):
@@ -90,13 +90,14 @@ def stop(neutron_client, **kwargs):
         })
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
                                            RUNTIME_PROPERTIES_KEYS)
 
 
+@operation(resumable=True)
 @with_neutron_client
 def list_networks(neutron_client, args, **kwargs):
     net_list = neutron_client.list_networks(**args)
@@ -105,7 +106,7 @@ def list_networks(neutron_client, args, **kwargs):
                                    net_list.get('networks', []))
 
 
-@operation
+@operation(resumable=True)
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, NETWORK_OPENSTACK_TYPE)

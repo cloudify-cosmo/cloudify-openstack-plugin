@@ -1,3 +1,5 @@
+2.14.14:
+    - Fix bug with providing insecure and certificate when connecting to Openstack API.
 2.14.13:
     - Add support for resumable actions.
 2.14.12:

@@ -822,11 +822,14 @@ class OpenStackClient(object):
                     cfg_insecure.capitalize() == 'True':
                 cfg[AUTH_PARAM_INSECURE] = True
             verify = not (cfg[AUTH_PARAM_INSECURE] is True)
-            del cfg[AUTH_PARAM_INSECURE]
         elif AUTH_PARM_CA_CERT in cfg:
             cfg = cfg.copy()
             verify = cfg[AUTH_PARM_CA_CERT]
-            del cfg[AUTH_PARM_CA_CERT]
+        # Since we need only the value of 'verify' then we need to check
+        # both "insecure" & "ca_cert" and drop them from the cfy config
+        for auth_parm in [AUTH_PARAM_INSECURE, AUTH_PARM_CA_CERT]:
+            if auth_parm in cfg:
+                del cfg[auth_parm]
 
         loader = loading.get_plugin_loader("password")
         auth = loader.load_from_options(**cfg)

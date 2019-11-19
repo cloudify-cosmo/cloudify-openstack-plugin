@@ -445,7 +445,7 @@ class OpenstackClientTests(unittest.TestCase):
             loader = mock_loading.get_plugin_loader.return_value
             loader.load_from_options.assert_called_with(**params)
             auth = loader.load_from_options.return_value
-            mock_session.Session.assert_called_with(auth=auth, verify=True)
+            mock_session.Session.assert_called_with(auth=auth, verify=False)
 
     @mock.patch.object(common, 'cinder_client')
     def test_cinder_client_get_name_from_resource(self, cc_mock):

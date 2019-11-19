@@ -817,7 +817,7 @@ class OpenStackClient(object):
             elif not isinstance(cfg_insecure, bool):
                 cfg_insecure = True
             return cfg_insecure
-        insecure = _get_insecure(cfg.get(AUTH_PARAM_INSECURE)) or False
+        insecure = _get_insecure(cfg.get(AUTH_PARAM_INSECURE, False))
         verify = False if insecure else cfg.get(AUTH_PARM_CA_CERT, True)
         # Since we need only the value of 'verify' then we need to check
         # both "insecure" & "ca_cert" and drop them from the cfy config

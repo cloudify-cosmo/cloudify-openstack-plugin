@@ -34,6 +34,12 @@
     - Add backwards compatible support for openstack 2.x
 3.0.0:
     - Openstack Plugin v3: new plugin based on openstacksdk official library (instead of CLI package), new types, new examples, new tests.
+2.14.15:
+    - Refactor handling ssl connection when connection Openstack API.
+2.14.14:
+    - Fix bug with providing insecure and certificate when connecting to Openstack API.
+2.14.13:
+    - Add support for resumable actions.
 2.14.12:
     - expose ipv4 and ipv6 addresses as runtime properties for port.
 2.14.11:

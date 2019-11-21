@@ -982,7 +982,7 @@ def with_keystone_client(f):
     return wrapper
 
 
-def with_resume_flags(f):
+def with_resume_operation(f):
     @wraps(f)
     def wrapper(*args, **kw):
         if not _check_valid_resource_id_with_operation(kw):

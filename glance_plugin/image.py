@@ -30,7 +30,7 @@ from openstack_plugin_common import (
     add_list_to_runtime_properties,
     set_openstack_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS,
-    with_resume_flags)
+    with_resume_operation)
 
 
 IMAGE_OPENSTACK_TYPE = 'image'
@@ -41,7 +41,7 @@ REQUIRED_PROPERTIES = ['container_format', 'disk_format']
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_glance_client
 def create(glance_client, args, **kwargs):
     if use_external_resource(ctx, glance_client, IMAGE_OPENSTACK_TYPE):
@@ -75,7 +75,7 @@ def _get_image_by_ctx(glance_client, ctx):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_glance_client
 def start(glance_client, start_retry_interval, **kwargs):
     img = _get_image_by_ctx(glance_client, ctx)
@@ -86,7 +86,7 @@ def start(glance_client, start_retry_interval, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_glance_client
 def delete(glance_client, **kwargs):
     _remove_protected(glance_client)
@@ -112,7 +112,7 @@ def update(glance_client, args, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_glance_client
 def creation_validation(glance_client, **kwargs):
     validate_resource(ctx, glance_client, IMAGE_OPENSTACK_TYPE)

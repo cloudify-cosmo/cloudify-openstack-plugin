@@ -28,7 +28,7 @@ from openstack_plugin_common import (
     set_neutron_runtime_properties,
     add_list_to_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS,
-    with_resume_flags
+    with_resume_operation
 )
 
 NETWORK_OPENSTACK_TYPE = 'network'
@@ -39,7 +39,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
 
@@ -56,7 +56,7 @@ def create(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_neutron_client
 def start(neutron_client, **kwargs):
     network_id = get_openstack_id(ctx)
@@ -79,7 +79,7 @@ def start(neutron_client, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_neutron_client
 def stop(neutron_client, **kwargs):
     if is_external_resource(ctx):
@@ -95,7 +95,7 @@ def stop(neutron_client, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
@@ -103,7 +103,7 @@ def delete(neutron_client, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_neutron_client
 def list_networks(neutron_client, args, **kwargs):
     net_list = neutron_client.list_networks(**args)
@@ -113,7 +113,7 @@ def list_networks(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, NETWORK_OPENSTACK_TYPE)

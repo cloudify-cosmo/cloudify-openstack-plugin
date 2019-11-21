@@ -26,7 +26,7 @@ from openstack_plugin_common import (
     create_object_dict,
     add_list_to_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS,
-    with_resume_flags
+    with_resume_operation
 )
 
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
@@ -34,7 +34,7 @@ SERVER_GROUP_OPENSTACK_TYPE = 'server_group'
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_nova_client
 def create(nova_client, args, **kwargs):
     if use_external_resource(ctx, nova_client, SERVER_GROUP_OPENSTACK_TYPE):
@@ -53,7 +53,7 @@ def create(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_nova_client
 def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
@@ -68,7 +68,7 @@ def delete(nova_client, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_nova_client
 def list_servergroups(nova_client, args, **kwargs):
     server_group_list = nova_client.server_groups.list(**args)
@@ -78,7 +78,7 @@ def list_servergroups(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_nova_client
 def creation_validation(nova_client, **kwargs):
     validate_resource(ctx, nova_client, SERVER_GROUP_OPENSTACK_TYPE)

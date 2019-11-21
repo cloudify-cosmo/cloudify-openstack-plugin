@@ -33,7 +33,7 @@ from openstack_plugin_common import (
     delete_resource_and_runtime_properties,
     set_openstack_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS,
-    with_resume_flags
+    with_resume_operation
 )
 
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
@@ -43,7 +43,7 @@ PRIVATE_KEY_PATH_PROP = 'private_key_path'
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_nova_client
 def create(nova_client, args, **kwargs):
 
@@ -89,7 +89,7 @@ def create(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_nova_client
 def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
@@ -106,7 +106,7 @@ def delete(nova_client, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_nova_client
 def list_keypairs(nova_client, args, **kwargs):
     keypair_list = nova_client.keypairs.list(**args)
@@ -114,7 +114,7 @@ def list_keypairs(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
-@with_resume_flags
+@with_resume_operation
 @with_nova_client
 def creation_validation(nova_client, **kwargs):
 

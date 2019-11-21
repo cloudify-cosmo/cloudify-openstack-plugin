@@ -49,7 +49,8 @@ class CompatTestCase(OpenStackTestBase):
             'username': 'foo',
             'password': 'foo',
             'region_name': 'foo',
-            'project_name': 'foo'
+            'project_name': 'foo',
+            'insecure': False
         }
 
     @property

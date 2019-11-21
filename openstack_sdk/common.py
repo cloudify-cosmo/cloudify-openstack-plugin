@@ -29,13 +29,17 @@ class InvalidDomainException(Exception):
     pass
 
 
+class InvalidINSecureValue(Exception):
+    pass
+
+
 class OpenstackResource(object):
     service_type = None
     resource_type = None
 
     def __init__(self, client_config, resource_config=None, logger=None):
         self.client_config = client_config
-        self.configure_ca_cert()
+        self.configure_ssl()
         self.logger = logger
         self.connection = openstack.connect(**client_config)
         self.config = resource_config or {}
@@ -63,9 +67,27 @@ class OpenstackResource(object):
                     pattern = pattern + '({0}, {1}),'.format(item[0], item[1])
                 raise InvalidDomainException(message.format(pattern))
 
-    def configure_ca_cert(self):
+    def configure_ssl(self):
+        self._configure_ca_cert()
+        self._configure_insecure()
+
+    def _configure_ca_cert(self):
         if self.client_config.get('ca_cert'):
             self.client_config['cacert'] = self.client_config.pop('ca_cert')
+
+    def _configure_insecure(self):
+        insecure = self.client_config.get('insecure', False)
+        bool_str = {
+            'True': True,
+            'False': False,
+        }
+        if isinstance(insecure, basestring):
+            insecure = bool_str.get(insecure.capitalize())
+        if not isinstance(insecure, bool):
+            raise InvalidINSecureValue(
+                'Invalid insecure value {0}.'
+                'It must be boolean'.format(insecure))
+        self.client_config['insecure'] = insecure
 
     def get_project_id_by_name(self, project_name=None):
         project_name = project_name or self.project_name

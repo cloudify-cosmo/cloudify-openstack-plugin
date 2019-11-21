@@ -795,42 +795,36 @@ class OpenStackClient(object):
         #       by the 'requests' library, which is different from the
         #       OS-provided one).
         #
-        #       To get that, specify 'insecure: True'.
+        #       To get that, specify 'insecure: False'.
         #
         # False: disable certificate validation altogether.
         #
-        #       To get that, specify 'insecure: False' (or any value
-        #       other than True).
+        #       To get that, specify 'insecure: True'
         #
         # Any other string: path to the CA cert (or bundle) to verify
         #                   against.
         #
         #                   To get that, specify 'ca_cert: path_to_file'
-        #                   and ensure 'insecure' is NOT specified.
-        verify = True
-        if AUTH_PARAM_INSECURE in cfg:
-            cfg = cfg.copy()
-            # NOTE: Next line will evaluate to False only when insecure is set
-            # to True. Any other value (string etc.) will force verify to True.
-            # This is done on purpose, since we do not wish to use insecure
-            # connection by mistake.
-            # Update: We are adding handling for casting 'True' or 'true' as a
-            # bool because if this value is set via an instrinsic function
-            # it will always be a string.
-            cfg_insecure = cfg[AUTH_PARAM_INSECURE]
-            if isinstance(cfg_insecure, basestring) and \
-                    cfg_insecure.capitalize() == 'True':
-                cfg[AUTH_PARAM_INSECURE] = True
-            verify = not (cfg[AUTH_PARAM_INSECURE] is True)
-        elif AUTH_PARM_CA_CERT in cfg:
-            cfg = cfg.copy()
-            verify = cfg[AUTH_PARM_CA_CERT]
+        #                   and ensure 'insecure' is NOT 'True'.
+        def _get_insecure(cfg_insecure):
+            bool_str = {
+                'True': True,
+                'False': False,
+            }
+            if isinstance(cfg_insecure, basestring):
+                cfg_insecure = bool_str.get(cfg_insecure.capitalize())
+            if not isinstance(cfg_insecure, bool):
+                raise NonRecoverableError(
+                    'Invalid insecure value {0}.'
+                    'It must be boolean'.format(cfg_insecure))
+            return cfg_insecure
+        insecure = _get_insecure(cfg.get(AUTH_PARAM_INSECURE, False))
+        verify = False if insecure else cfg.get(AUTH_PARM_CA_CERT, True)
         # Since we need only the value of 'verify' then we need to check
         # both "insecure" & "ca_cert" and drop them from the cfy config
         for auth_parm in [AUTH_PARAM_INSECURE, AUTH_PARM_CA_CERT]:
             if auth_parm in cfg:
                 del cfg[auth_parm]
-
         loader = loading.get_plugin_loader("password")
         auth = loader.load_from_options(**cfg)
         sess = session.Session(auth=auth, verify=verify)

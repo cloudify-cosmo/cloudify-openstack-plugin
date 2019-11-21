@@ -799,8 +799,7 @@ class OpenStackClient(object):
         #
         # False: disable certificate validation altogether.
         #
-        #       To get that, specify 'insecure: True' or any value other than
-        #       False.
+        #       To get that, specify 'insecure: True'
         #
         # Any other string: path to the CA cert (or bundle) to verify
         #                   against.
@@ -814,9 +813,9 @@ class OpenStackClient(object):
             }
             if isinstance(cfg_insecure, basestring):
                 cfg_insecure = bool_str.get(cfg_insecure.capitalize())
-                cfg_insecure = True if cfg_insecure is None else cfg_insecure
-            elif not isinstance(cfg_insecure, bool):
-                cfg_insecure = True
+            if not isinstance(cfg_insecure, bool):
+                raise NonRecoverableError(
+                    'Invalid insecure value {0}'.format(cfg_insecure))
             return cfg_insecure
         insecure = _get_insecure(cfg.get(AUTH_PARAM_INSECURE, False))
         verify = False if insecure else cfg.get(AUTH_PARM_CA_CERT, True)

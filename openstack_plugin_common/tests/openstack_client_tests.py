@@ -440,12 +440,8 @@ class OpenstackClientTests(unittest.TestCase):
         for test in tests:
             auth_params = params.copy()
             auth_params['insecure'] = test
-
-            common.OpenStackClient._authenticate(auth_params)
-            loader = mock_loading.get_plugin_loader.return_value
-            loader.load_from_options.assert_called_with(**params)
-            auth = loader.load_from_options.return_value
-            mock_session.Session.assert_called_with(auth=auth, verify=False)
+            with self.assertRaises(NonRecoverableError):
+                common.OpenStackClient._authenticate(auth_params)
 
     @mock.patch.object(common, 'cinder_client')
     def test_cinder_client_get_name_from_resource(self, cc_mock):

@@ -26,7 +26,8 @@ from openstack_plugin_common import (with_nova_client,
                                      create_object_dict,
                                      add_list_to_runtime_properties,
                                      set_openstack_runtime_properties,
-                                     COMMON_RUNTIME_PROPERTIES_KEYS)
+                                     COMMON_RUNTIME_PROPERTIES_KEYS,
+                                     with_resume_flags)
 
 HOST_AGGREGATE_OPENSTACK_TYPE = 'aggregate'
 HOSTS_PROPERTY = 'hosts'
@@ -84,6 +85,7 @@ def _remove_hosts(ctx, nova_client, host_aggregate_id, hosts):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def create(nova_client, args, **kwargs):
     if use_external_resource(ctx, nova_client, HOST_AGGREGATE_OPENSTACK_TYPE):
@@ -108,6 +110,7 @@ def create(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def delete(nova_client, **kwargs):
     if not is_external_resource(ctx):
@@ -130,6 +133,7 @@ def delete(nova_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def update(nova_client, args, **kwargs):
     if HOST_AGGREGATE_OPENSTACK_TYPE in args:
@@ -148,6 +152,7 @@ def update(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def list_host_aggregates(nova_client, **kwargs):
     host_aggregates_list = nova_client.aggregates.list()
@@ -160,12 +165,14 @@ def list_host_aggregates(nova_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def add_hosts(nova_client, hosts, **kwargs):
     _add_hosts(ctx, nova_client, get_openstack_id(ctx), hosts)
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def remove_hosts(nova_client, hosts, **kwargs):
     _remove_hosts(ctx, nova_client, get_openstack_id(ctx), hosts)

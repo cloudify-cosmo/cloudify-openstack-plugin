@@ -28,7 +28,8 @@ from openstack_plugin_common import (with_keystone_client,
                                      validate_resource,
                                      create_object_dict,
                                      set_openstack_runtime_properties,
-                                     COMMON_RUNTIME_PROPERTIES_KEYS)
+                                     COMMON_RUNTIME_PROPERTIES_KEYS,
+                                     with_resume_flags)
 
 
 PROJECT_OPENSTACK_TYPE = 'project'
@@ -47,6 +48,7 @@ ROLES = 'roles'
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_keystone_client
 def create(keystone_client, args, **kwargs):
     if use_external_resource(ctx, keystone_client, PROJECT_OPENSTACK_TYPE):
@@ -62,6 +64,7 @@ def create(keystone_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 def start(quota_dict, **kwargs):
     users = ctx.node.properties[USERS]
     validate_users(users, **kwargs)
@@ -72,6 +75,7 @@ def start(quota_dict, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_keystone_client
 @with_nova_client
 @with_cinder_client
@@ -163,6 +167,7 @@ def delete_quota(project_id, quota, client, what_quota):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 @with_neutron_client
 @with_cinder_client
@@ -178,6 +183,7 @@ def update_project_quota(nova_client,
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_keystone_client
 def list_projects(keystone_client, args, **kwargs):
     projects_list = keystone_client.projects.list(**args)
@@ -185,6 +191,7 @@ def list_projects(keystone_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 @with_neutron_client
 @with_cinder_client
@@ -201,6 +208,7 @@ def get_project_quota(nova_client,
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_keystone_client
 def update_project(keystone_client, args, **kwargs):
 

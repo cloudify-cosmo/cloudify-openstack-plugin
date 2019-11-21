@@ -902,13 +902,10 @@ def with_neutron_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('neutron_client', NeutronClientWithSugar, kw)
-        if not _check_valid_resource_id_with_operation(kw):
-            return
 
         try:
             return f(*args, **kw)
         except neutron_exceptions.NeutronClientException as e:
-            _check_valid_resource_id_with_operation(kw, True)
             if e.status_code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.status_code)
             else:
@@ -921,16 +918,12 @@ def with_nova_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('nova_client', NovaClientWithSugar, kw)
-        if not _check_valid_resource_id_with_operation(kw):
-            return
 
         try:
             return f(*args, **kw)
         except nova_exceptions.OverLimit as e:
-            _check_valid_resource_id_with_operation(kw, True)
             _re_raise(e, recoverable=True, retry_after=e.retry_after)
         except nova_exceptions.ClientException as e:
-            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -943,13 +936,10 @@ def with_cinder_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('cinder_client', CinderClientWithSugar, kw)
-        if not _check_valid_resource_id_with_operation(kw):
-            return
 
         try:
             return f(*args, **kw)
         except cinder_exceptions.ClientException as e:
-            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -962,13 +952,10 @@ def with_glance_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('glance_client', GlanceClientWithSugar, kw)
-        if not _check_valid_resource_id_with_operation(kw):
-            return
 
         try:
             return f(*args, **kw)
         except glance_exceptions.ClientException as e:
-            _check_valid_resource_id_with_operation(kw, True)
             if e.code in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.code)
             else:
@@ -981,20 +968,36 @@ def with_keystone_client(f):
     @wraps(f)
     def wrapper(*args, **kw):
         _handle_kw('keystone_client', KeystoneClientWithSugar, kw)
-        if not _check_valid_resource_id_with_operation(kw):
-            return
 
         try:
             return f(*args, **kw)
         except keystone_exceptions.HTTPError as e:
-            _check_valid_resource_id_with_operation(kw, True)
             if e.http_status in _non_recoverable_error_codes:
                 _re_raise(e, recoverable=False, status_code=e.http_status)
             else:
                 raise
         except keystone_exceptions.ClientException as e:
-            _check_valid_resource_id_with_operation(kw, True)
             _re_raise(e, recoverable=False)
+
+    return wrapper
+
+
+def with_resume_flags(f):
+    @wraps(f)
+    def wrapper(*args, **kw):
+        if not _check_valid_resource_id_with_operation(kw):
+            return
+        try:
+            return f(*args, **kw)
+        except Exception as e:
+            _check_valid_resource_id_with_operation(kw, True)
+            if hasattr(e, 'code'):
+                if e.code in _non_recoverable_error_codes:
+                    _re_raise(e, recoverable=False, status_code=e.code)
+                else:
+                    raise
+            else:
+                raise
 
     return wrapper
 
@@ -1163,12 +1166,13 @@ def _check_valid_resource_id_with_operation(kw, exception=False):
     :param kw:
     :return:
     """
-
     _ctx = _find_context_in_kw(kw) or ctx
+
     resource_id = None
     instance_id = None
 
     operation_name = _ctx.operation.name or ""
+    operation_retry_count = _ctx.operation.retry_number or 0
 
     if _ctx.type == context.NODE_INSTANCE:
         resource_id = _ctx.instance.runtime_properties.get(
@@ -1178,6 +1182,10 @@ def _check_valid_resource_id_with_operation(kw, exception=False):
         resource_id = _ctx.source.instance.runtime_properties.get(
             OPENSTACK_ID_PROPERTY)
         instance_id = _ctx.source.instance.id
+
+    # check if operation retry it will do same action
+    if int(operation_retry_count) > 0:
+        return True
 
     # check resource_id
     if resource_id:

@@ -15,7 +15,10 @@
 
 from cloudify import ctx
 from cloudify.decorators import operation
-from openstack_plugin_common import with_nova_client
+from openstack_plugin_common import (
+    with_nova_client,
+    with_resume_flags
+)
 from openstack_plugin_common.floatingip import (
     use_external_floatingip,
     set_floatingip_runtime_properties,
@@ -32,6 +35,7 @@ from openstack_plugin_common.floatingip import (
 # resources.
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def create(nova_client, args, **kwargs):
 
@@ -49,12 +53,14 @@ def create(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def delete(nova_client, **kwargs):
     delete_floatingip(nova_client)
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_nova_client
 def creation_validation(nova_client, **kwargs):
     floatingip_creation_validation(nova_client, 'ip')

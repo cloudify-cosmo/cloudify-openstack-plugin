@@ -24,7 +24,8 @@ from openstack_plugin_common import (
     transform_resource_name,
     with_neutron_client,
     delete_resource_and_runtime_properties,
-    add_list_to_runtime_properties
+    add_list_to_runtime_properties,
+    with_resume_flags
 )
 from openstack_plugin_common.security_group import (
     build_sg_data,
@@ -50,6 +51,7 @@ SG_OPENSTACK_TYPE = 'security_group'
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_neutron_client
 def create(
     neutron_client, args,
@@ -112,12 +114,14 @@ def create(
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_sg(neutron_client)
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_neutron_client
 def list_security_groups(neutron_client, args, **kwargs):
     sg_list = neutron_client.list_security_groups(**args)
@@ -127,6 +131,7 @@ def list_security_groups(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     sg_creation_validation(neutron_client, 'remote_ip_prefix')

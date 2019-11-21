@@ -1,5 +1,6 @@
 2.14.15:
     - Refactor handling ssl connection when connection Openstack API.
+    - Fix issue with agent installation
 2.14.14:
     - Fix bug with providing insecure and certificate when connecting to Openstack API.
 2.14.13:

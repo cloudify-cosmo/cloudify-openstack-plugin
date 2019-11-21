@@ -30,7 +30,8 @@ from openstack_plugin_common import (delete_resource_and_runtime_properties,
                                      OPENSTACK_AZ_PROPERTY,
                                      OPENSTACK_ID_PROPERTY,
                                      OPENSTACK_TYPE_PROPERTY,
-                                     OPENSTACK_NAME_PROPERTY)
+                                     OPENSTACK_NAME_PROPERTY,
+                                     with_resume_flags)
 from glance_plugin.image import handle_image_from_relationship
 
 VOLUME_STATUS_CREATING = 'creating'
@@ -66,6 +67,7 @@ def _set_volume_runtime_properties(volume):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_cinder_client
 def create(cinder_client,
            args={},
@@ -159,6 +161,7 @@ def _delete_backup(cinder_client, search_opts):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_cinder_client
 def delete(cinder_client, **kwargs):
     # seach snapshots for volume
@@ -205,6 +208,7 @@ def _get_snapshot_name(ctx, kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_cinder_client
 def snapshot_create(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)
@@ -226,6 +230,7 @@ def snapshot_create(cinder_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_cinder_client
 def snapshot_apply(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)
@@ -257,6 +262,7 @@ def snapshot_apply(cinder_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_cinder_client
 def snapshot_delete(cinder_client, **kwargs):
     volume_id = get_openstack_id(ctx)
@@ -283,6 +289,7 @@ def snapshot_delete(cinder_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_cinder_client
 def creation_validation(cinder_client, **kwargs):
     validate_resource(ctx, cinder_client, VOLUME_OPENSTACK_TYPE,
@@ -290,6 +297,7 @@ def creation_validation(cinder_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_cinder_client
 def list_volumes(cinder_client, args, **kwargs):
     volume_list = cinder_client.volumes.list(**args)

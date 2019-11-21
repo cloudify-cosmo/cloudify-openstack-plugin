@@ -27,7 +27,8 @@ from openstack_plugin_common import (
     delete_resource_and_runtime_properties,
     COMMON_RUNTIME_PROPERTIES_KEYS,
     OPENSTACK_ID_PROPERTY,
-    OPENSTACK_TYPE_PROPERTY
+    OPENSTACK_TYPE_PROPERTY,
+    with_resume_flags
 )
 
 RBAC_POLICY_OPENSTACK_TYPE = 'rbac_policy'
@@ -122,6 +123,7 @@ def create_rbac_policy_object_dict(ctx, args):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
     if use_external_resource(ctx, neutron_client, RBAC_POLICY_OPENSTACK_TYPE):
@@ -142,6 +144,7 @@ def create(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(
@@ -152,6 +155,7 @@ def delete(neutron_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_neutron_client
 def list_rbac_policies(neutron_client, args, **kwargs):
     rbac_policies = neutron_client.list_rbac_policies(**args)
@@ -163,6 +167,7 @@ def list_rbac_policies(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_flags
 @with_neutron_client
 def find_and_delete(neutron_client, args, **kwargs):
     reference_rbac_policy = create_rbac_policy_object_dict(ctx, args)

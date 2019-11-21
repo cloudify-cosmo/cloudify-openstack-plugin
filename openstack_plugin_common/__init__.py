@@ -815,7 +815,8 @@ class OpenStackClient(object):
                 cfg_insecure = bool_str.get(cfg_insecure.capitalize())
             if not isinstance(cfg_insecure, bool):
                 raise NonRecoverableError(
-                    'Invalid insecure value {0}'.format(cfg_insecure))
+                    'Invalid insecure value {0}.'
+                    'It must be boolean'.format(cfg_insecure))
             return cfg_insecure
         insecure = _get_insecure(cfg.get(AUTH_PARAM_INSECURE, False))
         verify = False if insecure else cfg.get(AUTH_PARM_CA_CERT, True)

@@ -1183,8 +1183,8 @@ def _check_valid_resource_id_with_operation(kw, exception=False):
             OPENSTACK_ID_PROPERTY)
         instance_id = _ctx.source.instance.id
 
-    # check if operation retry it will do same action
-    if int(operation_retry_count) > 0:
+    # check if operation retry it will do same action if no exception
+    if operation_retry_count > 0 and not exception:
         return True
 
     # check resource_id

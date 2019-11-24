@@ -18,7 +18,8 @@ from cloudify.decorators import operation
 from openstack_plugin_common import (
     transform_resource_name,
     with_nova_client,
-    delete_resource_and_runtime_properties
+    delete_resource_and_runtime_properties,
+    with_resume_operation
 )
 from openstack_plugin_common.security_group import (
     build_sg_data,
@@ -32,6 +33,7 @@ from openstack_plugin_common.security_group import (
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_nova_client
 def create(nova_client, args, **kwargs):
 
@@ -70,12 +72,14 @@ def create(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_nova_client
 def delete(nova_client, **kwargs):
     delete_sg(nova_client)
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_nova_client
 def creation_validation(nova_client, **kwargs):
     sg_creation_validation(nova_client, 'cidr')

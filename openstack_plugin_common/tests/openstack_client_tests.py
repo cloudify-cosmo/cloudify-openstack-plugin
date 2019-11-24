@@ -903,6 +903,7 @@ class ValidateResourceIdTests(unittest.TestCase):
         ctx.deployment.id = test_deployment_id
         ctx.operation = mock.Mock()
         ctx.operation.name = test_operation_name
+        ctx.operation.retry_number = 0
         ctx.type = ctx_type
         if ctx_type == RELATIONSHIP_INSTANCE:
             ctx.instance = None

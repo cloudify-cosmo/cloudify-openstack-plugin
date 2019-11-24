@@ -24,7 +24,8 @@ from openstack_plugin_common import (
     create_object_dict,
     add_list_to_runtime_properties,
     set_openstack_runtime_properties,
-    COMMON_RUNTIME_PROPERTIES_KEYS
+    COMMON_RUNTIME_PROPERTIES_KEYS,
+    with_resume_operation
 )
 
 FLAVOR_OPENSTACK_TYPE = 'flavor'
@@ -64,6 +65,7 @@ def _set_tenants_access(ctx, nova_client, flavor):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_nova_client
 def create(nova_client, args, **kwargs):
     if use_external_resource(ctx, nova_client, FLAVOR_OPENSTACK_TYPE):
@@ -80,6 +82,7 @@ def create(nova_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_nova_client
 def delete(nova_client, **kwargs):
     delete_resource_and_runtime_properties(
@@ -92,6 +95,7 @@ def delete(nova_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_nova_client
 def list_flavors(nova_client, args, **kwargs):
     flavor_list = nova_client.flavors.list(**args)

@@ -28,7 +28,8 @@ from openstack_plugin_common import (
     get_openstack_id,
     set_neutron_runtime_properties,
     add_list_to_runtime_properties,
-    COMMON_RUNTIME_PROPERTIES_KEYS
+    COMMON_RUNTIME_PROPERTIES_KEYS,
+    with_resume_operation
 )
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
@@ -42,6 +43,7 @@ RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
 
@@ -78,6 +80,7 @@ def create(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     delete_resource_and_runtime_properties(ctx, neutron_client,
@@ -85,6 +88,7 @@ def delete(neutron_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def list_subnets(neutron_client, args, **kwargs):
     subnet_list = neutron_client.list_subnets(**args)
@@ -94,6 +98,7 @@ def list_subnets(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def creation_validation(neutron_client, args, **kwargs):
     validate_resource(ctx, neutron_client, SUBNET_OPENSTACK_TYPE)

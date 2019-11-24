@@ -37,7 +37,8 @@ from openstack_plugin_common import (
     set_neutron_runtime_properties,
     create_object_dict,
     COMMON_RUNTIME_PROPERTIES_KEYS,
-    is_external_relationship_not_conditionally_created)
+    is_external_relationship_not_conditionally_created,
+    with_resume_operation)
 
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
@@ -150,6 +151,7 @@ def _export_ips_to_port_instance(port):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def create(neutron_client, args, **kwargs):
 
@@ -189,6 +191,7 @@ def create(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_nova_client
 @with_neutron_client
 def attach(nova_client, neutron_client, **kwargs):
@@ -250,6 +253,7 @@ def _port_delete(neutron_client, port_id, ext_port):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def delete(neutron_client, **kwargs):
     try:
@@ -271,6 +275,7 @@ def delete(neutron_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_nova_client
 @with_neutron_client
 def detach(nova_client, neutron_client, **kwargs):
@@ -312,6 +317,7 @@ def detach(nova_client, neutron_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def connect_security_group(neutron_client, **kwargs):
     port_id = get_openstack_id(ctx.source)
@@ -356,6 +362,7 @@ def connect_security_group(neutron_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def disconnect_security_group(neutron_client, **kwargs):
     port_id = get_openstack_id(ctx.source)
@@ -386,6 +393,7 @@ def disconnect_security_group(neutron_client, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def list_ports(neutron_client, args, **kwargs):
     port_list = neutron_client.list_ports(**args)
@@ -395,6 +403,7 @@ def list_ports(neutron_client, args, **kwargs):
 
 
 @operation(resumable=True)
+@with_resume_operation
 @with_neutron_client
 def creation_validation(neutron_client, **kwargs):
     validate_resource(ctx, neutron_client, PORT_OPENSTACK_TYPE)

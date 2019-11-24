@@ -25,7 +25,9 @@ from cloudify.decorators import operation
 
 # Local imports
 from openstack_plugin.compat import Compat
-from openstack_sdk.common import (InvalidDomainException, QuotaException)
+from openstack_sdk.common import (InvalidDomainException,
+                                  QuotaException,
+                                  InvalidINSecureValue)
 from openstack_plugin.utils import (
     resolve_ctx,
     get_current_operation,
@@ -47,7 +49,8 @@ from openstack_plugin.constants import (
 )
 EXCEPTIONS = (exceptions.SDKException,
               InvalidDomainException,
-              QuotaException)
+              QuotaException,
+              InvalidINSecureValue)
 
 
 def with_openstack_resource(class_decl,

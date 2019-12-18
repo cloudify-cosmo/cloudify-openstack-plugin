@@ -1154,8 +1154,7 @@ def handle_no_resource_id_operations(_ctx, operation_name, instance_id,
             del _ctx.instance.runtime_properties[runtime_prop]
     # skip operations since resource_id is not assigned to take action
     elif operation_name in CLOUDIFY_OPERATIONS_WITHOUT_CREATE:
-        _ctx.logger.info("ignoring action since resource_id is not set")
-        return False
+        raise RecoverableError("Waiting for resource_id to be available")
     return True
 
 

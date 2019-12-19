@@ -1091,22 +1091,26 @@ class ValidateResourceIdTests(unittest.TestCase):
         self.assertTrue(validate_res)
 
     def test_stop_no_resource_id_no_exception(self):
-        self.assertRaises(RecoverableError,
-                          self._test_validate_resource_id,
-                          NODE_INSTANCE,
-                          'xyz1', common.
-                          CLOUDIFY_STOP_OPERATION,
-                          {},
-                          False)
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_STOP_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'stop_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
 
     def test_stop_no_resource_id_with_exception(self):
-        self.assertRaises(RecoverableError,
-                          self._test_validate_resource_id,
-                          NODE_INSTANCE,
-                          'xyz1', common.
-                          CLOUDIFY_STOP_OPERATION,
-                          {},
-                          True)
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_STOP_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'stop_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
 
     def test_delete_with_resource_id_no_exception(self):
         result, validate_res = \
@@ -1137,22 +1141,26 @@ class ValidateResourceIdTests(unittest.TestCase):
         self.assertTrue(validate_res)
 
     def test_delete_no_resource_id_no_exception(self):
-        self.assertRaises(RecoverableError,
-                          self._test_validate_resource_id,
-                          NODE_INSTANCE,
-                          'xyz1', common.
-                          CLOUDIFY_DELETE_OPERATION,
-                          {},
-                          False)
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_DELETE_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'create_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
 
     def test_delete_no_resource_id_with_exception(self):
-        self.assertRaises(RecoverableError,
-                          self._test_validate_resource_id,
-                          NODE_INSTANCE,
-                          'xyz1', common.
-                          CLOUDIFY_DELETE_OPERATION,
-                          {},
-                          True)
+        result, validate_res = \
+            self._test_validate_resource_id(NODE_INSTANCE,
+                                            'xyz1', common.
+                                            CLOUDIFY_DELETE_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'create_xyz1'
+        self.assertIsNone(result.instance.runtime_properties.get(runtime_prop))
+        self.assertFalse(validate_res)
 
     def test_pre_conf_with_resource_id_no_exception(self):
         result, validate_res = \
@@ -1325,19 +1333,25 @@ class ValidateResourceIdTests(unittest.TestCase):
         self.assertTrue(validate_res)
 
     def test_unlink_no_resource_id_no_exception(self):
-        self.assertRaises(RecoverableError,
-                          self._test_validate_resource_id,
-                          NODE_INSTANCE,
-                          'xyz1', common.
-                          CLOUDIFY_UNLINK_OPERATION,
-                          {},
-                          False)
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_UNLINK_OPERATION,
+                                            {},
+                                            False)
+        runtime_prop = 'establish_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)
 
     def test_unlink_no_resource_id_with_exception(self):
-        self.assertRaises(RecoverableError,
-                          self._test_validate_resource_id,
-                          NODE_INSTANCE,
-                          'xyz1', common.
-                          CLOUDIFY_UNLINK_OPERATION,
-                          {},
-                          True)
+        result, validate_res = \
+            self._test_validate_resource_id(RELATIONSHIP_INSTANCE, 'xyz1',
+                                            common.
+                                            CLOUDIFY_UNLINK_OPERATION,
+                                            {},
+                                            True)
+        runtime_prop = 'establish_port_12c45'
+        self.assertIsNone(result.source.instance.runtime_properties.
+                          get(runtime_prop))
+        self.assertFalse(validate_res)

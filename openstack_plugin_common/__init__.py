@@ -129,6 +129,16 @@ CLOUDIFY_OPERATIONS_WITHOUT_CREATE = (CLOUDIFY_PRE_CONFIGURE_OPERATION,
                                       CLOUDIFY_UNLINK_OPERATION,
                                       CLOUDIFY_ESTABLISH_OPERATION)
 
+CLOUDIFY_UNINSTALL_OPERATIONS = (CLOUDIFY_STOP_OPERATION,
+                                 CLOUDIFY_UNLINK_OPERATION,
+                                 CLOUDIFY_DELETE_OPERATION)
+
+CLOUDIFY_INSTALL_OPERATIONS = (CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                               CLOUDIFY_CONFIGURE_OPERATION,
+                               CLOUDIFY_POST_CONFIGURE_OPERATION,
+                               CLOUDIFY_START_OPERATION,
+                               CLOUDIFY_ESTABLISH_OPERATION)
+
 
 # TODO: Move this to cloudify-plugins-common (code freeze currently
 # in effect).
@@ -1153,7 +1163,10 @@ def handle_no_resource_id_operations(_ctx, operation_name, instance_id,
         else:
             del _ctx.instance.runtime_properties[runtime_prop]
     # skip operations since resource_id is not assigned to take action
-    elif operation_name in CLOUDIFY_OPERATIONS_WITHOUT_CREATE:
+    elif operation_name in CLOUDIFY_UNINSTALL_OPERATIONS:
+        _ctx.logger.info('Instance is already uninitialized.')
+        return False
+    elif operation_name in CLOUDIFY_INSTALL_OPERATIONS:
         raise RecoverableError("Waiting for resource_id to be available")
     return True
 

@@ -1,3 +1,5 @@
+2.14.16:
+    - Fix issue with resume operation in case create was not finished
 2.14.15:
     - Refactor handling ssl connection when connection Openstack API.
     - Fix issue with agent installation

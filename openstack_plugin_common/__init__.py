@@ -129,6 +129,16 @@ CLOUDIFY_OPERATIONS_WITHOUT_CREATE = (CLOUDIFY_PRE_CONFIGURE_OPERATION,
                                       CLOUDIFY_UNLINK_OPERATION,
                                       CLOUDIFY_ESTABLISH_OPERATION)
 
+CLOUDIFY_UNINSTALL_OPERATIONS = (CLOUDIFY_STOP_OPERATION,
+                                 CLOUDIFY_UNLINK_OPERATION,
+                                 CLOUDIFY_DELETE_OPERATION)
+
+CLOUDIFY_INSTALL_OPERATIONS = (CLOUDIFY_PRE_CONFIGURE_OPERATION,
+                               CLOUDIFY_CONFIGURE_OPERATION,
+                               CLOUDIFY_POST_CONFIGURE_OPERATION,
+                               CLOUDIFY_START_OPERATION,
+                               CLOUDIFY_ESTABLISH_OPERATION)
+
 
 # TODO: Move this to cloudify-plugins-common (code freeze currently
 # in effect).
@@ -985,6 +995,11 @@ def with_keystone_client(f):
 def with_resume_operation(f):
     @wraps(f)
     def wrapper(*args, **kw):
+        # here we check if the operation matches some conditions
+        # to allow the operation to execute action on OpenStack
+        # or not depending on runtime properties that we store on every
+        # operation
+
         if not _check_valid_resource_id_with_operation(kw):
             return
         try:
@@ -1153,9 +1168,11 @@ def handle_no_resource_id_operations(_ctx, operation_name, instance_id,
         else:
             del _ctx.instance.runtime_properties[runtime_prop]
     # skip operations since resource_id is not assigned to take action
-    elif operation_name in CLOUDIFY_OPERATIONS_WITHOUT_CREATE:
-        _ctx.logger.info("ignoring action since resource_id is not set")
+    elif operation_name in CLOUDIFY_UNINSTALL_OPERATIONS:
+        _ctx.logger.info('Instance is already uninitialized.')
         return False
+    elif operation_name in CLOUDIFY_INSTALL_OPERATIONS:
+        raise RecoverableError("Waiting for resource_id to be available")
     return True
 
 
@@ -1184,6 +1201,8 @@ def _check_valid_resource_id_with_operation(kw, exception=False):
         instance_id = _ctx.source.instance.id
 
     # check if operation retry it will do same action if no exception
+    # this case was added to prevent run-times properties to be checked again
+    # since if it is called again it will mess the logic used there
     if operation_retry_count > 0 and not exception:
         return True
 

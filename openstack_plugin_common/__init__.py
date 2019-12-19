@@ -995,6 +995,11 @@ def with_keystone_client(f):
 def with_resume_operation(f):
     @wraps(f)
     def wrapper(*args, **kw):
+        # here we check if the operation matches some conditions
+        # to allow the operation to execute action on OpenStack
+        # or not depending on runtime properties that we store on every
+        # operation
+
         if not _check_valid_resource_id_with_operation(kw):
             return
         try:
@@ -1196,6 +1201,8 @@ def _check_valid_resource_id_with_operation(kw, exception=False):
         instance_id = _ctx.source.instance.id
 
     # check if operation retry it will do same action if no exception
+    # this case was added to prevent run-times properties to be checked again
+    # since if it is called again it will mess the logic used there
     if operation_retry_count > 0 and not exception:
         return True
 

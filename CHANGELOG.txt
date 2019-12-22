@@ -1,3 +1,5 @@
+3.2.10:
+  - Remove ID key from resource object if healing terminated VM.
 3.2.9
    - Expose insecure & ca_cert to client config
 3.2.8

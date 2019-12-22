@@ -512,7 +512,7 @@ def prepare_resource_instance(class_decl, _ctx, kwargs):
 
 def update_runtime_properties_for_operation_task(operation_name,
                                                  _ctx,
-                                                 openstack_resource):
+                                                 openstack_resource=None):
     """
     This method will update runtime properties for node instance based on
     the operation task being running

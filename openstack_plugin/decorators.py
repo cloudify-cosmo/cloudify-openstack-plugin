@@ -81,6 +81,12 @@ def with_openstack_resource(class_decl,
             try:
                 # Prepare the openstack resource that need to execute the
                 # current task operation
+                # Make sure we cleaned up resource
+                # before performing create in heal.
+                if 'heal' in ctx.workflow_id and 'create' in operation_name:
+                    update_runtime_properties_for_operation_task(
+                        CLOUDIFY_DELETE_OPERATION,
+                        ctx_node)
                 resource = \
                     prepare_resource_instance(class_decl, ctx_node, kwargs)
 

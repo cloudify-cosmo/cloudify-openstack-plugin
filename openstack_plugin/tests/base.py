@@ -31,6 +31,15 @@ from cloudify.mocks import (
 )
 
 
+class CustomMockCloudifyContext(MockCloudifyContext):
+    def __init__(self, *args, **kwargs):
+        super(CustomMockCloudifyContext, self).__init__(*args, **kwargs)
+
+    @property
+    def workflow_id(self):
+        return 'workflow'
+
+
 class CustomMockNodeContext(MockNodeContext):
     def __init__(self,
                  id=None,
@@ -128,7 +137,7 @@ class OpenStackTestBase(unittest.TestCase):
         }
 
         prop = copy.deepcopy(test_properties or self.node_properties)
-        ctx = MockCloudifyContext(
+        ctx = CustomMockCloudifyContext(
             node_id=test_name,
             node_name=test_name,
             deployment_id=test_name,
@@ -178,7 +187,7 @@ class OpenStackTestBase(unittest.TestCase):
                                   test_target=None,
                                   ctx_operation=None):
 
-        ctx = MockCloudifyContext(
+        ctx = CustomMockCloudifyContext(
             node_id=node_id,
             deployment_id=deployment_name,
             properties=copy.deepcopy(test_properties),

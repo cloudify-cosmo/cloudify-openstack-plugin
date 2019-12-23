@@ -69,6 +69,16 @@ from openstack_plugin.constants import (RESOURCE_ID,
                                         SERVER_ACTION_STATUS_PENDING)
 
 
+class CustomMockContext(MockContext):
+
+    def __init__(self, *args, **kwargs):
+        super(CustomMockContext, self).__init__(*args, **kwargs)
+
+    @property
+    def workflow_id(self):
+        return 'workflow'
+
+
 @mock.patch('openstack.connect')
 class ServerTestCase(OpenStackTestBase):
 
@@ -1484,7 +1494,7 @@ class ServerTestCase(OpenStackTestBase):
     @mock.patch(
         'openstack_plugin.resources.compute.server.wait_until_status')
     def test_attach_volume(self, mock_wait_status, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -1502,7 +1512,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='volume-1',
                 runtime_properties={
@@ -1565,7 +1575,7 @@ class ServerTestCase(OpenStackTestBase):
     @mock.patch(
         'openstack_plugin.resources.compute.server.wait_until_status')
     def test_attach_external_volume(self, mock_wait_status, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -1584,7 +1594,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='volume-1',
                 runtime_properties={
@@ -1638,7 +1648,7 @@ class ServerTestCase(OpenStackTestBase):
         detachment_task_key = \
             generate_attachment_volume_key(VOLUME_DETACHMENT_TASK,
                                            'volume-1', 'server-1')
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -1657,7 +1667,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='volume-1',
                 runtime_properties={
@@ -1708,7 +1718,7 @@ class ServerTestCase(OpenStackTestBase):
     @mock.patch(
         'openstack_plugin.resources.compute.server.wait_until_status')
     def test_detach_external_volume(self, mock_wait_status, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -1727,7 +1737,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='volume-1',
                 runtime_properties={
@@ -1760,7 +1770,7 @@ class ServerTestCase(OpenStackTestBase):
         mock_wait_status.assert_not_called()
 
     def test_connect_floating_ip(self, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='floating-ip-1',
                 runtime_properties={
@@ -1778,7 +1788,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -1811,7 +1821,7 @@ class ServerTestCase(OpenStackTestBase):
         server.connect_floating_ip(floating_ip='10.2.3.4')
 
     def test_connect_external_floating_ip(self, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='floating-ip-1',
                 runtime_properties={
@@ -1830,7 +1840,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -1911,7 +1921,7 @@ class ServerTestCase(OpenStackTestBase):
         server.connect_floating_ip(floating_ip='10.2.3.4')
 
     def test_disconnect_floating_ip(self, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='floating-ip-1',
                 runtime_properties={
@@ -1929,7 +1939,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -1982,7 +1992,7 @@ class ServerTestCase(OpenStackTestBase):
         server.disconnect_floating_ip(floating_ip='10.2.3.4')
 
     def test_disconnect_external_floating_ip(self, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='floating-ip-1',
                 runtime_properties={
@@ -2001,7 +2011,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '2'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -2055,7 +2065,7 @@ class ServerTestCase(OpenStackTestBase):
     def test_connect_security_group(self,
                                     mock_add_security_group_to_server,
                                     mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='security-group-1',
                 runtime_properties={
@@ -2073,7 +2083,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -2148,7 +2158,7 @@ class ServerTestCase(OpenStackTestBase):
     def test_connect_external_security_group(self,
                                              mock_add_sg,
                                              mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='security-group-1',
                 runtime_properties={
@@ -2167,7 +2177,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -2230,7 +2240,7 @@ class ServerTestCase(OpenStackTestBase):
                                        mock_remove_security_group,
                                        mock_clean_ports,
                                        mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='security-group-1',
                 runtime_properties={
@@ -2248,7 +2258,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -2356,7 +2366,7 @@ class ServerTestCase(OpenStackTestBase):
     def test_disconnect_external_security_group(self,
                                                 mock_clean_ports,
                                                 mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='security-group-1',
                 runtime_properties={
@@ -2375,7 +2385,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -2438,7 +2448,7 @@ class ServerTestCase(OpenStackTestBase):
         mock_clean_ports.assert_not_called()
 
     def test_attach_port(self, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='port-1',
                 runtime_properties={
@@ -2456,7 +2466,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={
@@ -2571,7 +2581,7 @@ class ServerTestCase(OpenStackTestBase):
         port.attach(port_id='a95b5509-c122-4c2f-823e-884bb559afe2')
 
     def test_detach_port(self, mock_connection):
-        target = MockContext({
+        target = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='port-1',
                 runtime_properties={
@@ -2589,7 +2599,7 @@ class ServerTestCase(OpenStackTestBase):
                 'node_id': '1'
             }})
 
-        source = MockContext({
+        source = CustomMockContext({
             'instance': MockNodeInstanceContext(
                 id='server-1',
                 runtime_properties={

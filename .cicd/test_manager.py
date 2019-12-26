@@ -18,7 +18,7 @@ import os
 from integration_tests.tests.test_cases import PluginsTest
 from integration_tests.tests import utils as test_utils
 
-PLUGIN_NAME = 'cloudify-openstacksdk-plugin'
+PLUGIN_NAME = 'cloudify-openstack-plugin'
 
 
 class OpenstackPluginTestCase(PluginsTest):

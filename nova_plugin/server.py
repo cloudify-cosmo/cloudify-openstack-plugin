@@ -1221,8 +1221,7 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
     for net_id in network_ids:
         if net_id not in attached_nets:
             ctx.logger.info('Attaching network {0}...'.format(net_id))
-            external_server.interface_attach(port_id=None, net_id=net_id,
-                                             fixed_ip=None)
+            attach_interface_to_server(external_server, net_id=net_id)
             ctx.logger.info(
                 'Successfully attached network {0} to device (server) id {1}.'
                 .format(net_id, external_server.human_id))
@@ -1231,6 +1230,10 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
                 'Skipping network {0} attachment, because it is already '
                 'attached to device (server) id {1}.'
                 .format(net_id, external_server.human_id))
+
+@with_nova_client
+def attach_interface_to_server(nova_client, server, port_id=None, net_id=None, fixed_ip=None):
+    nova_client.servers.attach_interface(server, port_id, net_id, fixed_ip)
 
 
 def _get_properties_by_node_instance_id(node_instance_id):

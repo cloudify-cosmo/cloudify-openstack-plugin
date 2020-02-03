@@ -63,3 +63,4 @@ docs/_build/
 .idea/
 
 .DS_Store
+*.wgn

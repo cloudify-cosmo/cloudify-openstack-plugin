@@ -1231,8 +1231,13 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
                 'attached to device (server) id {1}.'
                 .format(net_id, external_server.human_id))
 
+
 @with_nova_client
-def attach_interface_to_server(nova_client, server, port_id=None, net_id=None, fixed_ip=None):
+def attach_interface_to_server(nova_client,
+                               server,
+                               port_id=None,
+                               net_id=None,
+                               fixed_ip=None):
     nova_client.servers.attach_interface(server, port_id, net_id, fixed_ip)
 
 

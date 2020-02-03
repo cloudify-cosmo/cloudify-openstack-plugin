@@ -1,3 +1,5 @@
+2.14.17:
+    - Support replace existing server-subnet relationship with server-port-subnet.
 2.14.16:
     - Fix issue with resume operation in case create was not finished
 2.14.15:

@@ -802,7 +802,8 @@ class TestServer(unittest.TestCase):
             fake_client.nodes.get.assert_called_once_with('deployment_id',
                                                           'node_id')
 
-    def test_validate_external_server_nics(self):
+    @mock.patch('openstack_plugin_common.NovaClientWithSugar')
+    def test_validate_external_server_nics(self, _nova_m):
         self._simplectx()
         external_server = mock.Mock()
         external_server.human_id = '_server'

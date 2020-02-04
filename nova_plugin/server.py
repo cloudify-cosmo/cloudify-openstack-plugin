@@ -262,7 +262,7 @@ def _handle_boot_volume(server, ctx):
 @with_resume_operation
 @with_nova_client
 @with_neutron_client
-def create(nova_client, neutron_client, args, **kwargs):
+def create(nova_client, neutron_client, args, **_):
     """
     Creates a server. Exposes the parameters mentioned in
     http://docs.openstack.org/developer/python-novaclient/api/novaclient.v1_1
@@ -1232,13 +1232,11 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
                 .format(net_id, external_server.human_id))
 
 
-@with_nova_client
-def attach_interface_to_server(nova_client,
-                               server,
+def attach_interface_to_server(server,
                                port_id=None,
                                net_id=None,
                                fixed_ip=None):
-    nova_client.servers.attach_interface(server, port_id, net_id, fixed_ip)
+    server.attach_interface(port_id, net_id, fixed_ip)
 
 
 def _get_properties_by_node_instance_id(node_instance_id):

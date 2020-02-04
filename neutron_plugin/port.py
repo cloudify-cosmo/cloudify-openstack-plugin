@@ -44,6 +44,7 @@ from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
 from neutron_plugin.security_group import SG_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import get_server_floating_ip
+from nova_plugin.server import attach_interface_to_server, SERVER_OPENSTACK_TYPE
 
 PORT_OPENSTACK_TYPE = 'port'
 PORT_ALLOWED_ADDRESS = 'allowed_address_pairs'
@@ -194,7 +195,7 @@ def create(neutron_client, args, **kwargs):
 @with_resume_operation
 @with_nova_client
 @with_neutron_client
-def attach(nova_client, neutron_client, **kwargs):
+def attach(nova_client, neutron_client, **_):
     if is_external_relationship(ctx):
         ctx.logger.info('Not attaching port from server since '
                         'external port and server are being used')
@@ -216,10 +217,16 @@ def attach(nova_client, neutron_client, **kwargs):
         }
     }
     device_id = port['port'].get('device_id')
+
     if not device_id or device_id != server_id:
         ctx.logger.info('Attaching port {0}...'.format(port_id))
         neutron_client.update_port(port_id, change)
         ctx.logger.info('Successfully attached port {0}'.format(port_id))
+        port = neutron_client.show_port(port_id)
+        if 'DOWN' in port['port'].get('data_plane_status'):
+            server = use_external_resource(ctx, nova_client,
+                                           SERVER_OPENSTACK_TYPE)
+            attach_interface_to_server(server, port_id=port_id)
     else:
         ctx.logger.info(
             'Skipping port {0} attachment, '

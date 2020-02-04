@@ -64,7 +64,7 @@ from nova_plugin import userdata
 from openstack_plugin_common.floatingip import (IP_ADDRESS_PROPERTY,
                                                 get_server_floating_ip)
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
-from neutron_plugin.port import PORT_OPENSTACK_TYPE
+from neutron_plugin.port import PORT_OPENSTACK_TYPE, attach_interface_to_server
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE, VOLUME_BOOTABLE
 from openstack_plugin_common.security_group import \
     SECURITY_GROUP_OPENSTACK_TYPE

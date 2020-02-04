@@ -1232,13 +1232,6 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
                 .format(net_id, external_server.human_id))
 
 
-def attach_interface_to_server(server,
-                               port_id=None,
-                               net_id=None,
-                               fixed_ip=None):
-    server.attach_interface(port_id, net_id, fixed_ip)
-
-
 def _get_properties_by_node_instance_id(node_instance_id):
     if ctx._local:
         instance = ctx._endpoint.get_node_instance(node_instance_id)

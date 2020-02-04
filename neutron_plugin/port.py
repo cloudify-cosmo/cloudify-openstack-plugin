@@ -44,10 +44,9 @@ from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
 from neutron_plugin.subnet import SUBNET_OPENSTACK_TYPE
 from neutron_plugin.security_group import SG_OPENSTACK_TYPE
 from openstack_plugin_common.floatingip import get_server_floating_ip
-from nova_plugin.server import (
-    attach_interface_to_server, SERVER_OPENSTACK_TYPE)
 
 PORT_OPENSTACK_TYPE = 'port'
+SERVER_OPENSTACK_TYPE = 'server'
 PORT_ALLOWED_ADDRESS = 'allowed_address_pairs'
 PORT_ADDRESS_REL_TYPE = 'cloudify.openstack.port_connected_to_floating_ip'
 
@@ -529,3 +528,10 @@ def _handle_security_groups(port):
         ctx, SG_OPENSTACK_TYPE)
     if security_groups:
         port['security_groups'] = security_groups
+
+
+def attach_interface_to_server(server,
+                               port_id=None,
+                               net_id=None,
+                               fixed_ip=None):
+    server.attach_interface(port_id, net_id, fixed_ip)

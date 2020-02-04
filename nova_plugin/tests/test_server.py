@@ -831,7 +831,6 @@ class TestServer(unittest.TestCase):
         # no attached ports from list
         nova_plugin.server._validate_external_server_nics(
             external_server, ['net2'], ['port2'])
-        print external_server.mock_calls
         external_server.interface_attach.assert_has_calls([
             mock.call(port_id='port2', net_id=None, fixed_ip=None),
             mock.call(port_id=None, net_id='net2', fixed_ip=None)

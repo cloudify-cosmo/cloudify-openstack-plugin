@@ -226,7 +226,7 @@ def attach(nova_client, neutron_client, **_):
         if 'DOWN' in port['port'].get('data_plane_status'):
             server = use_external_resource(ctx, nova_client,
                                            SERVER_OPENSTACK_TYPE)
-            server.attach_interface(
+            server.interface_attach(
                 port_id=port_id, net_id=None, fixed_ip=None)
     else:
         ctx.logger.info(

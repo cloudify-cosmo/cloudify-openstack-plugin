@@ -1221,7 +1221,7 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
     for net_id in network_ids:
         if net_id not in attached_nets:
             ctx.logger.info('Attaching network {0}...'.format(net_id))
-            attach_interface_to_server(external_server, net_id=net_id)
+            attach_interface_to_server(server=external_server, net_id=net_id)
             ctx.logger.info(
                 'Successfully attached network {0} to device (server) id {1}.'
                 .format(net_id, external_server.human_id))

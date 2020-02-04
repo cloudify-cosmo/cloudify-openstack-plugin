@@ -226,7 +226,8 @@ def attach(nova_client, neutron_client, **_):
         if 'DOWN' in port['port'].get('data_plane_status'):
             server = use_external_resource(ctx, nova_client,
                                            SERVER_OPENSTACK_TYPE)
-            attach_interface_to_server(server, port_id=port_id)
+            server.attach_interface(
+                port_id=port_id, net_id=None, fixed_ip=None)
     else:
         ctx.logger.info(
             'Skipping port {0} attachment, '
@@ -528,10 +529,3 @@ def _handle_security_groups(port):
         ctx, SG_OPENSTACK_TYPE)
     if security_groups:
         port['security_groups'] = security_groups
-
-
-def attach_interface_to_server(server,
-                               port_id=None,
-                               net_id=None,
-                               fixed_ip=None):
-    server.attach_interface(port_id, net_id, fixed_ip)

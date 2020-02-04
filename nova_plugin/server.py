@@ -64,7 +64,7 @@ from nova_plugin import userdata
 from openstack_plugin_common.floatingip import (IP_ADDRESS_PROPERTY,
                                                 get_server_floating_ip)
 from neutron_plugin.network import NETWORK_OPENSTACK_TYPE
-from neutron_plugin.port import PORT_OPENSTACK_TYPE, attach_interface_to_server
+from neutron_plugin.port import PORT_OPENSTACK_TYPE
 from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE, VOLUME_BOOTABLE
 from openstack_plugin_common.security_group import \
     SECURITY_GROUP_OPENSTACK_TYPE
@@ -1209,7 +1209,8 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
     # attach ports
     for port_id in port_ids:
         ctx.logger.info('Attaching port {0}...'.format(port_id))
-        attach_interface_to_server(server=external_server, port_id=port_id)
+        external_server.attach_interface(
+            port_id=port_id, net_id=None, fixed_ip=None)
         ctx.logger.info(
             'Successfully attached port {0} to device (server) id {1}.'
             .format(port_id, external_server.human_id))
@@ -1220,7 +1221,8 @@ def _validate_external_server_nics(external_server, network_ids, port_ids):
     for net_id in network_ids:
         if net_id not in attached_nets:
             ctx.logger.info('Attaching network {0}...'.format(net_id))
-            attach_interface_to_server(server=external_server, net_id=net_id)
+            external_server.attach_interface(
+                port_id=None, net_id=net_id, fixed_ip=None)
             ctx.logger.info(
                 'Successfully attached network {0} to device (server) id {1}.'
                 .format(net_id, external_server.human_id))

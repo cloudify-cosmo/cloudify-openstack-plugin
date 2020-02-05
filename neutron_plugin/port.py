@@ -27,6 +27,7 @@ from openstack_plugin_common import (
     with_nova_client,
     get_openstack_id_of_single_connected_node_by_openstack_type,
     get_openstack_ids_of_connected_nodes_by_openstack_type,
+    get_resource_by_name_or_id,
     delete_resource_and_runtime_properties,
     delete_runtime_properties,
     use_external_resource,
@@ -65,6 +66,7 @@ PORT_IPS_PROPERTIES = [FIXED_IP_ADDRESS_PROPERTY, MAC_ADDRESS_PROPERTY]\
 RUNTIME_PROPERTIES_KEYS = COMMON_RUNTIME_PROPERTIES_KEYS + PORT_IPS_PROPERTIES
 
 NO_SG_PORT_CONNECTION_RETRY_INTERVAL = 3
+PORT_DOWN_STATE = 'DOWN'
 
 
 def _port_update(neutron_client, port_id, args, ext_port):
@@ -220,14 +222,13 @@ def attach(nova_client, neutron_client, **_):
 
     if not device_id or device_id != server_id:
         ctx.logger.info('Attaching port {0}...'.format(port_id))
+        server = get_resource_by_name_or_id(
+            server_id,
+            SERVER_OPENSTACK_TYPE,
+            nova_client, True, 'name')
+        server.interface_attach(
+            port_id=port_id, net_id=None, fixed_ip=None)
         neutron_client.update_port(port_id, change)
-        ctx.logger.info('Successfully attached port {0}'.format(port_id))
-        port = neutron_client.show_port(port_id)
-        if 'DOWN' in port['port'].get('data_plane_status'):
-            server = use_external_resource(ctx, nova_client,
-                                           SERVER_OPENSTACK_TYPE)
-            server.interface_attach(
-                port_id=port_id, net_id=None, fixed_ip=None)
     else:
         ctx.logger.info(
             'Skipping port {0} attachment, '
@@ -263,7 +264,7 @@ def _port_delete(neutron_client, port_id, ext_port):
 @operation(resumable=True)
 @with_resume_operation
 @with_neutron_client
-def delete(neutron_client, **kwargs):
+def delete(neutron_client, **_):
     try:
         # clean up external resource
         ext_port = use_external_resource(ctx, neutron_client,
@@ -286,7 +287,7 @@ def delete(neutron_client, **kwargs):
 @with_resume_operation
 @with_nova_client
 @with_neutron_client
-def detach(nova_client, neutron_client, **kwargs):
+def detach(nova_client, neutron_client, **_):
     if is_external_relationship(ctx):
         ctx.logger.info('Not detaching port from server since '
                         'external port and server are being used')
@@ -327,7 +328,7 @@ def detach(nova_client, neutron_client, **kwargs):
 @operation(resumable=True)
 @with_resume_operation
 @with_neutron_client
-def connect_security_group(neutron_client, **kwargs):
+def connect_security_group(neutron_client, **_):
     port_id = get_openstack_id(ctx.source)
     security_group_id = get_openstack_id(ctx.target)
 

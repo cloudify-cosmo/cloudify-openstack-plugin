@@ -17,9 +17,9 @@ import os
 
 from integration_tests.tests.test_cases import PluginsTest
 
-DEVELOPMENT_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(
-        os.path.realpath(__file__)), '../..'))
+DEVELOPMENT_ROOT = os.environ.get(
+    'REPO_BASE',
+    os.path.join(os.path.expanduser('~'), 'dev/repos'))
 PLUGIN_NAME = 'cloudify-openstack-plugin'
 
 
@@ -29,12 +29,13 @@ class OpenstackPluginTestCase(PluginsTest):
 
     @property
     def plugin_root_directory(self):
-        return os.path.abspath(os.path.join(self.base_path, '..'))
+        return os.path.join(DEVELOPMENT_ROOT, PLUGIN_NAME)
 
     @property
     def inputs(self):
         return {
-            'region': os.getenv('openstack_region_name'),
+            'region': os.getenv('openstack_region_name',
+                                'RegionOne'),
             'external_network_id': os.getenv(
                 'external_network_id',
                 'dda079ce-12cf-4309-879a-8e67aec94de4'),
@@ -44,14 +45,19 @@ class OpenstackPluginTestCase(PluginsTest):
 
     def create_secrets(self):
         secrets = {
-            'agent_key_private': os.getenv('agent_key_private'),
-            'agent_key_public': os.getenv('agent_key_public'),
+            'agent_key_private': os.getenv('agent_key_private',
+                                           open('/tmp/foo.rsa').read()),
+            'agent_key_public': os.getenv('agent_key_public',
+                                          open('/tmp/foo.rsa.pub').read()),
             'openstack_auth_url': os.getenv('openstack_auth_url'),
             'openstack_username': os.getenv('openstack_username'),
             'openstack_password': os.getenv('openstack_password'),
-            'openstack_project_name': os.getenv('openstack_project_name'),
+            'openstack_project_name': os.getenv('openstack_project_name',
+                                                os.getenv(
+                                                    'openstack_tenant_name')),
             'openstack_tenant_name': os.getenv('openstack_tenant_name'),
-            'openstack_region': os.getenv('openstack_region_name'),
+            'openstack_region': os.getenv('openstack_region_name',
+                                          'RegionOne'),
             'base_image_id': '70de1e0f-2951-4eae-9a8f-05afd97cd036',
             'base_flavor_id': '3',
         }
@@ -59,7 +65,8 @@ class OpenstackPluginTestCase(PluginsTest):
 
     def upload_plugins(self):
         self.upload_mock_plugin(
-            PLUGIN_NAME, self.plugin_root_directory)
+            PLUGIN_NAME,
+            os.path.join(DEVELOPMENT_ROOT, PLUGIN_NAME))
         self.upload_mock_plugin(
             'cloudify-utilities-plugin',
             os.path.join(DEVELOPMENT_ROOT, 'cloudify-utilities-plugin'))
@@ -74,7 +81,7 @@ class OpenstackPluginTestCase(PluginsTest):
         self.check_db_lb_app_blueprint(
             'openstack',
             1800,
-            network_inputs= {
+            network_inputs={
                 'external_network_id': os.getenv(
                     'external_network_id',
                     'dda079ce-12cf-4309-879a-8e67aec94de4'),

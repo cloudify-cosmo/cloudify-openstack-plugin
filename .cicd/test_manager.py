@@ -21,6 +21,8 @@ DEVELOPMENT_ROOT = os.environ.get(
     'REPO_BASE',
     os.path.join(os.path.expanduser('~'), 'dev/repos'))
 PLUGIN_NAME = 'cloudify-openstack-plugin'
+TEST_KEY_PATH = '/tmp/foo.rsa'
+TEST_PUB_PATH = '/tmp/foo.rsa.pub'
 
 
 class OpenstackPluginTestCase(PluginsTest):

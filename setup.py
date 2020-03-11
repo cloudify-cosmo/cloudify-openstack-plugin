@@ -20,7 +20,7 @@ from setuptools import find_packages
 
 setup(
     name='cloudify-openstack-plugin',
-    version='3.2.10',
+    version='3.2.11',
     author='Cloudify',
     author_email='info@cloudify.co',
     license='LICENSE',

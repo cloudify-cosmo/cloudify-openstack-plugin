@@ -54,6 +54,7 @@ class OpenStackSDKTestBase(unittest.TestCase):
             'user': self._fake_identity_user,
             'project': self._fake_identity_project,
             'rbac_policy': self._fake_network_rbac_policy,
+            'dns': self._fake_dns,
         }
 
     @property
@@ -341,3 +342,14 @@ class OpenStackSDKTestBase(unittest.TestCase):
         project_conn.update_project = self._gen_openstack_sdk_error()
         self.connection.identity = project_conn
         return self.connection.identity
+
+    def _fake_dns(self):
+        dns_conn = mock.MagicMock()
+        dns_conn.find_zone = self._gen_openstack_sdk_error()
+        dns_conn.create_zone = self._gen_openstack_sdk_error()
+        dns_conn.delete_zone = self._gen_openstack_sdk_error()
+        dns_conn.find_recordset = self._gen_openstack_sdk_error()
+        dns_conn.create_recordset = self._gen_openstack_sdk_error()
+        dns_conn.delete_recordset = self._gen_openstack_sdk_error()
+        self.connection.dns = dns_conn
+        return self.connection.dns

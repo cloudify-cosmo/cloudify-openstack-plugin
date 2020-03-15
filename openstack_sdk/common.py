@@ -59,13 +59,12 @@ class OpenstackResource(object):
                 if len(common) == 2:
                     break
             else:
-                message = 'Invalid domain combinations, they must be ' \
-                          'consistent with the following patterns: {0}'
-                pattern = ''
-                for item in self.domain_auth_sets:
-                    item = list(item)
-                    pattern = pattern + '({0}, {1}),'.format(item[0], item[1])
-                raise InvalidDomainException(message.format(pattern))
+                docs_url = 'https://docs.cloudify.co/5.0.5/working_with/'\
+                    'official_plugins/infrastructure/openstackv3/'\
+                    '#authentication-with-openstack'
+                message = 'Invalid client_config, ' \
+                          'Please refer to Openstack Plugin url : {0}'
+                raise InvalidDomainException(message.format(docs_url))
 
     def configure_ssl(self):
         self._configure_ca_cert()

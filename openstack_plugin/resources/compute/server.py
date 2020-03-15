@@ -84,7 +84,9 @@ from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_PORT_ID,
                                         OPENSTACK_NETWORK_ID,
                                         OPENSTACK_TYPE_PROPERTY,
-                                        USE_EXTERNAL_RESOURCE_PROPERTY)
+                                        USE_EXTERNAL_RESOURCE_PROPERTY,
+                                        SERVER_PUBLIC_IP_PROPERTY,
+                                        SERVER_IP_PROPERTY)
 
 from openstack_plugin.utils import \
     (handle_userdata,
@@ -209,8 +211,8 @@ def _set_server_ips_runtime_properties(server):
 
         # Only set the first "ip" as runtime property
         if ipv4['type'] == 'fixed'\
-                and 'ip' not in ctx.instance.runtime_properties:
-            ctx.instance.runtime_properties['ip'] = ip
+                and SERVER_IP_PROPERTY not in ctx.instance.runtime_properties:
+            ctx.instance.runtime_properties[SERVER_IP_PROPERTY] = ip
 
         # Only set the first "public_ip_address" as runtime property
         elif ipv4['type'] == 'floating'\
@@ -226,8 +228,8 @@ def _set_server_ips_runtime_properties(server):
             ctx.instance.runtime_properties['ipv6'] = ip_v6
             # If "ip" is not set at this point, then the only address used
             # is ipv6
-            if 'ip' not in ctx.instance.runtime_properties:
-                ctx.instance.runtime_properties['ip'] = ip_v6
+            if SERVER_IP_PROPERTY not in ctx.instance.runtime_properties:
+                ctx.instance.runtime_properties[SERVER_IP_PROPERTY] = ip_v6
 
         # Only set the first "public_ip6_address" as runtime property
         elif ipv6['type'] == 'floating'\
@@ -240,11 +242,12 @@ def _set_server_ips_runtime_properties(server):
     if ctx.node.properties.get('use_public_ip'):
         pip = ctx.instance.runtime_properties.get('public_ip_address')
         if pip:
-            ctx.instance.runtime_properties['ip'] = pip
+            ctx.instance.runtime_properties[SERVER_IP_PROPERTY] = pip
+            ctx.instance.runtime_properties[SERVER_PUBLIC_IP_PROPERTY] = pip
 
     elif ctx.node.properties.get('use_ipv6_ip', False) and ipv6_addresses:
         ip_v6 = ctx.instance.runtime_properties['ipv6']
-        ctx.instance.runtime_properties['ip'] = ip_v6
+        ctx.instance.runtime_properties[SERVER_IP_PROPERTY] = ip_v6
 
     # Get list of all ipv4 associated with server
     ipv4_list = map(lambda ipv4_conf: ipv4_conf['addr'], ipv4_addresses)
@@ -2003,6 +2006,14 @@ def connect_floating_ip(openstack_resource, floating_ip, fixed_ip=''):
     fixed_ip = fixed_ip or None
     openstack_resource.add_floating_ip_to_server(floating_ip,
                                                  fixed_ip=fixed_ip)
+    # set public ip property inside server runtime_properties
+    ctx.source.instance.runtime_properties[SERVER_PUBLIC_IP_PROPERTY] = \
+        floating_ip
+    if ctx.source.node.properties.get('use_public_ip', False):
+        ctx.source.instance.runtime_properties['last_ip'] = \
+            ctx.source.instance.runtime_properties.get(SERVER_IP_PROPERTY)
+        ctx.source.instance.runtime_properties[SERVER_IP_PROPERTY] = \
+            floating_ip
 
 
 @with_compat_node
@@ -2022,6 +2033,11 @@ def disconnect_floating_ip(openstack_resource, floating_ip):
                                   ''.format(openstack_resource.resource_id))
 
     openstack_resource.remove_floating_ip_from_server(floating_ip)
+    # remove public ip property from server runtime_properties
+    ctx.source.instance.runtime_properties.pop(SERVER_PUBLIC_IP_PROPERTY, None)
+    if ctx.source.node.properties.get('use_public_ip', False):
+        ctx.source.instance.runtime_properties[SERVER_IP_PROPERTY] = \
+            ctx.source.instance.runtime_properties.pop('last_ip', None)
 
 
 @with_compat_node

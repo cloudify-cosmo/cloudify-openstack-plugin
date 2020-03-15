@@ -152,6 +152,8 @@ CLOUDIFY_NEW_NODE_OPERATIONS = [CLOUDIFY_CREATE_OPERATION,
                                 CLOUDIFY_STOP_OPERATION,
                                 CLOUDIFY_DELETE_OPERATION,
                                 CLOUDIFY_CREATE_VALIDATION]
+SERVER_PUBLIC_IP_PROPERTY = 'public_ip'
+SERVER_IP_PROPERTY = 'ip'
 
 KEY_USE_CFY_LOGGER = 'use_cfy_logger'
 KEY_GROUPS = 'groups'

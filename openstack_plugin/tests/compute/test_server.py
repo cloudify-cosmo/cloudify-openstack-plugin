@@ -66,7 +66,9 @@ from openstack_plugin.constants import (RESOURCE_ID,
                                         VOLUME_DETACHMENT_TASK,
                                         VOLUME_ATTACHMENT_ID,
                                         SERVER_ACTION_STATUS_DONE,
-                                        SERVER_ACTION_STATUS_PENDING)
+                                        SERVER_ACTION_STATUS_PENDING,
+                                        SERVER_PUBLIC_IP_PROPERTY,
+                                        SERVER_IP_PROPERTY)
 
 
 class CustomMockContext(MockContext):
@@ -656,8 +658,9 @@ class ServerTestCase(OpenStackTestBase):
             '10.1.0.1',
             self._ctx.instance.runtime_properties['access_ipv4'])
 
-        self.assertTrue(self._ctx.instance.runtime_properties['ip'],
-                        '10.1.0.1')
+        self.assertTrue(
+            self._ctx.instance.runtime_properties[SERVER_IP_PROPERTY],
+            '10.1.0.1')
 
         self.assertEqual(
             3,
@@ -1946,6 +1949,7 @@ class ServerTestCase(OpenStackTestBase):
                     RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
                     OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
                     OPENSTACK_NAME_PROPERTY: 'node-server',
+                    SERVER_PUBLIC_IP_PROPERTY: '10.2.3.4',
                 }),
             'node': MockNodeContext(
                 id='1',
@@ -2018,6 +2022,7 @@ class ServerTestCase(OpenStackTestBase):
                     RESOURCE_ID: 'a95b5509-c122-4c2f-823e-884bb559afe8',
                     OPENSTACK_TYPE_PROPERTY: SERVER_OPENSTACK_TYPE,
                     OPENSTACK_NAME_PROPERTY: 'node-server',
+                    SERVER_PUBLIC_IP_PROPERTY: '10.2.3.4',
                 }),
             'node': MockNodeContext(
                 id='1',
@@ -2043,7 +2048,6 @@ class ServerTestCase(OpenStackTestBase):
             'availability_zone': 'test_availability_zone',
             'key_name': 'test_key_name',
             'status': 'ACTIVE',
-
         })
 
         # Mock find server operation

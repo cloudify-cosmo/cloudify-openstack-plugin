@@ -1,3 +1,5 @@
+3.2.11:
+  - Add public_ip property when using server_connected_to_floating_ip and if use_public_ip is set True.
 3.2.10:
   - Remove ID key from resource object if healing terminated VM.
 3.2.9

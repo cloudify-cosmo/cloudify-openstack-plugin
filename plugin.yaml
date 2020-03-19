@@ -685,7 +685,7 @@ data_types:
       <<: *data_type_description
       ttl:
         description: >
-          TTL (Time to Live) for the zone.
+          TTL (Time to Live) for the recordset.
         required: false
         type: integer
       zone_id:
@@ -695,9 +695,7 @@ data_types:
         type: string
       type:
         description: >
-            Type of zone. PRIMARY is controlled by Designate,
-            SECONDARY zones are slaved from another DNS Server.
-            Defaults to PRIMARY
+            They RRTYPE of the recordset.
         required: false
         type: string
       records:

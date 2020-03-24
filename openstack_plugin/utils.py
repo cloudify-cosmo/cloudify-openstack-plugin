@@ -18,6 +18,7 @@ import sys
 import copy
 import logging
 import base64
+import binascii
 import inspect
 import re
 
@@ -209,6 +210,14 @@ def resolve_ctx(_ctx):
     return _ctx
 
 
+def is_userdata_encoded(userdata_string):
+    try:
+        base64.decodestring(userdata_string)
+    except binascii.Error:
+        return False
+    return True
+
+
 def handle_userdata(existing_userdata):
     """
     This method will be responsible for handle user data provided by the
@@ -232,6 +241,8 @@ def handle_userdata(existing_userdata):
 
     if not existing_userdata:
         existing_userdata = ''
+    elif is_userdata_encoded(existing_userdata):
+        return existing_userdata
 
     if install_agent_userdata and os_family == 'windows':
 

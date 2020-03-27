@@ -1,1 +1,1 @@
-cloudify-plugins-common==4.3.3
+https://github.com/cloudify-cosmo/cloudify-common/archive/master.zip

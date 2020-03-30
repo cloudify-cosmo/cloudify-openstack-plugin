@@ -26,8 +26,8 @@ setup(
     license='LICENSE',
     zip_safe=False,
     packages=find_packages(exclude=['tests*']),
-    install_requires=['cloudify-plugins-common',
-                      'openstacksdk',
+    install_requires=['cloudify-common==5.1.0.dev1',
+                      'openstacksdk==0.39.0',
                       'IPy==0.81',
-                      'pycrypto'],
+                      'pycrypto==2.6.1'],
     test_requires=['mock', 'requests-mock'])

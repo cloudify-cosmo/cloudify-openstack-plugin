@@ -1,0 +1,26 @@
+-f lib2to3.fixes.fix_apply
+-f lib2to3.fixes.fix_except
+-f lib2to3.fixes.fix_exitfunc
+-f lib2to3.fixes.fix_funcattrs
+-f lib2to3.fixes.fix_has_key
+-f lib2to3.fixes.fix_idioms
+-f lib2to3.fixes.fix_intern
+-f lib2to3.fixes.fix_isinstance
+-f lib2to3.fixes.fix_methodattrs
+-f lib2to3.fixes.fix_ne
+-f lib2to3.fixes.fix_numliterals
+-f lib2to3.fixes.fix_paren
+-f lib2to3.fixes.fix_reduce
+-f lib2to3.fixes.fix_renames
+-f lib2to3.fixes.fix_repr
+-f lib2to3.fixes.fix_standarderror
+-f lib2to3.fixes.fix_sys_exc
+-f lib2to3.fixes.fix_throw
+-f lib2to3.fixes.fix_tuple_params
+-f lib2to3.fixes.fix_types
+-f lib2to3.fixes.fix_ws_comma
+-f lib2to3.fixes.fix_xreadlines
+-f libfuturize.fixes.fix_absolute_import
+-f libfuturize.fixes.fix_next_call
+-f libfuturize.fixes.fix_print_with_import
+

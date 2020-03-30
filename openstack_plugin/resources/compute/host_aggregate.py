@@ -113,7 +113,7 @@ def configure(openstack_resource):
     # to created host aggregate
     if ctx.node.properties.get('metadata'):
         # Metadata values should be in strong format
-        for key, value in ctx.node.properties['metadata'].iteritems():
+        for key, value in ctx.node.properties['metadata'].items():
             if not isinstance(value, basestring):
                 ctx.node.properties['metadata'][key] = unicode(value)
         openstack_resource.set_metadata(ctx.node.properties['metadata'])

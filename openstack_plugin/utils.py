@@ -326,7 +326,7 @@ def reset_dict_empty_keys(dict_object):
     :param dict_object: dict of properties need to be reset
     :return dict_object: Updated dict_object
     """
-    for key, value in dict_object.iteritems():
+    for key, value in dict_object.items():
         # Value could be boolean type, we do not need to convert it and lose
         # the actual value
         if not (value or isinstance(value, bool)):
@@ -445,7 +445,7 @@ def unset_runtime_properties_from_instance(_ctx):
     :param _ctx: Cloudify node instance which is could be an instance of
     RelationshipSubjectContext or CloudifyContext
     """
-    for key, _ in _ctx.instance.runtime_properties.items():
+    for key in list(_ctx.instance.runtime_properties.keys()):
         del _ctx.instance.runtime_properties[key]
 
 
@@ -936,7 +936,7 @@ def assign_resource_payload_as_runtime_properties(_ctx,
     :param str resource_type: Resource openstack type
     """
     if all([getattr(ctx, 'instance'), payload, resource_type]):
-        if resource_type not in ctx.instance.runtime_properties.keys():
+        if resource_type not in ctx.instance.runtime_properties:
             ctx.instance.runtime_properties[resource_type] = {}
         for key, value in payload.items():
             if key not in ['user_data', 'adminPass']:

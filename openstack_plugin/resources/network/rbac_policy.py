@@ -123,7 +123,7 @@ def _validate_config_for_applied_rbac_resource(input_dict, target_object):
     :param dict target_object: Target object config provided via relationship
     """
     if target_object:
-        for key in target_object.keys():
+        for key in target_object:
             if input_dict and input_dict.get(key):
                 raise NonRecoverableError(
                     'Multiple definitions of resource for which '
@@ -375,7 +375,7 @@ def find_and_delete(openstack_resource,
             return (item[0], item[1]) if item[0] != 'target_project_id'\
                 else ('target_tenant', item[1])
 
-        rbac_policy = dict(map(_parse_item, rbac_policy.iteritems()))
+        rbac_policy = dict(map(_parse_item, iter(rbac_policy.items())))
         if all(item in rbac_policy.items()
                for item in rbac_policy_config.items()):
 

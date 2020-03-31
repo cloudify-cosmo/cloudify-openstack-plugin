@@ -16,6 +16,7 @@
 # Third party imports
 from cloudify import ctx
 from cloudify.exceptions import NonRecoverableError
+from cloudify._compat import text_type
 
 # Local imports
 from openstack_sdk.resources.compute import OpenstackHostAggregate
@@ -113,9 +114,9 @@ def configure(openstack_resource):
     # to created host aggregate
     if ctx.node.properties.get('metadata'):
         # Metadata values should be in strong format
-        for key, value in ctx.node.properties['metadata'].iteritems():
-            if not isinstance(value, basestring):
-                ctx.node.properties['metadata'][key] = unicode(value)
+        for key, value in ctx.node.properties['metadata'].items():
+            if not isinstance(value, text_type):
+                ctx.node.properties['metadata'][key] = u'{0}'.format(value)
         openstack_resource.set_metadata(ctx.node.properties['metadata'])
 
     # Check to see if there hosts is provided or not so that we can add

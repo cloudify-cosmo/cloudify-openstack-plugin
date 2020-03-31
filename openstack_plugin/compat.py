@@ -713,7 +713,7 @@ class Compat(object):
         # if there are any key provided as empty string, drop it from the
         # config, since it could cause issues when create resource using
         # openstack sdk
-        for key, value in resource_config.items():
+        for key, value in list(resource_config.items()):
             if not (value or isinstance(value, bool)):
                 del resource_config[key]
 
@@ -794,7 +794,7 @@ class Compat(object):
             if RESOURCE_LIST_PARAMS_MAP.get(openstack_type):
                 if key in RESOURCE_LIST_PARAMS_MAP[openstack_type]:
                     params[key] = value
-                elif key in OS_PARAMS_MAP.keys():
+                elif key in OS_PARAMS_MAP:
                     params[OS_PARAMS_MAP[key]] = value
             else:
                 # Keypair in openstack sdk does not support any query param
@@ -901,7 +901,7 @@ class Compat(object):
         :param tuple allowed_params: Tuple of keys supported by openstack
         3.x to update/create user
         """
-        for key, value in config.items():
+        for key, value in list(config.items()):
             if key == 'user':
                 user_id = self.get_openstack_resource_id(OpenstackUser,
                                                          'user',
@@ -931,7 +931,7 @@ class Compat(object):
         :param tuple allowed_params: Tuple of keys supported by openstack
         3.x to update project
         """
-        for key, value in config.items():
+        for key, value in list(config.items()):
             if key == 'project':
                 project_id = self.get_openstack_resource_id(OpenstackProject,
                                                             'project',
@@ -962,7 +962,7 @@ class Compat(object):
         :param tuple allowed_params: Tuple of keys supported by openstack
         3.x to create resource
         """
-        for key in config.keys():
+        for key in list(config.keys()):
             if key not in allowed_params:
                 config.pop(key)
 

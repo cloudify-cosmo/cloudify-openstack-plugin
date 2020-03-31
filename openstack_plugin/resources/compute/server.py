@@ -1238,7 +1238,7 @@ def _decrypt_password(password, private_key):
     rsa_key = PKCS1_v1_5.new(rsa_key)
 
     # Decode password to base 64
-    encrypted_password = base64.b64decode(password)
+    encrypted_password = base64.b64decode(password.encode('utf-8'))
 
     # Do the encryption process
     chunk_size = 512

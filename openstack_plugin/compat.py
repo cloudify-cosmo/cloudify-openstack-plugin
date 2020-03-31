@@ -762,7 +762,7 @@ class Compat(object):
         """
         This method will handle update operation inputs for image
         """
-        for key, value in self.kwargs['args'].items():
+        for key, value in list(self.kwargs['args'].items()):
             if key == 'image_id':
                 self.kwargs['args']['image'] = self.kwargs['args'].pop(key)
             elif key == 'remove_props':
@@ -790,7 +790,7 @@ class Compat(object):
                 self.kwargs['args']['domain_id'] = domain_id
 
         params = dict()
-        for key, value in self.kwargs['args'].items():
+        for key, value in list(self.kwargs['args'].items()):
             if RESOURCE_LIST_PARAMS_MAP.get(openstack_type):
                 if key in RESOURCE_LIST_PARAMS_MAP[openstack_type]:
                     params[key] = value

@@ -32,7 +32,7 @@ from cloudify import ctx
 from cloudify.exceptions import (NonRecoverableError, OperationRetry)
 from cloudify.utils import exception_to_error_cause
 from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
-from cloudify._compat import text_type
+from cloudify._compat import text_type, PY2
 
 
 # Local imports
@@ -213,7 +213,10 @@ def resolve_ctx(_ctx):
 
 def is_userdata_encoded(userdata_string):
     try:
-        base64.decodestring(userdata_string)
+        if PY2:
+            base64.decodestring(userdata_string)
+        else:
+            base64.decodebytes(userdata_string.encode('utf-8'))
     except binascii.Error:
         return False
     return True

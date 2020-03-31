@@ -32,6 +32,7 @@ from cloudify import ctx
 from cloudify.exceptions import (NonRecoverableError, OperationRetry)
 from cloudify.utils import exception_to_error_cause
 from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
+from cloudify._compat import text_type
 
 
 # Local imports
@@ -1173,7 +1174,7 @@ def setup_openstack_logging(client_config, logger):
     for logger_name, logger_level in configured_loggers.items():
         # Before set the log make sure to convert it to upper case
         is_str = isinstance(logger_level, str)\
-                 or isinstance(logger_level, unicode)
+                 or isinstance(logger_level, text_type)
         if is_str:
             logger_level = logger_level.upper()
         setup_logging(logger_name, [ctx_log_handler], logger_level)

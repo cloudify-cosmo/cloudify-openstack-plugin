@@ -116,7 +116,7 @@ def configure(openstack_resource):
         # Metadata values should be in strong format
         for key, value in ctx.node.properties['metadata'].items():
             if not isinstance(value, text_type):
-                ctx.node.properties['metadata'][key] = unicode(value)
+                ctx.node.properties['metadata'][key] = u'{0}'.format(value)
         openstack_resource.set_metadata(ctx.node.properties['metadata'])
 
     # Check to see if there hosts is provided or not so that we can add

@@ -38,7 +38,7 @@ jobs:
               exit 1
             fi
 
-  unittests:
+  unittests_py27:
     docker:
       - image: circleci/python:2.7.15-stretch
     steps:
@@ -351,7 +351,7 @@ workflows:
   tests:
     jobs:
       - py3_compat
-      - unittests
+      - unittests_py27
       - unittests_py36
       - wagon:
           filters:
@@ -359,7 +359,8 @@ workflows:
               only: /([0-9\.]*\-build|master|dev)/
       - cloudify-manager:
           requires:
-            - unittests
+            - unittests_py27
+            - unittests_py36
             - wagon
           filters:
             branches:
@@ -373,4 +374,5 @@ workflows:
             only:
               - dev
     jobs:
-      - unittests
+      - unittests_py27
+      - unittests_py36

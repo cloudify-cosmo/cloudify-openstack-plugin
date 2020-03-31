@@ -375,8 +375,7 @@ def find_and_delete(openstack_resource,
             return (item[0], item[1]) if item[0] != 'target_project_id'\
                 else ('target_tenant', item[1])
 
-        rbac_policy = dict(
-            [_parse_item((k, v)) for k, v in rbac_policy.items()])
+        rbac_policy = dict(_parse_item(item) for item in rbac_policy.items())
         if all(item in rbac_policy.items()
                for item in rbac_policy_config.items()):
 

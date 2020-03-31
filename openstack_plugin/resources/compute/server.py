@@ -575,8 +575,7 @@ def _remove_duplicated_nics_from_relationships(nics_from_rels, client_config):
                 # the duplicates and maintain the orders
                 port_nic[port_network['uuid']] = port_network['port']
     if port_nic:
-        inverted_port_nic = dict(
-            [reversed((k, v)) for k, v in port_nic.items()])
+        inverted_port_nic = {v: k for k, v in port_nic.items()}
 
     unique_set = set()
     ordered_list = []

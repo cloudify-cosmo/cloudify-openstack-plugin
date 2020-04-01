@@ -38,28 +38,27 @@ jobs:
               exit 1
             fi
 
-  unittests:
+  unittests_py27:
     docker:
       - image: circleci/python:2.7.15-stretch
     steps:
       - checkout
       - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env && source env/bin/activate
+          name: install tox
+          command: pip install --user tox
+      - run: /home/circleci/.local/bin/tox -e flake8
+      - run: /home/circleci/.local/bin/tox -e nosetests
+
+  unittests_py36:
+    docker:
+      - image: circleci/python:3.6-stretch
+    steps:
+      - checkout
       - run:
           name: install tox
           command: pip install --user tox
       - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e py27
+      - run: /home/circleci/.local/bin/tox -e nosetests
 
   wagon:
     docker:
@@ -328,14 +327,16 @@ workflows:
   tests:
     jobs:
       - py3_compat
-      - unittests
+      - unittests_py27
+      - unittests_py36
       - wagon:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
       - cloudify-manager:
           requires:
-            - unittests
+            - unittests_py27
+            - unittests_py36
             - wagon
           filters:
             branches:
@@ -349,4 +350,5 @@ workflows:
             only:
               - dev
     jobs:
-      - unittests
+      - unittests_py27
+      - unittests_py36

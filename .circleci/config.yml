@@ -47,7 +47,7 @@ jobs:
           name: install tox
           command: pip install --user tox
       - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e py27
+      - run: /home/circleci/.local/bin/tox -e nosetests
 
   unittests_py36:
     docker:
@@ -58,7 +58,7 @@ jobs:
           name: install tox
           command: pip install --user tox
       - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e py36
+      - run: /home/circleci/.local/bin/tox -e nosetests
 
   wagon:
     docker:

@@ -1,3 +1,5 @@
+3.2.13:
+  - Support quota operations on Project [ get_quota/update_quota ].
 3.2.12:
   - Support previously base64 encoded userdata.
 3.2.11:

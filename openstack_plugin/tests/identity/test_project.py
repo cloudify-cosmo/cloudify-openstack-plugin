@@ -178,23 +178,75 @@ class ProjectTestCase(OpenStackTestBase):
         # Call update project
         project.update(args=new_config)
 
-    def test_get_quota(self, _):
+    def test_get_quota(self, mock_connection):
         # Prepare the context for get quota operation
         self._prepare_context_for_operation(
             test_name='ProjectTestCase',
             ctx_operation_name='cloudify.interfaces.operations.get_quota')
 
-        with self.assertRaises(NonRecoverableError):
-            project.get_project_quota()
+        quotas = {
+              "cinder": {
+                "snapshots_iscsi": -1,
+                "gigabytes": 1000,
+                "backup_gigabytes": 1000,
+                "volumes_iscsi": -1,
+                "snapshots": 100,
+                "volumes": 50,
+                "backups": 10,
+                "gigabytes_iscsi": -1,
+                "id": "af3a64f0e7b94a6ebb613d79706fa6ee"
+              },
+              "nova": {
+                "injected_file_content_bytes": 10240,
+                "metadata_items": 128,
+                "server_group_members": 10,
+                "server_groups": 10,
+                "ram": 51200,
+                "floating_ips": 10,
+                "key_pairs": 100,
+                "id": "af3a64f0e7b94a6ebb613d79706fa6ee",
+                "instances": 10,
+                "security_group_rules": 20,
+                "injected_files": 50,
+                "cores": 50,
+                "fixed_ips": -1,
+                "injected_file_path_bytes": 255,
+                "security_groups": 10
+              },
+              "neutron": {
+                "subnet": 10,
+                "network": 10,
+                "floatingip": 20,
+                "security_group_rule": 100,
+                "security_group": 10,
+                "router": 10,
+                "port": 50
+              }
+            }
+        mock_connection().get_compute_quotas = \
+            mock.MagicMock(return_value=quotas.get("nova"))
+        mock_connection().get_network_quotas = \
+            mock.MagicMock(return_value=quotas.get("neutron"))
+        mock_connection().get_volume_quotas = \
+            mock.MagicMock(return_value=quotas.get("cinder"))
 
-    def test_update_project_quota(self, _):
+        project.get_project_quota()
+        self.assertEqual(
+            self._ctx.instance.runtime_properties['quota'], quotas)
+
+    def test_update_project_quota(self, mock_connection):
         # Prepare the context for update quota operation
         self._prepare_context_for_operation(
             test_name='ProjectTestCase',
             ctx_operation_name='cloudify.interfaces.operations.update_quota')
-
-        with self.assertRaises(NonRecoverableError):
-            project.update_project_quota()
+        new_quota = {
+            "quota": {
+                "nova": {
+                    "instances": 2
+                }
+            }
+        }
+        project.update_project_quota(**new_quota)
 
     def test_list_projects(self, mock_connection):
         # Prepare the context for list projects operation

@@ -1,0 +1,82 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/5.0.5/types.yaml
+  - plugin:cloudify-openstack-plugin
+
+inputs:
+
+  openstack_username:
+    default: { get_secret: keystone_username }
+
+  openstack_password:
+    default: { get_secret: keystone_password }
+
+  openstack_tenant_name:
+    default: { get_secret: keystone_tenant_name }
+
+  openstack_url:
+    default: { get_secret: keystone_url }
+
+  region:
+    default: { get_secret: region }
+
+  domain_name:
+    default: 'default'
+
+  project_name:
+    default: 'Test Project'
+
+  user_name:
+    default: 'test'
+
+dsl_definitions:
+
+  openstack_config: &openstack_config
+    username: { get_input: openstack_username }
+    password: { get_input: openstack_password }
+    tenant_name: { get_input: openstack_tenant_name }
+    auth_url: { get_input: openstack_url }
+    region_name: { get_input: region }
+    user_domain_id: default
+    project_domain_id: default
+
+node_templates:
+
+  example-user:
+    type: cloudify.nodes.openstack.User
+    properties:
+      client_config: *openstack_config
+      resource_config:
+        name: {get_input: user_name}
+        default_project_id: { get_input: openstack_tenant_name }
+        domain_id: { get_input: domain_name }
+        password: '123456789'
+
+  example-project:
+    type: cloudify.nodes.openstack.Project
+    properties:
+      client_config: *openstack_config
+      resource_config:
+        name: {get_input: project_name}
+        tags:
+          - 'tag1'
+          - 'tag2'
+          - 'tag3'
+
+  assign_user_to_project:
+    type: cloudify.nodes.openstack.Project
+    properties:
+      use_external_resource: true
+      client_config: *openstack_config
+      resource_config:
+        id: { get_attribute : [ example-project, id ] }
+      users:
+        - name: {get_property: [example-user,resource_config,name]}
+          roles:
+            - member
+    relationships:
+      - type: cloudify.relationships.depends_on
+        target: example-project
+      - type: cloudify.relationships.depends_on
+        target: example-user

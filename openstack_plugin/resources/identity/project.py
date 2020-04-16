@@ -35,6 +35,23 @@ from openstack_plugin.utils import (validate_resource_quota,
                                     add_resource_list_to_runtime_properties)
 
 
+def _handle_external_project_resource(openstack_resource):
+    """
+    This method will check for the users list if provided and it will
+    assign that list with their roles to this external/existing project
+    """
+    existing_project = openstack_resource.get()
+    if not existing_project:
+        ctx.logger.info("this project is not valid / does not exist")
+        return
+    users = ctx.node.properties.get(IDENTITY_USERS, [])
+    if not users:
+        ctx.logger.info("no users to add to this project")
+        return
+    _validate_users(openstack_resource.client_config, users)
+    _assign_users(openstack_resource, users)
+
+
 def _assign_users(project_resource, users):
     """
     Assign users to project
@@ -121,7 +138,9 @@ def _validate_users(client_config, users):
 
 
 @with_compat_node
-@with_openstack_resource(OpenstackProject)
+@with_openstack_resource(
+    OpenstackProject,
+    existing_resource_handler=_handle_external_project_resource)
 def create(openstack_resource):
     """
     Create openstack project resource

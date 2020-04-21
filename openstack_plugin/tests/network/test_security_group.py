@@ -62,7 +62,7 @@ class SecurityGroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=security_group_instance)
 
         # Call create security group
-        security_group.create()
+        security_group.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -138,7 +138,7 @@ class SecurityGroupTestCase(OpenStackTestBase):
                 'direction': 'egress',
                 'protocol': 'tcp'
             }
-        ])
+        ], openstack_resource=None)
 
     def test_disable_default_egress_rules(self, mock_connection):
         # Prepare the context for configure operation
@@ -251,7 +251,7 @@ class SecurityGroupTestCase(OpenStackTestBase):
                 'direction': 'egress',
                 'protocol': 'tcp'
             }
-        ])
+        ], openstack_resource=None)
 
     def test_delete(self, mock_connection):
         # Prepare the context for delete operation
@@ -279,7 +279,7 @@ class SecurityGroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=security_group_instance)
 
         # Call delete security group
-        security_group.delete()
+        security_group.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -329,7 +329,8 @@ class SecurityGroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_security_group_instance)
 
         # Call update security group
-        security_group.update(args=new_config)
+        security_group.update(args=new_config,
+                              openstack_resource=None)
 
     def test_list_security_groups(self, mock_connection):
         # Prepare the context for list security groups operation
@@ -369,7 +370,7 @@ class SecurityGroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list security groups
-        security_group.list_security_groups()
+        security_group.list_security_groups(openstack_resource=None)
 
         # Check if the security groups list saved as runtime properties
         self.assertIn(
@@ -432,4 +433,4 @@ class SecurityGroupTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        security_group.creation_validation()
+        security_group.creation_validation(openstack_resource=None)

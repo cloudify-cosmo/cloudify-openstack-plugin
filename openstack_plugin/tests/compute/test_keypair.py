@@ -56,7 +56,7 @@ class KeyPairTestCase(OpenStackTestBase):
         mock_connection().compute.create_keypair = \
             mock.MagicMock(return_value=keypair_instance)
         # Call create keypair
-        keypair.create()
+        keypair.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'test_key_pair')
@@ -99,7 +99,7 @@ class KeyPairTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=keypair_instance)
 
         # Call delete keypair
-        keypair.delete()
+        keypair.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -136,7 +136,7 @@ class KeyPairTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list keypair
-        keypair.list_keypairs()
+        keypair.list_keypairs(openstack_resource=None)
 
         # Check if the keypairs list saved as runtime properties
         self.assertIn(
@@ -174,4 +174,4 @@ class KeyPairTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        keypair.creation_validation()
+        keypair.creation_validation(openstack_resource=None)

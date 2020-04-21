@@ -58,7 +58,7 @@ class RoleTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=role_instance)
 
         # Call create role
-        role.create()
+        role.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -93,7 +93,7 @@ class RoleTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=role_instance)
 
         # Call delete role
-        role.delete()
+        role.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -135,7 +135,7 @@ class RoleTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_role_instance)
 
         # Call update role
-        role.update(args=new_config)
+        role.update(args=new_config, openstack_resource=None)
 
     def test_list_roles(self, mock_connection):
         # Prepare the context for list roles operation
@@ -167,7 +167,7 @@ class RoleTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list role
-        role.list_roles()
+        role.list_roles(openstack_resource=None)
 
         # Check if the projects list saved as runtime properties
         self.assertIn(

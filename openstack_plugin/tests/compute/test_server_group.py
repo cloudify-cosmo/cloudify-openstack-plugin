@@ -59,7 +59,7 @@ class ServerGroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=server_instance)
 
         # Call create server group
-        server_group.create()
+        server_group.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -95,7 +95,7 @@ class ServerGroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=server_instance)
 
         # Call delete server group
-        server_group.delete()
+        server_group.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -115,7 +115,8 @@ class ServerGroupTestCase(OpenStackTestBase):
 
         with self.assertRaises(NonRecoverableError):
             # Call update server group
-            server_group.update(args=updated_config)
+            server_group.update(args=updated_config,
+                                openstack_resource=None)
 
     def test_list_server_groups(self, mock_connection):
         # Prepare the context for list server groups operation
@@ -148,7 +149,7 @@ class ServerGroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list server groups
-        server_group.list_server_groups()
+        server_group.list_server_groups(openstack_resource=None)
 
         # Check if the server groups list saved as runtime properties
         self.assertIn(
@@ -190,4 +191,4 @@ class ServerGroupTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        server_group.creation_validation()
+        server_group.creation_validation(openstack_resource=None)

@@ -102,7 +102,7 @@ class ProjectTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=project_instance)
 
         # Call create project
-        project.create()
+        project.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -141,7 +141,7 @@ class ProjectTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=None)
 
         # Call delete project
-        project.delete()
+        project.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -191,7 +191,7 @@ class ProjectTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_project_instance)
 
         # Call update project
-        project.update(args=new_config)
+        project.update(args=new_config, openstack_resource=None)
 
     def test_get_quota(self, _):
         # Prepare the context for get quota operation
@@ -200,7 +200,7 @@ class ProjectTestCase(OpenStackTestBase):
             ctx_operation_name='cloudify.interfaces.operations.get_quota')
 
         with self.assertRaises(NonRecoverableError):
-            project.get_project_quota()
+            project.get_project_quota(openstack_resource=None)
 
     def test_update_project_quota(self, _):
         # Prepare the context for update quota operation
@@ -209,7 +209,7 @@ class ProjectTestCase(OpenStackTestBase):
             ctx_operation_name='cloudify.interfaces.operations.update_quota')
 
         with self.assertRaises(NonRecoverableError):
-            project.update_project_quota()
+            project.update_project_quota(openstack_resource=None)
 
     def test_list_projects(self, mock_connection):
         # Prepare the context for list projects operation
@@ -249,7 +249,7 @@ class ProjectTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list projects
-        project.list_projects()
+        project.list_projects(openstack_resource=None)
 
         # Check if the projects list saved as runtime properties
         self.assertIn(
@@ -298,7 +298,7 @@ class ProjectTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        project.creation_validation()
+        project.creation_validation(openstack_resource=None)
 
     @mock.patch(
         'openstack_plugin.resources.identity.project._assign_users')
@@ -331,7 +331,7 @@ class ProjectTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=project_instance)
 
         # Call start project
-        project.start()
+        project.start(openstack_resource=None)
         mock_validate_user.assert_called()
         mock_validate_group.assert_called()
         mock_assign_user.assert_called()
@@ -368,7 +368,7 @@ class ProjectTestCase(OpenStackTestBase):
 
         with self.assertRaises(NonRecoverableError):
             # Call start project
-            project.start()
+            project.start(openstack_resource=None)
             mock_validate.assert_called()
             mock_assign.assert_called()
 

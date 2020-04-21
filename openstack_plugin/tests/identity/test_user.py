@@ -58,7 +58,7 @@ class UserTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=user_instance)
 
         # Call create user
-        user.create()
+        user.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -93,7 +93,7 @@ class UserTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=user_instance)
 
         # Call delete user
-        user.delete()
+        user.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -135,7 +135,7 @@ class UserTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_user_instance)
 
         # Call update user
-        user.update(args=new_config)
+        user.update(args=new_config, openstack_resource=None)
 
     def test_list_users(self,
                         mock_connection):
@@ -168,7 +168,7 @@ class UserTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list user
-        user.list_users()
+        user.list_users(openstack_resource=None)
 
         # Check if the projects list saved as runtime properties
         self.assertIn(

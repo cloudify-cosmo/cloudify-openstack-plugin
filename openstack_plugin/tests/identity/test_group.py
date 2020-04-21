@@ -58,7 +58,7 @@ class GroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=group_instance)
 
         # Call create group
-        group.create()
+        group.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -93,7 +93,7 @@ class GroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=group_instance)
 
         # Call delete group
-        group.delete()
+        group.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -135,7 +135,7 @@ class GroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_group_instance)
 
         # Call update group
-        group.update(args=new_config)
+        group.update(args=new_config, openstack_resource=None)
 
     def test_list_groups(self, mock_connection):
         # Prepare the context for list groups operation
@@ -167,7 +167,7 @@ class GroupTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list group
-        group.list_groups()
+        group.list_groups(openstack_resource=None)
 
         # Check if the projects list saved as runtime properties
         self.assertIn(

@@ -301,10 +301,7 @@ workflows:
   tests:
     jobs:
       - unittests
-      - wagon:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|v3-latest)/
+      - wagon
       - cloudify-manager:
           requires:
             - unittests

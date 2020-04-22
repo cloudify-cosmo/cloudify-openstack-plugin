@@ -289,7 +289,7 @@ class ServerTestCase(OpenStackTestBase):
 
         mock_connection().compute.create_server = \
             mock.MagicMock(return_value=server_instance)
-        server.create()
+        server.create(openstack_resource=None)
 
         # Check if the resource id is already set or not
         self.assertIn(
@@ -636,7 +636,7 @@ class ServerTestCase(OpenStackTestBase):
 
         mock_network_name.side_effect = ['network-2', 'network-3', 'network-1']
 
-        server.create()
+        server.create(openstack_resource=None)
 
         # Check if the resource id is already set or not
         self.assertEqual(
@@ -706,7 +706,7 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
-        server.configure()
+        server.configure(openstack_resource=None)
         mock_ips_runtime_properties.assert_called()
         mock_user_password.assert_called()
         mock_handle_security_groups_connection.assert_called()
@@ -762,7 +762,7 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
 
-        server.configure()
+        server.configure(openstack_resource=None)
         mock_ips_runtime_properties.assert_called()
         mock_user_password.assert_called()
         mock_remove_sg_from_server.assert_not_called()
@@ -814,7 +814,7 @@ class ServerTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=server_instance)
 
         with self.assertRaises(OperationRetry):
-            server.configure()
+            server.configure(openstack_resource=None)
             mock_ips_runtime_properties.assert_not_called()
             mock_user_password.assert_not_called()
             mock_handle_security_groups_connection.assert_not_called()
@@ -854,7 +854,7 @@ class ServerTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=server_instance)
 
         with self.assertRaises(NonRecoverableError):
-            server.configure()
+            server.configure(openstack_resource=None)
             mock_ips_runtime_properties.assert_not_called()
             mock_user_password.assert_not_called()
             mock_handle_security_groups_connection.assert_not_called()
@@ -910,7 +910,7 @@ class ServerTestCase(OpenStackTestBase):
                                         stopped_server_instance])
 
         # Stop the server
-        server.stop()
+        server.stop(openstack_resource=None)
 
         # Check if the resource id is already set or not
         self.assertIn(
@@ -968,7 +968,7 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.find_server = \
             mock.MagicMock(return_value=server_instance)
         # Stop the server
-        server.stop()
+        server.stop(openstack_resource=None)
 
         self.assertEqual(mock_delete_server_interface.call_count, 2)
 
@@ -1026,7 +1026,7 @@ class ServerTestCase(OpenStackTestBase):
 
         with self.assertRaises(OperationRetry):
             # Reboot the server
-            server.reboot()
+            server.reboot(openstack_resource=None)
         self._ctx.operation.retry.assert_called_with(
             message='Server has REBOOT state. Waiting.', retry_after=30)
 
@@ -1064,7 +1064,7 @@ class ServerTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=server_instance)
 
         # Call suspend
-        server.suspend()
+        server.suspend(openstack_resource=None)
 
     def test_resume(self, mock_connection):
         # Prepare the context for resume operation
@@ -1100,7 +1100,7 @@ class ServerTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=server_instance)
 
         # Call resume
-        server.resume()
+        server.resume(openstack_resource=None)
 
     def test_create_snapshot(self, mock_connection):
         # Prepare the context for snapshot create operation
@@ -1564,7 +1564,7 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.establish', node_id='1')
 
         # Call attach volume
-        server.attach_volume()
+        server.attach_volume(openstack_resource=None)
 
         # Check if the resource id is already set or not
         self.assertIn(
@@ -1638,7 +1638,7 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.establish', node_id='1')
 
         # Call attach volume
-        server.attach_volume()
+        server.attach_volume(openstack_resource=None)
         mock_wait_status.assert_not_called()
 
     @mock.patch(
@@ -1712,7 +1712,7 @@ class ServerTestCase(OpenStackTestBase):
         )
 
         # Call detach volume
-        server.detach_volume()
+        server.detach_volume(openstack_resource=None)
 
         self.assertNotIn(
             detachment_task_key,
@@ -1769,7 +1769,7 @@ class ServerTestCase(OpenStackTestBase):
         )
 
         # Call detach volume
-        server.detach_volume()
+        server.detach_volume(openstack_resource=None)
         mock_wait_status.assert_not_called()
 
     def test_connect_floating_ip(self, mock_connection):
@@ -1821,7 +1821,8 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.establish', node_id='1')
 
         # Call connect floating ip
-        server.connect_floating_ip(floating_ip='10.2.3.4')
+        server.connect_floating_ip(floating_ip='10.2.3.4',
+                                   openstack_resource=None)
 
     def test_connect_external_floating_ip(self, mock_connection):
         target = CustomMockContext({
@@ -1921,7 +1922,8 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.establish', node_id='1')
 
         # Call connect floating ip
-        server.connect_floating_ip(floating_ip='10.2.3.4')
+        server.connect_floating_ip(floating_ip='10.2.3.4',
+                                   openstack_resource=None)
 
     def test_disconnect_floating_ip(self, mock_connection):
         target = CustomMockContext({
@@ -1993,7 +1995,8 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.unlink', node_id='1')
 
         # Trigger disconnect floating ip
-        server.disconnect_floating_ip(floating_ip='10.2.3.4')
+        server.disconnect_floating_ip(floating_ip='10.2.3.4',
+                                      openstack_resource=None)
 
     def test_disconnect_external_floating_ip(self, mock_connection):
         target = CustomMockContext({
@@ -2062,7 +2065,8 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.unlink', node_id='1')
 
         # Call disconnect floating ip
-        server.disconnect_floating_ip(floating_ip='10.2.3.4')
+        server.disconnect_floating_ip(floating_ip='10.2.3.4',
+                                      openstack_resource=None)
 
     @mock.patch('openstack_sdk.resources.compute.OpenstackServer'
                 '.add_security_group_to_server')
@@ -2152,7 +2156,8 @@ class ServerTestCase(OpenStackTestBase):
 
         # Call connect security group
         server.connect_security_group(
-            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7'
+            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7',
+            openstack_resource=None
         )
         mock_add_security_group_to_server.assert_not_called()
 
@@ -2230,7 +2235,8 @@ class ServerTestCase(OpenStackTestBase):
 
         # Call connect security group
         server.connect_security_group(
-            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7'
+            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7',
+            openstack_resource=None
         )
         mock_add_sg.assert_not_called()
 
@@ -2360,7 +2366,8 @@ class ServerTestCase(OpenStackTestBase):
 
         # Call disconnect security group
         server.disconnect_security_group(
-            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7')
+            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7',
+            openstack_resource=None)
         mock_clean_ports.assert_called()
         mock_remove_security_group.assert_called()
 
@@ -2448,7 +2455,8 @@ class ServerTestCase(OpenStackTestBase):
 
         # Call disconnect security group
         server.disconnect_security_group(
-            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7')
+            security_group_id='a95b5509-c122-4c2f-823e-884bb559afe7',
+            openstack_resource=None)
         mock_clean_ports.assert_not_called()
 
     def test_attach_port(self, mock_connection):
@@ -2582,7 +2590,8 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.establish', node_id='1')
 
         # Call attach port to server
-        port.attach(port_id='a95b5509-c122-4c2f-823e-884bb559afe2')
+        port.attach(port_id='a95b5509-c122-4c2f-823e-884bb559afe2',
+                    openstack_resource=None)
 
     def test_detach_port(self, mock_connection):
         target = CustomMockContext({
@@ -2715,7 +2724,8 @@ class ServerTestCase(OpenStackTestBase):
                                'relationship_lifecycle.unlink', node_id='1')
 
         # Call detach port
-        port.detach(port_id='a95b5509-c122-4c2f-823e-884bb559afe2')
+        port.detach(port_id='a95b5509-c122-4c2f-823e-884bb559afe2',
+                    openstack_resource=None)
 
     def test_delete_with_retry(self, mock_connection):
         # Prepare the context for delete operation
@@ -2751,7 +2761,7 @@ class ServerTestCase(OpenStackTestBase):
 
         # Call delete server operation
         with self.assertRaises(OperationRetry):
-            server.delete()
+            server.delete(openstack_resource=None)
             # Check if the resource id is already set or not
             self.assertIn(
                 SERVER_TASK_DELETE,
@@ -2772,7 +2782,7 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.find_server = \
             mock.MagicMock(side_effect=openstack.exceptions.ResourceNotFound)
 
-        server.delete()
+        server.delete(openstack_resource=None)
 
     def test_delete_with_error(self, mock_connection):
         # Prepare the context for delete operation
@@ -2789,7 +2799,7 @@ class ServerTestCase(OpenStackTestBase):
             mock.MagicMock(side_effect=[openstack.exceptions.ResourceNotFound])
 
         with self.assertRaises(NonRecoverableError):
-            server.delete()
+            server.delete(openstack_resource=None)
 
     def test_update(self, mock_connection):
         # Prepare the context for update operation
@@ -2836,7 +2846,7 @@ class ServerTestCase(OpenStackTestBase):
         mock_connection().compute.update_server = \
             mock.MagicMock(return_value=new_server)
 
-        server.update(args=new_config)
+        server.update(args=new_config, openstack_resource=None)
 
         # Check if the server payload is assigned for the created server
         self.assertIn(
@@ -2887,7 +2897,7 @@ class ServerTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=server_list)
 
         # Call list servers
-        server.list_servers()
+        server.list_servers(openstack_resource=None)
 
         # Check if the server list saved as runtime properties
         self.assertIn(
@@ -2948,4 +2958,4 @@ class ServerTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        server.creation_validation()
+        server.creation_validation(openstack_resource=None)

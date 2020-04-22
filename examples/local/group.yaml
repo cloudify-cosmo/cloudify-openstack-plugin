@@ -1,0 +1,86 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5.5/types.yaml
+  # For use with a manager use: plugin:cloudify-openstack-plugin
+  - plugin.yaml
+
+inputs:
+
+  auth_url:
+    type: string
+
+  username:
+    type: string
+
+  password:
+    type: string
+
+  region_name:
+    type: string
+
+  project_name:
+    type: string
+
+  group_config:
+    default:
+      name: test_group
+      description: Testing Group
+
+  role_config:
+    default:
+      name: test_role
+      description: Testing Group
+
+  project_config:
+    default:
+      name: test_project
+      description: Testing Project
+
+  user_domain_name:
+    type: string
+    default: Default
+
+  project_domain_name:
+    type: string
+    default: Default
+
+dsl_definitions:
+
+  client_config: &client_config
+    auth_url: { get_input: auth_url }
+    username: { get_input: username }
+    password: { get_input: password }
+    region_name: { get_input: region_name }
+    project_name: { get_input: project_name }
+    user_domain_name: { get_input: user_domain_name }
+    project_domain_name: { get_input: project_domain_name }
+
+node_templates:
+
+  example-group:
+    type: cloudify.nodes.openstack.Group
+    properties:
+      client_config: *client_config
+      resource_config: { get_input: group_config }
+
+  example-role:
+    type: cloudify.nodes.openstack.Role
+    properties:
+      client_config: *client_config
+      resource_config: { get_input: role_config }
+
+  example-project:
+    type: cloudify.nodes.openstack.Project
+    properties:
+      client_config: *client_config
+      resource_config: { get_input: project_config }
+      groups:
+      - name: test_group
+        roles:
+        - test_role
+    relationships:
+    - type: cloudify.relationships.depends_on
+      target: example-group
+    - type: cloudify.relationships.depends_on
+      target: example-role

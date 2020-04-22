@@ -63,7 +63,7 @@ class HostAggregateTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=aggregate_instance)
 
         # Call create aggregate
-        host_aggregate.create()
+        host_aggregate.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -125,7 +125,7 @@ class HostAggregateTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=aggregate_with_hosts)
 
         # Call configure aggregate
-        host_aggregate.configure()
+        host_aggregate.configure(openstack_resource=None)
 
         self.assertEqual(
             len(self._ctx.instance.runtime_properties['hosts']), 2)
@@ -160,7 +160,8 @@ class HostAggregateTestCase(OpenStackTestBase):
         mock_connection().compute.update = \
             mock.MagicMock(return_value=new_aggregate_instance)
 
-        host_aggregate.update(args=updated_config)
+        host_aggregate.update(args=updated_config,
+                              openstack_resource=None)
 
     def test_update_metadata(self, mock_connection):
         # Prepare the context for update operation
@@ -199,7 +200,8 @@ class HostAggregateTestCase(OpenStackTestBase):
         mock_connection().compute.set_metadata = \
             mock.MagicMock(return_value=new_aggregate_instance)
 
-        host_aggregate.update(args=updated_config)
+        host_aggregate.update(args=updated_config,
+                              openstack_resource=None)
         # Update method is not going to be called since we set metadata
         mock_connection().compute.update.assert_not_called()
 
@@ -252,7 +254,7 @@ class HostAggregateTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=None)
 
         # Call delete aggregate
-        host_aggregate.delete()
+        host_aggregate.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -290,7 +292,7 @@ class HostAggregateTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list aggregates
-        host_aggregate.list_aggregates()
+        host_aggregate.list_aggregates(openstack_resource=None)
 
         # Check if the aggregates list saved as runtime properties
         self.assertIn(
@@ -333,7 +335,8 @@ class HostAggregateTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_aggregate_instance)
 
         # Call add hosts to aggregate
-        host_aggregate.add_hosts(hosts=hosts_to_add)
+        host_aggregate.add_hosts(hosts=hosts_to_add,
+                                 openstack_resource=None)
 
     def test_add_invalid_hosts(self, _):
         # Prepare the context for add hosts operation
@@ -344,7 +347,8 @@ class HostAggregateTestCase(OpenStackTestBase):
         invalid_hosts_to_add = 'invalid data'
         with self.assertRaises(NonRecoverableError):
             # Call add hosts to aggregate
-            host_aggregate.add_hosts(hosts=invalid_hosts_to_add)
+            host_aggregate.add_hosts(hosts=invalid_hosts_to_add,
+                                     openstack_resource=None)
 
     def test_remove_hosts(self, mock_connection):
         # Prepare the context for remove hosts operation
@@ -381,7 +385,8 @@ class HostAggregateTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_aggregate_instance)
 
         # Call remove hosts from aggregate
-        host_aggregate.remove_hosts(hosts=hosts_to_remove)
+        host_aggregate.remove_hosts(hosts=hosts_to_remove,
+                                    openstack_resource=None)
 
         self.assertEqual(
             len(self._ctx.instance.runtime_properties['hosts']), 1)
@@ -395,4 +400,5 @@ class HostAggregateTestCase(OpenStackTestBase):
         invalid_hosts_to_remove = 'invalid data'
         with self.assertRaises(NonRecoverableError):
             # Call add hosts to aggregate
-            host_aggregate.remove_hosts(hosts=invalid_hosts_to_remove)
+            host_aggregate.remove_hosts(hosts=invalid_hosts_to_remove,
+                                        openstack_resource=None)

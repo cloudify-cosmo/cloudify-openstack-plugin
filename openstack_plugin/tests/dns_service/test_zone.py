@@ -55,7 +55,7 @@ class ZoneTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=zone_instance)
 
         # Call create zone
-        zone.create()
+        zone.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -88,7 +88,7 @@ class ZoneTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=zone_instance)
 
         # Call delete zone
-        zone.delete()
+        zone.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,

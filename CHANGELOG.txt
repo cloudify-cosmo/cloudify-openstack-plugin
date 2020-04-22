@@ -1,5 +1,6 @@
 3.2.13:
   - Support adding users to existing projects.
+  - Support adding groups to existing projects.
 3.2.12:
   - Support previously base64 encoded userdata.
 3.2.11:

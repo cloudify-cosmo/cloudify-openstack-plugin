@@ -140,7 +140,7 @@ class RouterTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=network_instance)
 
         # Call create router
-        router.create()
+        router.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -187,7 +187,7 @@ class RouterTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=router_instance)
 
         # Call delete router
-        router.delete()
+        router.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -254,7 +254,8 @@ class RouterTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_router_instance)
 
         # Call update router
-        router.update(args=new_config)
+        router.update(args=new_config,
+                      openstack_resource=None)
 
     def test_add_routes(self, mock_connection):
         # Prepare the context for start operation
@@ -404,7 +405,7 @@ class RouterTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_router_instance)
 
         # Call stop router
-        router.stop()
+        router.stop(openstack_resource=None)
 
     def test_add_interface_to_router(self, mock_connection):
         target = MockContext({
@@ -858,7 +859,7 @@ class RouterTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list routers
-        router.list_routers()
+        router.list_routers(openstack_resource=None)
 
         # Check if the routers list saved as runtime properties
         self.assertIn(
@@ -925,4 +926,4 @@ class RouterTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        router.creation_validation()
+        router.creation_validation(openstack_resource=None)

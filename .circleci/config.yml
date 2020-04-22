@@ -89,7 +89,7 @@ jobs:
           at: workspace
       - run:
           name: install cloudify
-          command: pip install -U cloudify==4.4
+          command: pip install -U cloudify==4.3.2
       - run:
           name: install test requirements
           command: pip install nose testtools https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/2.1.1.zip
@@ -301,17 +301,14 @@ workflows:
   tests:
     jobs:
       - unittests
-      - wagon:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
+      - wagon
       - cloudify-manager:
           requires:
             - unittests
             - wagon
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|v3-latest)/
   nightly:
     triggers:
     - schedule:

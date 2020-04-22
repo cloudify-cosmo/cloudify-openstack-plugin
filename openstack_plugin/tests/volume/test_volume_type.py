@@ -59,7 +59,7 @@ class VolumeTypeTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=volume_type_instance)
 
         # Call create volume type
-        volume_type.create()
+        volume_type.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          '1')
@@ -94,7 +94,7 @@ class VolumeTypeTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=None)
 
         # Call delete volume type
-        volume_type.delete()
+        volume_type.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,

@@ -66,7 +66,7 @@ class SecurityGroupRuleTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=security_group_rule_instance)
 
         # Call create security group rule
-        security_group_rule.create()
+        security_group_rule.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -111,7 +111,7 @@ class SecurityGroupRuleTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=security_group_rule_instance)
 
         # Call delete security group rule
-        security_group_rule.delete()
+        security_group_rule.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -168,7 +168,7 @@ class SecurityGroupRuleTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list security group rules
-        security_group_rule.list_security_group_rules()
+        security_group_rule.list_security_group_rules(openstack_resource=None)
 
         # Check if the security group rules list saved as runtime properties
         self.assertIn(
@@ -227,10 +227,10 @@ class SecurityGroupRuleTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=security_group_rules)
 
         # Call list security group rules
-        security_group_rule.list_security_group_rules()
+        security_group_rule.list_security_group_rules(openstack_resource=None)
 
         # Mock the quota size response
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        security_group_rule.creation_validation()
+        security_group_rule.creation_validation(openstack_resource=None)

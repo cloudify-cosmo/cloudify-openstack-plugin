@@ -144,7 +144,7 @@ class PortTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=port_instance)
 
         # Call create port
-        port.create()
+        port.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe1')
@@ -235,7 +235,7 @@ class PortTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=port_instance)
 
         # Call delete port
-        port.delete()
+        port.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -343,7 +343,8 @@ class PortTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_port_instance)
 
         # Call update port
-        port.update(args=new_config)
+        port.update(args=new_config,
+                    openstack_resource=None)
 
     def test_create_external_port(self, mock_connection):
         # Prepare relationship data which is connected to external port
@@ -496,7 +497,7 @@ class PortTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=updated_port_instance)
 
         # Call create port
-        port.create()
+        port.create(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -658,7 +659,7 @@ class PortTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=updated_port_instance)
 
         # Call delete port
-        port.delete()
+        port.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -761,7 +762,7 @@ class PortTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list ports
-        port.list_ports()
+        port.list_ports(openstack_resource=None)
 
         # Check if the ports list saved as runtime properties
         self.assertIn(
@@ -865,4 +866,4 @@ class PortTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        port.creation_validation()
+        port.creation_validation(openstack_resource=None)

@@ -245,11 +245,9 @@ class ProjectTestCase(OpenStackTestBase):
         mock_connection().get_volume_quotas = \
             mock.MagicMock(return_value=quotas.get("cinder"))
 
-        project.get_project_quota()
+        project.get_project_quota(openstack_resource=None)
         self.assertEqual(
             self._ctx.instance.runtime_properties['quota'], quotas)
-        with self.assertRaises(NonRecoverableError):
-            project.get_project_quota(openstack_resource=None)
 
     def test_update_project_quota(self, mock_connection):
         # Prepare the context for update quota operation
@@ -263,10 +261,7 @@ class ProjectTestCase(OpenStackTestBase):
                 }
             }
         }
-        project.update_project_quota(**new_quota)
-
-        with self.assertRaises(NonRecoverableError):
-            project.update_project_quota(openstack_resource=None)
+        project.update_project_quota(openstack_resource=None, **new_quota)
 
     def test_list_projects(self, mock_connection):
         # Prepare the context for list projects operation

@@ -217,7 +217,35 @@ class OpenstackProject(OpenstackResource):
         return self.connection.identity.projects(**query)
 
     def get_quota_sets(self, quota_type=None):
-        return self.infinite_resource_quota
+        name_or_id = self.name if not \
+            self.resource_id else self.resource_id
+        if name_or_id:
+            quota = {}
+            quota.update({
+                "nova": dict(self.connection.get_compute_quotas(name_or_id))
+                })
+            quota.update({
+                "neutron": dict(self.connection.get_network_quotas(name_or_id))
+                })
+            quota.update({
+                "cinder": dict(self.connection.get_volume_quotas(name_or_id))
+                })
+            return quota
+        return {}
+
+    def update_quota_sets(self, quota):
+        name_or_id = self.name if not \
+            self.resource_id else self.resource_id
+        if name_or_id:
+            nova_dict = quota.get("nova", None)
+            neutron_dict = quota.get("neutron", None)
+            cinder_dict = quota.get("cinder", None)
+            if nova_dict:
+                self.connection.set_compute_quotas(name_or_id, **nova_dict)
+            if neutron_dict:
+                self.connection.set_network_quotas(name_or_id, **neutron_dict)
+            if cinder_dict:
+                self.connection.set_volume_quotas(name_or_id, **cinder_dict)
 
     def get(self):
         project = self._find_project()

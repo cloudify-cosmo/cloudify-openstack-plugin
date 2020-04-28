@@ -342,10 +342,9 @@ def get_project_quota(openstack_resource):
     This method is to get quota for project resource in openstack
     :param openstack_resource: Instance of current openstack project
     """
-    # TODO The openstack should be extended in order to add support for
-    #  retrieving quota for project
-    raise NonRecoverableError('Openstack SDK does not support retrieving '
-                              'quota for project')
+    quotas = openstack_resource.get_quota_sets()
+    ctx.instance.runtime_properties['quota'] = quotas
+    ctx.instance.update()
 
 
 @with_compat_node
@@ -356,7 +355,4 @@ def update_project_quota(openstack_resource, quota={}):
     :param openstack_resource: Instance of current openstack project
     :param quota: Quota configuration
     """
-    # TODO The openstack should be extended in order to add support for
-    #  get update
-    raise NonRecoverableError('Openstack SDK does not support updating '
-                              'quota for project')
+    openstack_resource.update_quota_sets(quota)

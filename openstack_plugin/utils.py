@@ -32,7 +32,9 @@ from cloudify import ctx
 from cloudify.exceptions import (NonRecoverableError, OperationRetry)
 from cloudify.utils import exception_to_error_cause
 from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
-from cloudify._compat import text_type, PY2
+
+# Py2/3 compatibility
+from openstack_sdk._compat import text_type, PY2
 
 
 # Local imports

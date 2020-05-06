@@ -20,6 +20,9 @@ import uuid
 import openstack
 import openstack.exceptions
 
+# Py2/3 compatibility
+from openstack_sdk._compat import text_type
+
 
 class QuotaException(Exception):
     pass
@@ -80,7 +83,7 @@ class OpenstackResource(object):
             'True': True,
             'False': False,
         }
-        if isinstance(insecure, basestring):
+        if isinstance(insecure, text_type):
             insecure = bool_str.get(insecure.capitalize())
         if not isinstance(insecure, bool):
             raise InvalidINSecureValue(
@@ -142,7 +145,7 @@ class OpenstackResource(object):
                     error_message = 'Invalid resource id: {0}' \
                                     ''.format(self.resource_id)
 
-        elif self.name and not isinstance(self.name, basestring):
+        elif self.name and not isinstance(self.name, text_type):
             error_message = 'Invalid resource name: {0} ' \
                             'this should be a string'.format(self.name)
 

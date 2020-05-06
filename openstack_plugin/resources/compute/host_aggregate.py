@@ -27,6 +27,8 @@ from openstack_plugin.utils import (
     add_resource_list_to_runtime_properties,
     reset_dict_empty_keys
 )
+# Py2/3 compatibility
+from openstack_sdk._compat import text_type
 
 
 def _add_hosts(openstack_resource, hosts):
@@ -113,9 +115,9 @@ def configure(openstack_resource):
     # to created host aggregate
     if ctx.node.properties.get('metadata'):
         # Metadata values should be in strong format
-        for key, value in ctx.node.properties['metadata'].iteritems():
-            if not isinstance(value, basestring):
-                ctx.node.properties['metadata'][key] = unicode(value)
+        for key, value in ctx.node.properties['metadata'].items():
+            if not isinstance(value, text_type):
+                ctx.node.properties['metadata'][key] = u'{0}'.format(value)
         openstack_resource.set_metadata(ctx.node.properties['metadata'])
 
     # Check to see if there hosts is provided or not so that we can add

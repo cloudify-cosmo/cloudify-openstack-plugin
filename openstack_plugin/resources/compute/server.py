@@ -250,10 +250,10 @@ def _set_server_ips_runtime_properties(server):
         ctx.instance.runtime_properties[SERVER_IP_PROPERTY] = ip_v6
 
     # Get list of all ipv4 associated with server
-    ipv4_list = map(lambda ipv4_conf: ipv4_conf['addr'], ipv4_addresses)
+    ipv4_list = [ipv4_conf['addr'] for ipv4_conf in ipv4_addresses]
 
     # Get list of all ipv6 associated with server
-    ipv6_list = map(lambda ipv6_conf: ipv6_conf['addr'], ipv6_addresses)
+    ipv6_list = [ipv6_conf['addr'] for ipv6_conf in ipv6_addresses]
 
     ctx.instance.runtime_properties['ipv4_addresses'] = ipv4_list
     ctx.instance.runtime_properties['ipv6_addresses'] = ipv6_list
@@ -546,7 +546,7 @@ def _get_port_networks(client_config, port_ids):
             'uuid': response.network_id,
             'port': port_id
         }
-    return map(_get_network, port_ids)
+    return [_get_network(port) for port in port_ids]
 
 
 def _remove_duplicated_nics_from_relationships(nics_from_rels, client_config):
@@ -575,14 +575,14 @@ def _remove_duplicated_nics_from_relationships(nics_from_rels, client_config):
                 # the duplicates and maintain the orders
                 port_nic[port_network['uuid']] = port_network['port']
     if port_nic:
-        inverted_port_nic = dict(map(reversed, port_nic.items()))
+        inverted_port_nic = {v: k for k, v in port_nic.items()}
 
     unique_set = set()
     ordered_list = []
     if port_nic:
         for item in nics_from_rels:
             nic_conf = tuple(sorted(item.items()))
-            if nic_conf[0][1] in port_nic.keys():
+            if nic_conf[0][1] in port_nic:
                 nic_conf = nic_conf + (('port', port_nic[nic_conf[0][1]]),)
             elif nic_conf[0][1] in port_nic.values():
                 nic_conf = \
@@ -1238,7 +1238,7 @@ def _decrypt_password(password, private_key):
     rsa_key = PKCS1_v1_5.new(rsa_key)
 
     # Decode password to base 64
-    encrypted_password = base64.b64decode(password)
+    encrypted_password = base64.b64decode(password.encode('utf-8'))
 
     # Do the encryption process
     chunk_size = 512

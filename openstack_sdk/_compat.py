@@ -1,5 +1,5 @@
 ########
-# Copyright (c) 2018 Cloudify Platform Ltd. All rights reserved
+# Copyright (c) 2020 Cloudify Platform Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,21 +13,20 @@
 #    * See the License for the specific language governing permissions and
 #    * limitations under the License.
 
+"""Python 2 + 3 compatibility utils"""
+# flake8: noqa
 
-from setuptools import setup
-from setuptools import find_packages
+import sys
+PY2 = sys.version_info[0] == 2
 
 
-setup(
-    name='cloudify-openstack-plugin',
-    version='3.2.14',
-    author='Cloudify',
-    author_email='info@cloudify.co',
-    license='LICENSE',
-    zip_safe=False,
-    packages=find_packages(exclude=['tests*']),
-    install_requires=['cloudify-common>=4.4',
-                      'openstacksdk==0.39.0',
-                      'IPy==0.81',
-                      'pycrypto==2.6.1'],
-    test_requires=['mock', 'requests-mock'])
+if PY2:
+    text_type = unicode
+
+else:
+    text_type = str
+
+
+__all__ = [
+    'PY2', 'text_type',
+]

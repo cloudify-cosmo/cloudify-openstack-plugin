@@ -33,6 +33,9 @@ from cloudify.exceptions import (NonRecoverableError, OperationRetry)
 from cloudify.utils import exception_to_error_cause
 from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
 
+# Py2/3 compatibility
+from openstack_sdk._compat import text_type, PY2
+
 
 # Local imports
 from openstack_plugin.constants import (
@@ -212,7 +215,10 @@ def resolve_ctx(_ctx):
 
 def is_userdata_encoded(userdata_string):
     try:
-        base64.decodestring(userdata_string)
+        if PY2:
+            base64.decodestring(userdata_string)
+        else:
+            base64.decodebytes(userdata_string.encode('utf-8'))
     except binascii.Error:
         return False
     return True
@@ -326,7 +332,7 @@ def reset_dict_empty_keys(dict_object):
     :param dict_object: dict of properties need to be reset
     :return dict_object: Updated dict_object
     """
-    for key, value in dict_object.iteritems():
+    for key, value in dict_object.items():
         # Value could be boolean type, we do not need to convert it and lose
         # the actual value
         if not (value or isinstance(value, bool)):
@@ -445,7 +451,7 @@ def unset_runtime_properties_from_instance(_ctx):
     :param _ctx: Cloudify node instance which is could be an instance of
     RelationshipSubjectContext or CloudifyContext
     """
-    for key, _ in _ctx.instance.runtime_properties.items():
+    for key in list(_ctx.instance.runtime_properties.keys()):
         del _ctx.instance.runtime_properties[key]
 
 
@@ -936,7 +942,7 @@ def assign_resource_payload_as_runtime_properties(_ctx,
     :param str resource_type: Resource openstack type
     """
     if all([getattr(ctx, 'instance'), payload, resource_type]):
-        if resource_type not in ctx.instance.runtime_properties.keys():
+        if resource_type not in ctx.instance.runtime_properties:
             ctx.instance.runtime_properties[resource_type] = {}
         for key, value in payload.items():
             if key not in ['user_data', 'adminPass']:
@@ -1173,7 +1179,7 @@ def setup_openstack_logging(client_config, logger):
     for logger_name, logger_level in configured_loggers.items():
         # Before set the log make sure to convert it to upper case
         is_str = isinstance(logger_level, str)\
-                 or isinstance(logger_level, unicode)
+                 or isinstance(logger_level, text_type)
         if is_str:
             logger_level = logger_level.upper()
         setup_logging(logger_name, [ctx_log_handler], logger_level)

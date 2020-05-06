@@ -26,7 +26,7 @@ class UtilsTestCase(OpenStackTestBase):
         super(UtilsTestCase, self).setUp()
 
     def test_base64_encoding(self):
-        encoded_string = base64.b64encode('foo')
+        encoded_string = base64.b64encode(b'foo').decode('ascii', 'replace')
         not_encoded_string = 'foo'
         self.assertTrue(is_userdata_encoded(encoded_string))
         self.assertFalse(is_userdata_encoded(not_encoded_string))

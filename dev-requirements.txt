@@ -1,2 +1,0 @@
-cloudify-common==4.4
-cloudify==4.4

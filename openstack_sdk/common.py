@@ -20,8 +20,8 @@ import uuid
 import openstack
 import openstack.exceptions
 
-# Cloudify import (Py2/3 compatibility)
-from cloudify._compat import text_type
+# Py2/3 compatibility
+from openstack_sdk._compat import text_type
 
 
 class QuotaException(Exception):

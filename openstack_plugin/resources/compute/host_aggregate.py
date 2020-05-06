@@ -16,7 +16,6 @@
 # Third party imports
 from cloudify import ctx
 from cloudify.exceptions import NonRecoverableError
-from cloudify._compat import text_type
 
 # Local imports
 from openstack_sdk.resources.compute import OpenstackHostAggregate
@@ -28,6 +27,8 @@ from openstack_plugin.utils import (
     add_resource_list_to_runtime_properties,
     reset_dict_empty_keys
 )
+# Py2/3 compatibility
+from openstack_sdk._compat import text_type
 
 
 def _add_hosts(openstack_resource, hosts):

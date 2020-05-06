@@ -70,18 +70,21 @@ class OpenstackServer(OpenstackResource):
         self.logger.debug(
             'Attempting to reboot this server: {0}'.format(server))
         self.connection.compute.reboot_server(server, reboot_type)
+        return None
 
     def resume(self):
         server = self.get()
         self.logger.debug(
             'Attempting to resume this server: {0}'.format(server))
         self.connection.compute.resume_server(server)
+        return None
 
     def suspend(self):
         server = self.get()
         self.logger.debug(
             'Attempting to suspend this server: {0}'.format(server))
         self.connection.compute.suspend_server(server)
+        return None
 
     def backup(self, name, backup_type, rotation):
         server = self.get()
@@ -91,6 +94,7 @@ class OpenstackServer(OpenstackResource):
                                               name,
                                               backup_type,
                                               rotation)
+        return None
 
     def rebuild(self, image, name=None, admin_password='', **attr):
         server = self.get()
@@ -103,6 +107,7 @@ class OpenstackServer(OpenstackResource):
                                                name,
                                                admin_password,
                                                **attr)
+        return None
 
     def create_image(self, name, metadata=None):
         server = self.get()
@@ -111,6 +116,7 @@ class OpenstackServer(OpenstackResource):
         self.connection.compute.create_server_image(
             server, name, metadata=metadata
         )
+        return None
 
     def update(self, new_config=None):
         server = self.get()
@@ -127,12 +133,14 @@ class OpenstackServer(OpenstackResource):
         self.logger.debug(
             'Attempting to start this server: {0}'.format(server))
         self.connection.compute.start_server(server)
+        return None
 
     def stop(self):
         server = self.get()
         self.logger.debug(
             'Attempting to stop this server: {0}'.format(server))
         self.connection.compute.stop_server(server)
+        return None
 
     def get_server_password(self):
         server = self.get()
@@ -178,6 +186,7 @@ class OpenstackServer(OpenstackResource):
         self.logger.debug(
             'Volume attachment {0} was deleted successfully'
             ''.format(attachment_id))
+        return None
 
     def create_server_interface(self, interface_config):
         self.logger.debug(
@@ -199,6 +208,7 @@ class OpenstackServer(OpenstackResource):
         self.logger.debug(
             'Server interface {0} was deleted successfully'
             ''.format(interface_id))
+        return None
 
     def get_server_interface(self, interface_id):
         self.logger.debug(
@@ -225,6 +235,7 @@ class OpenstackServer(OpenstackResource):
         self.logger.debug(
             'Security group {0} was added to server {1} '
             'successfully'.format(security_group_id, self.resource_id))
+        return None
 
     def remove_security_group_from_server(self, security_group_id):
         self.logger.debug(
@@ -235,6 +246,7 @@ class OpenstackServer(OpenstackResource):
         self.logger.debug(
             'Security group {0} was removed from server {1} '
             'successfully'.format(security_group_id, self.resource_id))
+        return None
 
     def add_floating_ip_to_server(self, floating_ip, fixed_ip=None):
         self.logger.debug(
@@ -245,6 +257,7 @@ class OpenstackServer(OpenstackResource):
         self.logger.debug(
             'Floating ip {0} was added to server {1} successfully'
             ''.format(floating_ip, self.resource_id))
+        return None
 
     def remove_floating_ip_from_server(self, floating_ip):
         self.logger.debug(
@@ -255,6 +268,7 @@ class OpenstackServer(OpenstackResource):
         self.logger.debug(
             'Floating ip {0} was removed from server {1} '
             'successfully'.format(floating_ip, self.resource_id))
+        return None
 
 
 class OpenstackHostAggregate(ResourceMixin, OpenstackResource):

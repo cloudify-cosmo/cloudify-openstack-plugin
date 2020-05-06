@@ -982,7 +982,7 @@ def validate_ip_or_range_syntax(_ctx, address):
         IP(address)
         _ctx.logger.debug('OK:{0} is a valid address.'.format(address))
     except ValueError as e:
-        err = ('{0} is not a valid address;{1}'.format(address, e.message))
+        err = ('{0} is not a valid address;{1}'.format(address, e))
         _ctx.logger.error('VALIDATION ERROR:{0}'.format(err))
         raise NonRecoverableError(err)
 

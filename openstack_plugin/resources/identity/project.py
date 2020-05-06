@@ -20,6 +20,7 @@ from cloudify.exceptions import NonRecoverableError
 # Local imports
 from openstack_sdk.resources.identity import (OpenstackProject,
                                               OpenstackUser,
+                                              OpenstackGroup,
                                               OpenstackRole)
 from openstack_plugin.decorators import (with_openstack_resource,
                                          with_compat_node)
@@ -27,12 +28,100 @@ from openstack_plugin.decorators import (with_openstack_resource,
 from openstack_plugin.constants import (RESOURCE_ID,
                                         PROJECT_OPENSTACK_TYPE,
                                         IDENTITY_USERS,
+                                        IDENTITY_GROUPS,
                                         IDENTITY_ROLES,
                                         IDENTITY_QUOTA)
 
 from openstack_plugin.utils import (validate_resource_quota,
                                     reset_dict_empty_keys,
                                     add_resource_list_to_runtime_properties)
+
+
+def _assign_groups(project_resource, groups):
+    """
+    Assign groups to project
+    :param project_resource: project resource instance (OpenstackProject)
+    :param groups: List of groups that need to be assigned to project with
+    roles
+    """
+    # Create group resource to be able to get info about group
+    group_resource = OpenstackGroup(
+        client_config=project_resource.client_config,
+        logger=ctx.logger
+    )
+
+    # Create group role resource to be able to get info about role
+    role_resource = OpenstackRole(
+        client_config=project_resource.client_config,
+        logger=ctx.logger
+    )
+
+    for group in groups:
+        group_roles = group.get(IDENTITY_ROLES, [])
+        group_item = group_resource.find_group(group.get('name'))
+        if not group_item:
+            raise NonRecoverableError('Group {0} is not found'
+                                      ''.format(group['name']))
+
+        for role in group_roles:
+            group_role = role_resource.find_role(role)
+            if not group_role:
+                raise NonRecoverableError('Role {0} is not found'.format(role))
+
+            # Assign project role to group
+            role_resource.assign_project_role_to_group(
+                project_id=project_resource.resource_id,
+                group_id=group_item.id,
+                role_id=group_role.id)
+
+            ctx.logger.info(
+                'Assigned group {0} to project {1} with role {2}'.format(
+                    group_item.id, project_resource.resource_id,
+                    group_role.id))
+
+
+def _validate_groups(client_config, groups):
+    """
+    This method will validate if the groups are already exists before doing
+    any role assignment. Morever, it will check if the roles also exist or not
+    :param list groups: List of groups (dict) that contains group names and
+    roles associated
+    :param client_config: Openstack configuration in order to connect to
+    openstack
+    """
+
+    # Create group resource to be able to get info about group
+    group_resource = OpenstackGroup(client_config=client_config,
+                                    logger=ctx.logger)
+
+    # Create group role resource to be able to get info about role
+    role_resource = OpenstackRole(client_config=client_config,
+                                  logger=ctx.logger)
+
+    group_names = [group.get('name') for group in groups]
+    if len(group_names) > len(set(group_names)):
+        raise NonRecoverableError(' Provided groups are not unique')
+
+    for group_name in group_names:
+        group = group_resource.find_group(group_name)
+        if not group:
+            raise NonRecoverableError(
+                'Group {0} is not found'.format(group_name))
+
+    for group in groups:
+        if group.get(IDENTITY_ROLES):
+            if len(group[IDENTITY_ROLES]) > len(set(group[IDENTITY_ROLES])):
+                msg = 'Roles for group {0} are not unique'
+                raise NonRecoverableError(msg.format(group.get('name')))
+
+    role_names = {
+        role for group in groups for role in group.get(IDENTITY_ROLES, [])
+    }
+    for role_name in role_names:
+        group_role = role_resource.find_role(role_name)
+        if not group_role:
+            raise NonRecoverableError(
+                'Role {0} is not found'.format(role_name))
 
 
 def _assign_users(project_resource, users):
@@ -120,8 +209,34 @@ def _validate_users(client_config, users):
                 'Role {0} is not found'.format(role_name))
 
 
+def _handle_external_project_resource(openstack_resource):
+    """
+    This method will check for the users list if provided and it will
+    assign that list with their roles to this external/existing project
+    """
+    existing_project = openstack_resource.get()
+    if not existing_project:
+        ctx.logger.info("this project is not valid / does not exist")
+        return
+    users = ctx.node.properties.get(IDENTITY_USERS, [])
+    if users:
+        _validate_users(openstack_resource.client_config, users)
+        _assign_users(openstack_resource, users)
+    else:
+        ctx.logger.info("no users to add to this project")
+
+    groups = ctx.node.properties.get(IDENTITY_GROUPS)
+    if groups:
+        _validate_groups(openstack_resource.client_config, groups)
+        _assign_groups(openstack_resource, groups)
+    else:
+        ctx.logger.info("no groups to add to this project")
+
+
 @with_compat_node
-@with_openstack_resource(OpenstackProject)
+@with_openstack_resource(
+    OpenstackProject,
+    existing_resource_handler=_handle_external_project_resource)
 def create(openstack_resource):
     """
     Create openstack project resource
@@ -151,6 +266,18 @@ def start(openstack_resource, quota_dict={}):
 
         # Assign project role to users
         _assign_users(openstack_resource, users)
+
+    # Check if project node has associated groups that should be added
+    if ctx.node.properties.get(IDENTITY_GROUPS):
+
+        # Before start assigning roles group, there is a validation that must
+        # be run first to check if the the provided groups and their roles are
+        # already exist
+        groups = ctx.node.properties[IDENTITY_GROUPS]
+        _validate_groups(openstack_resource.client_config, groups)
+
+        # Assign project role to groups
+        _assign_groups(openstack_resource, groups)
 
     # Check if project node has quota information that should be updated for
     # project
@@ -215,10 +342,9 @@ def get_project_quota(openstack_resource):
     This method is to get quota for project resource in openstack
     :param openstack_resource: Instance of current openstack project
     """
-    # TODO The openstack should be extended in order to add support for
-    #  retrieving quota for project
-    raise NonRecoverableError('Openstack SDK does not support retrieving '
-                              'quota for project')
+    quotas = openstack_resource.get_quota_sets()
+    ctx.instance.runtime_properties['quota'] = quotas
+    ctx.instance.update()
 
 
 @with_compat_node
@@ -229,7 +355,4 @@ def update_project_quota(openstack_resource, quota={}):
     :param openstack_resource: Instance of current openstack project
     :param quota: Quota configuration
     """
-    # TODO The openstack should be extended in order to add support for
-    #  get update
-    raise NonRecoverableError('Openstack SDK does not support updating '
-                              'quota for project')
+    openstack_resource.update_quota_sets(quota)

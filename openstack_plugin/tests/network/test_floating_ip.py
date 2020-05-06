@@ -142,7 +142,7 @@ class FloatingIPTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=floating_ip_instance)
 
         # Call create floating ip
-        floating_ip.create()
+        floating_ip.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe4')
@@ -195,7 +195,7 @@ class FloatingIPTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=floating_ip_instance)
 
         # Call delete floating ip
-        floating_ip.delete()
+        floating_ip.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -266,7 +266,8 @@ class FloatingIPTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_floating_ip_instance)
 
         # Call update floating ip
-        floating_ip.update(args=new_config)
+        floating_ip.update(args=new_config,
+                           openstack_resource=None)
 
     def test_list_floating_ips(self, mock_connection):
         # Prepare the context for list floating ips operation
@@ -326,7 +327,7 @@ class FloatingIPTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list floating ips
-        floating_ip.list_floating_ips()
+        floating_ip.list_floating_ips(openstack_resource=None)
 
         # Check if the floating ips list saved as runtime properties
         self.assertIn(
@@ -395,4 +396,4 @@ class FloatingIPTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        floating_ip.creation_validation()
+        floating_ip.creation_validation(openstack_resource=None)

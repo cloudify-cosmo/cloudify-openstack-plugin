@@ -15,85 +15,85 @@
 
 # Third party imports
 import mock
-import openstack.identity.v2.user
+import openstack.identity.v3.group
 
 # Local imports
 from openstack_plugin.tests.base import OpenStackTestBase
-from openstack_plugin.resources.identity import user
+from openstack_plugin.resources.identity import group
 from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_NAME_PROPERTY,
                                         OPENSTACK_TYPE_PROPERTY,
-                                        USER_OPENSTACK_TYPE)
+                                        GROUP_OPENSTACK_TYPE)
 
 
 @mock.patch('openstack.connect')
-class UserTestCase(OpenStackTestBase):
+class GroupTestCase(OpenStackTestBase):
 
     def setUp(self):
-        super(UserTestCase, self).setUp()
+        super(GroupTestCase, self).setUp()
 
     @property
     def resource_config(self):
         return {
-            'name': 'test_user',
-            'is_enabled': True,
-            'email': 'test_email@test.com'
+            'name': 'test_group',
+            'description': 'old_description',
+            'domain_id': 'test_domain_id'
         }
 
     def test_create(self, mock_connection):
         # Prepare the context for create operation
         self._prepare_context_for_operation(
-            test_name='UserTestCase',
+            test_name='GroupTestCase',
             ctx_operation_name='cloudify.interfaces.lifecycle.create')
 
-        user_instance = openstack.identity.v2.user.User(**{
+        group_instance = openstack.identity.v3.group.Group(**{
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-            'name': 'test_user',
-            'is_enabled': True,
-            'email': 'test_email@test.com',
+            'name': 'test_group',
+            'description': 'old_description',
+            'domain_id': 'test_domain_id',
 
         })
-        # Mock create user response
-        mock_connection().identity.create_user = \
-            mock.MagicMock(return_value=user_instance)
+        # Mock create group response
+        mock_connection().identity.create_group = \
+            mock.MagicMock(return_value=group_instance)
 
-        # Call create user
-        user.create(openstack_resource=None)
+        # Call create group
+        group.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
 
         self.assertEqual(
             self._ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY],
-            'test_user')
+            'test_group')
 
         self.assertEqual(
             self._ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY],
-            USER_OPENSTACK_TYPE)
+            GROUP_OPENSTACK_TYPE)
 
     def test_delete(self, mock_connection):
         # Prepare the context for delete operation
         self._prepare_context_for_operation(
-            test_name='UserTestCase',
+            test_name='GroupTestCase',
             ctx_operation_name='cloudify.interfaces.lifecycle.delete')
 
-        user_instance = openstack.identity.v2.user.User(**{
+        group_instance = openstack.identity.v3.group.Group(**{
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-            'name': 'test_user',
-            'is_enabled': True,
-            'email': 'test_email@test.com',
+            'name': 'test_group',
+            'description': 'old_description',
+            'domain_id': 'test_domain_id',
 
         })
-        # Mock delete user response
-        mock_connection().identity.delete_user = \
-            mock.MagicMock(return_value=user_instance)
+        # Mock delete group response
+        mock_connection().identity.delete_group = \
+            mock.MagicMock(return_value=group_instance)
 
-        # Mock get user response
-        mock_connection().identity.get_user = \
-            mock.MagicMock(return_value=user_instance)
+        # Mock get group response
+        mock_connection().identity.get_group = \
+            mock.MagicMock(return_value=group_instance)
 
-        # Call delete user
-        user.delete(openstack_resource=None)
+        # Call delete group
+        group.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -103,78 +103,77 @@ class UserTestCase(OpenStackTestBase):
     def test_update(self, mock_connection):
         # Prepare the context for update operation
         self._prepare_context_for_operation(
-            test_name='UserTestCase',
+            test_name='GroupTestCase',
             ctx_operation_name='cloudify.interfaces.operations.update')
 
-        old_user_instance = openstack.identity.v2.user.User(**{
+        old_group_instance = openstack.identity.v3.group.Group(**{
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-            'name': 'test_user',
-            'is_enabled': True,
-            'email': 'test_email@test.com',
+            'name': 'test_group',
+            'description': 'old_description',
+            'domain_id': 'test_domain_id',
 
         })
 
         new_config = {
-            'name': 'test_updated_user',
+            'name': 'test_updated_group',
         }
 
-        new_user_instance = openstack.identity.v2.user.User(**{
+        new_group_instance = openstack.identity.v3.group.Group(**{
             'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-            'name': 'test_updated_user',
-            'is_enabled': True,
-            'email': 'test_email@test.com',
+            'name': 'test_updated_group',
+            'description': 'old_description',
+            'domain_id': 'test_domain_id',
 
         })
 
-        # Mock get user response
-        mock_connection().identity.get_user = \
-            mock.MagicMock(return_value=old_user_instance)
+        # Mock get group response
+        mock_connection().identity.get_group = \
+            mock.MagicMock(return_value=old_group_instance)
 
-        # Mock update user response
-        mock_connection().identity.update_user = \
-            mock.MagicMock(return_value=new_user_instance)
+        # Mock update group response
+        mock_connection().identity.update_group = \
+            mock.MagicMock(return_value=new_group_instance)
 
-        # Call update user
-        user.update(args=new_config, openstack_resource=None)
+        # Call update group
+        group.update(args=new_config, openstack_resource=None)
 
-    def test_list_users(self,
-                        mock_connection):
-        # Prepare the context for list users operation
+    def test_list_groups(self, mock_connection):
+        # Prepare the context for list groups operation
         self._prepare_context_for_operation(
-            test_name='UserTestCase',
+            test_name='GroupTestCase',
             ctx_operation_name='cloudify.interfaces.operations.list')
 
-        users = [
-            openstack.identity.v2.user.User(**{
+        groups = [
+            openstack.identity.v3.group.Group(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
-                'name': 'test_user_!',
-                'is_enabled': True,
-                'email': 'test1_email@test.com',
+                'name': 'test_group_!',
+                'description': 'old_description',
+                'domain_id': 'test_updated_domain_id',
             }),
-            openstack.identity.v2.user.User(**{
+            openstack.identity.v3.group.Group(**{
                 'id': 'a95b5509-c122-4c2f-823e-884bb559afe7',
-                'name': 'test_user_2',
-                'is_enabled': True,
-                'email': 'test2_email@test.com',
+                'name': 'test_group_2',
+                'description': 'old_description',
+                'domain_id': 'test_updated_domain_id',
             }),
         ]
 
-        # Mock list users response
-        mock_connection().identity.users = \
-            mock.MagicMock(return_value=users)
+        # Mock list groups response
+        mock_connection().identity.groups = \
+            mock.MagicMock(return_value=groups)
 
         # Mock find project response
         mock_connection().identity.find_project = \
             mock.MagicMock(return_value=self.project_resource)
 
-        # Call list user
-        user.list_users(openstack_resource=None)
+        # Call list group
+        group.list_groups(openstack_resource=None)
 
         # Check if the projects list saved as runtime properties
         self.assertIn(
-            'user_list',
+            'group_list',
             self._ctx.instance.runtime_properties)
 
         # Check the size of project list
         self.assertEqual(
-            len(self._ctx.instance.runtime_properties['user_list']), 2)
+            len(self._ctx.instance.runtime_properties['group_list']), 2)

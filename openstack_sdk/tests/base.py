@@ -52,6 +52,8 @@ class OpenStackSDKTestBase(unittest.TestCase):
             'backup': self._fake_block_storage_backup,
             'snapshot': self._fake_block_storage_snapshot,
             'user': self._fake_identity_user,
+            'group': self._fake_identity_group,
+            'role': self._fake_identity_role,
             'project': self._fake_identity_project,
             'rbac_policy': self._fake_network_rbac_policy,
             'dns': self._fake_dns,
@@ -331,6 +333,26 @@ class OpenStackSDKTestBase(unittest.TestCase):
         user_conn.delete_user = self._gen_openstack_sdk_error()
         user_conn.update_user = self._gen_openstack_sdk_error()
         self.connection.identity = user_conn
+        return self.connection.identity
+
+    def _fake_identity_group(self):
+        group_conn = mock.MagicMock()
+        group_conn.groups = self._gen_openstack_sdk_error()
+        group_conn.get_group = self._gen_openstack_sdk_error()
+        group_conn.create_group = self._gen_openstack_sdk_error()
+        group_conn.delete_group = self._gen_openstack_sdk_error()
+        group_conn.update_group = self._gen_openstack_sdk_error()
+        self.connection.identity = group_conn
+        return self.connection.identity
+
+    def _fake_identity_role(self):
+        role_conn = mock.MagicMock()
+        role_conn.roles = self._gen_openstack_sdk_error()
+        role_conn.get_role = self._gen_openstack_sdk_error()
+        role_conn.create_role = self._gen_openstack_sdk_error()
+        role_conn.delete_role = self._gen_openstack_sdk_error()
+        role_conn.update_role = self._gen_openstack_sdk_error()
+        self.connection.identity = role_conn
         return self.connection.identity
 
     def _fake_identity_project(self):

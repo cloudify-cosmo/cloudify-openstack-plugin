@@ -97,7 +97,7 @@ class VolumeTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=volume_instance)
 
         # Call create volume
-        volume.create()
+        volume.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          '1')
@@ -134,7 +134,7 @@ class VolumeTestCase(OpenStackTestBase):
         mock_wait_status.return_value = volume_instance
 
         # Call start volume
-        volume.start()
+        volume.start(openstack_resource=None)
 
         self.assertEqual(
             self._ctx.instance.runtime_properties[VOLUME_BOOTABLE], False)
@@ -171,7 +171,7 @@ class VolumeTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=None)
 
         # Call delete volume
-        volume.delete()
+        volume.delete(openstack_resource=None)
 
         mock_delete_volume_snapshot.assert_called()
 
@@ -219,7 +219,7 @@ class VolumeTestCase(OpenStackTestBase):
 
         with self.assertRaises(OperationRetry):
             # Call delete volume
-            volume.delete()
+            volume.delete(openstack_resource=None)
             mock_delete_volume_snapshot.assert_called()
 
     def test_create_volume_backup(self, mock_connection):
@@ -626,7 +626,7 @@ class VolumeTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list volumes
-        volume.list_volumes()
+        volume.list_volumes(openstack_resource=None)
 
         # Check if the projects list saved as runtime properties
         self.assertIn(
@@ -671,4 +671,4 @@ class VolumeTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        volume.creation_validation()
+        volume.creation_validation(openstack_resource=None)

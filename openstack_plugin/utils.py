@@ -403,8 +403,7 @@ def validate_resource_quota(resource, openstack_type):
 
     # This represent the quota for the provided resource openstack type
     resource_quota = resource.get_quota_sets(openstack_type_plural)
-
-    if resource_amount < resource_quota \
+    if resource_amount < len(resource_quota) \
             or resource_quota == INFINITE_RESOURCE_QUOTA:
         ctx.logger.debug(
             QUOTA_VALID_MSG.format(

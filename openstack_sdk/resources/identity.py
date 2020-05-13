@@ -217,6 +217,9 @@ class OpenstackProject(OpenstackResource):
         return self.connection.identity.projects(**query)
 
     def get_quota_sets(self, quota_type=None):
+        return self.infinite_resource_quota
+
+    def get_project_quota(self, quota_type=None):
         name_or_id = self.name if not \
             self.resource_id else self.resource_id
         if name_or_id:

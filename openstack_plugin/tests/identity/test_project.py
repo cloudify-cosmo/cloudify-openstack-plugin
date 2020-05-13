@@ -312,7 +312,8 @@ class ProjectTestCase(OpenStackTestBase):
         self.assertEqual(
             len(self._ctx.instance.runtime_properties['project_list']), 2)
 
-    @mock.patch('openstack_sdk.common.OpenstackResource.get_quota_sets')
+    @mock.patch(
+        'openstack_sdk.resources.identity.OpenstackProject.get_quota_sets')
     def test_creation_validation(self, mock_quota_sets, mock_connection):
         # Prepare the context for creation validation projects operation
         self._prepare_context_for_operation(

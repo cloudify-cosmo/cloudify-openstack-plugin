@@ -80,7 +80,7 @@ class NetworkTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=network_instance)
 
         # Call create network
-        network.create()
+        network.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe4')
@@ -138,7 +138,7 @@ class NetworkTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=network_instance)
 
         # Call delete network
-        network.delete()
+        network.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -225,7 +225,8 @@ class NetworkTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_network_instance)
 
         # Call update network
-        network.update(args=new_config)
+        network.update(args=new_config,
+                       openstack_resource=None)
 
     def test_list_networks(self, mock_connection):
         # Prepare the context for list projects operation
@@ -303,7 +304,7 @@ class NetworkTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list networks
-        network.list_networks()
+        network.list_networks(openstack_resource=None)
 
         # Check if the networks list saved as runtime properties
         self.assertIn(
@@ -390,4 +391,4 @@ class NetworkTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        network.creation_validation()
+        network.creation_validation(openstack_resource=None)

@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.12.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.14.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.2.12'
+    package_version: '3.2.14'
 
 dsl_definitions:
 
@@ -539,6 +539,34 @@ data_types:
       email:
         description: >
           The email for the user.
+        required: false
+        type: string
+
+  cloudify.types.openstack.Group:
+    properties:
+      <<: *data_type_kwargs
+      <<: *data_type_name
+      <<: *data_type_id
+      <<: *data_type_description
+      domain_id:
+        description: >
+          The ID of the domain of the group. If the domain ID is not provided
+          in the request, the Identity service will attempt to pull the
+          domain ID from the token used in the request.Note that this requires the use of a domain-scoped token.
+        required: false
+        type: string
+
+  cloudify.types.openstack.Role:
+    properties:
+      <<: *data_type_kwargs
+      <<: *data_type_name
+      <<: *data_type_id
+      <<: *data_type_description
+      domain_id:
+        description: >
+          The ID of the domain of the role. If the domain ID is not provided
+          in the request, the Identity service will attempt to pull the
+          domain ID from the token used in the request.Note that this requires the use of a domain-scoped token.
         required: false
         type: string
 
@@ -1331,12 +1359,73 @@ node_types:
             query:
               default: {}
 
+  cloudify.nodes.openstack.Group:
+    derived_from: cloudify.nodes.Root
+    properties:
+      <<: *external_resource
+      <<: *create_if_missing
+      <<: *client_config
+      resource_config:
+        type: cloudify.types.openstack.Group
+        description: https://docs.openstack.org/api-ref/identity/v3/?expanded=update-user.yaml-detail,create-user.yaml-detail,update-project-detail#groups
+        required: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.openstack_plugin.resources.identity.group.create
+        delete:
+          implementation: openstack.openstack_plugin.resources.identity.group.delete
+      cloudify.interfaces.operations:
+        update:
+          implementation: openstack.openstack_plugin.resources.identity.group.update
+          inputs:
+            args:
+              default: {}
+        list:
+          implementation: openstack.openstack_plugin.resources.identity.group.list_groups
+          inputs:
+            query:
+              default: {}
+
+  cloudify.nodes.openstack.Role:
+    derived_from: cloudify.nodes.Root
+    properties:
+      <<: *external_resource
+      <<: *create_if_missing
+      <<: *client_config
+      resource_config:
+        type: cloudify.types.openstack.Role
+        description: https://docs.openstack.org/api-ref/identity/v3/?expanded=update-project-detail,create-group-detail#roles
+        required: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.openstack_plugin.resources.identity.role.create
+        delete:
+          implementation: openstack.openstack_plugin.resources.identity.role.delete
+      cloudify.interfaces.operations:
+        update:
+          implementation: openstack.openstack_plugin.resources.identity.role.update
+          inputs:
+            args:
+              default: {}
+        list:
+          implementation: openstack.openstack_plugin.resources.identity.role.list_roles
+          inputs:
+            query:
+              default: {}
+
   cloudify.nodes.openstack.Project:
     derived_from: cloudify.nodes.Root
     properties:
       <<: *external_resource
       <<: *create_if_missing
       <<: *client_config
+      groups:
+        default: []
+        description: >
+          List of groups assigned to this project in the following format:
+            { name: string, roles: [string] }
       users:
         default: []
         description: >

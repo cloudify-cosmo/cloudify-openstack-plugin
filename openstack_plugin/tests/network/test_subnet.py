@@ -103,7 +103,7 @@ class SubnetTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=subnet_instance)
 
         # Call create subnet
-        subnet.create()
+        subnet.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -154,7 +154,7 @@ class SubnetTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=subnet_instance)
 
         # Call delete subnet
-        subnet.delete()
+        subnet.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -229,7 +229,8 @@ class SubnetTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=new_subnets_instance)
 
         # Call update subnet
-        subnet.update(args=new_config)
+        subnet.update(args=new_config,
+                      openstack_resource=None)
 
     def test_list_subnets(self, mock_connection):
         # Prepare the context for list subnets operation
@@ -295,7 +296,7 @@ class SubnetTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=self.project_resource)
 
         # Call list subnets
-        subnet.list_subnets()
+        subnet.list_subnets(openstack_resource=None)
 
         # Check if the subnets list saved as runtime properties
         self.assertIn(
@@ -370,4 +371,4 @@ class SubnetTestCase(OpenStackTestBase):
         mock_quota_sets.return_value = 20
 
         # Call creation validation
-        subnet.creation_validation()
+        subnet.creation_validation(openstack_resource=None)

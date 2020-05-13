@@ -59,6 +59,7 @@ class OpenstackVolume(ResourceMixin, OpenstackResource):
         self.logger.debug(
             'Attempting to delete this volume: {0}'.format(volume))
         self.connection.block_storage.delete_volume(volume)
+        return None
 
 
 class OpenstackVolumeType(ResourceMixin, OpenstackResource):
@@ -101,6 +102,7 @@ class OpenstackVolumeType(ResourceMixin, OpenstackResource):
         self.logger.debug(
             'Attempting to delete this volume type: {0}'.format(volume_type))
         self.connection.block_storage.delete_type(volume_type)
+        return None
 
 
 class OpenstackVolumeBackup(OpenstackResource):
@@ -146,6 +148,7 @@ class OpenstackVolumeBackup(OpenstackResource):
         self.logger.debug(
             'Attempting to delete this backup: {0}'.format(volume))
         self.connection.block_storage.delete_backup(volume)
+        return None
 
 
 class OpenstackVolumeSnapshot(OpenstackResource):

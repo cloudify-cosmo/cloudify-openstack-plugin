@@ -18,7 +18,7 @@ jobs:
       - checkout
       - run:
           name: install futurize
-          command: pip install future --user
+          command: pip install future --user https://github.com/cloudify-cosmo/cloudify-common/archive/master.zip
       - run:
           # those modules contain code that futurize would want to change,
           # so let's just remove them so that it doesn't report on them
@@ -347,7 +347,7 @@ workflows:
             - wagon
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|v3-latest)/
   nightly:
     triggers:
     - schedule:

@@ -403,7 +403,9 @@ def validate_resource_quota(resource, openstack_type):
 
     # This represent the quota for the provided resource openstack type
     resource_quota = resource.get_quota_sets(openstack_type_plural)
-
+    ctx.logger.debug(
+        'Comparing resource_amount {0} to resource_quota {1}'.format(
+            resource_amount, resource_quota))
     if resource_amount < resource_quota \
             or resource_quota == INFINITE_RESOURCE_QUOTA:
         ctx.logger.debug(
@@ -982,7 +984,7 @@ def validate_ip_or_range_syntax(_ctx, address):
         IP(address)
         _ctx.logger.debug('OK:{0} is a valid address.'.format(address))
     except ValueError as e:
-        err = ('{0} is not a valid address;{1}'.format(address, e.message))
+        err = ('{0} is not a valid address;{1}'.format(address, e))
         _ctx.logger.error('VALIDATION ERROR:{0}'.format(err))
         raise NonRecoverableError(err)
 

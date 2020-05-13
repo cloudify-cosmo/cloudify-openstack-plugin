@@ -60,7 +60,7 @@ class KeyPairTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=flavor_instance)
 
         # Call create flavor
-        flavor.create()
+        flavor.create(openstack_resource=None)
 
         self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
                          'a95b5509-c122-4c2f-823e-884bb559afe8')
@@ -100,7 +100,7 @@ class KeyPairTestCase(OpenStackTestBase):
             mock.MagicMock(return_value=flavor_instance)
 
         # Call delete flavor
-        flavor.delete()
+        flavor.delete(openstack_resource=None)
 
         for attr in [RESOURCE_ID,
                      OPENSTACK_NAME_PROPERTY,
@@ -120,7 +120,8 @@ class KeyPairTestCase(OpenStackTestBase):
 
         with self.assertRaises(NonRecoverableError):
             # Call update flavor
-            flavor.update(args=updated_config)
+            flavor.update(args=updated_config,
+                          openstack_resource=None)
 
     def test_list_flavors(self,
                           mock_connection):
@@ -157,7 +158,7 @@ class KeyPairTestCase(OpenStackTestBase):
         mock_connection().identity.find_project = \
             mock.MagicMock(return_value=self.project_resource)
 
-        flavor.list_flavors()
+        flavor.list_flavors(openstack_resource=None)
 
         # Check if the flavor list saved as runtime properties
         self.assertIn(

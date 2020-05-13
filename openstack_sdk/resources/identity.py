@@ -75,6 +75,58 @@ class OpenstackUser(ResourceMixin, OpenstackResource):
         return result
 
 
+class OpenstackGroup(ResourceMixin, OpenstackResource):
+    service_type = 'identity'
+    resource_type = 'group'
+    infinite_resource_quota = 10 ** 9
+
+    def list(self, query=None):
+        return self.list_resources(query)
+
+    def get_quota_sets(self, quota_type=None):
+        return self.infinite_resource_quota
+
+    def get(self):
+        return self._find_group()
+
+    def find_group(self, name_or_id=None):
+        return self._find_group(name_or_id)
+
+    def _find_group(self, name_or_id=None):
+        if not name_or_id:
+            name_or_id = self.name if not\
+                self.resource_id else self.resource_id
+        self.logger.debug(
+            'Attempting to find this group: {0}'.format(name_or_id))
+        group = self.find_resource(name_or_id)
+        self.logger.debug('Found group with this result: {0}'.format(group))
+        return group
+
+    def create(self):
+        self.logger.debug(
+            'Attempting to create group with these args: {0}'.format(
+                self.config))
+        group = self.connection.identity.create_group(**self.config)
+        self.logger.debug('Created group with this result: {0}'.format(group))
+        return group
+
+    def delete(self):
+        group = self.get()
+        self.logger.debug('Attempting to delete this group: {0}'.format(group))
+        result = self.connection.identity.delete_group(group)
+        self.logger.debug('Deleted group with this result: {0}'.format(result))
+        return result
+
+    def update(self, new_config=None):
+        group = new_config.pop('group', None) or self.get()
+        self.logger.debug(
+            'Attempting to update this group: {0} with args {1}'.format(
+                group, new_config))
+        result = self.connection.identity.update_group(group, **new_config)
+        self.logger.debug('Updated group with this result: {0}'.format(result))
+        return result
+
+
 class OpenstackRole(ResourceMixin, OpenstackResource):
     service_type = 'identity'
     resource_type = 'role'
@@ -115,6 +167,18 @@ class OpenstackRole(ResourceMixin, OpenstackResource):
 
         self.connection.identity.assign_project_role_to_user(**params)
 
+    def assign_project_role_to_group(self, project_id, group_id, role_id):
+        params = {
+            'project': project_id,
+            'group': group_id,
+            'role': role_id
+        }
+        self.logger.debug(
+            'Attempting to assign role to group for this project: {0}'.format(
+                self.name if not self.resource_id else self.resource_id))
+
+        self.connection.identity.assign_project_role_to_group(**params)
+
     def create(self):
         self.logger.debug(
             'Attempting to create role with these args: {0}'.format(
@@ -154,6 +218,37 @@ class OpenstackProject(OpenstackResource):
 
     def get_quota_sets(self, quota_type=None):
         return self.infinite_resource_quota
+
+    def get_project_quota(self, quota_type=None):
+        name_or_id = self.name if not \
+            self.resource_id else self.resource_id
+        if name_or_id:
+            quota = {}
+            quota.update({
+                "nova": dict(self.connection.get_compute_quotas(name_or_id))
+                })
+            quota.update({
+                "neutron": dict(self.connection.get_network_quotas(name_or_id))
+                })
+            quota.update({
+                "cinder": dict(self.connection.get_volume_quotas(name_or_id))
+                })
+            return quota
+        return {}
+
+    def update_quota_sets(self, quota):
+        name_or_id = self.name if not \
+            self.resource_id else self.resource_id
+        if name_or_id:
+            nova_dict = quota.get("nova", None)
+            neutron_dict = quota.get("neutron", None)
+            cinder_dict = quota.get("cinder", None)
+            if nova_dict:
+                self.connection.set_compute_quotas(name_or_id, **nova_dict)
+            if neutron_dict:
+                self.connection.set_network_quotas(name_or_id, **neutron_dict)
+            if cinder_dict:
+                self.connection.set_volume_quotas(name_or_id, **cinder_dict)
 
     def get(self):
         project = self._find_project()

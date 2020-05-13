@@ -8,3 +8,4 @@ https://github.com/cloudify-cosmo/cloudify-common/archive/master.zip
 https://github.com/cloudify-cosmo/cloudify-cli/archive/master.zip
 sh==1.11
 IPy==0.81
+pylint

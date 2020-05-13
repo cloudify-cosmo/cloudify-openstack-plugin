@@ -342,7 +342,7 @@ def get_project_quota(openstack_resource):
     This method is to get quota for project resource in openstack
     :param openstack_resource: Instance of current openstack project
     """
-    quotas = openstack_resource.get_quota_sets()
+    quotas = openstack_resource.get_project_quota()
     ctx.instance.runtime_properties['quota'] = quotas
     ctx.instance.update()
 

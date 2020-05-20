@@ -49,7 +49,7 @@ commands:
           command: pip install future --user
       - run:
           name: remove compat module
-          command: rm openstack_plugin/compat.py
+          command: rm openstack_sdk/_compat.py
       - run:
           name: find python3-incompatible code
           command: |

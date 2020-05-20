@@ -42,7 +42,7 @@ blueprint_list = ['examples/blueprint-examples/virtual-machine/openstack.yaml']
 @pytest.fixture(scope='function', params=blueprint_list)
 def blueprint_examples(request):
     test_name = os.path.dirname(request.param).split('/')[-1:][0]
-    inputs = json.dumps('external_network_id=ext-net')
+    inputs = 'external_network_id=ext-net'
     try:
         basic_blueprint_test(
             request.param,

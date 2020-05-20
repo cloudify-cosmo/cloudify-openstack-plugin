@@ -1,3 +1,4 @@
+from builtins import object
 import mock
 import unittest
 
@@ -29,7 +30,7 @@ class TestHostAggregate(unittest.TestCase):
     updated_name = 'updated-name'
     test_deployment_id = 'test-deployment-id'
 
-    class MockHostAggregateOS:
+    class MockHostAggregateOS(object):
         def __init__(self, id, name, hosts=None):
             self._id = id
             self._name = name

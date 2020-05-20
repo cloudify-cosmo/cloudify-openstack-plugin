@@ -37,6 +37,7 @@ import cloudify
 from cloudify import context, ctx
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 from functools import reduce
+from ._compat import text_type
 
 INFINITE_RESOURCE_QUOTA = -1
 
@@ -341,7 +342,7 @@ def get_property(ctx, property_name, kwargs={}, default=None):
 
 
 def transform_resource_name(ctx, res):
-    if isinstance(res, basestring):
+    if isinstance(res, text_type):
         res = {'name': res}
 
     if not isinstance(res, dict):
@@ -748,7 +749,7 @@ class OpenStackClient(object):
             return '({})'.format(', '.join(sorted(s)))
 
         received_params = set2str(params)
-        valid_auth_sets = map(set2str, cls.AUTH_SETS)
+        valid_auth_sets = list(map(set2str, cls.AUTH_SETS))
         raise NonRecoverableError(
             "{} is not valid set of auth params. Expected to find parameters "
             "either as environment variables, in a JSON file (at either a "
@@ -822,7 +823,7 @@ class OpenStackClient(object):
                 'True': True,
                 'False': False,
             }
-            if isinstance(cfg_insecure, basestring):
+            if isinstance(cfg_insecure, text_type):
                 cfg_insecure = bool_str.get(cfg_insecure.capitalize())
             if not isinstance(cfg_insecure, bool):
                 raise NonRecoverableError(
@@ -1313,7 +1314,7 @@ class NovaClientWithSugar(OpenStackClient):
             nova_client_version = '2'
 
         # In case someone provides an int.
-        if not isinstance(nova_client_version, basestring):
+        if not isinstance(nova_client_version, text_type):
             nova_client_version = str(nova_client_version)
 
         super(NovaClientWithSugar, self).__init__(

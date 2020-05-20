@@ -1,3 +1,4 @@
+from builtins import object
 import mock
 import unittest
 
@@ -30,7 +31,7 @@ class TestFlavor(unittest.TestCase):
     updated_name = 'updated-name'
     test_deployment_id = 'test-deployment-id'
 
-    class MockFlavorOS:
+    class MockFlavorOS(object):
         def __init__(self, id, name):
             self._id = id
             self._name = name

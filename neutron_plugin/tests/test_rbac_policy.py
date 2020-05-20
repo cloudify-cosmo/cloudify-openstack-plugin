@@ -1,3 +1,4 @@
+from builtins import object
 import mock
 import unittest
 
@@ -30,7 +31,7 @@ class TestRBACPolicy(unittest.TestCase):
     test_os_network_id = '333333333333333'
     test_deployment_id = 'test-deployment-id'
 
-    class MockRBACPolicyOS:
+    class MockRBACPolicyOS(object):
         def __init__(self,
                      id,
                      action,

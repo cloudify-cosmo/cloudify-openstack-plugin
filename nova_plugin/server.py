@@ -412,7 +412,7 @@ def get_port_networks(neutron_client, port_ids):
             'port-id': port['port']['id']
         }
 
-    return map(get_network, port_ids)
+    return list(map(get_network, port_ids))
 
 
 @operation(resumable=True)

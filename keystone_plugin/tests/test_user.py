@@ -1,3 +1,4 @@
+from builtins import object
 import mock
 import unittest
 
@@ -27,7 +28,7 @@ class TestUser(unittest.TestCase):
     updated_name = 'updated-name'
     test_deployment_id = 'test-deployment-id'
 
-    class MockUserOS:
+    class MockUserOS(object):
         def __init__(self, id, name):
             self._id = id
             self._name = name

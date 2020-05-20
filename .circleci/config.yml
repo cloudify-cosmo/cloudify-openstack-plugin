@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 
 checkout:
   post:
@@ -9,23 +9,47 @@ checkout:
         git checkout -qf FETCH_HEAD
       fi
 
-jobs:
 
-  py3_compat:
+executors:
+  py27:
     docker:
       - image: circleci/python:2.7
+
+  py36:
+    docker:
+      - image: circleci/python:3.6
+
+  wagon_generator:
+    machine:
+      image: ubuntu-1604:201903-01
+
+  cloudify-machine:
+    machine:
+      image: ubuntu-1604:201903-01
+
+
+commands:
+  run_unittest:
     steps:
       - checkout
       - run:
-          name: install futurize
-          command: pip install future --user https://github.com/cloudify-cosmo/cloudify-common/archive/master.zip
+          name: install tox
+          command: pip install --user tox
       - run:
-          # those modules contain code that futurize would want to change,
-          # so let's just remove them so that it doesn't report on them
-          # (there's no "exclude" functionality in futurize)
-          name: remove compat modules
-          command: |
-            rm openstack_sdk/_compat.py
+          name: Run Flake8
+          command: /home/circleci/.local/bin/tox -e flake8
+      - run:
+         name: Run nosetest
+         command: /home/circleci/.local/bin/tox -e nosetests
+
+  check_py3_compat:
+    steps:
+      - run:
+          name: install futurize
+          command: pip install future --user
+      - run:
+          name: remove compat module
+          command: rm openstack_plugin/compat.py
       - run:
           name: find python3-incompatible code
           command: |
@@ -45,294 +69,135 @@ jobs:
               exit 1
             fi
 
-  unittests_py27:
-    docker:
-      - image: circleci/python:2.7.15-stretch
+  generate_py27_wagon:
     steps:
-      - checkout
       - run:
-          name: install tox
-          command: pip install --user tox
-      - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e nosetests
-
-  unittests_py36:
-    docker:
-      - image: circleci/python:3.6-stretch
-    steps:
-      - checkout
-      - run:
-          name: install tox
-          command: pip install --user tox
-      - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e nosetests
-
-  wagon:
-    docker:
-      - image: amd64/centos:centos7.3.1611
-    steps:
-      - checkout
-      - run:
-          name: Install epel
-          command: yum install -y epel-release
-      - run:
-          name: Install python dependencies
-          command: yum -y install python-pip python-setuptools python-pip python-wheel python-setuptools python-virtualenv
-      - run:
-          name: Install devel dependencies
-          command: yum -y install python-devel gcc-c++ gcc zlib-devel libffi-devel openssl-devel
-      - run:
-          name: Upgrade pip
-          command: pip install --upgrade pip==9.0.1
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: Install wagon
-          command: pip install wagon==0.3.2
-      - run:
-          name: many_linux
-          command: echo "manylinux1_compatible = False" > "env/bin/_manylinux.py"
-      - run:
-          name: make workspace
+          name: Create Workspace Build directory.
           command: mkdir -p workspace/build
       - run:
-          name: Create wagon
-          command: source env/bin/activate && wagon create -s . -v -o workspace/build -f -a '--no-cache-dir -c constraints.txt'
+          name: Build 27 Wagon
+          command: |
+              git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
+              docker build -t cloudify-centos-7-wagon-builder cloudify-wagon-build-containers/centos_7
+              docker run -v ~/project/:/packaging cloudify-centos-7-wagon-builder
+      - run:
+          name: copy wagon to workspace
+          command: cp *.wgn workspace/build/
       - persist_to_workspace:
           root: workspace
           paths:
             - build/*
 
-  cloudify-manager:
-    machine:
-      enabled: true
-      python:
-        version: pypy-2.2.1
-    environment:
-      CLOUDIFY_SSL_TRUST_ALL: true
+  run_integration_tests:
     steps:
-      - checkout
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule update --init --recursive
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: update pip
+          command: pip install -U pip
+      - run:
+          name: install cloudify
+          command: pip install -U cloudify==5.0.0 pytest==4.6.3 pyyaml==3.10
+      - run:
+          name: download manager docker image
+          command: wget http://repository.cloudifysource.org/cloudify/5.0.0/ga-release/cloudify-docker-manager-5.0.0.tar
+      - run:
+          name: load docker image
+          command: docker load -i cloudify-docker-manager-5.0.0.tar
+      - run:
+          name: retain space by dumping the tar
+          command: rm cloudify-docker-manager-5.0.0.tar
+      - run:
+          name: show images
+          command: docker images
+      - run:
+          name: start docker container
+          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host cloudifyplatform/premium-cloudify-manager-aio
+      - run:
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
+      - run: pytest -s .circleci/test_examples.py
+
+  release_plugin:
+    steps:
       - run:
           name: "Pull Submodules"
           command: |
             git submodule init
-            git submodule update --remote
+            git submodule update --remote --recursive
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user pygithub pyyaml==3.10
+      - run:
+          name: upgrade setuptools
+          command: pip install --upgrade setuptools
+      - run:
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
       - attach_workspace:
           at: workspace
-      - run:
-          name: install cloudify
-          command: pip install -U cloudify==4.3.2
-      - run:
-          name: install test requirements
-          command: pip install nose testtools https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/2.1.1.zip
-      - run:
-          name: download manager docker image
-          command: wget http://repository.cloudifysource.org/cloudify/4.5.5/ga-release/cloudify-docker-manager-4.5.5ga.tar
-      - run:
-          name: load docker image
-          command: docker load -i cloudify-docker-manager-4.5.5ga.tar
-      - run:
-          name: retain space by dumping the tar
-          command: rm cloudify-docker-manager-4.5.5ga.tar
-      - run:
-          name: start docker container
-          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host docker-cfy-manager:latest
-      - run:
-          name: init CLI profile
-          command: |
-            counter=0
-            until [ $counter -ge 10 ]
-            do
-                cfy profiles use localhost -u admin -p admin -t default_tenant && break
-                counter=$[$counter+1]
-                sleep 2
-            done
-      - run:
-          name: install plugins bundle
-          command: cfy plugins bundle-upload
-      - run:
-          name: wagon upload
-          command: cfy plugins upload workspace/build/cloudify_openstack_plugin-*-py27-none-linux_x86_64-centos-Core.wgn -y plugin.yaml || true
-      - run:
-          name: check manager blueprint
-          command: cfy blueprints upload examples/manager/blueprint.yaml -b manager-blueprint
-      - run:
-          name: fix local blueprints little bit
-          command: sed "s/\- plugin.yaml/\- plugin:cloudify-openstack-plugin/g" -i examples/local/*.yaml
-      - run:
-          name: check local/blueprint
-          command: cfy blueprints upload examples/local/blueprint.yaml -b local-blueprint
-      - run:
-          name: check local/boot_volumes_3
-          command: cfy blueprints upload examples/local/boot_volumes_1.yaml -b local-boot_volumes_1
-      - run:
-          name: check local/boot_volumes_2
-          command: cfy blueprints upload examples/local/boot_volumes_2.yaml -b local-boot_volumes_2
-      - run:
-          name: check local/boot_volumes_3
-          command: cfy blueprints upload examples/local/boot_volumes_3.yaml -b local-boot_volumes_3
-      - run:
-          name: check local/disabled_egress_rule_security_group
-          command: cfy blueprints upload examples/local/disabled_egress_rule_security_group.yaml -b local-disabled_egress_rule_security_group
-      - run:
-          name: check local/flavor
-          command: cfy blueprints upload examples/local/flavor.yaml -b local-flavor
-      - run:
-          name: check local/floating_ip_1
-          command: cfy blueprints upload examples/local/floating_ip_1.yaml -b local-floating_ip_1
-      - run:
-          name: check local/floating_ip_2
-          command: cfy blueprints upload examples/local/floating_ip_2.yaml -b local-floating_ip_2
-      - run:
-          name: check local/floating_ip_3
-          command: cfy blueprints upload examples/local/floating_ip_3.yaml -b local-floating_ip_3
-      - run:
-          name: check local/host_aggregate
-          command: cfy blueprints upload examples/local/host_aggregate.yaml -b local-host_aggregate
-      - run:
-          name: check local/image
-          command: cfy blueprints upload examples/local/image.yaml -b local-image
-      - run:
-          name: check local/ipv6-dual-port
-          command: cfy blueprints upload examples/local/ipv6_dual.yaml -b ipv6-dual-port
-      - run:
-          name: check local/keypair
-          command: cfy blueprints upload examples/local/keypair.yaml -b local-keypair
-      - run:
-          name: check local/network
-          command: cfy blueprints upload examples/local/network.yaml -b local-network
-      - run:
-          name: check local/port_fixed_ip
-          command: cfy blueprints upload examples/local/port_fixed_ip.yaml -b local-port_fixed_ip
-      - run:
-          name: check local/project
-          command: cfy blueprints upload examples/local/project.yaml -b local-project
-      - run:
-          name: check local/rbac_policy
-          command: cfy blueprints upload examples/local/rbac_policy.yaml -b local-rbac_policy
-      - run:
-          name: check local/routes
-          command: cfy blueprints upload examples/local/routes.yaml -b local-routes
-      - run:
-          name: check local/security_group
-          command: cfy blueprints upload examples/local/security_group.yaml -b local-security_group
-      - run:
-          name: check local/server_floating_ip_connection
-          command: cfy blueprints upload examples/local/server_floating_ip_connection.yaml -b local-server_floating_ip_connection
-      - run:
-          name: check local/server_group
-          command: cfy blueprints upload examples/local/server_group.yaml -b local-server_group
-      - run:
-          name: check local/server_security_group_connection
-          command: cfy blueprints upload examples/local/server_security_group_connection.yaml -b local-server_security_group_connection
-      - run:
-          name: check local/server
-          command: cfy blueprints upload examples/local/server.yaml -b local-server
-      - run:
-          name: check local/user
-          command: cfy blueprints upload examples/local/user.yaml -b local-user
-      - run:
-          name: check local/volume_type
-          command: cfy blueprints upload examples/local/volume_type.yaml -b local-volume_type
-      - run:
-          name: check local/volume
-          command: cfy blueprints upload examples/local/volume.yaml -b local-volume
-      - run:
-          name: check local/windows_blueprint
-          command: cfy blueprints upload examples/local/windows_blueprint.yaml -b local-windows_blueprint
-      - run:
-          name: fix hello-world blueprints little bit
-          command: sed "s/\- plugin.yaml/\- plugin:cloudify-openstack-plugin/g" -i examples/cloudify-hello-world-example/*.yaml
-      - run:
-          name: check hello-world-example
-          command: cfy blueprints upload examples/local/windows_blueprint.yaml -b hello-world-example
-      - run:
-          name: check backward/external_missing_network_connection
-          command: cfy blueprints upload examples/2.x/external_missing_network_connection.yaml -b backward-external_missing_network_connection
-      - run:
-          name: check backward/external_network_connection
-          command: cfy blueprints upload examples/2.x/external_network_connection.yaml -b backward-external_network_connection
-      - run:
-          name: check backward/flavor
-          command: cfy blueprints upload examples/2.x/flavor.yaml -b backward-flavor
-      - run:
-          name: check backward/host_aggregate
-          command: cfy blueprints upload examples/2.x/host_aggregate.yaml -b backward-host_aggregate
-      - run:
-          name: check backward/image
-          command: cfy blueprints upload examples/2.x/image.yaml -b backward-image
-      - run:
-          name: check backward/ipv6-dual-port
-          command: cfy blueprints upload examples/2.x/ipv6_dual.yaml -b backward-ipv6-dual-port
-      - run:
-          name: check backward/keypair
-          command: cfy blueprints upload examples/2.x/keypair.yaml -b backward-keypair
-      - run:
-          name: check backward/network_connection
-          command: cfy blueprints upload examples/2.x/network_connection.yaml -b backward-network_connection
-      - run:
-          name: check backward/network_rbac
-          command: cfy blueprints upload examples/2.x/network_rbac.yaml -b backward-network_rbac
-      - run:
-          name: check backward/project
-          command: cfy blueprints upload examples/2.x/project.yaml -b backward-project
-      - run:
-          name: check backward/router_1
-          command: cfy blueprints upload examples/2.x/router_1.yaml -b backward-router_1
-      - run:
-          name: check backward/router_2
-          command: cfy blueprints upload examples/2.x/router_2.yaml -b backward-router_2
-      - run:
-          name: check backward/router_3
-          command: cfy blueprints upload examples/2.x/router_3.yaml -b backward-router_3
-      - run:
-          name: check backward/router_4
-          command: cfy blueprints upload examples/2.x/router_4.yaml -b backward-router_4
-      - run:
-          name: check backward/router_connection
-          command: cfy blueprints upload examples/2.x/router_connection.yaml -b backward-router_connection
-      - run:
-          name: check backward/routes
-          command: cfy blueprints upload examples/2.x/routes.yaml -b backward-routes
-      - run:
-          name: check backward/security_group_1
-          command: cfy blueprints upload examples/2.x/security_group_1.yaml -b backward-security_group_1
-      - run:
-          name: check backward/security_group_2
-          command: cfy blueprints upload examples/2.x/security_group_2.yaml -b backward-security_group_2
-      - run:
-          name: check backward/security_group_3
-          command: cfy blueprints upload examples/2.x/security_group_3.yaml -b backward-security_group_3
-      - run:
-          name: check backward/security_group_4
-          command: cfy blueprints upload examples/2.x/security_group_4.yaml -b backward-security_group_4
-      - run:
-          name: check backward/server_floating_ip_connection
-          command: cfy blueprints upload examples/2.x/server_floating_ip_connection.yaml -b backward-server_floating_ip_connection
-      - run:
-          name: check backward/server_group
-          command: cfy blueprints upload examples/2.x/server_group.yaml -b backward-server_group
-      - run:
-          name: check backward/server_security_group_connection_1
-          command: cfy blueprints upload examples/2.x/server_security_group_connection_1.yaml -b backward-server_security_group_connection_1
-      - run:
-          name: check backward/server_security_group_connection_2
-          command: cfy blueprints upload examples/2.x/server_security_group_connection_2.yaml -b backward-server_security_group_connection_2
-      - run:
-          name: check backward/server
-          command: cfy blueprints upload examples/2.x/server.yaml -b backward-server
-      - run:
-          name: check backward/user
-          command: cfy blueprints upload examples/2.x/user.yaml -b backward-user
-      - run:
-          name: check backward/volume
-          command: cfy blueprints upload examples/2.x/volume.yaml -b backward-volume
+      - run: python .circleci/package_release.py
+
+jobs:
+
+  unittests_py27:
+    executor: py27
+    steps:
+      - run_unittest
+
+  unittests_py36:
+    executor: py36
+    steps:
+      - run_unittest
+
+  py3_compat:
+    executor: py27
+    steps:
+      - checkout
+      - check_py3_compat
+
+  wagon:
+    executor: wagon_generator
+    steps:
+      - checkout
+      - generate_py27_wagon
+
+  integration_tests:
+    executor: cloudify-machine
+    environment:
+      CLOUDIFY_SSL_TRUST_ALL: true
+      IAAS: openstack
+      TEST_NAME: cloudformation
+    steps:
+      - checkout
+      - run_integration_tests
+
+  release:
+    executor: py27
+    steps:
+      - checkout
+      - release_plugin
 
 workflows:
   version: 2
   tests:
-    jobs:
+    jobs: &all_jobs
       - py3_compat
       - unittests_py27
       - unittests_py36
@@ -340,22 +205,26 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
-      - cloudify-manager:
+      - integration_tests:
           requires:
-            - unittests_py27
-            - unittests_py36
             - wagon
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|v3-latest)/
+              only: /([0-9\.]*\-build|master|dev)/
+      - release:
+          filters:
+            branches:
+              only: /master/
+          requires:
+            - wagon
+            - integration_tests
+
   nightly:
     triggers:
     - schedule:
-        cron: "0 0 * * *"
+        cron: "0 3 * * *"
         filters:
           branches:
             only:
-              - dev
-    jobs:
-      - unittests_py27
-      - unittests_py36
+              - master
+    jobs: *all_jobs

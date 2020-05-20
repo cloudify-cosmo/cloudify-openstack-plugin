@@ -36,6 +36,7 @@ import glanceclient.exc as glance_exceptions
 import cloudify
 from cloudify import context, ctx
 from cloudify.exceptions import NonRecoverableError, RecoverableError
+from functools import reduce
 
 INFINITE_RESOURCE_QUOTA = -1
 

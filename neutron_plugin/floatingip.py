@@ -12,6 +12,7 @@
 #  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
+from __future__ import absolute_import
 
 from cloudify import ctx
 from cloudify.decorators import operation
@@ -32,7 +33,7 @@ from openstack_plugin_common.floatingip import (
     delete_floatingip,
     floatingip_creation_validation
 )
-from network import NETWORK_OPENSTACK_TYPE
+from .network import NETWORK_OPENSTACK_TYPE
 
 FLOATINGIP_OPENSTACK_TYPE = 'floatingip'
 FLOATING_NETWORK_ERROR_PREFIX = \

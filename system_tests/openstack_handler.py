@@ -650,7 +650,7 @@ class OpenstackHandler(BaseHandler):
     def _handled_exception(self, resource_id, failed, resource_group):
         try:
             yield
-        except BaseException, ex:
+        except BaseException as ex:
             failed[resource_group][resource_id] = ex
 
 

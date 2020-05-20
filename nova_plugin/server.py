@@ -69,6 +69,7 @@ from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE, VOLUME_BOOTABLE
 from openstack_plugin_common.security_group import \
     SECURITY_GROUP_OPENSTACK_TYPE
 from glance_plugin.image import handle_image_from_relationship
+from functools import reduce
 
 SERVER_OPENSTACK_TYPE = 'server'
 

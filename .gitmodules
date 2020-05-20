@@ -1,0 +1,3 @@
+[submodule "examples/blueprint-examples"]
+	path = examples/blueprint-examples
+	url = https://github.com/cloudify-community/blueprint-examples.git

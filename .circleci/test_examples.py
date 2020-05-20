@@ -15,7 +15,6 @@
 
 
 import os
-import json
 import pytest
 
 from ecosystem_tests.dorkl import (

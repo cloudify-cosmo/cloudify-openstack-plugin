@@ -112,7 +112,7 @@ def _get_management_network_id_and_name(neutron_client, ctx):
 
     if management_network_name:
         management_network_name = transform_resource_name(
-            ctx, management_network_name)
+            ctx, u'{0}'.format(management_network_name))
         management_network_id = neutron_client.cosmo_get_named(
             'network', management_network_name)
         management_network_id = management_network_id['id']
@@ -294,7 +294,7 @@ def create(nova_client, neutron_client, args, **_):
     provider_context = provider(ctx)
 
     def rename(name):
-        return transform_resource_name(ctx, name)
+        return transform_resource_name(ctx, u'{0}'.format(name))
 
     server = {
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
@@ -308,7 +308,7 @@ def create(nova_client, neutron_client, args, **_):
     if 'meta' not in server:
         server['meta'] = dict()
 
-    transform_resource_name(ctx, server)
+    transform_resource_name(ctx, u'{0}'.format(server))
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))

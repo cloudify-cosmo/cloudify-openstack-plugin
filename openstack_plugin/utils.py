@@ -213,17 +213,6 @@ def resolve_ctx(_ctx):
     return _ctx
 
 
-def is_userdata_encoded(userdata_string):
-    try:
-        if PY2:
-            base64.decodestring(userdata_string)
-        else:
-            base64.decodebytes(userdata_string.encode('utf-8'))
-    except binascii.Error:
-        return False
-    return True
-
-
 def handle_userdata(existing_userdata):
     """
     This method will be responsible for handle user data provided by the
@@ -247,7 +236,7 @@ def handle_userdata(existing_userdata):
 
     if not existing_userdata:
         existing_userdata = ''
-    elif is_userdata_encoded(existing_userdata):
+    elif not ctx.node.properties['encode_user_data']:
         return existing_userdata
 
     if install_agent_userdata and os_family == 'windows':
@@ -290,7 +279,8 @@ def handle_userdata(existing_userdata):
         final_userdata = compute.create_multi_mimetype_userdata(
             [existing_userdata, install_agent_userdata])
 
-    final_userdata = base64.b64encode(final_userdata)
+    final_userdata = base64.b64encode(final_userdata.encode('utf-8')).decode(
+        'ascii')
     return final_userdata
 
 

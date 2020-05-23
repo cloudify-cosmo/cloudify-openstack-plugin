@@ -18,7 +18,6 @@ import sys
 import copy
 import logging
 import base64
-import binascii
 import inspect
 import re
 
@@ -34,7 +33,7 @@ from cloudify.utils import exception_to_error_cause
 from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
 
 # Py2/3 compatibility
-from openstack_sdk._compat import text_type, PY2
+from openstack_sdk._compat import text_type
 
 
 # Local imports

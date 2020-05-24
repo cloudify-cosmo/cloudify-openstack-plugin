@@ -210,10 +210,9 @@ def _delete_private_key_file():
     try:
         os.remove(private_key_path)
     except (TypeError, OSError) as e:
-        if e.errno == errno.ENOENT:
+        if not e.errno == errno.ENOENT:
             # file was already deleted somehow
-            pass
-        raise
+            raise
 
 
 def _check_private_key_exists(private_key_path):

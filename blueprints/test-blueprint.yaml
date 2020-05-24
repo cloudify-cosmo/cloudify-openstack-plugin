@@ -95,6 +95,7 @@ node_templates:
   virtual_ip:
     type: cloudify.openstack.nodes.FloatingIP
     properties:
+      openstack_config: *client_config
       floatingip:
         floating_network_id: { get_attribute: [ external_network, external_id ] }
     relationships:
@@ -119,6 +120,7 @@ node_templates:
   security_group:
     type: cloudify.openstack.nodes.SecurityGroup
     properties:
+      openstack_config: *client_config
       rules:
         - port: 22
           remote_ip_prefix: 0.0.0.0/0
@@ -126,6 +128,7 @@ node_templates:
   keypair:
     type: cloudify.openstack.nodes.KeyPair
     properties:
+      openstack_config: *client_config
       resource_id: { get_input: key_pair_name }
       keypair:
         public_key: { get_input: public_key_material }
@@ -133,12 +136,15 @@ node_templates:
   vm:
     type: cloudify.openstack.nodes.Server
     properties:
+      openstack_config: *client_config
       agent_config:
         install_method: none
       image: { get_input: image }
       flavor: { get_input: flavor }
-      management_network_name: { get_property: [ public_network, resource_id ] }
+      management_network_name: { get_attribute: [ public_network, external_name ] }
     relationships:
+      - type: cloudify.relationships.depends_on
+        target: public_subnet
       - type: cloudify.openstack.server_connected_to_keypair
         target: keypair
       - type: cloudify.openstack.server_connected_to_floating_ip

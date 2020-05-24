@@ -189,7 +189,10 @@ def creation_validation(nova_client, **kwargs):
 
 
 def _get_private_key_path():
-    key_path = os.path.expanduser(ctx.node.properties.get(PRIVATE_KEY_PATH_PROP))
+    path_from_props = ctx.node.properties.get(PRIVATE_KEY_PATH_PROP)
+    if not path_from_props:
+        return ''
+    key_path = os.path.expanduser(path_from_props)
     if key_path:
         ctx.logger.warn(
             'You have requested to save the private key to {key_path}. '
@@ -206,7 +209,7 @@ def _delete_private_key_file():
         private_key_path))
     try:
         os.remove(private_key_path)
-    except OSError as e:
+    except (TypeError, OSError) as e:
         if e.errno == errno.ENOENT:
             # file was already deleted somehow
             pass
@@ -214,6 +217,7 @@ def _delete_private_key_file():
 
 
 def _check_private_key_exists(private_key_path):
+    private_key_path = private_key_path or ''
     return os.path.isfile(private_key_path)
 
 

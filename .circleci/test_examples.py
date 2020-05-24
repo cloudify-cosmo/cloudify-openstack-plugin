@@ -42,7 +42,9 @@ blueprint_list = ['blueprints/test-blueprint.yaml']
 @pytest.fixture(scope='function', params=blueprint_list)
 def blueprint_examples(request):
     test_name = os.path.dirname(request.param).split('/')[-1:][0]
-    inputs = 'external_network_name=ext-net'
+    inputs = 'external_network_name=ext-net -i resource_suffix={0}'.format(
+        os.environ['CIRCLE_BUILD_NUM']
+    )
     try:
         basic_blueprint_test(
             request.param,

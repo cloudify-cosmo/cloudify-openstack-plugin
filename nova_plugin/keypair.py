@@ -41,6 +41,12 @@ KEYPAIR_OPENSTACK_TYPE = 'keypair'
 
 PRIVATE_KEY_PATH_PROP = 'private_key_path'
 
+PRIVATE_KEY_PATH_ERROR = \
+    'You have requested to save the private key to {key_path}. ' \
+    'You are strongly discouraged from saving private keys ' \
+    'to the file system. This feature is currently supported, ' \
+    'but will be removed in future releases.'
+
 
 @operation(resumable=True)
 @with_resume_operation
@@ -54,7 +60,7 @@ def create(nova_client, args, **kwargs):
     public_key = keypair.get('public_key')
 
     if use_external_resource(ctx, nova_client, KEYPAIR_OPENSTACK_TYPE):
-        if not pk_exists:
+        if private_key_path and not pk_exists:
             delete_runtime_properties(ctx, RUNTIME_PROPERTIES_KEYS)
             raise NonRecoverableError(
                 'Failed to use external keypair (node {0}): the public key {1}'
@@ -63,18 +69,28 @@ def create(nova_client, args, **kwargs):
                                       ctx.node.properties['resource_id'],
                                       private_key_path))
         return
-
-    # Raise error if the file existed and the public key is not provided
-    if pk_exists and not public_key:
+    elif private_key_path and pk_exists:
+        ctx.logger.error(PRIVATE_KEY_PATH_ERROR.format(
+            key_path=private_key_path))
+        # Raise error if the file existed and the public key is not provided
         raise NonRecoverableError(
             "Can't create keypair - private key path already exists: {0}"
             .format(private_key_path))
+    elif not private_key_path and not public_key:
+        raise NonRecoverableError(
+            'One of the following must be provided: \n'
+            '- A public key, in the public_key under the keypair property. \n'
+            '- A private key path, in the private_key_path property. ('
+            'Not recommended.)'
+        )
 
     keypair = nova_client.keypairs.create(keypair['name'], public_key)
 
     set_openstack_runtime_properties(ctx, keypair, KEYPAIR_OPENSTACK_TYPE)
-    # Write to private key if we do not provide public key
-    if not public_key:
+    # Write to private key if user asked for it.
+    if private_key_path:
+        ctx.logger.error(PRIVATE_KEY_PATH_ERROR.format(
+            key_path=private_key_path))
         try:
             # write private key file
             _mkdir_p(os.path.dirname(private_key_path))
@@ -183,24 +199,36 @@ def creation_validation(nova_client, **kwargs):
 
 
 def _get_private_key_path():
-    return os.path.expanduser(ctx.node.properties[PRIVATE_KEY_PATH_PROP])
+    path_from_props = ctx.node.properties.get(PRIVATE_KEY_PATH_PROP)
+    if not path_from_props:
+        return ''
+    key_path = os.path.expanduser(path_from_props)
+    if key_path:
+        ctx.logger.warn(PRIVATE_KEY_PATH_ERROR.format(key_path=key_path))
+    return key_path
 
 
 def _delete_private_key_file():
     private_key_path = _get_private_key_path()
-    ctx.logger.debug('deleting private key file at {0}'.format(
+    ctx.logger.debug('Deleting private key file at {0}'.format(
         private_key_path))
     try:
         os.remove(private_key_path)
-    except OSError as e:
-        if e.errno == errno.ENOENT:
+    except (TypeError, OSError) as e:
+        if not e.errno == errno.ENOENT:
             # file was already deleted somehow
-            pass
-        raise
+            raise
+    else:
+        ctx.logger.error(PRIVATE_KEY_PATH_ERROR.format(
+            key_path=private_key_path))
 
 
 def _check_private_key_exists(private_key_path):
-    return os.path.isfile(private_key_path)
+    private_key_path = private_key_path or ''
+    file_exists = os.path.isfile(private_key_path)
+    ctx.logger.error(PRIVATE_KEY_PATH_ERROR.format(
+        key_path=private_key_path))
+    return file_exists
 
 
 def _mkdir_p(path):

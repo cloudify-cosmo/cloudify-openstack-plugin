@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.14.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.15.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.2.14'
+    package_version: '3.2.15'
 
 dsl_definitions:
 
@@ -391,6 +391,7 @@ data_types:
           Must be Base64 encoded. Restricted to 65535 bytes.
         required: false
         type: string
+
       metadata:
         description: >
           Metadata key and value pairs.
@@ -1047,6 +1048,13 @@ node_types:
         type: cloudify.types.openstack.Server
         description: A dictionary that may contain these keys https://developer.openstack.org/api-ref/compute/?expanded=create-server-detail
         required: true
+      encode_user_data:
+        required: false
+        type: boolean
+        default: true
+        description: >
+          A boolean describing if the plugin will encode the user_data given in resource_config.
+          if the user data is bae64 encoded and this flag is false, the user_data that accepted will be sent as the server user_data.
       use_password:
         type: boolean
         default: false

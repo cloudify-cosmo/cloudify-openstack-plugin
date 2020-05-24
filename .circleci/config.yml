@@ -79,7 +79,7 @@ commands:
           command: |
               git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
               docker build -t cloudify-centos-7-wagon-builder cloudify-wagon-build-containers/centos_7
-              docker run -v ~/project/:/packaging cloudify-centos-7-wagon-builder get-pip.py --user
+              docker run -v ~/project/:/packaging cloudify-centos-7-wagon-builder
 
       - run:
           name: copy wagon to workspace

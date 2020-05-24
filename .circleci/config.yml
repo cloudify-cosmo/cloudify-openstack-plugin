@@ -78,6 +78,7 @@ commands:
           name: Build 27 Wagon
           command: |
               git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
+              docker login -u $DOCKER_ID_USER -p $DOCKER_ID_PASSWORD
               docker build -t cloudify-centos-7-wagon-builder cloudify-wagon-build-containers/centos_7
               docker run -v ~/project/:/packaging cloudify-python get-pip.py --user
 
@@ -98,6 +99,7 @@ commands:
           name: Build RHEL 27 Wagon
           command: |
               git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
+              docker login -u $DOCKER_ID_USER -p $DOCKER_ID_PASSWORD
               docker build -t cloudify-redhat-7-wagon-builder cloudify-wagon-build-containers/redhat_7 --build-arg USERNAME="$USERNAME" --build-arg PASSWORD="$PASSWORD"
               docker run -v ~/project/:/packaging cloudify-redhat-7-wagon-builder
       - run:

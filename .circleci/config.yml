@@ -243,7 +243,7 @@ workflows:
       - release:
           filters:
             branches:
-              only: /master/
+              only: /([0-9\.]*\-build|master)/
           requires:
             - wagon
             - rhel_wagon

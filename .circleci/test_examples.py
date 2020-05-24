@@ -31,6 +31,7 @@ SECRETS_TO_CREATE = {
     'openstack_region': False,
     'base_image_id': False,
     'base_flavor_id': False,
+    'agent_key_public': True
 }
 
 prepare_test(secrets=SECRETS_TO_CREATE)

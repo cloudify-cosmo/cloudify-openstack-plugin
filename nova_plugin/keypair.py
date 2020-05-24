@@ -41,6 +41,12 @@ KEYPAIR_OPENSTACK_TYPE = 'keypair'
 
 PRIVATE_KEY_PATH_PROP = 'private_key_path'
 
+PRIVATE_KEY_PATH_ERROR = \
+    'You have requested to save the private key to {key_path}. ' \
+    'You are strongly discouraged from saving private keys ' \
+    'to the file system. This feature is currently supported, ' \
+    'but will be removed in future releases.'
+
 
 @operation(resumable=True)
 @with_resume_operation
@@ -64,6 +70,8 @@ def create(nova_client, args, **kwargs):
                                       private_key_path))
         return
     elif private_key_path and pk_exists:
+        ctx.logger.error(PRIVATE_KEY_PATH_ERROR.format(
+            key_path=private_key_path))
         # Raise error if the file existed and the public key is not provided
         raise NonRecoverableError(
             "Can't create keypair - private key path already exists: {0}"
@@ -79,8 +87,10 @@ def create(nova_client, args, **kwargs):
     keypair = nova_client.keypairs.create(keypair['name'], public_key)
 
     set_openstack_runtime_properties(ctx, keypair, KEYPAIR_OPENSTACK_TYPE)
-    # Write to private key if we do not provide public key
-    if private_key_path and public_key:
+    # Write to private key if user asked for it.
+    if private_key_path:
+        ctx.logger.error(PRIVATE_KEY_PATH_ERROR.format(
+            key_path=private_key_path))
         try:
             # write private key file
             _mkdir_p(os.path.dirname(private_key_path))
@@ -194,12 +204,7 @@ def _get_private_key_path():
         return ''
     key_path = os.path.expanduser(path_from_props)
     if key_path:
-        ctx.logger.warn(
-            'You have requested to save the private key to {key_path}. '
-            'You are strongly discouraged from saving private keys '
-            'to the file system. This feature is currently supported, '
-            'but will be removed in future releases.'.format(key_path=key_path)
-        )
+        ctx.logger.warn(PRIVATE_KEY_PATH_ERROR.format(key_path=key_path))
     return key_path
 
 
@@ -213,11 +218,17 @@ def _delete_private_key_file():
         if not e.errno == errno.ENOENT:
             # file was already deleted somehow
             raise
+    else:
+        ctx.logger.error(PRIVATE_KEY_PATH_ERROR.format(
+            key_path=private_key_path))
 
 
 def _check_private_key_exists(private_key_path):
     private_key_path = private_key_path or ''
-    return os.path.isfile(private_key_path)
+    file_exists = os.path.isfile(private_key_path)
+    ctx.logger.error(PRIVATE_KEY_PATH_ERROR.format(
+        key_path=private_key_path))
+    return file_exists
 
 
 def _mkdir_p(path):

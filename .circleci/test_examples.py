@@ -28,6 +28,7 @@ SECRETS_TO_CREATE = {
     'openstack_auth_url': False,
     'openstack_region': False,
     'openstack_project_name': False,
+    'openstack_tenant_name': False,
     'base_image_id': False,
     'base_flavor_id': False,
     'agent_key_public': True

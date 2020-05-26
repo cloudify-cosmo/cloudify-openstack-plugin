@@ -31,7 +31,7 @@ inputs:
 
   project_name:
     description: OS_TENANT_NAME as specified in Openstack RC file.
-    default: { get_secret: openstack_tenant_name }
+    default: { get_secret: openstack_project_name }
 
   user_domain_name:
     description: The User Domain name.

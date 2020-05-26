@@ -252,9 +252,15 @@ workflows:
   nightly:
     triggers:
     - schedule:
-        cron: "0 3 * * *"
+        cron: "0 1 * * *"
         filters:
           branches:
             only:
               - master
+    - schedule:
+        cron: "0 2 * * *"
+        filters:
+          branches:
+            only:
+              - 2.14.18-build
     jobs: *all_jobs

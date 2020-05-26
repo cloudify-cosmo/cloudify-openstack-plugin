@@ -21,10 +21,6 @@ inputs:
     description: Openstack user password.
     default: { get_secret: openstack_password }
 
-  tenant_name:
-    description: OS_TENANT_NAME as specified in Openstack RC file.
-    default: { get_secret: openstack_tenant_name }
-
   auth_url:
     description: OS_AUTH_URL as specified in Openstack RC file.
     default: { get_secret: openstack_auth_url }
@@ -32,6 +28,18 @@ inputs:
   region:
     description: OS_REGION_NAME as specified in Openstack RC file.
     default: { get_secret: openstack_region }
+
+  project_name:
+    description: OS_TENANT_NAME as specified in Openstack RC file.
+    default: { get_secret: openstack_tenant_name }
+
+  user_domain_name:
+    description: The User Domain name.
+    default: 'default'
+
+  project_domain_name:
+    description: The domain ID.
+    default: 'default'
 
   image:
     description: Image ID
@@ -66,9 +74,11 @@ dsl_definitions:
   client_config: &client_config
     username: { get_input: username }
     password: { get_input: password }
-    tenant_name: { get_input: tenant_name }
     auth_url: { get_input: auth_url }
     region: { get_input: region }
+    project_name: { get_input: project_name }
+    user_domain_name: { get_input: user_domain_name }
+    project_domain_name: { get_input: project_domain_name }
 
 node_templates:
 

@@ -268,15 +268,15 @@ workflows:
       - wagon:
           filters:
             branches:
-              only: /2.14.18-build|master)/
+              only: /(2.14.18-build|master)/
       - rhel_wagon:
           filters:
             branches:
-              only: /2.14.18-build|master)/
+              only: /(2.14.18-build|master)/
       - integration_tests:
           requires:
             - wagon
             - rhel_wagon
           filters:
             branches:
-              only: /2.14.18-build|master)/
+              only: /(2.14.18-build|master)/

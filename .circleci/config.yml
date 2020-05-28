@@ -263,4 +263,20 @@ workflows:
           branches:
             only:
               - 2.14.18-build
-    jobs: *all_jobs
+    jobs:
+      - unittests_py27
+      - wagon:
+          filters:
+            branches:
+              only: /2.14.18-build|master)/
+      - rhel_wagon:
+          filters:
+            branches:
+              only: /2.14.18-build|master)/
+      - integration_tests:
+          requires:
+            - wagon
+            - rhel_wagon
+          filters:
+            branches:
+              only: /2.14.18-build|master)/

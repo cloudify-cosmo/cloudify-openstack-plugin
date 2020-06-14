@@ -1,2 +1,1 @@
-cloudify-common>=4.6
 future

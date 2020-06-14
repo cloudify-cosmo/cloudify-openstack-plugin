@@ -19,10 +19,16 @@ import sys
 PY2 = sys.version_info[0] == 2
 
 if PY2:
+    import __builtin__ as builtins
+    import httplib
+    from urlparse import urlparse
     text_type = unicode
 else:
+    import builtins
+    import http.client as httplib
+    from urllib.parse import urlparse
     text_type = str
 
 __all__ = [
-    'PY2', 'text_type'
+    'PY2', 'text_type', 'urlparse', 'httplib'
 ]

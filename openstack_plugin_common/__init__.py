@@ -646,7 +646,7 @@ class Config(object):
     def update_config(overridden_cfg, overriding_cfg):
         """ this method is like dict.update() only that it doesn't override
         with (or set new) empty values (e.g. empty string) """
-        for k, v in overriding_cfg.iteritems():
+        for k, v in list(overriding_cfg.items()):
             if v:
                 overridden_cfg[k] = v
 
@@ -680,7 +680,7 @@ class OpenStackClient(object):
                 # that does not exist on ``config`` then these extra params
                 # should be removed to prevent any merging conflicts
                 removed_keys = []
-                for k, v in cfg.iteritems():
+                for k, v in list(cfg.items()):
                     if k not in config:
                         removed_keys.append(k)
 
@@ -742,8 +742,9 @@ class OpenStackClient(object):
 
     @classmethod
     def _validate_auth_params(cls, params):
-        if set(params.keys()) - cls.OPTIONAL_AUTH_PARAMS in cls.AUTH_SETS:
-            return
+        if set(list(params.keys())) - cls.OPTIONAL_AUTH_PARAMS \
+            in cls.AUTH_SETS:
+                return
 
         def set2str(s):
             return '({})'.format(', '.join(sorted(s)))
@@ -791,7 +792,7 @@ class OpenStackClient(object):
         all |= cls.OPTIONAL_AUTH_PARAMS
 
         auth, misc = {}, {}
-        for param, value in cfg.items():
+        for param, value in list(cfg.items()):
             if param in all:
                 auth[param] = value
             else:
@@ -1292,9 +1293,9 @@ def _re_raise(e, recoverable, retry_after=None, status_code=None):
             retry_after = None
         raise RecoverableError(
             message=message,
-            retry_after=retry_after), None, traceback
+            retry_after=retry_after)
     else:
-        raise NonRecoverableError(message), None, traceback
+        raise NonRecoverableError(message)
 
 
 # Sugar for clients

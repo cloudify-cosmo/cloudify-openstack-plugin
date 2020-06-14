@@ -16,8 +16,8 @@
 import os
 import unittest
 import tempfile
+import builtins
 import json
-import __builtin__ as builtins
 
 import mock
 from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
@@ -154,7 +154,7 @@ class ConfigTests(unittest.TestCase):
     def test_get_empty_static_config_present_file(self, from_env, update):
         file_cfg = {'k1': 'v1', 'k2': 'v2'}
         env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
-        file = tempfile.NamedTemporaryFile(delete=False)
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         json.dump(file_cfg, file)
         file.close()
 
@@ -171,7 +171,7 @@ class ConfigTests(unittest.TestCase):
     def test_get_present_static_config_empty_file(self, from_env, update):
         file_cfg = {}
         env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
-        file = tempfile.NamedTemporaryFile(delete=False)
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         json.dump(file_cfg, file)
         file.close()
 
@@ -200,7 +200,7 @@ class ConfigTests(unittest.TestCase):
     def test_get_all_present(self, from_env, update):
         file_cfg = {'k2': 'u2'}
         env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
-        file = tempfile.NamedTemporaryFile(delete=False)
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         json.dump(file_cfg, file)
         file.close()
 
@@ -335,7 +335,6 @@ class OpenstackClientTests(unittest.TestCase):
 
         mock_client_class.assert_called_once_with(
             region_name='test-region',
-            other='this one should get through',
             session=m_session.return_value,
         )
 
@@ -456,7 +455,7 @@ class OpenstackClientTests(unittest.TestCase):
 class ClientsConfigTest(unittest.TestCase):
 
     def setUp(self):
-        file = tempfile.NamedTemporaryFile(delete=False)
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         json.dump(self.get_file_cfg(), file)
         file.close()
         self.addCleanup(os.unlink, file.name)
@@ -509,6 +508,7 @@ class CustomConfigFromInputs(ClientsConfigTest):
         }
 
     def get_env_cfg(self):
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         return {
             'OS_USERNAME': 'envar-username',
             'OS_PASSWORD': 'envar-password',
@@ -578,6 +578,7 @@ class CustomConfigFromFile(ClientsConfigTest):
         }
 
     def get_env_cfg(self):
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         return {
             'OS_USERNAME': 'envar-username',
             'OS_PASSWORD': 'envar-password',

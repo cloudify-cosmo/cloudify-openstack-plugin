@@ -1,1 +1,1 @@
-https://github.com/cloudify-cosmo/cloudify-common/archive/master.zip
+git+https://github.com/cloudify-cosmo/cloudify-common@master#egg=cloudify-common[dispatcher]==master

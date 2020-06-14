@@ -36,6 +36,7 @@ from openstack_plugin_common.security_group import (
     sg_creation_validation,
     RUNTIME_PROPERTIES_KEYS
 )
+from openstack_plugin_common._compat import text_type
 
 DEFAULT_RULE_VALUES = {
     'direction': 'ingress',
@@ -82,13 +83,14 @@ def create(
         try:
             neutron_client.show_security_group(sg['id'])
         except RequestException as e:
-            ctx.logger.debug("Waiting for SG to be visible. Attempt {}".format(
-                attempt))
+            ctx.logger.debug("Waiting for SG to be visible. Attempt {0} "
+                             " and exception is {1}".format(attempt,
+                                                            text_type(e)))
         else:
             break
     else:
         raise NonRecoverableError(
-            "Timed out waiting for security_group to exist", e)
+            "Timed out waiting for security_group to exist")
 
     set_sg_runtime_properties(sg, neutron_client)
 

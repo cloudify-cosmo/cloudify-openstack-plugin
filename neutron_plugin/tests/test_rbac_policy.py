@@ -66,7 +66,7 @@ class TestRBACPolicy(unittest.TestCase):
 
         def to_dict(self):
             return dict(
-                [(k.strip('_'), v) for k, v in vars(self).iteritems()]
+                [(k.strip('_'), v) for k, v in vars(self).items()]
             )
 
     def mock_neutron_client(self, mock_rbac_policy):

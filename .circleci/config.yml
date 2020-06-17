@@ -69,16 +69,16 @@ commands:
               exit 1
             fi
 
-  generate_py27_wagon:
+  generate_py27py36_wagon:
     steps:
       - run:
           name: Create Workspace Build directory.
           command: mkdir -p workspace/build
       - run:
-          name: Build 27 Wagon
+          name: Build py27py36 Wagon
           command: |
               git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t cloudify-centos-7-wagon-builder cloudify-wagon-build-containers/centos_7
+              docker build -t cloudify-centos-7-wagon-builder cloudify-wagon-build-containers/centos_7_py2py3
               docker run -v ~/project/:/packaging cloudify-centos-7-wagon-builder
       - run:
           name: copy wagon to workspace
@@ -88,16 +88,16 @@ commands:
           paths:
             - build/*
 
-  generate_rhel_py27_wagon:
+  generate_rhel_py27py36_wagon:
     steps:
       - run:
           name: Create Workspace Build directory.
           command: mkdir -p workspace/build
       - run:
-          name: Build RHEL 27 Wagon
+          name: Build RHEL py27py36 Wagon
           command: |
               git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t cloudify-redhat-7-wagon-builder cloudify-wagon-build-containers/redhat_7 --build-arg USERNAME="$USERNAME" --build-arg PASSWORD="$PASSWORD"
+              docker build -t cloudify-redhat-7-wagon-builder cloudify-wagon-build-containers/redhat_7_py2py3 --build-arg USERNAME="$USERNAME" --build-arg PASSWORD="$PASSWORD"
               docker run -v ~/project/:/packaging cloudify-redhat-7-wagon-builder
       - run:
           name: copy wagon to workspace
@@ -195,13 +195,13 @@ jobs:
     executor: wagon_generator
     steps:
       - checkout
-      - generate_py27_wagon
+      - generate_py27py36_wagon
 
   rhel_wagon:
     executor: wagon_generator
     steps:
       - checkout
-      - generate_rhel_py27_wagon
+      - generate_rhel_py27py36_wagon
   
   integration_tests:
     executor: cloudify-machine
@@ -226,21 +226,21 @@ workflows:
       - py3_compat
       - unittests_py27
       - unittests_py36
-      - wagon:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
-      - rhel_wagon:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
+      - wagon #:
+#          filters:
+#            branches:
+#              only: /([0-9\.]*\-build|master|dev)/
+      - rhel_wagon #:
+#          filters:
+#            branches:
+#              only: /([0-9\.]*\-build|master|dev)/
       - integration_tests:
           requires:
             - wagon
             - rhel_wagon
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
+#          filters:
+#            branches:
+#              only: /([0-9\.]*\-build|master|dev)/
       - release:
           filters:
             branches:

@@ -1,3 +1,5 @@
+3.2.16:
+  - Update wagon builder to py2py3 wagon.
 3.2.14: Support Python 3.
 3.2.13:
   - Support quota operations on Project [ get_quota/update_quota ].

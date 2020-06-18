@@ -673,8 +673,9 @@ class OpenStackClient(object):
 
             # This check to make sure that blueprint openstack config
             # contains all the required auth params + any non-auth param
-            if set(config.keys()) \
-                    in self.AUTH_SETS and config.keys() in self.NON_AUTH_ITEMS:
+            if set(list(config.keys())) \
+                    in self.AUTH_SETS \
+                    and list(config.keys()) in self.NON_AUTH_ITEMS:
 
                 # Check if there is any value exists on ``cfg``
                 # that does not exist on ``config`` then these extra params
@@ -684,7 +685,7 @@ class OpenStackClient(object):
                     if k not in config:
                         removed_keys.append(k)
 
-                for key in removed_keys:
+                for key, _ in list(removed_keys.items()):
                     del cfg[key]
 
         v3 = '/v3' in cfg['auth_url']
@@ -742,9 +743,9 @@ class OpenStackClient(object):
 
     @classmethod
     def _validate_auth_params(cls, params):
-        if set(list(params.keys())) - cls.OPTIONAL_AUTH_PARAMS \
-            in cls.AUTH_SETS:
-                return
+        if (set(list(params.keys())) - cls.OPTIONAL_AUTH_PARAMS) \
+                in cls.AUTH_SETS:
+            return
 
         def set2str(s):
             return '({})'.format(', '.join(sorted(s)))

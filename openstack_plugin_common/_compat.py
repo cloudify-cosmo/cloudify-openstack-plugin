@@ -30,5 +30,5 @@ else:
     text_type = str
 
 __all__ = [
-    'PY2', 'text_type', 'urlparse', 'httplib'
+    'PY2', 'text_type', 'urlparse', 'httplib', 'builtins'
 ]

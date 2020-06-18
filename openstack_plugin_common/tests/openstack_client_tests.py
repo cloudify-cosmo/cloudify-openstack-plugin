@@ -16,7 +16,6 @@
 import os
 import unittest
 import tempfile
-import builtins
 import json
 
 import mock
@@ -28,6 +27,7 @@ from cloudify.mocks import MockCloudifyContext, MockNodeInstanceContext, \
 from cloudify.state import current_ctx
 
 import openstack_plugin_common as common
+from openstack_plugin_common._compat import builtins
 
 
 class ConfigTests(unittest.TestCase):
@@ -283,7 +283,7 @@ class OpenstackClientTests(unittest.TestCase):
         self.assertEqual(result, new)
         self.assertEqual(cfg, bak)
 
-    @mock.patch.object(common, 'ctx')
+    @mock.patch.object(common, 'ctx', spec=['logger'])
     def test__merge_custom_configuration_nova_url(self, mock_ctx):
         cfg = {
             'nova_url': 'gopher://nova',
@@ -317,6 +317,9 @@ class OpenstackClientTests(unittest.TestCase):
         cfg = {
             'auth_url': 'test-auth_url/v3',
             'region': 'test-region',
+            'username': 'test-username',
+            'password': 'test-password',
+            'tenant_name': 'test-tenant-name',
         }
 
         with mock.patch.object(
@@ -334,6 +337,7 @@ class OpenstackClientTests(unittest.TestCase):
             common.OpenStackClient('fred', mock_client_class, cfg)
 
         mock_client_class.assert_called_once_with(
+            other=u'this one should get through',
             region_name='test-region',
             session=m_session.return_value,
         )
@@ -444,7 +448,14 @@ class OpenstackClientTests(unittest.TestCase):
 
     @mock.patch.object(common, 'cinder_client')
     def test_cinder_client_get_name_from_resource(self, cc_mock):
-        ccws = common.CinderClientWithSugar()
+        cfg = {
+            'auth_url': 'test-auth_url/v3',
+            'region': 'test-region',
+            'username': 'test-username',
+            'password': 'test-password',
+            'tenant_name': 'test-tenant-name',
+        }
+        ccws = common.CinderClientWithSugar(config=cfg)
         mock_volume = mock.Mock()
 
         self.assertIs(

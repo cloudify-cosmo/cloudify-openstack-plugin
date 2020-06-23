@@ -646,7 +646,7 @@ class Config(object):
     def update_config(overridden_cfg, overriding_cfg):
         """ this method is like dict.update() only that it doesn't override
         with (or set new) empty values (e.g. empty string) """
-        for k, v in list(overriding_cfg.items()):
+        for k, v in overriding_cfg.items():
             if v:
                 overridden_cfg[k] = v
 
@@ -673,19 +673,19 @@ class OpenStackClient(object):
 
             # This check to make sure that blueprint openstack config
             # contains all the required auth params + any non-auth param
-            if set(list(config.keys())) \
+            if set(config.keys()) \
                     in self.AUTH_SETS \
-                    and list(config.keys()) in self.NON_AUTH_ITEMS:
+                    and config.keys() in self.NON_AUTH_ITEMS:
 
                 # Check if there is any value exists on ``cfg``
                 # that does not exist on ``config`` then these extra params
                 # should be removed to prevent any merging conflicts
                 removed_keys = []
-                for k, v in list(cfg.items()):
+                for k, v in cfg.items():
                     if k not in config:
                         removed_keys.append(k)
 
-                for key, _ in list(removed_keys.items()):
+                for key in removed_keys:
                     del cfg[key]
 
         v3 = '/v3' in cfg['auth_url']
@@ -793,7 +793,7 @@ class OpenStackClient(object):
         all |= cls.OPTIONAL_AUTH_PARAMS
 
         auth, misc = {}, {}
-        for param, value in list(cfg.items()):
+        for param, value in cfg.items():
             if param in all:
                 auth[param] = value
             else:

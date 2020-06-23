@@ -1300,8 +1300,8 @@ class TestServerNetworkRuntimeProperties(unittest.TestCase):
                 'networks',
                 {network_id: network_ips})
         nova_plugin.server._set_network_and_ip_runtime_properties(server)
-        self.assertIn('networks', list(ctx.instance.runtime_properties.keys()))
-        self.assertIn('ip', list(ctx.instance.runtime_properties.keys()))
+        self.assertIn('networks', ctx.instance.runtime_properties.keys())
+        self.assertIn('ip', ctx.instance.runtime_properties.keys())
         self.assertEquals(ctx.instance.runtime_properties['ip'],
                           '10.254.24.60')
         self.assertEquals(ctx.instance.runtime_properties['networks'],
@@ -1322,8 +1322,8 @@ class TestServerNetworkRuntimeProperties(unittest.TestCase):
                 'networks',
                 {network_id: network_ips})
         nova_plugin.server._set_network_and_ip_runtime_properties(server)
-        self.assertIn('networks', list(ctx.instance.runtime_properties.keys()))
-        self.assertIn('ip', list(ctx.instance.runtime_properties.keys()))
+        self.assertIn('networks', ctx.instance.runtime_properties.keys())
+        self.assertIn('ip', ctx.instance.runtime_properties.keys())
         self.assertEquals(ctx.instance.runtime_properties['ip'],
                           '10.254.24.60')
         self.assertEquals(ctx.instance.runtime_properties['networks'],
@@ -1339,8 +1339,8 @@ class TestServerNetworkRuntimeProperties(unittest.TestCase):
                 'networks',
                 {network_id: network_ips})
         nova_plugin.server._set_network_and_ip_runtime_properties(server)
-        self.assertIn('networks', list(ctx.instance.runtime_properties.keys()))
-        self.assertIn('ip', list(ctx.instance.runtime_properties.keys()))
+        self.assertIn('networks', ctx.instance.runtime_properties.keys())
+        self.assertIn('ip', ctx.instance.runtime_properties.keys())
         self.assertEquals(ctx.instance.runtime_properties['ip'], None)
         self.assertEquals(ctx.instance.runtime_properties['networks'],
                           {network_id: network_ips})

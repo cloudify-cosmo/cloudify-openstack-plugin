@@ -90,7 +90,7 @@ def find_resource_to_apply_rbac_policy(ctx):
 
 def validate_found_resource(input_dict, found_resource):
     if found_resource:
-        for key in list(found_resource.keys()):
+        for key in found_resource:
             if key in input_dict and input_dict.get(key):
                 raise NonRecoverableError(
                     'Multiple definitions of resource for which '

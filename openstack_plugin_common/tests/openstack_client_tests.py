@@ -19,7 +19,6 @@ import tempfile
 import json
 
 import mock
-from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 from cloudify.mocks import MockCloudifyContext, MockNodeInstanceContext, \
@@ -28,6 +27,9 @@ from cloudify.state import current_ctx
 
 import openstack_plugin_common as common
 from openstack_plugin_common._compat import builtins
+
+NODE_INSTANCE = 'node-instance'
+RELATIONSHIP_INSTANCE = 'relationship-instance'
 
 
 class ConfigTests(unittest.TestCase):

@@ -27,6 +27,9 @@ executors:
     machine:
       image: ubuntu-1604:201903-01
 
+  cloudify-machine-510:
+    machine:
+      image: ubuntu-1604:201903-01
 
 commands:
   run_unittest:
@@ -107,7 +110,7 @@ commands:
           paths:
             - build/*
 
-  run_integration_tests:
+  run_integration_tests_505:
     steps:
       - run:
           name: "Pull Submodules"
@@ -124,13 +127,50 @@ commands:
           command: pip install -U cloudify==5.0.0 pytest==4.6.3 pyyaml==3.10
       - run:
           name: download manager docker image
-          command: wget http://repository.cloudifysource.org/cloudify/5.0.0/ga-release/cloudify-docker-manager-5.0.0.tar
+          command: wget http://repository.cloudifysource.org/cloudify/5.0.5/ga-release/cloudify-docker-manager-5.0.5.tar
       - run:
           name: load docker image
-          command: docker load -i cloudify-docker-manager-5.0.0.tar
+          command: docker load -i cloudify-docker-manager-5.0.5.tar
       - run:
           name: retain space by dumping the tar
-          command: rm cloudify-docker-manager-5.0.0.tar
+          command: rm cloudify-docker-manager-5.0.5.tar
+      - run:
+          name: show images
+          command: docker images
+      - run:
+          name: start docker container
+          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host cloudifyplatform/premium-cloudify-manager-aio
+      - run:
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
+      - run: pytest -s .circleci/test_examples.py
+
+  run_integration_tests_510:
+    steps:
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule update --init --recursive --remote
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: update pip
+          command: pip install -U pip
+      - run:
+          name: install cloudify
+          command: >
+            pip install -U git+https://github.com/cloudify-cosmo/cloudify-common@master#egg=cloudify-common[dispatcher]==master
+            git+https://github.com/cloudify-cosmo/cloudify-cli@master#egg=cloudify-cli==master
+            pytest==4.6.3 pyyaml==3.12
+      - run:
+          name: download manager docker image
+          command:  wget http://repository.cloudifysource.org/cloudify/5.1.0/.dev1-release/cloudify-docker-manager-5.1.0.dev1.tar
+      - run:
+          name: load docker image
+          command: docker load -i cloudify-docker-manager-5.1.0.dev1.tar
+      - run:
+          name: retain space by dumping the tar
+          command: rm cloudify-docker-manager-5.1.0.dev1.tar
       - run:
           name: show images
           command: docker images
@@ -203,7 +243,7 @@ jobs:
       - checkout
       - generate_rhel_py27py36_wagon
   
-  integration_tests:
+  integration_tests_505:
     executor: cloudify-machine
     environment:
       CLOUDIFY_SSL_TRUST_ALL: true
@@ -211,7 +251,15 @@ jobs:
       TEST_NAME: cloudformation
     steps:
       - checkout
-      - run_integration_tests
+      - run_integration_tests_505
+
+  integration_tests_510:
+    executor: cloudify-machine-510
+    environment:
+      CLOUDIFY_SSL_TRUST_ALL: true
+    steps:
+      - checkout
+      - run_integration_tests_510
 
   release:
     executor: py27
@@ -234,7 +282,14 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
-      - integration_tests:
+      - integration_tests_505:
+          requires:
+            - wagon
+            - rhel_wagon
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|dev)/
+      - integration_tests_510:
           requires:
             - wagon
             - rhel_wagon
@@ -248,7 +303,8 @@ workflows:
           requires:
             - wagon
             - rhel_wagon
-            - integration_tests
+            - integration_tests_505
+            - integration_tests_510
 
   nightly:
     triggers:

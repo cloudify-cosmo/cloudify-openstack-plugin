@@ -25,11 +25,9 @@ from ecosystem_tests.dorkl import (
 '''Temporary until all the plugins in the bundle will 
 released with py2py3 wagons'''
 UT_VERSION = '1.23.5'
-UT_WAGON = 'https://github.com/cloudify-incubator/cloudify-utilities-plugin/' \
-           'releases/download/{v}/cloudify_utilities_plugin-{v}-centos-' \
-           'Core-py27.py36-none-linux_x86_64.wgn'.format(v=UT_VERSION)
-UT_PLUGIN = 'https://github.com/cloudify-incubator/cloudify-utilities-plugin' \
-            '/releases/download/{v}/plugin.yaml'.format(v=UT_VERSION)
+UT_WAGON = 'https://adar-test-bucket.s3.amazonaws.com/cloudify_utilities_' \
+           'plugin-1.23.5-centos-Core-py27.py36-none-linux_x86_64.wgn'
+UT_PLUGIN = 'https://adar-test-bucket.s3.amazonaws.com/plugin.yaml'
 PLUGINS_TO_UPLOAD = [(UT_WAGON, UT_PLUGIN)]
 SECRETS_TO_CREATE = {
     'openstack_username': False,

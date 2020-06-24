@@ -76,7 +76,7 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
             resources_to_teardown)
         if failed_to_remove:
             trimmed_failed_to_remove = {key: value for key, value in
-                                        failed_to_remove.iteritems()
+                                        failed_to_remove.items()
                                         if value}
             if len(trimmed_failed_to_remove) > 0:
                 msg = 'Openstack handler failed to remove some resources:' \
@@ -109,7 +109,7 @@ class OpenstackCleanupContext(BaseHandler.CleanupContext):
         # retrieve the id of the old server
         old_server_id = None
         servers = self.before_run['servers']
-        for server_id, name in servers.iteritems():
+        for server_id, name in servers.items():
             if server_name == name:
                 old_server_id = server_id
                 break
@@ -417,7 +417,7 @@ class OpenstackHandler(BaseHandler):
                 volumes_to_remove.append(volume)
 
         left_volumes = self._delete_volumes(nova, cinder, volumes_to_remove)
-        for volume_id, ex in left_volumes.iteritems():
+        for volume_id, ex in left_volumes.items():
             failed['volumes'][volume_id] = ex
 
         for server in servers:
@@ -650,7 +650,7 @@ class OpenstackHandler(BaseHandler):
     def _handled_exception(self, resource_id, failed, resource_group):
         try:
             yield
-        except BaseException, ex:
+        except BaseException as ex:
             failed[resource_group][resource_id] = ex
 
 

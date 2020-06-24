@@ -54,7 +54,8 @@ class TestCheckImage(unittest.TestCase):
         # test if it passes no file & url
         http_connection_mock = mock.MagicMock()
         http_connection_mock.return_value.getresponse.return_value.status = 200
-        with mock.patch('httplib.HTTPConnection', http_connection_mock):
+        with mock.patch('openstack_plugin_common._compat.'
+                        'httplib.HTTPConnection', http_connection_mock):
             glance_plugin.image._validate_image()
 
     def test_check_image_file(self):
@@ -80,7 +81,8 @@ class TestCheckImage(unittest.TestCase):
     def test_check_image_bad_url(self):
         http_connection_mock = mock.MagicMock()
         http_connection_mock.return_value.getresponse.return_value.status = 400
-        with mock.patch('httplib.HTTPConnection', http_connection_mock):
+        with mock.patch('openstack_plugin_common._compat.'
+                        'httplib.HTTPConnection', http_connection_mock):
             self.assertRaises(NonRecoverableError,
                               glance_plugin.image._validate_image)
 

@@ -19,7 +19,7 @@ from setuptools import setup
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='2.14.18',
+    version='2.14.19',
     author='Cloudify',
     author_email='hello@cloudify.co',
     packages=[
@@ -33,7 +33,7 @@ setup(
     license='LICENSE',
     description='Cloudify plugin for OpenStack infrastructure.',
     install_requires=[
-        'cloudify-plugins-common==3.4.2',
+        'cloudify-common>=4.6',
         'keystoneauth1>=2.16.0,<3',
         'python-novaclient==7.0.0',
         'python-keystoneclient==3.5.0',

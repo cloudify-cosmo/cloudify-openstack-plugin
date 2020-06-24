@@ -32,7 +32,7 @@ from openstack_plugin_common.floatingip import (
     delete_floatingip,
     floatingip_creation_validation
 )
-from network import NETWORK_OPENSTACK_TYPE
+from .network import NETWORK_OPENSTACK_TYPE
 
 FLOATINGIP_OPENSTACK_TYPE = 'floatingip'
 FLOATING_NETWORK_ERROR_PREFIX = \

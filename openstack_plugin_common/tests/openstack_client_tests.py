@@ -17,7 +17,6 @@ import os
 import unittest
 import tempfile
 import json
-import __builtin__ as builtins
 
 import mock
 from cloudify.exceptions import NonRecoverableError, RecoverableError
@@ -27,6 +26,7 @@ from cloudify.mocks import MockCloudifyContext, MockNodeInstanceContext, \
 from cloudify.state import current_ctx
 
 import openstack_plugin_common as common
+from openstack_plugin_common._compat import builtins
 
 NODE_INSTANCE = 'node-instance'
 RELATIONSHIP_INSTANCE = 'relationship-instance'
@@ -156,7 +156,7 @@ class ConfigTests(unittest.TestCase):
     def test_get_empty_static_config_present_file(self, from_env, update):
         file_cfg = {'k1': 'v1', 'k2': 'v2'}
         env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
-        file = tempfile.NamedTemporaryFile(delete=False)
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         json.dump(file_cfg, file)
         file.close()
 
@@ -173,7 +173,7 @@ class ConfigTests(unittest.TestCase):
     def test_get_present_static_config_empty_file(self, from_env, update):
         file_cfg = {}
         env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
-        file = tempfile.NamedTemporaryFile(delete=False)
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         json.dump(file_cfg, file)
         file.close()
 
@@ -202,7 +202,7 @@ class ConfigTests(unittest.TestCase):
     def test_get_all_present(self, from_env, update):
         file_cfg = {'k2': 'u2'}
         env_var = common.Config.OPENSTACK_CONFIG_PATH_ENV_VAR
-        file = tempfile.NamedTemporaryFile(delete=False)
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         json.dump(file_cfg, file)
         file.close()
 
@@ -285,7 +285,7 @@ class OpenstackClientTests(unittest.TestCase):
         self.assertEqual(result, new)
         self.assertEqual(cfg, bak)
 
-    @mock.patch.object(common, 'ctx')
+    @mock.patch.object(common, 'ctx', spec=['logger'])
     def test__merge_custom_configuration_nova_url(self, mock_ctx):
         cfg = {
             'nova_url': 'gopher://nova',
@@ -319,6 +319,9 @@ class OpenstackClientTests(unittest.TestCase):
         cfg = {
             'auth_url': 'test-auth_url/v3',
             'region': 'test-region',
+            'username': 'test-username',
+            'password': 'test-password',
+            'tenant_name': 'test-tenant-name',
         }
 
         with mock.patch.object(
@@ -336,8 +339,8 @@ class OpenstackClientTests(unittest.TestCase):
             common.OpenStackClient('fred', mock_client_class, cfg)
 
         mock_client_class.assert_called_once_with(
+            other=u'this one should get through',
             region_name='test-region',
-            other='this one should get through',
             session=m_session.return_value,
         )
 
@@ -447,7 +450,14 @@ class OpenstackClientTests(unittest.TestCase):
 
     @mock.patch.object(common, 'cinder_client')
     def test_cinder_client_get_name_from_resource(self, cc_mock):
-        ccws = common.CinderClientWithSugar()
+        cfg = {
+            'auth_url': 'test-auth_url/v3',
+            'region': 'test-region',
+            'username': 'test-username',
+            'password': 'test-password',
+            'tenant_name': 'test-tenant-name',
+        }
+        ccws = common.CinderClientWithSugar(config=cfg)
         mock_volume = mock.Mock()
 
         self.assertIs(
@@ -458,7 +468,7 @@ class OpenstackClientTests(unittest.TestCase):
 class ClientsConfigTest(unittest.TestCase):
 
     def setUp(self):
-        file = tempfile.NamedTemporaryFile(delete=False)
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         json.dump(self.get_file_cfg(), file)
         file.close()
         self.addCleanup(os.unlink, file.name)
@@ -511,6 +521,7 @@ class CustomConfigFromInputs(ClientsConfigTest):
         }
 
     def get_env_cfg(self):
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         return {
             'OS_USERNAME': 'envar-username',
             'OS_PASSWORD': 'envar-password',
@@ -580,6 +591,7 @@ class CustomConfigFromFile(ClientsConfigTest):
         }
 
     def get_env_cfg(self):
+        file = tempfile.NamedTemporaryFile(delete=False, mode='w')
         return {
             'OS_USERNAME': 'envar-username',
             'OS_PASSWORD': 'envar-password',

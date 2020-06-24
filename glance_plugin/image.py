@@ -12,8 +12,7 @@
 #  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
-import httplib
-from urlparse import urlparse
+from openstack_plugin_common._compat import (httplib, urlparse)
 
 from cloudify import ctx
 from cloudify.decorators import operation

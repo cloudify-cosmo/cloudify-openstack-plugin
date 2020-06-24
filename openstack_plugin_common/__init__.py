@@ -36,6 +36,8 @@ import glanceclient.exc as glance_exceptions
 import cloudify
 from cloudify import context, ctx
 from cloudify.exceptions import NonRecoverableError, RecoverableError
+from functools import reduce
+from ._compat import text_type
 
 INFINITE_RESOURCE_QUOTA = -1
 
@@ -340,7 +342,7 @@ def get_property(ctx, property_name, kwargs={}, default=None):
 
 
 def transform_resource_name(ctx, res):
-    if isinstance(res, basestring):
+    if isinstance(res, text_type):
         res = {'name': res}
 
     if not isinstance(res, dict):
@@ -644,7 +646,7 @@ class Config(object):
     def update_config(overridden_cfg, overriding_cfg):
         """ this method is like dict.update() only that it doesn't override
         with (or set new) empty values (e.g. empty string) """
-        for k, v in overriding_cfg.iteritems():
+        for k, v in overriding_cfg.items():
             if v:
                 overridden_cfg[k] = v
 
@@ -672,13 +674,14 @@ class OpenStackClient(object):
             # This check to make sure that blueprint openstack config
             # contains all the required auth params + any non-auth param
             if set(config.keys()) \
-                    in self.AUTH_SETS and config.keys() in self.NON_AUTH_ITEMS:
+                    in self.AUTH_SETS \
+                    and config.keys() in self.NON_AUTH_ITEMS:
 
                 # Check if there is any value exists on ``cfg``
                 # that does not exist on ``config`` then these extra params
                 # should be removed to prevent any merging conflicts
                 removed_keys = []
-                for k, v in cfg.iteritems():
+                for k, v in cfg.items():
                     if k not in config:
                         removed_keys.append(k)
 
@@ -740,14 +743,15 @@ class OpenStackClient(object):
 
     @classmethod
     def _validate_auth_params(cls, params):
-        if set(params.keys()) - cls.OPTIONAL_AUTH_PARAMS in cls.AUTH_SETS:
+        if (set(list(params.keys())) - cls.OPTIONAL_AUTH_PARAMS) \
+                in cls.AUTH_SETS:
             return
 
         def set2str(s):
             return '({})'.format(', '.join(sorted(s)))
 
         received_params = set2str(params)
-        valid_auth_sets = map(set2str, cls.AUTH_SETS)
+        valid_auth_sets = list(map(set2str, cls.AUTH_SETS))
         raise NonRecoverableError(
             "{} is not valid set of auth params. Expected to find parameters "
             "either as environment variables, in a JSON file (at either a "
@@ -821,7 +825,7 @@ class OpenStackClient(object):
                 'True': True,
                 'False': False,
             }
-            if isinstance(cfg_insecure, basestring):
+            if isinstance(cfg_insecure, text_type):
                 cfg_insecure = bool_str.get(cfg_insecure.capitalize())
             if not isinstance(cfg_insecure, bool):
                 raise NonRecoverableError(
@@ -1290,9 +1294,9 @@ def _re_raise(e, recoverable, retry_after=None, status_code=None):
             retry_after = None
         raise RecoverableError(
             message=message,
-            retry_after=retry_after), None, traceback
+            retry_after=retry_after)
     else:
-        raise NonRecoverableError(message), None, traceback
+        raise NonRecoverableError(message)
 
 
 # Sugar for clients
@@ -1312,7 +1316,7 @@ class NovaClientWithSugar(OpenStackClient):
             nova_client_version = '2'
 
         # In case someone provides an int.
-        if not isinstance(nova_client_version, basestring):
+        if not isinstance(nova_client_version, text_type):
             nova_client_version = str(nova_client_version)
 
         super(NovaClientWithSugar, self).__init__(

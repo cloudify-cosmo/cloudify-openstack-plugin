@@ -174,7 +174,7 @@ class TestServer(unittest.TestCase):
             'server': mock.MagicMock()
         }
 
-        tmp_path = tempfile.NamedTemporaryFile(prefix='key_name')
+        tmp_path = tempfile.NamedTemporaryFile(prefix='key_name', mode='w')
         key_path = tmp_path.name
 
         def mock_get_server_by_context(_):

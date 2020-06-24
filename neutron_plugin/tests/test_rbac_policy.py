@@ -1,3 +1,4 @@
+from builtins import object
 import mock
 import unittest
 
@@ -30,7 +31,7 @@ class TestRBACPolicy(unittest.TestCase):
     test_os_network_id = '333333333333333'
     test_deployment_id = 'test-deployment-id'
 
-    class MockRBACPolicyOS:
+    class MockRBACPolicyOS(object):
         def __init__(self,
                      id,
                      action,
@@ -65,7 +66,7 @@ class TestRBACPolicy(unittest.TestCase):
 
         def to_dict(self):
             return dict(
-                [(k.strip('_'), v) for k, v in vars(self).iteritems()]
+                [(k.strip('_'), v) for k, v in vars(self).items()]
             )
 
     def mock_neutron_client(self, mock_rbac_policy):

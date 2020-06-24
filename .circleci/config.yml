@@ -29,7 +29,7 @@ executors:
 
 
 commands:
-  run_unittest:
+  run_unittests_py27:
     steps:
       - checkout
       - run:
@@ -44,12 +44,14 @@ commands:
 
   check_py3_compat:
     steps:
+      - checkout
       - run:
           name: install futurize
           command: pip install future --user
       - run:
-          name: remove compat module
-          command: rm openstack_sdk/_compat.py
+          name: remove python3 incompatible modules
+          command: |
+            rm openstack_plugin_common/_compat.py
       - run:
           name: find python3-incompatible code
           command: |
@@ -68,6 +70,27 @@ commands:
               cat futurize_diffs
               exit 1
             fi
+
+  run_unittests_py36:
+    steps:
+      - checkout
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user tox
+      - run: /home/circleci/.local/bin/tox -e flake8
+      - run: /home/circleci/.local/bin/tox -e nosetests
 
   generate_py27_wagon:
     steps:
@@ -179,17 +202,16 @@ jobs:
   unittests_py27:
     executor: py27
     steps:
-      - run_unittest
+      - run_unittests_py27
 
   unittests_py36:
     executor: py36
     steps:
-      - run_unittest
+      - run_unittests_py36
 
   py3_compat:
     executor: py27
     steps:
-      - checkout
       - check_py3_compat
 
   wagon:
@@ -225,6 +247,8 @@ workflows:
   tests:
     jobs: &all_jobs
       - unittests_py27
+      - unittests_py36
+      - py3_compat
       - wagon:
           filters:
             branches:
@@ -265,18 +289,20 @@ workflows:
               - 2.14.18-build
     jobs:
       - unittests_py27
+      - unittests_py36
+      - py3_compat
       - wagon:
           filters:
             branches:
-              only: /(2.14.18-build|master)/
+              only: /(2.14.19-build|master)/
       - rhel_wagon:
           filters:
             branches:
-              only: /(2.14.18-build|master)/
+              only: /(2.14.19-build|master)/
       - integration_tests:
           requires:
             - wagon
             - rhel_wagon
           filters:
             branches:
-              only: /(2.14.18-build|master)/
+              only: /(2.14.19-build|master)/

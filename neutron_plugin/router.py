@@ -72,7 +72,7 @@ def _update_router_routes(neutron_client, args, **kwargs):
         if not isinstance(b, dict):
             return b
         result = deepcopy(a)
-        for k, v in b.iteritems():
+        for k, v in b.items():
             if k in result:
                 ctx.logger.info('Match {0}'.format(k))
                 result[k] = dict_merge(result[k], v)
@@ -406,8 +406,8 @@ def _get_router_from_relationship(neutron_client):
     except NeutronClientException as e:
         raise NonRecoverableError('Error: {0}'.format(str(e)))
     if not isinstance(router, dict) or \
-            ROUTER_OPENSTACK_TYPE not in router.keys() or \
-            'id' not in router['router'].keys():
+            ROUTER_OPENSTACK_TYPE not in router or \
+            'id' not in router['router']:
         raise NonRecoverableError(
             'API returned unexpected structure.: {0}'.format(router))
 

@@ -1,3 +1,4 @@
+from builtins import object
 import mock
 import unittest
 
@@ -33,7 +34,7 @@ class TestProject(unittest.TestCase):
     test_user = 'test-user'
     test_role = 'test-role'
 
-    class MockProjectOS:
+    class MockProjectOS(object):
         def __init__(self, id, name):
             self._id = id
             self._name = name

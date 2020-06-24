@@ -44,6 +44,7 @@ from openstack_plugin_common import (
     get_relationships_by_openstack_type,
     get_single_connected_node_by_openstack_type,
 )
+from openstack_plugin_common._compat import text_type
 
 
 class RelationshipsTestBase(TestCase):
@@ -169,7 +170,7 @@ class TestGetSingleByID(RelationshipsTestBase):
             get_openstack_id_of_single_connected_node_by_openstack_type(
                 ctx, NETWORK_OPENSTACK_TYPE, if_exists=True)
         except NonRecoverableError as e:
-            self.assertIn(NETWORK_OPENSTACK_TYPE, e.message)
+            self.assertIn(NETWORK_OPENSTACK_TYPE, text_type(e))
         else:
             self.fail()
 

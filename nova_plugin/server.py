@@ -69,6 +69,7 @@ from cinder_plugin.volume import VOLUME_OPENSTACK_TYPE, VOLUME_BOOTABLE
 from openstack_plugin_common.security_group import \
     SECURITY_GROUP_OPENSTACK_TYPE
 from glance_plugin.image import handle_image_from_relationship
+from functools import reduce
 
 SERVER_OPENSTACK_TYPE = 'server'
 
@@ -111,7 +112,7 @@ def _get_management_network_id_and_name(neutron_client, ctx):
 
     if management_network_name:
         management_network_name = transform_resource_name(
-            ctx, management_network_name)
+            ctx, u'{0}'.format(management_network_name))
         management_network_id = neutron_client.cosmo_get_named(
             'network', management_network_name)
         management_network_id = management_network_id['id']
@@ -293,7 +294,7 @@ def create(nova_client, neutron_client, args, **_):
     provider_context = provider(ctx)
 
     def rename(name):
-        return transform_resource_name(ctx, name)
+        return transform_resource_name(ctx, u'{0}'.format(name))
 
     server = {
         'name': get_resource_id(ctx, SERVER_OPENSTACK_TYPE),
@@ -307,7 +308,7 @@ def create(nova_client, neutron_client, args, **_):
     if 'meta' not in server:
         server['meta'] = dict()
 
-    transform_resource_name(ctx, server)
+    transform_resource_name(ctx, u'{0}'.format(server))
 
     ctx.logger.debug(
         "server.create() server before transformations: {0}".format(server))
@@ -386,7 +387,7 @@ def create(nova_client, neutron_client, args, **_):
     assign_payload_as_runtime_properties(ctx, SERVER_OPENSTACK_TYPE, server)
     ctx.logger.debug(
         "Asking Nova to create server. All possible parameters are: [{0}]"
-        .format(','.join(server.keys())))
+        .format(','.join(list(server.keys()))))
 
     try:
         s = nova_client.servers.create(**server)
@@ -411,7 +412,7 @@ def get_port_networks(neutron_client, port_ids):
             'port-id': port['port']['id']
         }
 
-    return map(get_network, port_ids)
+    return list(map(get_network, port_ids))
 
 
 @operation(resumable=True)
@@ -1166,7 +1167,7 @@ def _validate_external_server_keypair(nova_client):
 
     keypair_instance_id = \
         [node_instance_id for node_instance_id, runtime_props in
-         ctx.capabilities.get_all().iteritems() if
+         ctx.capabilities.get_all().items() if
          runtime_props.get(OPENSTACK_ID_PROPERTY) == keypair_id][0]
     keypair_node_properties = _get_properties_by_node_instance_id(
         keypair_instance_id)

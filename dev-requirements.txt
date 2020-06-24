@@ -1,3 +1,1 @@
-https://github.com/cloudify-cosmo/cloudify-rest-client/archive/3.4.2-build.zip
-https://github.com/cloudify-cosmo/cloudify-dsl-parser/archive/3.4.2-build.zip
-https://github.com/cloudify-cosmo/cloudify-plugins-common/archive/3.4.2-build.zip
+future

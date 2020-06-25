@@ -4,8 +4,12 @@ nose-cov>=1.3
 mock>=1.0
 flake8==3.7.9
 tox==3.14.6
-https://github.com/cloudify-cosmo/cloudify-common/archive/master.zip
-https://github.com/cloudify-cosmo/cloudify-cli/archive/master.zip
 sh==1.11
 IPy==0.81
 pylint
+
+# For integration tests
+git+https://github.com/cloudify-cosmo/cloudify-common@master#egg=cloudify-common[dispatcher]==master
+git+https://github.com/cloudify-cosmo/cloudify-cli@master#egg=cloudify-cli==master
+pytest==4.6.3
+pyyaml==3.12

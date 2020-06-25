@@ -158,10 +158,8 @@ commands:
           command: pip install -U pip
       - run:
           name: install cloudify
-          command: >
-            pip install -U git+https://github.com/cloudify-cosmo/cloudify-common@master#egg=cloudify-common[dispatcher]==master
-            git+https://github.com/cloudify-cosmo/cloudify-cli@master#egg=cloudify-cli==master
-            pytest==4.6.3 pyyaml==3.12
+          command: |
+            pip install -r test-requirements.txt
       - run:
           name: download manager docker image
           command:  wget http://repository.cloudifysource.org/cloudify/5.1.0/.dev1-release/cloudify-docker-manager-5.1.0.dev1.tar
@@ -315,4 +313,29 @@ workflows:
           branches:
             only:
               - master
-    jobs: *all_jobs
+    jobs:
+      - py3_compat
+      - unittests_py27
+      - unittests_py36
+      - wagon:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|dev)/
+      - rhel_wagon:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|dev)/
+      - integration_tests_505:
+          requires:
+            - wagon
+            - rhel_wagon
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|dev)/
+      - integration_tests_510:
+          requires:
+            - wagon
+            - rhel_wagon
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|dev)/

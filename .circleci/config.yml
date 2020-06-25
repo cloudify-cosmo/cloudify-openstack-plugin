@@ -269,7 +269,7 @@ jobs:
 workflows:
   version: 2
   tests:
-    jobs: &all_jobs
+    jobs: 
       - py3_compat
       - unittests_py27
       - unittests_py36

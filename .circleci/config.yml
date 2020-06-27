@@ -301,6 +301,8 @@ workflows:
             branches:
               only: /master/
           requires:
+            - unittests_py27
+            - unittests_py36
             - wagon
             - rhel_wagon
             - integration_tests_505

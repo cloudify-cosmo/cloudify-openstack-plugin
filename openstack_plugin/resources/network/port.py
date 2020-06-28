@@ -394,6 +394,7 @@ def attach(openstack_resource, port_id):
                              device_id)
 
 
+
 @with_compat_node
 @with_openstack_resource(OpenstackServer)
 def detach(openstack_resource, port_id):
@@ -415,6 +416,41 @@ def detach(openstack_resource, port_id):
     # with floating ip assigned to port it can removed without any issue
     _update_port_association(openstack_resource.client_config,
                              port_id)
+
+
+@with_compat_node
+@with_openstack_resource(OpenstackServer)
+def create_server_interface(openstack_resource, port_id, **_):
+    """
+    This method will create an interface on a server and perform the
+    attachment.
+    :param openstack_resource:
+    :param port_id:
+    :param server_id:
+    :return:
+    """
+    for interface_attachments in openstack_resource.server_interfaces():
+        if port_id in interface_attachments:
+            return
+    openstack_resource.create_server_interface(port_id=port_id)
+
+
+@with_compat_node
+@with_openstack_resource(OpenstackServer)
+def delete_server_interface(openstack_resource, port_id, **_):
+    """
+    This method will delete an interface on a server and perform the
+    attachment.
+    :param openstack_resource:
+    :param port_id:
+    :param server_id:
+    :return:
+    """
+    for interface_attachments in openstack_resource.server_interfaces():
+        if interface_attachments.id == port_id:
+            openstack_resource.delete_server_interface(port_id)
+            _update_port_association(openstack_resource.client_config,
+                                     port_id)
 
 
 @with_compat_node

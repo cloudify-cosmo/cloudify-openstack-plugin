@@ -139,7 +139,8 @@ commands:
       - run:
           name: "Pull Submodules"
           command: |
-            git submodule update --init --recursive --remote
+            git submodule init
+            git submodule update --remote --recursive
       - attach_workspace:
           at: workspace
       - run:
@@ -147,17 +148,16 @@ commands:
           command: pip install -U pip
       - run:
           name: install cloudify
-          command: |
-            pip install -r test-requirements.txt
+          command: pip install -U cloudify==5.0.0 pytest==4.6.3 pyyaml==3.10
       - run:
           name: download manager docker image
-          command: wget http://repository.cloudifysource.org/cloudify/5.0.5/ga-release/cloudify-docker-manager-5.0.5.tar
+          command: wget http://repository.cloudifysource.org/cloudify/5.0.0/ga-release/cloudify-docker-manager-5.0.0.tar
       - run:
           name: load docker image
-          command: docker load -i cloudify-docker-manager-5.0.5.tar
+          command: docker load -i cloudify-docker-manager-5.0.0.tar
       - run:
           name: retain space by dumping the tar
-          command: rm cloudify-docker-manager-5.0.5.tar
+          command: rm cloudify-docker-manager-5.0.0.tar
       - run:
           name: show images
           command: docker images
@@ -314,6 +314,7 @@ workflows:
           requires:
             - wagon
             - rhel_wagon
+            - integration_tests_505
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev|add-5.1-integration-tests-v2)/
@@ -364,6 +365,7 @@ workflows:
           requires:
             - wagon
             - rhel_wagon
+            - integration_tests_505
           filters:
             branches:
               only: /(2.14.20-build|master)/

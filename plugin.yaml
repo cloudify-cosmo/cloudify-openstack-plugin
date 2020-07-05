@@ -1715,20 +1715,27 @@ relationships:
   # server is created, usually used if the server need to attached to multiple ports
   cloudify.relationships.openstack.port_connected_to_server:
     derived_from: cloudify.relationships.connected_to
-    source_interfaces:
+    target_interfaces:
       cloudify.interfaces.relationship_lifecycle:
         postconfigure:
           implementation: openstack.openstack_plugin.resources.network.port.create_server_interface
           inputs:
             port_id:
               default: { get_attribute: [ SOURCE, id ] }
+        unlink:
+          implementation: openstack.openstack_plugin.resources.network.port.delete_server_interface
+          inputs:
+            port_id:
+              default: { get_attribute: [ SOURCE, id ] }
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
         establish:
-          implementation: openstack.openstack_plugin.resources.network.port.attach_to_server
+          implementation: openstack.openstack_plugin.resources.network.port.attach
           inputs:
             device_id:
               default: { get_attribute: [ TARGET, id ] }
         unlink:
-          implementation: openstack.openstack_plugin.resources.network.port.delete_server_interface
+          implementation: openstack.openstack_plugin.resources.network.port.detach
           inputs:
             port_id:
               default: { get_attribute: [ SOURCE, id ] }

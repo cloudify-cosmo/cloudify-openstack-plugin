@@ -394,7 +394,6 @@ def attach(openstack_resource, port_id):
                              device_id)
 
 
-
 @with_compat_node
 @with_openstack_resource(OpenstackServer)
 def detach(openstack_resource, port_id):
@@ -426,7 +425,6 @@ def create_server_interface(openstack_resource, port_id, **_):
     attachment.
     :param openstack_resource:
     :param port_id:
-    :param server_id:
     :return:
     """
     for interface_attachments in openstack_resource.server_interfaces():
@@ -443,7 +441,6 @@ def delete_server_interface(openstack_resource, port_id, **_):
     attachment.
     :param openstack_resource:
     :param port_id:
-    :param server_id:
     :return:
     """
     for interface_attachments in openstack_resource.server_interfaces():

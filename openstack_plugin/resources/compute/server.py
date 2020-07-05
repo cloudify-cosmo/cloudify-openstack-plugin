@@ -872,6 +872,22 @@ def _update_nics_config(server_config, client_config, allow_multiple=False):
     # valid only when one network created for the current tenant, the server
     # will attach automatically to that network
     if not (nics_from_node or nics_from_rels):
+        compute_api_version = client_config.get('compute_api_version')
+        compute_microversion = client_config.get(
+            'compute_default_microversion')
+        if compute_api_version:
+            compute_api_version = float(compute_api_version)
+        if compute_microversion:
+            compute_microversion = float(compute_microversion)
+        if any([compute_api_version >= 2.37, compute_microversion >= 2.37]):
+            ctx.logger.warn(
+                'No network was provided and no ports are connected '
+                'at server creation time. This is only supported for compute '
+                'API versions 2.37 and above. '
+                'Additionally, the network key should be set to \'none\' or '
+                '\'auto\'. The plugin default is \'none\'.')
+            server_config['networks'] = 'none'
+            ctx.instance.runtime_properties['networks'] = 'none'
         return
     # Try to merge them
     elif nics_from_node and nics_from_rels and not allow_multiple:
@@ -1486,6 +1502,8 @@ def _validate_external_volume_connection(openstack_resource):
 
 
 def _validate_security_groups_on_ports(server_networks, client_config):
+    if not isinstance(server_networks, list):
+        return
     for net in server_networks:
         if net.get('port'):
             port = OpenstackPort(client_config=client_config,

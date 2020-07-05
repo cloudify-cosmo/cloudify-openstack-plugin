@@ -316,11 +316,11 @@ workflows:
             - rhel_wagon
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|add-5.1-integration-tests-v2)/
       - release:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|add-5.1-integration-tests-v2)/
+              only: /([0-9\.]*\-build|master)/
           requires:
             - wagon
             - rhel_wagon

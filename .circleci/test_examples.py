@@ -34,7 +34,7 @@ SECRETS_TO_CREATE = {
     'agent_key_public': True
 }
 
-prepare_test(secrets=SECRETS_TO_CREATE)
+prepare_test(secrets=SECRETS_TO_CREATE, execute_bundle_upload=False)
 
 blueprint_list = ['blueprints/test-blueprint.yaml']
 

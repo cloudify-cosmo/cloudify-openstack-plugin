@@ -1,3 +1,5 @@
+2.14.20:
+    - Add 5.1 manager integration tests and py2py3 wagon release.
 2.14.19:
     - Make plugin python 3 complaint
 2.14.18:

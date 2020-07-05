@@ -316,7 +316,7 @@ workflows:
             - rhel_wagon
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev|add-5.1-integration-tests-v2)/
+              only: /([0-9\.]*\-build|master|dev)/
       - release:
           filters:
             branches:

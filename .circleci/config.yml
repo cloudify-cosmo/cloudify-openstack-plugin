@@ -139,8 +139,7 @@ commands:
       - run:
           name: "Pull Submodules"
           command: |
-            git submodule init
-            git submodule update --remote --recursive
+            git submodule update --init --recursive --remote
       - attach_workspace:
           at: workspace
       - run:
@@ -148,16 +147,17 @@ commands:
           command: pip install -U pip
       - run:
           name: install cloudify
-          command: pip install -U cloudify==5.0.0 pytest==4.6.3 pyyaml==3.10
+          command: |
+            pip install -r test-requirements.txt
       - run:
           name: download manager docker image
-          command: wget http://repository.cloudifysource.org/cloudify/5.0.0/ga-release/cloudify-docker-manager-5.0.0.tar
+          command: wget http://repository.cloudifysource.org/cloudify/5.0.5/ga-release/cloudify-docker-manager-5.0.5.tar
       - run:
           name: load docker image
-          command: docker load -i cloudify-docker-manager-5.0.0.tar
+          command: docker load -i cloudify-docker-manager-5.0.5.tar
       - run:
           name: retain space by dumping the tar
-          command: rm cloudify-docker-manager-5.0.0.tar
+          command: rm cloudify-docker-manager-5.0.5.tar
       - run:
           name: show images
           command: docker images
@@ -186,19 +186,19 @@ commands:
             pip install -r test-requirements.txt
       - run:
           name: download manager docker image
-          command:  wget http://repository.cloudifysource.org/cloudify/5.1.0/.dev1-release/cloudify-docker-manager-5.1.0.dev1.tar
+          command:  wget http://repository.cloudifysource.org/cloudify/5.1.0/.dev1-release/cloudify-manager-aio-docker-5.1.0.dev1.tar
       - run:
           name: load docker image
-          command: docker load -i cloudify-docker-manager-5.1.0.dev1.tar
+          command: docker load -i cloudify-manager-aio-docker-5.1.0.dev1.tar
       - run:
           name: retain space by dumping the tar
-          command: rm cloudify-docker-manager-5.1.0.dev1.tar
+          command: rm cloudify-manager-aio-docker-5.1.0.dev1.tar
       - run:
           name: show images
           command: docker images
       - run:
           name: start docker container
-          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host cloudifyplatform/premium-cloudify-manager-aio
+          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host cloudify-manager-aio:latest
       - run:
           name: install local project
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
@@ -298,18 +298,18 @@ workflows:
       - wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|CY-3060-use-bundle-v2)/
       - rhel_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|CY-3060-use-bundle-v2)/
       - integration_tests_505:
           requires:
             - wagon
             - rhel_wagon
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|CY-3060-use-bundle-v2)/
       - integration_tests_510:
           requires:
             - wagon
@@ -317,7 +317,7 @@ workflows:
             - integration_tests_505
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|CY-3060-use-bundle-v2)/
       - release:
           filters:
             branches:

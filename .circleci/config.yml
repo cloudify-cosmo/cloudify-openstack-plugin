@@ -163,19 +163,19 @@ commands:
             pip install -r test-requirements.txt
       - run:
           name: download manager docker image
-          command:  wget http://repository.cloudifysource.org/cloudify/5.1.0/.dev1-release/cloudify-docker-manager-5.1.0.dev1.tar
+          command:  wget http://repository.cloudifysource.org/cloudify/5.1.0/.dev1-release/cloudify-manager-aio-docker-5.1.0.dev1.tar
       - run:
           name: load docker image
-          command: docker load -i cloudify-docker-manager-5.1.0.dev1.tar
+          command: docker load -i cloudify-manager-aio-docker-5.1.0.dev1.tar
       - run:
           name: retain space by dumping the tar
-          command: rm cloudify-docker-manager-5.1.0.dev1.tar
+          command: rm cloudify-manager-aio-docker-5.1.0.dev1.tar
       - run:
           name: show images
           command: docker images
       - run:
           name: start docker container
-          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host cloudifyplatform/premium-cloudify-manager-aio
+          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host cloudify-manager-aio:latest
       - run:
           name: install local project
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
@@ -277,25 +277,25 @@ workflows:
       - wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|CY-3060-use-bundle)/
       - rhel_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|CY-3060-use-bundle)/
       - integration_tests_505:
           requires:
             - wagon
             - rhel_wagon
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|CY-3060-use-bundle)/
       - integration_tests_510:
           requires:
             - wagon
             - rhel_wagon
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|dev|CY-3060-use-bundle)/
       - release:
           filters:
             branches:

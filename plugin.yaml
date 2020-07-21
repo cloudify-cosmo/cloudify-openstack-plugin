@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.17.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.18.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.2.17'
+    package_version: '3.2.18'
 
 dsl_definitions:
 
@@ -1730,7 +1730,7 @@ relationships:
     source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
         establish:
-          implementation: openstack.openstack_plugin.resources.network.port.attach
+          implementation: openstack.openstack_plugin.resources.network.port.attach_to_server
           inputs:
             device_id:
               default: { get_attribute: [ TARGET, id ] }

@@ -430,7 +430,8 @@ def create_server_interface(openstack_resource, port_id, **_):
     for interface_attachments in openstack_resource.server_interfaces():
         if port_id in interface_attachments:
             return
-    openstack_resource.create_server_interface(port_id=port_id)
+    openstack_resource.create_server_interface(
+        interface_config={'port_id': port_id})
 
 
 @with_compat_node

@@ -110,6 +110,25 @@ commands:
           paths:
             - build/*
 
+
+  build_archive:
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Create Workspace Build directory.
+          command: mkdir -p workspace/build
+      - run:
+          name: Build Bundle
+          command: |
+              git clone https://github.com/cloudify-incubator/cloudify-ecosystem-test.git
+              pip install -e cloudify-ecosystem-test
+              python -c 'from ecosystem_cicd_tools import packaging; packaging.build_plugins_bundle_with_workspace()'
+      - persist_to_workspace:
+          root: workspace
+          paths:
+            - build/*
+
   run_integration_tests_505:
     steps:
       - run:
@@ -261,6 +280,12 @@ jobs:
       - checkout
       - run_integration_tests_510
 
+  build_bundle:
+    executor: wagon_generator
+    steps:
+      - checkout
+      - build_archive
+
   release:
     executor: py27
     steps:
@@ -273,7 +298,9 @@ workflows:
     jobs: 
       - py3_compat
       - unittests_py27
-      - unittests_py36
+      - unittests_py36:
+          requires:
+            - py3_compat
       - wagon:
           filters:
             branches:
@@ -282,17 +309,24 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
-      - integration_tests_505:
+      - build_bundle:
+          filters:
+            branches:
+              only: /master/
           requires:
             - wagon
             - rhel_wagon
+      - integration_tests_505:
+          requires:
+            - unittests_py27
+            - build_bundle
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
       - integration_tests_510:
           requires:
-            - wagon
-            - rhel_wagon
+            - unittests_py36
+            - build_bundle
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
@@ -301,10 +335,6 @@ workflows:
             branches:
               only: /master/
           requires:
-            - unittests_py27
-            - unittests_py36
-            - wagon
-            - rhel_wagon
             - integration_tests_505
             - integration_tests_510
 

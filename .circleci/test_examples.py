@@ -35,7 +35,7 @@ SECRETS_TO_CREATE = {
     'openstack_project_domain_name': False,
 }
 
-prepare_test(secrets=SECRETS_TO_CREATE)
+prepare_test(secrets=SECRETS_TO_CREATE, plugin_test=True)
 
 blueprint_list = ['examples/blueprint-examples/virtual-machine/openstack.yaml']
 

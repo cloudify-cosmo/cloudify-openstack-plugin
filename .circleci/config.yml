@@ -223,7 +223,7 @@ jobs:
 workflows:
   version: 2
   tests:
-    jobs: &all_jobs
+    jobs:
       - unittests_py27
       - wagon:
           filters:
@@ -262,21 +262,21 @@ workflows:
         filters:
           branches:
             only:
-              - 2.14.18-build
+              - 2.14.20-build
     jobs:
       - unittests_py27
       - wagon:
           filters:
             branches:
-              only: /(2.14.18-build|master)/
+              only: /(2.14.20-build|master)/
       - rhel_wagon:
           filters:
             branches:
-              only: /(2.14.18-build|master)/
+              only: /(2.14.20-build|master)/
       - integration_tests:
           requires:
             - wagon
             - rhel_wagon
           filters:
             branches:
-              only: /(2.14.18-build|master)/
+              only: /(2.14.20-build|master)/

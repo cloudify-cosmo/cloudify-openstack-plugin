@@ -198,6 +198,24 @@ commands:
           paths:
             - build/*
 
+  build_archive:
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Create Workspace Build directory.
+          command: mkdir -p workspace/build
+      - run:
+          name: Build Bundle
+          command: |
+              git clone https://github.com/cloudify-incubator/cloudify-ecosystem-test.git
+              pip install -e cloudify-ecosystem-test
+              python -c 'from ecosystem_cicd_tools import packaging; packaging.build_plugins_bundle_with_workspace()'
+      - persist_to_workspace:
+          root: workspace
+          paths:
+            - build/*
+
   run_integration_tests_505:
     steps:
       - run:
@@ -375,6 +393,13 @@ jobs:
       - checkout
       - generate_rhel_py27py36_wagon
 
+
+  build_bundle:
+    executor: wagon_generator
+    steps:
+      - checkout
+      - build_archive
+
   integration_tests_505:
     executor: cloudify-machine
     environment:
@@ -422,17 +447,22 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
-      - integration_tests_505:
+      - build_bundle:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|dev)/
           requires:
             - wagon
             - rhel_wagon
+      - integration_tests_505:
+          requires:
+            - build_bundle
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
       - integration_tests_510:
           requires:
-            - wagon
-            - rhel_wagon
+            - build_bundle
             - integration_tests_505
           filters:
             branches:

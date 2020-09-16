@@ -31,7 +31,6 @@ executors:
     machine:
       image: ubuntu-1604:201903-01
 
-
 commands:
 
   validate_documentation:
@@ -300,6 +299,41 @@ commands:
           at: workspace
       - run: python .circleci/package_release.py
 
+
+  merge_docs:
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote --recursive
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user pygithub pyyaml==3.10
+      - run:
+          name: upgrade setuptools
+          command: pip install --upgrade setuptools
+      - run:
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
+      - attach_workspace:
+          at: workspace
+      - run: python .circleci/merge_docs.py
+
 jobs:
 
   unittests_py27:
@@ -365,6 +399,12 @@ jobs:
       - checkout
       - release_plugin
 
+  merge_docs:
+    executor: py27
+    steps:
+      - checkout
+      - merge_docs
+
 workflows:
   version: 2.1
   tests:
@@ -408,6 +448,13 @@ workflows:
             - rhel_wagon
             - integration_tests_505
             - integration_tests_510
+      - merge_docs:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master)/
+          requires:
+            - release
+            - validate_documentation
 
   nightly:
     triggers:

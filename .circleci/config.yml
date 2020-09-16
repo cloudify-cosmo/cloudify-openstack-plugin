@@ -304,15 +304,15 @@ workflows:
       - wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master)/
       - rhel_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master)/
       - build_bundle:
           filters:
             branches:
-              only: /master/
+              only: /([0-9\.]*\-build|master)/
           requires:
             - wagon
             - rhel_wagon
@@ -322,18 +322,18 @@ workflows:
             - build_bundle
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master)/
       - integration_tests_510:
           requires:
             - unittests_py36
             - build_bundle
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master)/
       - release:
           filters:
             branches:
-              only: /master/
+              only: /([0-9\.]*\-build|master)/
           requires:
             - integration_tests_505
             - integration_tests_510
@@ -344,8 +344,7 @@ workflows:
         cron: "0 3 * * *"
         filters:
           branches:
-            only:
-              - master
+            only: /2.14.21-build|master)/
     jobs:
       - py3_compat
       - unittests_py27

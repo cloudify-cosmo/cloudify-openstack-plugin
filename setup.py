@@ -23,7 +23,7 @@ def read(rel_path):
         return fp.read()
 
 
-def get_version(rel_file):
+def get_version(rel_file='plugin.yaml'):
     lines = read(rel_file)
     for line in lines.splitlines():
         if 'package_version' in line:
@@ -37,7 +37,7 @@ def get_version(rel_file):
 setup(
     zip_safe=True,
     name='cloudify-openstack-plugin',
-    version='2.14.20',
+    version=get_version(),
     author='Cloudify',
     author_email='hello@cloudify.co',
     packages=[

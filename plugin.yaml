@@ -1193,6 +1193,13 @@ node_types:
       <<: *external_resource
       <<: *create_if_missing
       <<: *client_config
+      private_key:
+        description: >
+          The private ssh key to use. It can be filename or content of the
+          private key. This is only relevant when Keypair is using
+          use_external_resource as True otherwise it will be ignored
+        required: false
+        type: string
       resource_config:
         type: cloudify.types.openstack.KeyPair
         description: https://developer.openstack.org/api-ref/compute/?expanded=create-or-import-keypair-detail

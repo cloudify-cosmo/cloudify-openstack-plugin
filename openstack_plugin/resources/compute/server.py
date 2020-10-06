@@ -1268,7 +1268,10 @@ def _decrypt_password(password, private_key):
         # Append the decrypted password chunk to the overall decrypted
         # decrypted password
         error_decrypt = 'Error while trying to decrypt password'
-        decrypted_password += rsa_key.decrypt(chunk_data, error_decrypt)
+        decrypted_password += rsa_key.decrypt(
+            chunk_data,
+            error_decrypt
+        ).decode('utf-8')
 
         # Increase the offset by chunk size
         offset += chunk_size

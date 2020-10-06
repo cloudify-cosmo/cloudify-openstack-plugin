@@ -334,7 +334,11 @@ workflows:
           filters:
             branches:
               only: /master/
-#          requires:
+
+          requires:
+            - wagon
+            - rhel_wagon
+            - build_bundle
 #            - integration_tests_505
 #            - integration_tests_510
 

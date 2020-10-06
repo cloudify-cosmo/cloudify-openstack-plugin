@@ -86,7 +86,8 @@ from openstack_plugin.constants import (RESOURCE_ID,
                                         OPENSTACK_TYPE_PROPERTY,
                                         USE_EXTERNAL_RESOURCE_PROPERTY,
                                         SERVER_PUBLIC_IP_PROPERTY,
-                                        SERVER_IP_PROPERTY)
+                                        SERVER_IP_PROPERTY,
+                                        PRIVATE_KEY_PREFIX)
 
 from openstack_plugin.utils import \
     (handle_userdata,
@@ -1227,9 +1228,19 @@ def _get_server_private_key():
 
     # Try to get the private key from keypair instance
     private_key = \
-        rel_keyname.target.instance.runtime_properties.get('private_key')
+        rel_keyname.target.instance.runtime_properties.get('private_key') or \
+        rel_keyname.target.node.properties.get('private_key')
+    # if private_key is None, that means the KeyPair is external, so we need
+    # to check the "private_key" node property
     if not private_key:
         return None
+
+    if private_key.startswith(PRIVATE_KEY_PREFIX):
+        return private_key
+
+    with open(private_key) as _file:
+        private_key = _file.read()
+
     return private_key
 
 

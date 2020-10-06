@@ -220,7 +220,7 @@ commands:
           command: virtualenv env
       - run:
           name: install tox
-          command: pip install --user pygithub pyyaml==3.10
+          command: pip install --user pygithub pyyaml==5.3.1
       - run:
           name: upgrade setuptools
           command: pip install --upgrade setuptools

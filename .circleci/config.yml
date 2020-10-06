@@ -261,24 +261,24 @@ jobs:
       - checkout
       - generate_rhel_py27py36_wagon
   
-  integration_tests_505:
-    executor: cloudify-machine
-    environment:
-      CLOUDIFY_SSL_TRUST_ALL: true
-      IAAS: openstack
-      TEST_NAME: cloudformation
-    steps:
-      - checkout
-      - run_integration_tests_505
-
-  integration_tests_510:
-    executor: cloudify-machine-510
-    environment:
-      CLOUDIFY_SSL_TRUST_ALL: true
-      IAAS: openstack
-    steps:
-      - checkout
-      - run_integration_tests_510
+#  integration_tests_505:
+#    executor: cloudify-machine
+#    environment:
+#      CLOUDIFY_SSL_TRUST_ALL: true
+#      IAAS: openstack
+#      TEST_NAME: cloudformation
+#    steps:
+#      - checkout
+#      - run_integration_tests_505
+#
+#  integration_tests_510:
+#    executor: cloudify-machine-510
+#    environment:
+#      CLOUDIFY_SSL_TRUST_ALL: true
+#      IAAS: openstack
+#    steps:
+#      - checkout
+#      - run_integration_tests_510
 
   build_bundle:
     executor: wagon_generator
@@ -316,27 +316,27 @@ workflows:
           requires:
             - wagon
             - rhel_wagon
-      - integration_tests_505:
-          requires:
-            - unittests_py27
-            - build_bundle
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
-      - integration_tests_510:
-          requires:
-            - unittests_py36
-            - build_bundle
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
+#      - integration_tests_505:
+#          requires:
+#            - unittests_py27
+#            - build_bundle
+#          filters:
+#            branches:
+#              only: /([0-9\.]*\-build|master|dev)/
+#      - integration_tests_510:
+#          requires:
+#            - unittests_py36
+#            - build_bundle
+#          filters:
+#            branches:
+#              only: /([0-9\.]*\-build|master|dev)/
       - release:
           filters:
             branches:
               only: /master/
-          requires:
-            - integration_tests_505
-            - integration_tests_510
+#          requires:
+#            - integration_tests_505
+#            - integration_tests_510
 
   nightly:
     triggers:
@@ -358,17 +358,17 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
-      - integration_tests_505:
-          requires:
-            - wagon
-            - rhel_wagon
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
-      - integration_tests_510:
-          requires:
-            - wagon
-            - rhel_wagon
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|dev)/
+#      - integration_tests_505:
+#          requires:
+#            - wagon
+#            - rhel_wagon
+#          filters:
+#            branches:
+#              only: /([0-9\.]*\-build|master|dev)/
+#      - integration_tests_510:
+#          requires:
+#            - wagon
+#            - rhel_wagon
+#          filters:
+#            branches:
+#              only: /([0-9\.]*\-build|master|dev)/

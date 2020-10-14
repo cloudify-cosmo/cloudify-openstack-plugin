@@ -312,7 +312,7 @@ workflows:
       - build_bundle:
           filters:
             branches:
-              only: /master/
+              only: /master|Bump-pyyaml/
           requires:
             - wagon
             - rhel_wagon
@@ -333,7 +333,8 @@ workflows:
       - release:
           filters:
             branches:
-              only: /master/
+              only: /master|Bump-pyyaml/
+
           requires:
             - wagon
             - rhel_wagon

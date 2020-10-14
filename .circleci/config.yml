@@ -220,7 +220,7 @@ commands:
           command: virtualenv env
       - run:
           name: install tox
-          command: pip install --user pygithub pyyaml==3.10
+          command: pip install --user pygithub pyyaml==4.2b4
       - run:
           name: upgrade setuptools
           command: pip install --upgrade setuptools
@@ -271,14 +271,14 @@ jobs:
 #      - checkout
 #      - run_integration_tests_505
 #
-#  integration_tests_510:
-#    executor: cloudify-machine-510
-#    environment:
-#      CLOUDIFY_SSL_TRUST_ALL: true
-#      IAAS: openstack
-#    steps:
-#      - checkout
-#      - run_integration_tests_510
+  integration_tests_510:
+    executor: cloudify-machine-510
+    environment:
+      CLOUDIFY_SSL_TRUST_ALL: true
+      IAAS: openstack
+    steps:
+      - checkout
+      - run_integration_tests_510
 
   build_bundle:
     executor: wagon_generator
@@ -312,7 +312,7 @@ workflows:
       - build_bundle:
           filters:
             branches:
-              only: /master/
+              only: /master|Bump-pyyaml/
           requires:
             - wagon
             - rhel_wagon
@@ -323,24 +323,24 @@ workflows:
 #          filters:
 #            branches:
 #              only: /([0-9\.]*\-build|master|dev)/
-#      - integration_tests_510:
-#          requires:
-#            - unittests_py36
-#            - build_bundle
-#          filters:
-#            branches:
-#              only: /([0-9\.]*\-build|master|dev)/
+      - integration_tests_510:
+          requires:
+            - unittests_py36
+            - build_bundle
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|Bump-pyyaml|dev)/
       - release:
           filters:
             branches:
-              only: /master/
+              only: /master|Bump-pyyaml/
 
           requires:
             - wagon
             - rhel_wagon
             - build_bundle
 #            - integration_tests_505
-#            - integration_tests_510
+            - integration_tests_510
 
   nightly:
     triggers:

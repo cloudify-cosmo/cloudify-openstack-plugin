@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.19.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.21.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.2.19'
+    package_version: '3.2.21'
 
 dsl_definitions:
 

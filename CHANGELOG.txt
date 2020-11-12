@@ -1,3 +1,4 @@
+3.2.21: Versioning mismatch
 3.2.20: Bump PyYaml to 5.3.1 and replace pycrypto 2.6.1 with pycryptodome 3.9.8
 3.2.19: Fix issues with windows password decrypt
 3.2.18: Fix issue in no networks.

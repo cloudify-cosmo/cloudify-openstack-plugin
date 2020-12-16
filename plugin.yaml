@@ -2,9 +2,9 @@ plugins:
 
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.2.21.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/3.3.0.zip
     package_name: cloudify-openstack-plugin
-    package_version: '3.2.21'
+    package_version: '3.3.0'
 
 dsl_definitions:
 
@@ -736,6 +736,30 @@ data_types:
             CNAME records must be a hostname.
         required: true
         default: []
+
+  cloudify.types.openstack.SharedFileSystem:
+    properties:
+      <<: *data_type_kwargs
+      <<: *data_type_name
+      <<: *data_type_id
+      <<: *data_type_description
+      size:
+        type: integer
+        description: 'The user defined description of the resource. The value of this field is limited to 255 characters.'
+        require: true
+      share_proto:
+        type: string
+        description: 'The Shared File Systems protocol. A valid value is NFS, CIFS, GlusterFS, HDFS, CephFS, MAPRFS, CephFS supported is starting with API v2.13.'
+        required: true
+      share_type:
+        type: string
+        description: 'The share type name. If you omit this parameter, the default share type is used. To view the default share type set by the administrator, issue a list default share types request. You cannot specify both the share_type and volume_type parameters.'
+        required: false
+      volume_type:
+        type: string
+        description: 'The volume type. The use of the volume_type object is deprecated but supported. It is recommended that you use the share_type object when you create a share type. When you issue a create a share type request, you can submit a request body with either a share_type or volume_type object. No matter which object type you include in the request, the API creates both a volume_type object and a share_type object. Both objects have the same ID. When you issue a list share types request, the response shows both share_types and volume_types objects.'
+        required: false
+
 
 node_types:
 
@@ -1593,6 +1617,20 @@ node_types:
         delete:
           implementation: openstack.openstack_plugin.resources.dns_service.record_set.delete
 
+  cloudify.nodes.openstack.SharedFileSystem:
+    derived_from: cloudify.nodes.Root
+    properties:
+      <<: *client_config
+      resource_config:
+        type: cloudify.types.openstack.SharedFileSystem
+        description: https://docs.openstack.org/api-ref/shared-file-system/#create-share
+        required: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: openstack.openstack_plugin.resources.volume.shared_file_system.create
+        delete:
+          implementation: openstack.openstack_plugin.resources.volume.shared_file_system.delete
 
 relationships:
 

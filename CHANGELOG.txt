@@ -1,4 +1,7 @@
-2.14.21: Constrain pyrsistent version for python 2 compatibility.
+2.14.22:
+    - Fix windows get password encoding python 3 compatibility.
+2.14.21:
+    - Constrain pyrsistent version for python 2 compatibility.
 2.14.20:
     - Add 5.1 manager integration tests and py2py3 wagon release.
 2.14.19:

@@ -445,7 +445,8 @@ def start(nova_client,
                 return ctx.operation.retry(
                     message='Waiting for server to post generated password',
                     retry_after=start_retry_interval)
-
+            if isinstance(password, bytes):
+                password = password.decode('utf-8')
             ctx.instance.runtime_properties[ADMIN_PASSWORD_PROPERTY] = password
             ctx.logger.info('Server has been set with a password')
 

@@ -85,8 +85,9 @@ class OpenstackSharedFileSystem(OpenstackResource):
         self.logger.debug(
             'Deleted share with this response: {0}, body {1}'.format(
                 response, body))
+        return response
 
-    def allow(self, params):
+    def allow(self, **params):
         self.logger.debug(
             'Attempting to allow share with these params: {0}'.format(
                 params))

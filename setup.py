@@ -46,10 +46,10 @@ setup(
     packages=find_packages(exclude=['tests*']),
     install_requires=[
         'cloudify-common>=4.5.5',
-        'openstacksdk==0.52.0',
+        'openstacksdk==0.42.0',
         'IPy==0.81',
         'pycryptodome>=3.9.8,<3.10',
-        'python-manilaclient==2.4.0'
+        'python-manilaclient==2.0.0'
     ],
     test_requires=[
         'mock',

@@ -18,7 +18,7 @@ import mock
 
 # Local imports
 from openstack_sdk.tests import base
-from openstack_sdk.resources import shared_file_system
+from openstack_sdk.resources import manila
 
 
 class SharedFileSystemTestCase(base.OpenStackSDKTestBase):
@@ -26,7 +26,7 @@ class SharedFileSystemTestCase(base.OpenStackSDKTestBase):
     @mock.patch('manilaclient.v2.client.Client')
     def setUp(self, *_, **__):
         super(SharedFileSystemTestCase, self).setUp()
-        self.share_instance = shared_file_system.OpenstackSharedFileSystem(
+        self.share_instance = manila.OpenstackFileShare(
             client_config=self.client_config,
             resource_config={'size': 1, 'name': 'test_share'},
             logger=mock.MagicMock()

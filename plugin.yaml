@@ -763,10 +763,6 @@ data_types:
         type: string
         description: The network to connect the share to.
         required: false
-#      share_network_id:
-#        type: string
-#        description: The network to connect the share to. Only if API version is 1.
-#        required: false
 
   cloudify.types.openstack.NetworkShare:
     properties:

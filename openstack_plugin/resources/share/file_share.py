@@ -104,4 +104,4 @@ def deny(openstack_resource, **kwargs):
         ctx.logger.error(
             'In order to deny access to a share, '
             'the IP must be provided as "access".')
-    openstack_resource.allow(kwargs['access'])
+    openstack_resource.deny(kwargs['access'])

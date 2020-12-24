@@ -162,12 +162,12 @@ class OpenstackFileShare(ManilaResource):
             'Allowed share with this result: {0}'.format(result))
         return result
 
-    def deny(self, var):
-        self.logger.debug('Denying this share to {0}'.format(var))
+    def deny(self, ip):
+        self.logger.debug('Denying this share to {0}'.format(ip))
         share = self.get()
         if not share:
             return
-        result = share.deny(var)
+        result = share.deny(ip)
         self.logger.debug(
             'Denied share with this result: {0}'.format(result))
         return result

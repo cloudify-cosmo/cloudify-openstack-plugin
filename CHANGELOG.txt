@@ -1,3 +1,4 @@
+3.3.0: Support Openstack Manila.
 3.2.21: Versioning mismatch
 3.2.20: Bump PyYaml to 5.3.1 and replace pycrypto 2.6.1 with pycryptodome 3.9.8
 3.2.19: Fix issues with windows password decrypt
@@ -18,11 +19,11 @@
   - Add public_ip property when using server_connected_to_floating_ip and if use_public_ip is set True.
 3.2.10:
   - Remove ID key from resource object if healing terminated VM.
-3.2.9
+3.2.9:
    - Expose insecure & ca_cert to client config
-3.2.8
+3.2.8:
    - Expose ipv4 and ipv6 addresses as runtime properties for port node instance for openstack plugin 3.x
-3.2.7
+3.2.7:
    - Fix issue with OpenstackSDK for connecting server to security group
 3.2.6:
     - Changed minimum supported Cloudify version to 4.3.3

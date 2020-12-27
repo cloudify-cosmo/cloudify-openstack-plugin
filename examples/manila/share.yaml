@@ -1,0 +1,303 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - https://cloudify.co/spec/cloudify/5.1.0/types.yaml
+  - plugin:cloudify-openstack-plugin?version= >=3.2.2
+  - plugin:cloudify-utilities-plugin
+
+inputs:
+
+  external_network_id:
+    type: string
+    description: A network that provisions floating IPs.
+    default: public
+
+  image:
+    type: string
+    description: cirros UUID image.
+    default: ac3559d8-5707-4f17-a37d-da26a0d52e4f
+
+  flavor:
+    type: string
+    description: The UUID of small flavor in your Openstack account.
+    default: cirros256
+
+  resource_suffix:
+    type: string
+    default: '10'
+
+  network_id:
+    type: string
+    description: A name for your new Openstack Network.
+    default: { concat: [ cloudify-demo-network-, { get_input: resource_suffix } ] }
+
+  subnet_id:
+    type: string
+    description: A name for your new Openstack Subnet.
+    default: { concat: [ cloudify-demo-subnet-, { get_input: resource_suffix } ] }
+
+  agent_user:
+    description: >
+      The username of the agent running on the instance created from the image.
+    default: centos
+
+  agent_key_name:
+    type: string
+    default: agent_key
+
+  cidr:
+    type: string
+    default: { get_input: resource_suffix }
+
+  user_domain_name:
+    description: Openstack user domain name.
+    type: string
+    default:  { get_secret: openstack_user_domain_name }
+
+  project_domain_name:
+    description: The name of your OpenStack project.
+    type: string
+    default:  { get_secret: openstack_project_domain_name }
+
+  encode_cloud_init:
+    default: false
+
+  use_existing_server:
+    type: boolean
+    default: false
+
+  server_name:
+    type: string
+    default: { concat: [ cloudify-demo-server-, { get_input: resource_suffix } ] }
+
+dsl_definitions:
+
+  openstack_config: &openstack_config
+    auth_url: { get_secret: openstack_auth_url }
+    region_name: { get_secret: openstack_region }
+    project_name: { get_secret: openstack_tenant_name }
+    username: { get_secret: openstack_username }
+    password: { get_secret: openstack_password }
+    user_domain_name: { get_input: user_domain_name }
+    project_domain_name: { get_input: project_domain_name }
+
+  compute_config: &compute_config
+    kwargs: {}
+
+node_templates:
+
+  vm:
+    type: cloudify.nodes.openstack.Server
+    properties:
+      client_config:
+        <<: *openstack_config
+        <<: *compute_config
+      agent_config:
+        install_method: none
+        key: { get_attribute: [agent_key, private_key_export] }
+        user: { get_input: agent_user }
+      resource_config:
+        name: { concat: [ { get_input: server_name }, 1 ] }
+        image_id: { get_input: image }
+        flavor_id: { get_input: flavor }
+        user_data: { get_attribute: [ cloud_init, cloud_config ] }
+      use_external_resource: { get_input: use_existing_server }
+      use_public_ip: true
+    relationships:
+      - type: cloudify.relationships.openstack.server_connected_to_port
+        target: port
+      - type: cloudify.relationships.depends_on
+        target: cloud_init
+
+  vm2:
+    type: cloudify.nodes.openstack.Server
+    properties:
+      client_config:
+        <<: *openstack_config
+        <<: *compute_config
+      agent_config:
+        install_method: none
+        key: { get_attribute: [agent_key, private_key_export] }
+        user: { get_input: agent_user }
+      resource_config:
+        name: { concat: [ { get_input: server_name }, 2 ] }
+        image_id: { get_input: image }
+        flavor_id: { get_input: flavor }
+        user_data: { get_attribute: [ cloud_init, cloud_config ] }
+      use_external_resource: { get_input: use_existing_server }
+      use_public_ip: true
+    relationships:
+      - type: cloudify.relationships.openstack.server_connected_to_port
+        target: port2
+      - type: cloudify.relationships.depends_on
+        target: cloud_init
+
+  share:
+    type: cloudify.nodes.openstack.SharedFileSystem
+    properties:
+      client_config:
+        <<: *openstack_config
+        <<: *compute_config
+      resource_config:
+        size: 1
+        share_proto: nfs
+    relationships:
+      - type: cloudify.relationships.openstack.share_connected_to_network_share
+        target: share_network
+
+  share2:
+    type: cloudify.nodes.openstack.SharedFileSystem
+    properties:
+      client_config:
+        <<: *openstack_config
+        <<: *compute_config
+      resource_config:
+        size: 1
+        share_proto: nfs
+    relationships:
+      - type: cloudify.relationships.openstack.share_connected_to_network_share
+        target: share_network
+
+  share_network:
+    type: cloudify.nodes.openstack.NetworkShare
+    properties:
+      client_config:
+        <<: *openstack_config
+        <<: *compute_config
+    relationships:
+      - type: cloudify.relationships.openstack.network_share_connected_to_network
+        target: network
+      - type: cloudify.relationships.openstack.network_share_connected_to_subnet
+        target: subnet
+
+  port:
+    type: cloudify.nodes.openstack.Port
+    properties:
+      client_config: *openstack_config
+      resource_config:
+        network_id: { get_attribute: [ network, id ] }
+    relationships:
+      - type: cloudify.relationships.openstack.port_connected_to_subnet
+        target: subnet
+      - type: cloudify.relationships.openstack.port_connected_to_security_group
+        target: security-group
+      - type: cloudify.relationships.openstack.port_connected_to_floating_ip
+        target: ip
+
+  port2:
+    type: cloudify.nodes.openstack.Port
+    properties:
+      client_config: *openstack_config
+      resource_config:
+        network_id: { get_attribute: [ network, id ] }
+    relationships:
+      - type: cloudify.relationships.openstack.port_connected_to_subnet
+        target: subnet
+      - type: cloudify.relationships.openstack.port_connected_to_security_group
+        target: security-group
+      - type: cloudify.relationships.openstack.port_connected_to_floating_ip
+        target: ip2
+
+  subnet:
+    type: cloudify.nodes.openstack.Subnet
+    properties:
+      client_config: *openstack_config
+      resource_config:
+        name: { get_input: subnet_id }
+        ip_version: 4
+        cidr: { concat: [ "10.10.", { get_input: cidr }, ".0/24" ] }
+        dns_nameservers: [8.8.4.4, 8.8.8.8]
+        allocation_pools:
+        - start:  { concat: [ "10.10.", { get_input: cidr }, ".2" ] }
+          end:  { concat: [ "10.10.", { get_input: cidr }, ".254" ] }
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: network
+      - type: cloudify.relationships.openstack.subnet_connected_to_router
+        target: router
+
+  network:
+    type: cloudify.nodes.openstack.Network
+    properties:
+      client_config: *openstack_config
+      resource_config:
+        name: { get_input: network_id }
+
+  router:
+    type: cloudify.nodes.openstack.Router
+    properties:
+      client_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: external-network
+
+  security-group:
+    type: cloudify.nodes.openstack.SecurityGroup
+    properties:
+      client_config: *openstack_config
+      resource_config:
+        name: hello-security-group
+        description: 'hello security group'
+      security_group_rules:
+        - direction: ingress
+          protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+
+  ip:
+    type: cloudify.nodes.openstack.FloatingIP
+    properties:
+      client_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: external-network
+
+  ip2:
+    type: cloudify.nodes.openstack.FloatingIP
+    properties:
+      client_config: *openstack_config
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: external-network
+
+  external-network:
+    type: cloudify.nodes.openstack.Network
+    properties:
+      client_config: *openstack_config
+      use_external_resource: true
+      resource_config:
+        name: { get_input: external_network_id }
+        kwargs:
+          routing:
+            external: true
+
+  cloud_init:
+    type: cloudify.nodes.CloudInit.CloudConfig
+    properties:
+      encode_base64: { get_input: encode_cloud_init }
+      resource_config:
+        users:
+        - name: { get_input: agent_user }
+          shell: /bin/bash
+          sudo: ['ALL=(ALL) NOPASSWD:ALL']
+          ssh-authorized-keys:
+          - { get_attribute: [agent_key, public_key_export] }
+    relationships:
+      - type: cloudify.relationships.depends_on
+        target: agent_key
+
+  agent_key:
+    type: cloudify.keys.nodes.RSAKey
+    properties:
+      resource_config:
+        key_name: { get_input: agent_key_name }
+        openssh_format: true
+      use_secret_store: true
+      use_secrets_if_exist: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: keys.cloudify_ssh_key.operations.create
+          inputs:
+            store_private_key_material: true
+

@@ -231,6 +231,116 @@ commands:
           at: workspace
       - run: python .circleci/package_release.py
 
+
+  validate_documentation:
+    steps:
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote --recursive
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user pygithub pyyaml==3.10
+      - run:
+          name: upgrade setuptools
+          command: pip install --upgrade setuptools
+      - run:
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
+      - attach_workspace:
+          at: workspace
+      - run: python .circleci/validate_docs.py
+
+  validate_version:
+    steps:
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote --recursive
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user pygithub pyyaml==3.10
+      - run:
+          name: upgrade setuptools
+          command: pip install --upgrade setuptools
+      - run:
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
+      - attach_workspace:
+          at: workspace
+      - run: python .circleci/validate_version.py
+
+
+  merge_docs:
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote --recursive
+      - run:
+          name: Set Python
+          command: |
+            if ! pyenv -v COMMAND &> /dev/null
+            then
+                echo "pyenv could not be found"
+                exit
+            else
+                pyenv global 3.6.5
+            fi
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user pygithub pyyaml==3.10
+      - run:
+          name: upgrade setuptools
+          command: pip install --upgrade setuptools
+      - run:
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
+      - attach_workspace:
+          at: workspace
+      - run: python .circleci/merge_docs.py
+
 jobs:
 
   unittests_py27:
@@ -248,6 +358,18 @@ jobs:
     steps:
       - checkout
       - check_py3_compat
+
+  validate_version:
+    executor: py36
+    steps:
+      - checkout
+      - validate_version
+
+  validate_documentation:
+    executor: py36
+    steps:
+      - checkout
+      - validate_documentation
 
   wagon:
     executor: wagon_generator
@@ -292,12 +414,20 @@ jobs:
       - checkout
       - release_plugin
 
+  merge_docs:
+    executor: py36
+    steps:
+      - checkout
+      - merge_docs
+
 workflows:
   version: 2
   tests:
     jobs: 
       - py3_compat
       - unittests_py27
+      - validate_version
+      - validate_documentation
       - unittests_py36:
           requires:
             - py3_compat
@@ -316,20 +446,6 @@ workflows:
           requires:
             - wagon
             - rhel_wagon
-#      - integration_tests_505:
-#          requires:
-#            - unittests_py27
-#            - build_bundle
-#          filters:
-#            branches:
-#              only: /([0-9\.]*\-build|master|dev)/
-#      - integration_tests_510:
-#          requires:
-#            - unittests_py36
-#            - build_bundle
-#          filters:
-#            branches:
-#              only: /([0-9\.]*\-build|master|dev)/
       - release:
           filters:
             branches:
@@ -339,8 +455,13 @@ workflows:
             - wagon
             - rhel_wagon
             - build_bundle
-#            - integration_tests_505
-#            - integration_tests_510
+      - merge_docs:
+          filters:
+            branches:
+              only: /master/
+          requires:
+            - release
+            - validate_documentation
 
   nightly:
     triggers:

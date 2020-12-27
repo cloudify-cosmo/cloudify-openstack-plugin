@@ -9,7 +9,5 @@ IPy==0.81
 pylint
 
 # For integration tests
-git+https://github.com/cloudify-cosmo/cloudify-common@master#egg=cloudify-common[dispatcher]==master
-git+https://github.com/cloudify-cosmo/cloudify-cli@master#egg=cloudify-cli==master
 pytest==4.6.3
 pyyaml>=5.3.1,<5.4

@@ -409,7 +409,7 @@ jobs:
       - build_archive
 
   release:
-    executor: py27
+    executor: py36
     steps:
       - checkout
       - release_plugin

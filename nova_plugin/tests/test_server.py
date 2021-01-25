@@ -137,7 +137,7 @@ class TestServer(unittest.TestCase):
         with mock.patch('nova_plugin.server.get_server_by_context',
                         new=mock_get_server_by_context):
             self.assertRaisesRegexp(RuntimeError,
-                                    'Unexpected server state',
+                                    "Task failed 'nova_plugin.server.start'",
                                     cfy_local.execute,
                                     'install')
 

@@ -45,7 +45,7 @@ commands:
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: sudo python get-pip.py
+          command: sudo python get-pip.py 'pip<=20.3.3'
       - run:
           name: Install virtualenv
           command: pip install --user virtualenv
@@ -77,7 +77,7 @@ commands:
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: sudo python get-pip.py
+          command: sudo python get-pip.py 'pip<=20.3.3'
       - run:
           name: Install virtualenv
           command: pip install --user virtualenv
@@ -147,7 +147,7 @@ commands:
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: sudo python get-pip.py
+          command: sudo python get-pip.py 'pip<=20.3.3'
       - run:
           name: Install virtualenv
           command: pip install --user virtualenv
@@ -226,7 +226,7 @@ commands:
           at: workspace
       - run:
           name: update pip
-          command: pip install -U pip
+          command: pip install -U pip===20.3.3
       - run:
           name: install cloudify
           command: |
@@ -261,7 +261,7 @@ commands:
           at: workspace
       - run:
           name: update pip
-          command: pip install -U pip
+          command: pip install -U pip===20.3.3
       - run:
           name: install cloudify
           command: |
@@ -297,7 +297,7 @@ commands:
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: sudo python get-pip.py
+          command: sudo python get-pip.py 'pip<=20.3.3'
       - run:
           name: Install virtualenv
           command: pip install --user virtualenv
@@ -332,7 +332,7 @@ commands:
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: sudo python get-pip.py
+          command: sudo python get-pip.py 'pip<=20.3.3'
       - run:
           name: Install virtualenv
           command: pip install --user virtualenv
@@ -370,13 +370,13 @@ jobs:
       - check_py3_compat
 
   validate_version:
-    executor: py27
+    executor: py36
     steps:
       - checkout
       - validate_version
 
   validate_documentation:
-    executor: py27
+    executor: py36
     steps:
       - checkout
       - validate_documentation
@@ -425,7 +425,7 @@ jobs:
       - release_plugin
 
   merge_docs:
-    executor: py27
+    executor: py36
     steps:
       - checkout
       - merge_docs

@@ -656,7 +656,9 @@ class OpenStackClient(object):
     AUTH_SETS = [
         COMMON | {'tenant_name'},
         COMMON | {'project_id', 'user_domain_name'},
+        COMMON | {'tenant_id', 'user_domain_name'},
         COMMON | {'project_id', 'project_name', 'user_domain_name'},
+        COMMON | {'tenant_id', 'project_name', 'user_domain_name'},
         COMMON | {'project_name', 'user_domain_name', 'project_domain_name'},
     ]
 
@@ -669,9 +671,6 @@ class OpenStackClient(object):
     def __init__(self, client_name, client_class, config=None, *args, **kw):
         cfg = Config.get()
         if config:
-            if config.get('tenant_id'):
-                config['project_id'] = config.get('project_id') or config.get(
-                    'tenant_id')
             Config.update_config(cfg, config)
 
             # This check to make sure that blueprint openstack config

@@ -95,7 +95,6 @@ data_types:
       tenant_id:
         description: |
           Id of tenant. Same as project_id, added for backwards compatibility.
-          If both tenant_id and project_id provided then project_id value will take place.
         type: string
         required: false
       project_id:

@@ -669,6 +669,9 @@ class OpenStackClient(object):
     def __init__(self, client_name, client_class, config=None, *args, **kw):
         cfg = Config.get()
         if config:
+            if config.get('tenant_id'):
+                config['project_id'] = config.get('project_id') or config.get(
+                    'tenant_id')
             Config.update_config(cfg, config)
 
             # This check to make sure that blueprint openstack config

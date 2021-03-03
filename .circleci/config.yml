@@ -476,6 +476,9 @@ workflows:
             - validate_documentation
             - wagon
             - rhel_wagon
+            - build_bundle
+            - unittests_py27
+            - unittests_py36
             # - integration_tests_505
             # - integration_tests_510
       - merge_docs:

@@ -476,6 +476,9 @@ workflows:
             - validate_documentation
             - wagon
             - rhel_wagon
+            - build_bundle
+            - unittests_py27
+            - unittests_py36
             # - integration_tests_505
             # - integration_tests_510
       - merge_docs:
@@ -499,7 +502,7 @@ workflows:
         filters:
           branches:
             only:
-              - 2.14.22-build
+              - 2.14.23-build
     jobs:
       - unittests_py27
       - unittests_py36
@@ -508,18 +511,18 @@ workflows:
       - wagon:
           filters:
             branches:
-              only: /(2.14.22-build|master)/
+              only: /(2.14.23-build|master)/
       - rhel_wagon:
           filters:
             branches:
-              only: /(2.14.22-build|master)/
+              only: /(2.14.23-build|master)/
       # - integration_tests_505:
       #     requires:
       #       - wagon
       #       - rhel_wagon
       #     filters:
       #       branches:
-      #         only: /(2.14.22-build|master)/
+      #         only: /(2.14.23-build|master)/
       # - integration_tests_510:
       #     requires:
       #       - wagon
@@ -527,4 +530,4 @@ workflows:
       #       - integration_tests_505
       #     filters:
       #       branches:
-      #         only: /(2.14.22-build|master)/
+      #         only: /(2.14.23-build|master)/

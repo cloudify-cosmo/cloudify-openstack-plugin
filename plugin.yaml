@@ -5,9 +5,9 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.14.22.zip
+    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/2.14.23.zip
     package_name: cloudify-openstack-plugin
-    package_version: '2.14.22'
+    package_version: '2.14.23'
 
 data_types:
   cloudify.openstack.types.custom_configuration:
@@ -90,6 +90,11 @@ data_types:
         required: false
       tenant_name:
         description: Name of tenant.
+        type: string
+        required: false
+      tenant_id:
+        description: |
+          Id of tenant. Same as project_id, added for backwards compatibility.
         type: string
         required: false
       project_id:

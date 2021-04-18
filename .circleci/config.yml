@@ -81,8 +81,8 @@ commands:
           name: Build py27py36 Wagon
           command: |
               git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t cloudify-centos-7-wagon-builder cloudify-wagon-build-containers/centos_7_py2py3
-              docker run -v ~/project/:/packaging cloudify-centos-7-wagon-builder
+              docker build -t cloudify-wagon-builder-centos-7-py2py3 cloudify-wagon-build-containers/centos_7_py2py3
+              docker run -v ~/project/:/packaging cloudify-wagon-builder-centos-7-py2py3
       - run:
           name: copy wagon to workspace
           command: cp *.wgn workspace/build/
@@ -100,8 +100,8 @@ commands:
           name: Build RHEL py27py36 Wagon
           command: |
               git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t cloudify-redhat-7-wagon-builder cloudify-wagon-build-containers/redhat_7_py2py3 --build-arg USERNAME="$USERNAME" --build-arg PASSWORD="$PASSWORD"
-              docker run -v ~/project/:/packaging cloudify-redhat-7-wagon-builder
+              docker build -t cloudify-wagon-builder-redhat-7-py2py3 cloudify-wagon-build-containers/redhat_7_py2py3 --build-arg USERNAME="$USERNAME" --build-arg PASSWORD="$PASSWORD"
+              docker run -v ~/project/:/packaging cloudify-wagon-builder-redhat-7-py2py3
       - run:
           name: copy wagon to workspace
           command: cp *.wgn workspace/build/

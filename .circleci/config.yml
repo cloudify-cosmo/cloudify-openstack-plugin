@@ -503,16 +503,16 @@ workflows:
     jobs:
       - unittests_py27
       - unittests_py36
-      - py3_compat
-      - validate_version
-      - wagon:
-          filters:
-            branches:
-              only: /(2.14.22-build|master)/
-      - rhel_wagon:
-          filters:
-            branches:
-              only: /(2.14.22-build|master)/
+      # - py3_compat
+      # - validate_version
+      # - wagon:
+      #     filters:
+      #       branches:
+      #         only: /(2.14.22-build|master)/
+      # - rhel_wagon:
+      #     filters:
+      #       branches:
+      #         only: /(2.14.22-build|master)/
       # - integration_tests_505:
       #     requires:
       #       - wagon

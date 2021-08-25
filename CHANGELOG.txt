@@ -1,3 +1,4 @@
+3.3.2: RD-3035 Support ecosystem-test validate-plugin-version CLI
 3.3.1: Re-releasing 3.3.0 for adding to bundle.
 3.3.0: Support Openstack Manila.
 3.2.21: Versioning mismatch

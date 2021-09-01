@@ -222,7 +222,7 @@ commands:
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
       - attach_workspace:
           at: workspace
-      - run: python .circleci/validate_docs.py
+      - run: ecosystem-test validate-docs
 
   validate_version:
     steps:

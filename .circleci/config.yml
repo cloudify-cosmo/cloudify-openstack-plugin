@@ -299,7 +299,7 @@ commands:
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
       - attach_workspace:
           at: workspace
-      - run: python .circleci/merge_docs.py
+      - run: ecosystem-tests merge-docs
 
 jobs:
 

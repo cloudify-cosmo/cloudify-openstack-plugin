@@ -189,7 +189,7 @@ commands:
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
       - attach_workspace:
           at: workspace
-      - run: ecosystem-tests package-release
+      - run: ecosystem-tests package-release --name cloudify-openstack-plugin
 
 
   validate_documentation:

@@ -161,7 +161,7 @@ commands:
       - run:
           name: remove python3 incompatible modules
           command: |
-            rm openstack_plugin_common/_compat.py
+            rm openstack_sdk/_compat.py
       - run:
           name: find python3-incompatible code
           command: |

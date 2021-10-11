@@ -46,7 +46,7 @@ commands:
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: sudo python get-pip.py 'pip<=20.3.3'
+          command: sudo python get-pip.py
       - run:
           name: Install virtualenv
           command: pip install --user virtualenv
@@ -64,8 +64,7 @@ commands:
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
       - attach_workspace:
           at: workspace
-      - run: python .circleci/validate_docs.py
-
+      - run: ecosystem-test validate-docs
   validate_version:
     steps:
       - run:
@@ -78,7 +77,7 @@ commands:
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: sudo python get-pip.py 'pip<=20.3.3'
+          command: sudo python get-pip.py
       - run:
           name: Install virtualenv
           command: pip install --user virtualenv
@@ -96,8 +95,50 @@ commands:
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
       - attach_workspace:
           at: workspace
-      - run: python .circleci/validate_version.py
-
+      - run: ecosystem-test validate-plugin-version
+  merge_docs:
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote --recursive
+      - run:
+          name: Set Python
+          command: |
+            if ! pyenv -v COMMAND &> /dev/null
+            then
+                echo "pyenv could not be found"
+                exit
+            else
+                pyenv global 3.6.5
+            fi
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user pygithub pyyaml==3.10
+      - run:
+          name: upgrade setuptools
+          command: pip install --upgrade setuptools
+      - run:
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
+      - attach_workspace:
+          at: workspace
+      - run: ecosystem-tests merge-docs
   run_unittests_py27:
     steps:
       - checkout
@@ -283,7 +324,7 @@ commands:
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: sudo python get-pip.py 'pip<=20.3.3'
+          command: sudo python get-pip.py
       - run:
           name: Install virtualenv
           command: pip install --user virtualenv
@@ -292,7 +333,7 @@ commands:
           command: virtualenv env
       - run:
           name: install tox
-          command: pip install --user pygithub pyyaml==3.10
+          command: pip install --user pygithub pyyaml==5.3.1
       - run:
           name: upgrade setuptools
           command: pip install --upgrade setuptools
@@ -301,42 +342,8 @@ commands:
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
       - attach_workspace:
           at: workspace
-      - run: python .circleci/package_release.py
+      - run: ecosystem-tests package-release --name cloudify-openstack-plugin
 
-
-  merge_docs:
-    steps:
-      - attach_workspace:
-          at: workspace
-      - run:
-          name: "Pull Submodules"
-          command: |
-            git submodule init
-            git submodule update --remote --recursive
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py 'pip<=20.3.3'
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user pygithub pyyaml==3.10
-      - run:
-          name: upgrade setuptools
-          command: pip install --upgrade setuptools
-      - run:
-          name: install local project
-          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
-      - attach_workspace:
-          at: workspace
-      - run: python .circleci/merge_docs.py
 
 jobs:
 

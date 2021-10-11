@@ -288,7 +288,7 @@ commands:
           at: workspace
       - run:
           name: update pip
-          command: pip install -U pip===20.3.3
+          command: pip install -U pip
       - run:
           name: install cloudify
           command: |

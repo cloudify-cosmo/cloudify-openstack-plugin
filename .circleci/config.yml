@@ -23,6 +23,11 @@ executors:
     machine:
       image: ubuntu-1604:201903-01
 
+  arm_wagon_generator:
+    machine:
+      image: ubuntu-2004:202101-01
+      resource_class: arm.medium
+
   cloudify-machine-510:
     machine:
       image: ubuntu-1604:201903-01
@@ -156,6 +161,24 @@ commands:
       - run: /home/circleci/.local/bin/tox -e flake8
       - run: /home/circleci/.local/bin/tox -e nosetests
 
+  generate_arch64_wagon:
+    steps:
+      - run:
+          name: Create Workspace Build directory.
+          command: mkdir -p workspace/build
+      - run:
+          name: Build py36 Wagon
+          command: |
+              git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
+              docker build -t centos_aarch64 cloudify-wagon-build-containers/aarch_64/centos_7_py3
+              docker run -v ~/project/:/packaging centos_aarch64
+      - run:
+          name: copy wagon to workspace
+          command: cp *.wgn workspace/build/
+      - persist_to_workspace:
+          root: workspace
+          paths:
+            - build/*
 
   generate_py36_wagon:
     steps:
@@ -356,6 +379,11 @@ jobs:
       - checkout
       - generate_rhel_py36_wagon
 
+  arch64_wagon:
+    executor: arm_wagon_generator
+    steps:
+      - checkout
+      - generate_arch64_wagon
 
   build_bundle:
     executor: py36
@@ -396,29 +424,27 @@ workflows:
       - wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|2.X-master|dev)/
       - rhel_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|2.X-master|dev)/
+      - arch64_wagon:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|2.X-master|dev)/
       - build_bundle:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|2.X-master|dev)/
           requires:
             - wagon
+            - arch64_wagon
             - rhel_wagon
-      # - integration_tests_510:
-      #     requires:
-      #       - build_bundle
-      #       - integration_tests_505
-      #     filters:
-      #       branches:
-      #         only: /([0-9\.]*\-build|master|dev)/
       - release:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master)/
+              only: /([0-9\.]*\-build|master|2.X-master)/
           requires:
             - validate_version
             - validate_documentation
@@ -431,7 +457,7 @@ workflows:
       - merge_docs:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master)/
+              only: /([0-9\.]*\-build|master|2.X-master)/
           requires:
             - release
             - validate_documentation
@@ -449,25 +475,21 @@ workflows:
         filters:
           branches:
             only:
-              - 2.14.23-build
+              - 2.X-master
     jobs:
       - unittests_py27
       - unittests_py36
       - py3_compat
       - validate_version
+      - arch64_wagon:
+          filters:
+            branches:
+              only: /(2.X-master|master|dev)/
       - wagon:
           filters:
             branches:
-              only: /(2.14.23-build|master)/
+              only: /(2.X-master|master)/
       - rhel_wagon:
           filters:
             branches:
-              only: /(2.14.23-build|master)/
-      # - integration_tests_510:
-      #     requires:
-      #       - wagon
-      #       - rhel_wagon
-      #       - integration_tests_505
-      #     filters:
-      #       branches:
-      #         only: /(2.14.23-build|master)/
+              only: /(2.X-master|master)/

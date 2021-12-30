@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  node: cloudify/unittest-orb@1.0.2 #orb version
+
 checkout:
   post:
     - >
@@ -11,10 +14,6 @@ checkout:
 
 
 executors:
-  py27:
-    docker:
-      - image: circleci/python:2.7
-
   py36:
     docker:
       - image: circleci/python:3.6
@@ -34,68 +33,6 @@ executors:
 
 commands:
 
-  validate_documentation:
-    steps:
-      - run:
-          name: "Pull Submodules"
-          command: |
-            git submodule init
-            git submodule update --remote --recursive
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user pygithub pyyaml==3.10
-      - run:
-          name: upgrade setuptools
-          command: pip install --upgrade setuptools
-      - run:
-          name: install local project
-          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
-      - attach_workspace:
-          at: workspace
-      - run: ecosystem-test validate-docs
-  validate_version:
-    steps:
-      - run:
-          name: "Pull Submodules"
-          command: |
-            git submodule init
-            git submodule update --remote --recursive
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user pygithub pyyaml==3.10
-      - run:
-          name: upgrade setuptools
-          command: pip install --upgrade setuptools
-      - run:
-          name: install local project
-          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
-      - attach_workspace:
-          at: workspace
-      - run: ecosystem-test validate-plugin-version
   merge_docs:
     steps:
       - attach_workspace:
@@ -139,68 +76,6 @@ commands:
       - attach_workspace:
           at: workspace
       - run: ecosystem-tests merge-docs
-  run_unittests_py27:
-    steps:
-      - checkout
-      - run:
-          name: install tox
-          command: pip install --user tox
-      - run:
-          name: Run Flake8
-          command: /home/circleci/.local/bin/tox -e flake8
-      - run:
-         name: Run nosetest
-         command: /home/circleci/.local/bin/tox -e nosetests
-
-  check_py3_compat:
-    steps:
-      - checkout
-      - run:
-          name: install futurize
-          command: pip install future --user
-      - run:
-          name: remove python3 incompatible modules
-          command: |
-            rm openstack_sdk/_compat.py
-      - run:
-          name: find python3-incompatible code
-          command: |
-            FUTURIZE="futurize ."
-            while read line; do
-              [[ "$line" =~ ^#.* ]] && continue
-              FUTURIZE="${FUTURIZE} ${line}"
-            done<.circleci/py3fixers
-            echo "Running: $FUTURIZE"
-            $FUTURIZE>futurize_diffs
-      - run:
-          name: check that there is no python3-incompatible code
-          command: |
-            if [[ -s futurize_diffs ]]; then
-              echo "Python-3-incompatible code found"
-              cat futurize_diffs
-              exit 1
-            fi
-
-  run_unittests_py36:
-    steps:
-      - checkout
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py 'pip<=20.3.3'
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user tox
-      - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e nosetests
 
   generate_arch64_wagon:
     steps:
@@ -347,33 +222,6 @@ commands:
 
 jobs:
 
-  unittests_py27:
-    executor: py27
-    steps:
-      - run_unittests_py27
-
-  unittests_py36:
-    executor: py36
-    steps:
-      - run_unittests_py36
-
-  py3_compat:
-    executor: py27
-    steps:
-      - check_py3_compat
-
-  validate_version:
-    executor: py36
-    steps:
-      - checkout
-      - validate_version
-
-  validate_documentation:
-    executor: py36
-    steps:
-      - checkout
-      - validate_documentation
-
   wagon:
     executor: wagon_generator
     steps:
@@ -414,11 +262,10 @@ workflows:
   version: 2.1
   tests:
     jobs:
-      - unittests_py27
-      - unittests_py36
-      - py3_compat
-      - validate_version
-      - validate_documentation
+      - node/unittests_job
+      - node/check_py3_compat_job
+      - node/validate_version_job
+      - node/validate_documentation_job
       - wagon:
           filters:
             branches:
@@ -444,13 +291,12 @@ workflows:
             branches:
               only: /([0-9\.]*\-build|master|2.X-master)/
           requires:
-            - validate_version
-            - validate_documentation
+            - node/validate_version_job
+            - node/validate_documentation_job
             - wagon
             - rhel_wagon
             - build_bundle
-            - unittests_py27
-            - unittests_py36
+            - node/unittests_job
             # - integration_tests_510
       - merge_docs:
           filters:
@@ -458,7 +304,7 @@ workflows:
               only: /([0-9\.]*\-build|master|2.X-master)/
           requires:
             - release
-            - validate_documentation
+            - node/validate_documentation_job
 
   nightly:
     triggers:
@@ -475,10 +321,9 @@ workflows:
             only:
               - 2.X-master
     jobs:
-      - unittests_py27
-      - unittests_py36
-      - py3_compat
-      - validate_version
+      - node/unittests_job
+      - node/check_py3_compat_job
+      - node/validate_version_job
       - arch64_wagon:
           filters:
             branches:

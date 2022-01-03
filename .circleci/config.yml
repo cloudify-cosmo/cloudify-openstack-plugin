@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  node: cloudify/unittest-orb@1.0.2 #orb version
+  node: cloudify/public-unittest-orb@1.0.0 #orb version
 
 checkout:
   post:

@@ -1,7 +1,8 @@
 version: 2.1
 
 orbs:
-  node: cloudify/public-unittest-orb@1.0.0 #orb version
+  node: cloudify/public-unittest-orb@1.0.2 #orb version
+  wagonorb: cloudify/wagon-bulder-orb@1.0.1 #orb version
 
 checkout:
   post:
@@ -18,21 +19,11 @@ executors:
     docker:
       - image: circleci/python:3.6
 
-  wagon_generator:
-    machine:
-      image: ubuntu-1604:201903-01
-
-  arm_wagon_generator:
-    machine:
-      image: ubuntu-2004:202101-01
-      resource_class: arm.medium
-
   cloudify-machine-510:
     machine:
       image: ubuntu-1604:201903-01
 
 commands:
-
   merge_docs:
     steps:
       - attach_workspace:
@@ -76,82 +67,6 @@ commands:
       - attach_workspace:
           at: workspace
       - run: ecosystem-tests merge-docs
-
-  generate_arch64_wagon:
-    steps:
-      - run:
-          name: Create Workspace Build directory.
-          command: mkdir -p workspace/build
-      - run:
-          name: Build py36 Wagon
-          command: |
-              git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t centos_aarch64 cloudify-wagon-build-containers/aarch_64/centos_7_py3
-              docker run -v ~/project/:/packaging centos_aarch64
-      - run:
-          name: copy wagon to workspace
-          command: cp *.wgn workspace/build/
-      - persist_to_workspace:
-          root: workspace
-          paths:
-            - build/*
-
-  generate_py36_wagon:
-    steps:
-      - run:
-          name: Create Workspace Build directory.
-          command: mkdir -p workspace/build
-      - run:
-          name: Build py36 Wagon
-          command: |
-              git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t cloudify-wagon-builder-centos cloudify-wagon-build-containers/centos_7_py3
-              docker run -v ~/project/:/packaging cloudify-wagon-builder-centos
-      - run:
-          name: copy wagon to workspace
-          command: cp *.wgn workspace/build/
-      - persist_to_workspace:
-          root: workspace
-          paths:
-            - build/*
-
-  generate_rhel_py36_wagon:
-    steps:
-      - run:
-          name: Create Workspace Build directory.
-          command: mkdir -p workspace/build
-      - run:
-          name: Build RHEL py36 Wagon
-          command: |
-              git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t cloudify-wagon-builder-redhat cloudify-wagon-build-containers/redhat_7_py3 --build-arg USERNAME="$USERNAME" --build-arg PASSWORD="$PASSWORD"
-              docker run -v ~/project/:/packaging cloudify-wagon-builder-redhat
-      - run:
-          name: copy wagon to workspace
-          command: cp *.wgn workspace/build/
-      - persist_to_workspace:
-          root: workspace
-          paths:
-            - build/*
-
-
-  build_archive:
-    steps:
-      - attach_workspace:
-          at: workspace
-      - run:
-          name: Create Workspace Build directory.
-          command: mkdir -p workspace/build
-      - run:
-          name: Build Bundle
-          command: |
-              git clone https://github.com/cloudify-incubator/cloudify-ecosystem-test.git
-              pip install -e cloudify-ecosystem-test
-              python -c 'from ecosystem_cicd_tools import packaging; packaging.build_plugins_bundle_with_workspace()'
-      - persist_to_workspace:
-          root: workspace
-          paths:
-            - build/*
 
   run_integration_tests_510:
     steps:
@@ -219,33 +134,7 @@ commands:
           at: workspace
       - run: ecosystem-tests package-release --name cloudify-openstack-plugin
 
-
 jobs:
-
-  wagon:
-    executor: wagon_generator
-    steps:
-      - checkout
-      - generate_py36_wagon
-
-  rhel_wagon:
-    executor: wagon_generator
-    steps:
-      - checkout
-      - generate_rhel_py36_wagon
-
-  arch64_wagon:
-    executor: arm_wagon_generator
-    steps:
-      - checkout
-      - generate_arch64_wagon
-
-  build_bundle:
-    executor: py36
-    steps:
-      - checkout
-      - build_archive
-
   release:
     executor: py36
     steps:
@@ -266,26 +155,26 @@ workflows:
       - node/check_py3_compat_job
       - node/validate_version_job
       - node/validate_documentation_job
-      - wagon:
+      - wagonorb/wagon:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|2.X-master|dev)/
-      - rhel_wagon:
+      - wagonorb/rhel_wagon:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|2.X-master|dev)/
-      - arch64_wagon:
+      - wagonorb/arch64_wagon:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|2.X-master|dev)/
-      - build_bundle:
+      - wagonorb/build_bundle:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|2.X-master|dev)/
           requires:
-            - wagon
-            - arch64_wagon
-            - rhel_wagon
+            - wagonorb/wagon
+            - wagonorb/arch64_wagon
+            - wagonorb/rhel_wagon
       - release:
           filters:
             branches:
@@ -293,9 +182,9 @@ workflows:
           requires:
             - node/validate_version_job
             - node/validate_documentation_job
-            - wagon
-            - rhel_wagon
-            - build_bundle
+            - wagonorb/wagon
+            - wagonorb/rhel_wagon
+            - wagonorb/build_bundle
             - node/unittests_job
             # - integration_tests_510
       - merge_docs:
@@ -324,15 +213,15 @@ workflows:
       - node/unittests_job
       - node/check_py3_compat_job
       - node/validate_version_job
-      - arch64_wagon:
+      - wagonorb/arch64_wagon:
           filters:
             branches:
               only: /(2.X-master|master|dev)/
-      - wagon:
+      - wagonorb/wagon:
           filters:
             branches:
               only: /(2.X-master|master)/
-      - rhel_wagon:
+      - wagonorb/rhel_wagon:
           filters:
             branches:
               only: /(2.X-master|master)/

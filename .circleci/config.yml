@@ -2,7 +2,8 @@ version: 2.1
 
 orbs:
   node: cloudify/public-unittest-orb@1.0.2 #orb version
-  wagonorb: cloudify/wagon-bulder-orb@1.0.1 #orb version
+  wagonorb: cloudify/wagon-bulder-orb@1.0.3 #orb version
+  releaseorb: cloudify/release-orb@1.0.5 #orb version
 
 checkout:
   post:
@@ -24,50 +25,6 @@ executors:
       image: ubuntu-1604:201903-01
 
 commands:
-  merge_docs:
-    steps:
-      - attach_workspace:
-          at: workspace
-      - run:
-          name: "Pull Submodules"
-          command: |
-            git submodule init
-            git submodule update --remote --recursive
-      - run:
-          name: Set Python
-          command: |
-            if ! pyenv -v COMMAND &> /dev/null
-            then
-                echo "pyenv could not be found"
-                exit
-            else
-                pyenv global 3.6.5
-            fi
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user pygithub pyyaml==3.10
-      - run:
-          name: upgrade setuptools
-          command: pip install --upgrade setuptools
-      - run:
-          name: install local project
-          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
-      - attach_workspace:
-          at: workspace
-      - run: ecosystem-tests merge-docs
-
   run_integration_tests_510:
     steps:
       - run:
@@ -103,49 +60,8 @@ commands:
           command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
       - run: pytest -s .circleci/test_examples.py
 
-  release_plugin:
-    steps:
-      - run:
-          name: "Pull Submodules"
-          command: |
-            git submodule update --remote --recursive
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user pygithub pyyaml==5.3.1
-      - run:
-          name: upgrade setuptools
-          command: pip install --upgrade setuptools
-      - run:
-          name: install local project
-          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
-      - attach_workspace:
-          at: workspace
-      - run: ecosystem-tests package-release --name cloudify-openstack-plugin
-
 jobs:
-  release:
-    executor: py36
-    steps:
-      - checkout
-      - release_plugin
 
-  merge_docs:
-    executor: py36
-    steps:
-      - checkout
-      - merge_docs
 
 workflows:
   version: 2.1
@@ -175,7 +91,7 @@ workflows:
             - wagonorb/wagon
             - wagonorb/arch64_wagon
             - wagonorb/rhel_wagon
-      - release:
+      - releaseorb/release:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|2.X-master)/
@@ -187,12 +103,12 @@ workflows:
             - wagonorb/build_bundle
             - node/unittests_job
             # - integration_tests_510
-      - merge_docs:
+      - releaseorb/merge_docs_job:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|2.X-master)/
           requires:
-            - release
+            - releaseorb/release
             - node/validate_documentation_job
 
   nightly:

@@ -1,9 +1,9 @@
 version: 2.1
 
 orbs:
-  node: cloudify/public-unittest-orb@1.0.2 #orb version
-  wagonorb: cloudify/wagon-bulder-orb@1.0.3 #orb version
-  releaseorb: cloudify/release-orb@1.0.5 #orb version
+  node: cloudify/public-unittest-orb@1 #orb version
+  wagonorb: cloudify/wagon-bulder-orb@1 #orb version
+  releaseorb: cloudify/release-orb@1 #orb version
 
 checkout:
   post:
@@ -19,49 +19,6 @@ executors:
   py36:
     docker:
       - image: circleci/python:3.6
-
-  cloudify-machine-510:
-    machine:
-      image: ubuntu-1604:201903-01
-
-commands:
-  run_integration_tests_510:
-    steps:
-      - run:
-          name: "Pull Submodules"
-          command: |
-            git submodule update --init --recursive --remote
-      - attach_workspace:
-          at: workspace
-      - run:
-          name: update pip
-          command: pip install -U pip
-      - run:
-          name: install cloudify
-          command: |
-            pip install -r test-requirements.txt
-      - run:
-          name: download manager docker image
-          command:  wget http://repository.cloudifysource.org/cloudify/5.1.0/.dev1-release/cloudify-manager-aio-docker-5.1.0.dev1.tar
-      - run:
-          name: load docker image
-          command: docker load -i cloudify-manager-aio-docker-5.1.0.dev1.tar
-      - run:
-          name: retain space by dumping the tar
-          command: rm cloudify-manager-aio-docker-5.1.0.dev1.tar
-      - run:
-          name: show images
-          command: docker images
-      - run:
-          name: start docker container
-          command: docker run --name cfy_manager -d --restart unless-stopped -v /sys/fs/cgroup:/sys/fs/cgroup:ro --tmpfs /run --tmpfs /run/lock --security-opt seccomp:unconfined --cap-add SYS_ADMIN --network host cloudify-manager-aio:latest
-      - run:
-          name: install local project
-          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
-      - run: pytest -s .circleci/test_examples.py
-
-jobs:
-
 
 workflows:
   version: 2.1
@@ -102,7 +59,6 @@ workflows:
             - wagonorb/rhel_wagon
             - wagonorb/build_bundle
             - node/unittests_job
-            # - integration_tests_510
       - releaseorb/merge_docs_job:
           filters:
             branches:

@@ -75,12 +75,6 @@ workflows:
           branches:
             only:
               - master
-    - schedule:
-        cron: "0 2 * * *"
-        filters:
-          branches:
-            only:
-              - 2.X-master
     jobs:
       - node/unittests_job
       - node/check_py3_compat_job

@@ -494,12 +494,6 @@ workflows:
           branches:
             only:
               - master
-    - schedule:
-        cron: "0 2 * * *"
-        filters:
-          branches:
-            only:
-              - 2.14.22-build
     jobs:
       - unittests_py27
       - unittests_py36

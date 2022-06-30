@@ -3,7 +3,7 @@ version: 2.1
 orbs:
   node: cloudify/public-unittest-orb@1 #orb version
   wagonorb: cloudify/wagon-bulder-orb@1 #orb version
-  releaseorb: cloudify/release-orb@1 #orb version
+  releaseorb: cloudify/release-orb@1.4.0 #orb version
 
 checkout:
   post:
@@ -16,6 +16,7 @@ checkout:
 
 
 executors:
+
   py36:
     docker:
       - image: circleci/python:3.6
@@ -31,19 +32,19 @@ workflows:
       - wagonorb/wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|2.X-master|dev)/
+              only: /([0-9\.]*\-build|master|dev)/
       - wagonorb/rhel_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|2.X-master|dev)/
+              only: /([0-9\.]*\-build|master|dev)/
       - wagonorb/arch64_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|2.X-master|dev)/
+              only: /([0-9\.]*\-build|master|dev)/
       - wagonorb/build_bundle:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|2.X-master|dev)/
+              only: /([0-9\.]*\-build|master|dev)/
           requires:
             - wagonorb/wagon
             - wagonorb/arch64_wagon
@@ -51,7 +52,7 @@ workflows:
       - releaseorb/release:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|2.X-master)/
+              only: /([0-9\.]*\-build|master)/
           requires:
             - node/validate_version_job
             - node/validate_documentation_job
@@ -62,7 +63,7 @@ workflows:
       - releaseorb/merge_docs_job:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|2.X-master)/
+              only: /([0-9\.]*\-build|master)/
           requires:
             - releaseorb/release
             - node/validate_documentation_job
@@ -82,12 +83,12 @@ workflows:
       - wagonorb/arch64_wagon:
           filters:
             branches:
-              only: /(2.X-master|master|dev)/
+              only: /(master)/
       - wagonorb/wagon:
           filters:
             branches:
-              only: /(2.X-master|master)/
+              only: /(master)/
       - wagonorb/rhel_wagon:
           filters:
             branches:
-              only: /(2.X-master|master)/
+              only: /(master)/

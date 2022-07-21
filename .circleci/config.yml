@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   node: cloudify/public-unittest-orb@1 #orb version
-  wagonorb: cloudify/wagon-bulder-orb@2.2.0 #orb version
+  wagonorb: cloudify/wagon-bulder-orb@2.4.0 #orb version
   releaseorb: cloudify/release-orb@1.4.0 #orb version
   managerorb: cloudify/manager-orb@1
 

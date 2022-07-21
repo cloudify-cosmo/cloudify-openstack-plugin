@@ -1977,18 +1977,3 @@ relationships:
 
   cloudify.openstack.route_connected_to_router:
     derived_from: cloudify.relationships.connected_to
-
-blueprint_labels:
-  obj-type:
-    values:
-      - openstack
-
-labels:
-  obj-type:
-    values:
-      - openstack
-
-resource_tags:
-  tenant: { get_sys: [ tenant, name ] }
-  deployment_id: { get_sys: [ deployment, id ] }
-  owner: { get_sys: [ deployment, owner ] }

@@ -30,19 +30,19 @@ workflows:
       - wagonorb/wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master)/
+              only: /([0-9\.]*\-build|master|2.X-master)/
       - wagonorb/arch64_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
+              only: /([0-9\.]*\-build|master|2.X-master)/
       - wagonorb/rhel_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master)/
+              only: /([0-9\.]*\-build|master|2.X-master)/
       - wagonorb/build_bundle:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master)/
+              only: /([0-9\.]*\-build|master|2.X-master)/
           requires:
             - wagonorb/wagon
             - wagonorb/arch64_wagon
@@ -50,7 +50,7 @@ workflows:
       - releaseorb/release:
           filters:
             branches:
-              only: /master/
+              only: /(master|2.X-master)/
           requires:
             - wagonorb/wagon
             - wagonorb/arch64_wagon
@@ -61,7 +61,7 @@ workflows:
       - releaseorb/merge_docs_job:
           filters:
             branches:
-              only: /master/
+              only: /(master|2.X-master)/
           requires:
             - releaseorb/release
             - node/validate_documentation_job
@@ -72,8 +72,7 @@ workflows:
         cron: "0 1 * * 0,1,3,5"
         filters:
           branches:
-            only:
-              - master
+            only: /(master|2.X-master)/
     jobs:
       - node/check_py3_compat_job
       - node/validate_version_job

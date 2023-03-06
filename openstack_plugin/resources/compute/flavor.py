@@ -35,6 +35,13 @@ def create(openstack_resource):
     """
     created_resource = openstack_resource.create()
     ctx.instance.runtime_properties[RESOURCE_ID] = created_resource.id
+    extra_specs = ctx.node.properties.get('extra_specs', {})
+    tenants = ctx.node.properties.get('tenants', [])
+    if extra_specs:
+        openstack_resource.set_flavor_specs(created_resource.id, extra_specs)
+    if tenants:
+        for tenant in tenants:
+            openstack_resource.add_flavor_access(created_resource.id, tenant)
 
 
 @with_compat_node

@@ -73,6 +73,67 @@ class KeyPairTestCase(OpenStackTestBase):
             self._ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY],
             FLAVOR_OPENSTACK_TYPE)
 
+        mock_connection().compute.create_flavor_extra_specs.assert_not_called()
+
+        mock_connection().compute.flavor_add_tenant_access.assert_not_called()
+
+    def test_create_extra_specs_access(self, mock_connection):
+        # Prepare the context for create operation
+        self._prepare_context_for_operation(
+            test_name='FlavorTestCaseExtraSpecsAcess',
+            test_properties={
+                'client_config': self.client_config,
+                'resource_config': {
+                    'name': 'test_flavor',
+                    'ram': 2048,
+                    'disk': 8,
+                    'vcpus': 2,
+                    'is_public': False
+                },
+                'extra_specs': {
+                    'hw:cpu_policy': 'dedicated',
+                    'hw:cpu_threads_policy': 'isolate'
+                },
+                'tenants': ['cfy_test_project']
+            },
+            ctx_operation_name='cloudify.interfaces.lifecycle.create')
+
+        flavor_instance = openstack.compute.v2.flavor.Flavor(**{
+            'id': 'a95b5509-c122-4c2f-823e-884bb559afe8',
+            'name': 'test_flavor',
+            'links': '2',
+            'os-flavor-access:is_public': False,
+            'ram': 2048,
+            'vcpus': 2,
+            'disk': 8
+        })
+
+        mock_connection().compute.create_flavor = \
+            mock.MagicMock(return_value=flavor_instance)
+
+        mock_connection().compute.create_flavor_extra_specs = \
+            mock.Mock()
+
+        mock_connection().identity.find_project = \
+            mock.Mock()
+
+        mock_connection().compute.flavor_add_tenant_access = \
+            mock.Mock()
+
+        # Call create flavor
+        flavor.create(openstack_resource=None)
+
+        self.assertEqual(self._ctx.instance.runtime_properties[RESOURCE_ID],
+                         'a95b5509-c122-4c2f-823e-884bb559afe8')
+
+        self.assertEqual(
+            self._ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY],
+            'test_flavor')
+
+        mock_connection().compute.create_flavor_extra_specs.assert_called()
+
+        mock_connection().compute.flavor_add_tenant_access.assert_called()
+
     def test_delete(self, mock_connection):
         # Prepare the context for delete operation
         self._prepare_context_for_operation(

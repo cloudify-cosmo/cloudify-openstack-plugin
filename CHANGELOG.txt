@@ -1,3 +1,4 @@
+3.3.5: add extra_specs and tenant access to flavor type.
 3.3.4: support dsl 1_4 and redhat 8 wagons.
 3.3.3: Bump openstacksdk to 0.53.0 to to fix server_groups attribute error
 3.3.2: Re-releasing 3.3.1 for adding to bundle.

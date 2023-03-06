@@ -487,3 +487,20 @@ class OpenstackFlavor(ResourceMixin, OpenstackResource):
         self.logger.debug(
             'Deleted flavor with this result: {0}'.format(result))
         return result
+
+    def set_flavor_specs(self, flavor_id, extra_specs):
+        self.logger.debug(
+            'Attempting to set flavor {0} specs with these args: {1}'.format(
+                flavor_id, extra_specs))
+
+        self.connection.compute.create_flavor_extra_specs(flavor_id,
+                                                          extra_specs)
+
+    def add_flavor_access(self, flavor_id, tenant):
+        self.logger.debug(
+            'Attempting to set flavor {0} access with these args: {1}'.format(
+                flavor_id, tenant))
+        project = self.connection.identity.find_project(tenant,
+                                                        ignore_missing=False)
+        self.connection.compute.flavor_add_tenant_access(flavor_id,
+                                                         project.id)

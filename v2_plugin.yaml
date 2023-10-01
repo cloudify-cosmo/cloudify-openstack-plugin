@@ -3,7 +3,7 @@ plugins:
   openstack:
     executor: central_deployment_agent
     package_name: cloudify-openstack-plugin
-    package_version: '3.3.6'
+    package_version: 3.3.6
 
 dsl_definitions:
 

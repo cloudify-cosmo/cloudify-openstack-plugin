@@ -1,10 +1,24 @@
 version: 2.1
 
+job-post-steps: &job-post-steps
+  post-steps:
+   - slack/notify_failed
+
+unittest-post-steps: &unittest-post-steps
+  post-steps:
+    - store_test_results:
+        path: /home/circleci/project/nosetests.xml
+    - store_artifacts:
+        path: /home/circleci/project/coverage.xml
+        prefix: tests
+    - slack/notify_failed
+
 orbs:
-  node: cloudify/public-unittest-orb@1 #orb version
-  wagonorb: cloudify/wagon-bulder-orb@2.4.0 #orb version
-  releaseorb: cloudify/release-orb@1.4.0 #orb version
-  managerorb: cloudify/manager-orb@2.0.1
+  node: cloudify/public-unittest-orb@volatile
+  wagonorb: cloudify/wagon-bulder-orb@volatile
+  releaseorb: cloudify/release-orb@volatile
+  managerorb: cloudify/manager-orb@volatile
+  slack: cloudify/notify-slack@2
 
 checkout:
   post:
@@ -15,80 +29,45 @@ checkout:
         git checkout -qf FETCH_HEAD
       fi
 
-
-executors:
-
-  py36:
-    docker:
-      - image: circleci/python:3.6
-
 workflows:
-  version: 2.1
+  version: 2
   tests:
     jobs:
-      - node/unittests_job
       - node/check_py3_compat_job
+      - node/unittests_job:
+          context: 
+            - plugins-inputs
       - node/validate_version_job
       - node/validate_documentation_job
-      - wagonorb/wagon:
+      - wagonorb/wagon_311:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|2.X-master)/
-      - wagonorb/rhel_wagon:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|2.X-master)/
-      - wagonorb/arch64_wagon:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|2.X-master)/
-      - wagonorb/build_bundle:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|2.X-master)/
-          requires:
-            - wagonorb/wagon
-            - wagonorb/arch64_wagon
-            - wagonorb/rhel_wagon
+              only: /([0-9\.]*\-build|master|dev)/
       - releaseorb/release:
           filters:
             branches:
-              only: /(master|2.X-master)/
+              only: /master/
           requires:
-            - node/validate_version_job
-            - node/validate_documentation_job
-            - wagonorb/wagon
-            - wagonorb/rhel_wagon
-            - wagonorb/build_bundle
             - node/unittests_job
-      - releaseorb/merge_docs_job:
-          filters:
-            branches:
-              only: /(master|2.X-master)/
-          requires:
-            - releaseorb/release
+            - wagonorb/wagon_311
+            - node/validate_version_job
             - node/validate_documentation_job
 
   nightly:
     triggers:
     - schedule:
-        cron: "0 1 * * *"
+        cron: "0 1 * * 0,1,3,5"
         filters:
           branches:
-              only: /(master|2.X-master)/
+            only:
+              - master
     jobs:
-      - node/unittests_job
       - node/check_py3_compat_job
-      - node/validate_version_job
-      - wagonorb/arch64_wagon:
+      - node/unittests_job:
+          context: 
+            - plugins-inputs
+          # <<: *unittest-post-steps
+      - wagonorb/wagon_311:
           filters:
             branches:
-              only: /(master|2.X-master)/
-      - wagonorb/wagon:
-          filters:
-            branches:
-              only: /(master|2.X-master)/
-      - wagonorb/rhel_wagon:
-          filters:
-            branches:
-              only: /(master|2.X-master)/
+              only: /([0-9\.]*\-build|master|dev)/

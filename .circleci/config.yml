@@ -29,12 +29,6 @@ checkout:
         git checkout -qf FETCH_HEAD
       fi
 
-executors:
-
-  cloudify-machine-py3:
-    machine:
-      image: ubuntu-2004:202201-02
-
 workflows:
   version: 2
   tests:

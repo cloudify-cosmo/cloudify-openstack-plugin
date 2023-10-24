@@ -1,0 +1,31 @@
+diff --git a/constraints.txt b/constraints.txt
+index 3e9fe9d..f04f241 100644
+--- a/constraints.txt
++++ b/constraints.txt
+@@ -1,4 +1,4 @@
+ oslo.config==7.0.0
+ subprocess32==3.5.3
+ pyrsistent===0.16.1
+-cloudify-common>=5.1.0
++cloudify-common>=7.0.0
+diff --git a/setup.py b/setup.py
+index 43c8b3d..214ad49 100644
+--- a/setup.py
++++ b/setup.py
+@@ -42,12 +42,14 @@ setup(
+         'neutron_plugin',
+         'cinder_plugin',
+         'glance_plugin',
+-        'keystone_plugin'
++        'keystone_plugin',
++        'pydoc',
++        'webbrowser',
+     ],
+     license='LICENSE',
+     description='Cloudify plugin for OpenStack infrastructure.',
+     install_requires=[
+-        'cloudify-common>=4.6,<7.0.0',
++        'cloudify-common>=7.0.0',
+         'keystoneauth1>=2.16.0,<3',
+         'python-novaclient==7.0.0',
+         'python-keystoneclient==3.5.0',

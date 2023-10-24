@@ -1,9 +1,7 @@
-# For integration tests
-pytest==4.6.3
-pyyaml==3.12
-coverage==3.7.1
-nose
-nose-cov
 mock
+nose
+pytest
+pyyaml
+coverage
+nose-cov
 testfixtures
-networkx==1.9.1

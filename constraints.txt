@@ -1,6 +1,5 @@
-PyYAML==3.12
+oslo.config==7.0.0
 subprocess32==3.5.3
 pyrsistent===0.16.1
+openstacksdk===0.15.0
 cloudify-common>=5.1.0
-cryptography==3.3.2
-oslo.config==7.0.0

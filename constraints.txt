@@ -1,4 +1,5 @@
 oslo.config==7.0.0
 subprocess32==3.5.3
 pyrsistent===0.16.1
+openstacksdk===0.15.0
 cloudify-common>=5.1.0

@@ -1,19 +1,20 @@
 version: 2.1
 
-orbs:
-  node: cloudify/public-unittest-orb@1 #orb version
-  wagonorb: cloudify/wagon-bulder-orb@2.4.0 #orb version
-  releaseorb: cloudify/release-orb@1.4.0 #orb version
-  managerorb: cloudify/manager-orb@1
+unittest-post-steps: &unittest-post-steps
+  post-steps:
+    - store_test_results:
+        path: /home/circleci/project/nosetests.xml
+    - store_artifacts:
+        path: /home/circleci/project/coverage.xml
+        prefix: tests
+    - slack/notify_failed
 
-checkout:
-  post:
-    - >
-      if [ -n "$CI_PULL_REQUEST" ]; then
-        PR_ID=${CI_PULL_REQUEST##*/}
-        git fetch origin +refs/pull/$PR_ID/merge:
-        git checkout -qf FETCH_HEAD
-      fi
+orbs:
+  node: cloudify/public-unittest-orb@volatile
+  wagonorb: cloudify/wagon-bulder-orb@volatile
+  releaseorb: cloudify/release-orb@volatile
+  managerorb: cloudify/manager-orb@volatile
+  slack: cloudify/notify-slack@2
 
 executors:
   py36:
@@ -31,6 +32,10 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|2.X-master)/
+      - wagonorb/wagon_311:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|2.X-master)/
       - wagonorb/arch64_wagon:
           filters:
             branches:
@@ -45,6 +50,7 @@ workflows:
               only: /([0-9\.]*\-build|master|2.X-master)/
           requires:
             - wagonorb/wagon
+            - wagonorb/wagon_311
             - wagonorb/arch64_wagon
             - wagonorb/rhel_wagon
       - releaseorb/release:
@@ -53,6 +59,7 @@ workflows:
               only: /(master|2.X-master)/
           requires:
             - wagonorb/wagon
+            - wagonorb/wagon_311
             - wagonorb/arch64_wagon
             - wagonorb/rhel_wagon
             - wagonorb/build_bundle

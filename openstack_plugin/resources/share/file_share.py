@@ -81,7 +81,7 @@ def delete(openstack_resource):
             openstack_resource.resource_id))
     else:
         raise OperationRetry(
-            'Shared resource {0} is still being deleted. Status: {0}'.format(
+            'Shared resource {0} is still being deleted. Status: {1}'.format(
                 openstack_resource.resource_id,
                 openstack_resource.resource.status))
 

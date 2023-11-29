@@ -1,0 +1,6 @@
+dogpile.cache===0.9.2
+-e fusion-common
+-e fusion-manager/mgmtworker
+-e fusion-agent
+-e cloudify-utilities-plugins-sdk
+cryptography>=41.0.5

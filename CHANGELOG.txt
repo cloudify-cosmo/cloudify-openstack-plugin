@@ -1,3 +1,4 @@
+3.3.8: handle inspect deprecation for py311.
 3.3.7: update requirements.txt.
 3.3.6: Support Python 3.11 and discontinue 3.6.
 3.3.5: add extra_specs and tenant access to flavor type.

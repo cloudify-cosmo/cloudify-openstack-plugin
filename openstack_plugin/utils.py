@@ -748,6 +748,8 @@ def use_external_resource(_ctx,
     # Check if we need to run custom operation for already existed
     # resource for operation task
     if existing_resource_handler:
+        if not hasattr(inspect, 'getargspec'):
+            inspect.getargspec = inspect.getfullargspec
         # We may need to send the "openstack_resource" to the
         # existing resource handler and in order to do that we may
         # need to check if the resource is already there or not
